@@ -1,5 +1,54 @@
 [
   {
+    "objectID": "posts/2024-12-11-BQ-create-external-table/index.html",
+    "href": "posts/2024-12-11-BQ-create-external-table/index.html",
+    "title": "Cloud StorageからExternal Tableの作成",
+    "section": "",
+    "text": "Google Cloud StorageからBigQuery上にExternal tabaleを作成する\nPartition Fieldが定義されたExternal tabaleを作成するための条件を確認する"
+  },
+  {
+    "objectID": "posts/2024-12-11-BQ-create-external-table/index.html#このノートのスコープ",
+    "href": "posts/2024-12-11-BQ-create-external-table/index.html#このノートのスコープ",
+    "title": "Cloud StorageからExternal Tableの作成",
+    "section": "",
+    "text": "Google Cloud StorageからBigQuery上にExternal tabaleを作成する\nPartition Fieldが定義されたExternal tabaleを作成するための条件を確認する"
+  },
+  {
+    "objectID": "posts/2024-12-11-BQ-create-external-table/index.html#external-tableとは",
+    "href": "posts/2024-12-11-BQ-create-external-table/index.html#external-tableとは",
+    "title": "Cloud StorageからExternal Tableの作成",
+    "section": "External Tableとは？",
+    "text": "External Tableとは？\nBigQueryのExternal Table（外部テーブル）は，BigQuery内にデータをコピーまたはインポートすることなく， 外部データソースに直接アクセスしてクエリを実行できる機能です．\nBigQueryにおけるExternal Tableの利用形式として，permanent tableとtemporary tableの２つがあります．\n\npermanent table: BigQuery dataset内に作成され，外部データソースにリンクされるテーブル\ntemporary table: 外部データソースに対して一時的にクエリを実行する場合に利用されるテーブル\n\n一時的なテスト処理などでtemporary tableを用いることは有用ですが，分析者間でクエリやコードを共有して分析を進める場合はpermanent tableを持ちないと テーブルアクセスを共有できないので，このノートではpermanent tableを主に取り扱います．\n ▶  サポートされているデータストア\n\nBigLake\nCloud Storage\nBigtable\nGoogle Drive\nAmazon S3\nAzure Blob Storage\n\n以上のデータストアがBigQueryからアクセス可能な外部データソースとしてサポートされています\n ▶  Pricing\nBigQueryのPricingは\n\nCompute pricing: クエリの処理にかかる費用\nStorage pricing: データ保存費用\n\nの２つから構成されています．External Tableを用いると，後者の方はCloud Storage換算の費用となるため，一般的には ストレージコストを抑えることができます．ただし，External Tableにアクセスして分析するたびに\n\nQuery cost: クエリ計算処理時間に比例するコスト\nBytes cost: External tableからのデータ読み取りサイズに比例するコスト\n\nが発生します．\n\n📘 Tips \nExternal Tableを用いた分析が一時的なものであるならばExternal Tableを用いたほうが良いと思いますが， 頻繁にBigQueryからアクセスする場合は\n\nPartitioning/Clusteringを用いてアクセスサイズを抑える\nSELECT以下で*を使用せず，分析に用いるカラムを明示的に指定して，スキャンサイズを抑える\n\nという工夫，またはBigQuery native tableとしてデータを保持することを検討したほうが良いと思います．\n\n\nExternal Table use cases\nExternal Tableの特徴として，\n\nBigQuery native tableとしてデータは保持しない\nExternal Tableと紐づく外部ストアの最新データに対して，クエリ処理が走る\n\nがあります．そのため，PoCや営業段階での分析や頻繁にupdateされるデータに対してのオンライン分析といった場面で活用されるケースが多いです．\n\nExample: 営業段階でのアドホック分析 \n\nBtoC向けサービスを展開している企業Aに対して営業をしているとする\nNDAを結んだ後に，企業Aが保有しているデータのサンプルとして２年間分の連携してもらった\nこのデータを用いて簡易的な分析を行い，どのようなインサイトが導けそうか？を次の営業会議で企業Aに伝え説得したい\n\nという場面を考えます．\n ▶  Key Points\n\nわざわざテーブルスキーマを定義する時間はあまりない→早くEDAをやりたい\nサンプルデータなので，プロジェクト受注後に連携されるであろうデータセットよりも情報量が少ない→わざわざテーブルスキーマしても再利用可能性は低い\n\n ▶  External Tableのメリット\n\nテーブルスキーマをわざわざ定義しなくても，BigQueryを用いた大容量のデータに対しての分析が可能\n複数の分析者間でサンプルデータをCloud Storageベースで簡単に共有できる\nPythonなどの言語を用いた分析でも，予めBigQueryで前処理して小さいdatamartを作成し，それに対してEDAが実施できる"
+  },
+  {
+    "objectID": "posts/2024-12-11-BQ-create-external-table/index.html#external-table作成",
+    "href": "posts/2024-12-11-BQ-create-external-table/index.html#external-table作成",
+    "title": "Cloud StorageからExternal Tableの作成",
+    "section": "External Table作成",
+    "text": "External Table作成\nここでは，EXTERNAL PARTITION TABLEの作成を目的に\n\ngoogle cloud storageへのupload\nEXTERNAL TABLEの作成\n\nの２段階の流れで説明します．\n ▶  Cloud Storageへのupload\n~/pupupuland_store_posというdirectory以下に，yyyymmdd形式の日付でpartitionされたPARQUET形式のデータがあるとします．\npupupuland_store_pos\n├── partition_dt=2023-09-23\n│   └── purchase_history_2023-09-23.parquet\n├── partition_dt=2023-09-24\n│   └── purchase_history_2023-09-24.parquet\n├── partition_dt=2023-09-25\n│   └── purchase_history_2023-09-25.parquet\n├── partition_dt=2023-09-26\n│   └── purchase_history_2023-09-26.parquet\n├── partition_dt=2023-09-27\n│   └── purchase_history_2023-09-27.parquet\n├── partition_dt=2023-09-28\n│   └── purchase_history_2023-09-28.parquet\n├── partition_dt=2023-09-29\n│   └── purchase_history_2023-09-29.parquet\n└── partition_dt=2023-09-30\n    └── purchase_history_2023-09-30.parquet\nこのディレクトリ構造を保持したまま，gs://project-make-dedede-great-again/というcloud storage bucketに格納したいとします．このとき\ngcloud storage cp -r ~/pupupuland_store_pos/ gs://project-make-dedede-great-again/\n以上で下準備は完了です．\n ▶  External Tableの作成\nGoogle Cloud project pupupuland-businessdata の dedede-holdings dataset以下に先程上げた pupupuland_store_pos tableを作成したいと思います．\nCREATE EXTERNAL TABLE `pupupuland-businessdata.dedede-holdings.pupupuland_store_pos`\nWITH PARTITION COLUMNS (\npartition_dt DATE, -- column order must match the external path\n)\nOPTIONS (\nuris = ['gs://project-make-dedede-great-again/pupupuland_store_pos/*'],\nformat = 'PARQUET',\nhive_partition_uri_prefix = 'gs://project-make-dedede-great-again/pupupuland_store_pos',\nrequire_hive_partition_filter = false);\nPARTITION COLUMNSのフィールドに partition_dtと入力していますが，これは外部ファイルのパスのパターンがgs://project-make-dedede-great-again/pupupuland_store_pos/partition_dt=yyyymmdd/data.parquet であることを前提にしています．そのため，upload時のdirectory構造を\n└── partition_dt=2023-09-30\n    └── purchase_history_20230930.parquet\nという形にしてcloud storageにuploadしたという背景があります．DATETYPEにDATEと指定していますが，/&lt;partition field&gt;=2018-10-18/という構造になっていないと失敗することに注意してください． 他にも INTEGER, STRING, TIMESTAMPが指定できます．TIMESTAMPの場合は，/&lt;partition field&gt;=2018-10-18 16:00:00+00/という構造であることが必要です．\nrequire_hive_partition_filter フィールドはクエリ時にpartition_dtによるWHERE句フィルタリングを強制するか否かの設定フィールドです． デフォルトではfalseとなっており，この場合はフィルタリングしなくてもクエリできることを意味します．"
+  },
+  {
+    "objectID": "posts/2024-12-11-BQ-create-external-table/index.html#references",
+    "href": "posts/2024-12-11-BQ-create-external-table/index.html#references",
+    "title": "Cloud StorageからExternal Tableの作成",
+    "section": "References",
+    "text": "References\n\nIntroduction to external tables"
+  },
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "Regmonkey datascience blog",
+    "section": "",
+    "text": "Cloud StorageからExternal Tableの作成\n\n\n\n\n\n\nBigQuery\n\n\n\n\n\n\n\n\n\n2024-12-11\n\n\nRyo Nakagami\n\n\n\n\n\n\n\n\n\n\n\n\nIPアドレス 0.0.0.0\n\n\n\n\n\n\nnetwork\n\n\nquarto\n\n\n\n\n\n\n\n\n\n2024-12-07\n\n\nRyo Nakagami\n\n\n\n\n\n\nNo matching items"
+  },
+  {
+    "objectID": "about.html",
+    "href": "about.html",
+    "title": "About",
+    "section": "",
+    "text": "某経済学研究科修士取得後，どこかのデータサイエンス（コンサル）会社に勤務してます． Arsenalが好きです．"
+  },
+  {
     "objectID": "posts/2024-12-07-meta-address/index.html",
     "href": "posts/2024-12-07-meta-address/index.html",
     "title": "IPアドレス 0.0.0.0",
@@ -19,19 +68,5 @@
     "title": "IPアドレス 0.0.0.0",
     "section": "References",
     "text": "References\n\nRFC5735"
-  },
-  {
-    "objectID": "about.html",
-    "href": "about.html",
-    "title": "About",
-    "section": "",
-    "text": "某経済学研究科修士取得後，どこかのデータサイエンス（コンサル）会社に勤務してます． Arsenalが好きです．"
-  },
-  {
-    "objectID": "index.html",
-    "href": "index.html",
-    "title": "Regmonkey datascience blog",
-    "section": "",
-    "text": "IPアドレス 0.0.0.0\n\n\n\n\n\n\nnetwork\n\n\nquarto\n\n\n\n\n\n\n\n\n\n2024-12-07\n\n\nRyo Nakagami\n\n\n\n\n\n\nNo matching items"
   }
 ]
