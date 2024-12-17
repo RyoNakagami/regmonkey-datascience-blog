@@ -1,0 +1,80 @@
+---
+title: "macOSへのssh接続"
+author: "Ryo Nakagami"
+date: "2024-12-16"
+date-modified: last-modified
+categories: [ssh]
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## What we want to do
+
+- 同じprivate networkに属しているmacOS端末に対して公開鍵認証を用いてssh接続したい
+
+同じprovate networkに属している前提の端末へのsshになるので
+
+```{.bash}
+ssh hoshinokirby@192.168.10.110
+```
+
+のように自宅内のネットワークのみで有効なプライベートIPアドレス（クラスC `192.168.0.0` ~ `192.168.255.255`）を指定してアクセスすることを想定しています．
+
+
+## How to set up
+
+<strong > &#9654;&nbsp; Server側</strong>
+
+SSHサーバー側は`openssh-server`なりssh serverが動いている必要があります．
+
+1. `System Preferences > Sharing`をクリック
+2. `Remote Login`を有効化
+
+以上の2ステップで，macOS側のSSH serverをactive状態にすることができます．
+
+<strong > &#9654;&nbsp; Client側</strong>
+
+パスワード認証の場合は
+
+1. `arp`コマンドでアクセス先端末のプライベートIPアドレスを検索
+2. `ssh`コマンドでアクセス
+
+で完了となりますが，今回は公開鍵認証手順を紹介します．公開鍵認証の場合は
+
+1. SSH Key Pair の作成
+2. 公開鍵の登録(接続先の`authorized_keys`ファイル（`~/.ssh/authorized_keys`）に追加)
+3. `ssh`コマンドでアクセスとなります
+
+```{.bash filename="SSH Key Pair の作成"}
+ssh-keygen -t rsa -b 4096 -f ~/.ssh/pupupu_land
+```
+
+- `-t rsa`: key typeの指定
+- `-b 4096`: key lengthの指定(長いほどsecurity強固になる)
+- `-f  ~/.ssh/pupupu_land`: key pairの生成先とファイル名（今回は`pupupu_land`, `pupupu_land.pub`が生成される）
+
+```{.bash filename="公開鍵の登録"}
+ssh-copy-id -i ~/.ssh/pupupu_land.pub username@<target-ip>
+```
+
+- `-i ~/.ssh/pupupu_land.pub`: コピーする公開鍵ファイルを指定
+
+公開鍵を登録するには，
+
+- 公開鍵のファイルをコピー
+- 接続先の`authorized_keys`ファイル（`~/.ssh/authorized_keys`）に追加
+- `authorized_keysファイル`がない場合は作成後に適切なパーミッションを設定
+
+が必要となりますが，`ssh-copy-id`コマンドですべて自動実行することができるというメリットがあります．
+
+<strong > &#9654;&nbsp; ssh connection</strong>
+
+上記の設定後，`ssh`コマンド実行することで，macOSへアクセスすることができます．
+毎回プライベートIPアドレスを調べるのが億劫な場合，デバイスのMACアドレスがわかれば`arp`コマンドで以下のように検索することもできます．
+
+```{.bash}
+arp -a | grep <MAC-address> | awk -F'[()]' '{print $2}'
+```

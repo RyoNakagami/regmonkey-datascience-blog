@@ -1,0 +1,151 @@
+---
+title: "Firefoxを用いたsocks5 proxyブラウザアクセス設定"
+author: "Ryo Nakagami"
+date: "2024-12-17"
+date-modified: last-modified
+categories: [firefox, network]
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## What we want to do
+
+アクセス元のglobal IPが制限されたサイト(例: 社内用gitlabサーバー)へアクセスする場合，
+
+- 許可されたglobal IPに属するプライベートIPネットワークに接続している端末からアクセス
+- 別端末から上記の端末へssh接続し，プロキシサーバー的に使用をする
+
+という2つの方法が考えられます．後者の方法をFirefoxを用いて設定する方法を紹介します．
+
+<strong > &#9654;&nbsp; なぜFirefoxなのか？</strong>
+
+- Google chromeでもproxy設定は可能ですが，OS側の設定を変更してしまう
+- Firefoxはブラウザレベルでproxyの設定が可能
+
+## Firefoxにおけるsocks5 proxy設定
+
+1. Firefoxを開いて、右上のメニューボタン（三本線）をクリック
+2. メニューから「設定」を選択
+3. ネットワーク設定を開く
+4. 「手動でプロキシ設定をする」オプションを選択
+5. 「SOCKS v5」を選択し，SOCKSホストを`127.0.0.1`，ポートを`1080`で設定
+6. 変更を保存
+
+![firefox-proxy-setting](/posts/2024-12-17-firefox-proxy-access/firefox_proxy_setting.png)
+
+### How to use
+
+Linux, Windows, MacOS問わず
+
+```{.bash}
+ssh <username>@<proxy-server> -D 1080
+```
+
+とまず，ssh接続を確立します．`-D` オプションはダイナミックポートフォワーディング (Dynamic Port Forwarding)の設定です．
+上記を実行するとローカルの `1080`番ポート にSOCKS5プロキシが立ち上がります．
+
+Firefoxで `SOCKS5プロキシ 127.0.0.1:1080`と設定すると， 
+
+```{mermaid}
+sequenceDiagram
+    participant Client as クライアント
+    participant LocalSOCKS as localhost:1080 (SOCKSプロキシ)
+    participant SSHTunnel as SSHトンネル
+    participant RemoteServer as リモートサーバー
+    participant ExternalServer as 外部サーバー
+
+    %% 1. クライアントがSOCKSプロキシに接続
+    Client->>LocalSOCKS: データ送信 (接続要求, 宛先IP/ポート)
+
+    %% 2. SOCKSプロキシがSSHトンネル経由でリモートサーバーに転送
+    LocalSOCKS->>SSHTunnel: データ転送 (暗号化)
+
+    %% 3. SSHトンネルがリモートサーバーに転送
+    SSHTunnel->>RemoteServer: データ中継 (トンネル経由)
+
+    %% 4. リモートサーバーが外部サーバーに接続
+    RemoteServer->>ExternalServer: 外部サーバー接続要求 (TCP/UDP)
+    ExternalServer-->>RemoteServer: 接続応答
+
+    %% 5. 応答をクライアントに返送
+    RemoteServer-->>SSHTunnel: 応答データ
+    SSHTunnel-->>LocalSOCKS: 暗号化データ戻し
+    LocalSOCKS-->>Client: レスポンス転送
+
+```
+
+という順序で通信されるようになります．
+
+
+## Appendix: プロキシサーバーの仕組み
+
+クライアントの依頼に応じて，外部のサーバーにサービスを要求し，その結果をクライアントに提供するサーバーをプロキシサーバーといいます．
+SOCKS5は，プロキシサーバーを利用してサーバーとクライアント間のパケットをルーティングするインターネットプロトコルのことを指します．
+
+SOCKS5プロキシサーバーのメリットとして，安全性，匿名性，利便性の3つがあります．
+
+<strong > &#9654;&nbsp; 安全性</strong>
+
+- SOCKS5は，ユーザー名とパスワードによる認証機能をサポートしているため，外部の不正アクセスや認証されていないクライアントからの利用を防ぐことができる
+- SSHトンネルと組み合わせることで，安全にSOCKS5プロキシサーバー経由の通信を暗号化することができる = リモートアクセス時のデータ転送が保護され，悪意のあるネットワーク環境でも安全に通信可能
+- プロキシサーバーを中間地点として使用することで，DDoS攻撃などの直接的な大量トラフィック攻撃を遮断することが可能
+
+<strong > &#9654;&nbsp; 匿名性</strong>
+
+- ネットワーク全体のトラフィックがプロキシサーバー経由で処理されるため，外部から見えるIPアドレスが プロキシのIPになる = SOCKS5プロキシを介することで，クライアントのIPアドレス/端末名を隠すことができる
+- 一括でアクセス元をプロキシのIPに集約し，クライアントIPを隠蔽することでセキュリティとプライバシー保護が可能になるという活用方法がある
+
+SOCKS5プロキシは，クライアントから送信されたデータをそのまま中継しますが，データ送信時のヘッダ情報（IPアドレスなど）をカプセル化します．
+そのため，外部サーバーはデータの中身だけを認識し，送信元（クライアント）に関する情報は知ることができないという仕組みになっています．
+
+
+<strong > &#9654;&nbsp; 利便性</strong>
+
+- SOCKS5はプロトコル非依存であり，TCPとUDPの両方の通信をサポートしている = FTP, SMTP, P2P, VoIP, DNSリクエスト, オンラインゲームなど多様なアプリケーションで利用可能
+
+
+```{mermaid}
+sequenceDiagram
+    participant Client as クライアント
+    participant SOCKS5ProxyServer as SOCKS5プロキシサーバー
+    participant ExternalServer as 外部サーバー
+
+    %% 1. 接続要求とハンドシェイク
+    Client->>SOCKS5ProxyServer: 接続要求 (Handshake: バージョン, 認証方式)
+    SOCKS5ProxyServer-->>Client: 認証方式応答 (成功/失敗)
+
+    %% 2. 外部サーバーへの接続要求
+    Client->>SOCKS5ProxyServer: 外部サーバー接続要求 (宛先IP, ポート)
+    note right of Client: クライアントのIPアドレスは隠蔽される
+    SOCKS5ProxyServer->>ExternalServer: 接続確立要求 (プロキシのIPを使用)
+
+    %% 3. 接続確立確認
+    ExternalServer-->>SOCKS5ProxyServer: 接続成功応答
+    SOCKS5ProxyServer-->>Client: 接続確立成功通知
+
+    %% 4. データ転送 (カプセル化)
+    Client->>SOCKS5ProxyServer: データ送信 (カプセル化されたパケット)
+    note over SOCKS5ProxyServer: データをそのまま中継 (IPアドレス非公開)
+    SOCKS5ProxyServer->>ExternalServer: データ転送 (TCP/UDP)
+    ExternalServer-->>SOCKS5ProxyServer: レスポンスデータ
+    SOCKS5ProxyServer-->>Client: レスポンス転送
+
+    %% 5. 通信終了
+    Client->>SOCKS5ProxyServer: 通信終了リクエスト
+    SOCKS5ProxyServer->>ExternalServer: 接続切断
+    SOCKS5ProxyServer-->>Client: 通信終了通知
+```
+
+### SOCKS5プロキシはキャッシュを行わない
+
+HTTPプロキシは一般的に，ウェブコンテンツ（画像、HTML、動画など）をキャッシュすることで，再アクセス時にデータ転送を高速化します．
+一方，**SOCKS5プロキシはキャッシュを行なわない**という違いがあります．
+
+- SOCKS5はデータ転送のトンネルを作る役割を果たすため，通信内容のデータを確認・保存することがない
+- あくまで「データを中継する」プロトコルであり，内容に依存しないため，キャッシュ機能は持たない
+
+SOCKS5はキャッシュ機能を持たないことで，シンプルかつ高速な通信環境を提供してくれるものと理解していればOKだとおもいます．
+キャッシュはリアルタイム通信に不要ですし，また，キャッシュ管理の手間やストレージコストが不要というメリットもあります．
