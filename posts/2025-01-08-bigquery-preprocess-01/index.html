@@ -7,9 +7,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Ryo Nakagami">
-<meta name="dcterms.date" content="2024-12-07">
+<meta name="dcterms.date" content="2025-01-08">
 
-<title>IPアドレス 0.0.0.0 – regmonkey datascience blog</title>
+<title>BigQuery: TIME型カラムを指定したレベルで丸めて集計する – regmonkey datascience blog</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -143,7 +143,7 @@ gtag('config', 'G-LVL413SV09', { 'anonymize_ip': true});
 
 
 <link rel="stylesheet" href="../../styles.css">
-<meta property="og:title" content="IPアドレス 0.0.0.0 – regmonkey datascience blog">
+<meta property="og:title" content="BigQuery: TIME型カラムを指定したレベルで丸めて集計する – regmonkey datascience blog">
 <meta property="og:description" content="">
 <meta property="og:site_name" content="regmonkey datascience blog">
 </head>
@@ -191,10 +191,9 @@ gtag('config', 'G-LVL413SV09', { 'anonymize_ip': true});
 <header id="title-block-header" class="quarto-title-block default page-columns page-full">
   <div class="quarto-title-banner page-columns page-full">
     <div class="quarto-title column-body">
-      <h1 class="title">IPアドレス 0.0.0.0</h1>
+      <h1 class="title">BigQuery: TIME型カラムを指定したレベルで丸めて集計する</h1>
                                 <div class="quarto-categories">
-                <div class="quarto-category">network</div>
-                <div class="quarto-category">quarto</div>
+                <div class="quarto-category">sql</div>
               </div>
                   </div>
   </div>
@@ -212,7 +211,7 @@ gtag('config', 'G-LVL413SV09', { 'anonymize_ip': true});
       <div>
       <div class="quarto-title-meta-heading">Published</div>
       <div class="quarto-title-meta-contents">
-        <p class="date">2024-12-07</p>
+        <p class="date">2025-01-08</p>
       </div>
     </div>
     
@@ -234,12 +233,8 @@ gtag('config', 'G-LVL413SV09', { 'anonymize_ip': true});
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#ipアドレス-0.0.0.0にバインド" id="toc-ipアドレス-0.0.0.0にバインド" class="nav-link active" data-scroll-target="#ipアドレス-0.0.0.0にバインド">IPアドレス <code>0.0.0.0</code>にバインド</a>
-  <ul class="collapse">
-  <li><a href="#が満たすべき性質" id="toc-が満たすべき性質" class="nav-link" data-scroll-target="#が満たすべき性質"><code>0.0.0.0/8</code> が満たすべき性質</a></li>
-  <li><a href="#python-http-serverにおける-0.0.0.0" id="toc-python-http-serverにおける-0.0.0.0" class="nav-link" data-scroll-target="#python-http-serverにおける-0.0.0.0">Python http serverにおける <code>0.0.0.0</code></a></li>
-  </ul></li>
-  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
+  <li><a href="#what-i-want-to-do" id="toc-what-i-want-to-do" class="nav-link active" data-scroll-target="#what-i-want-to-do">What I Want to Do</a></li>
+  <li><a href="#query-example" id="toc-query-example" class="nav-link" data-scroll-target="#query-example">Query Example</a></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
     </div>
@@ -250,140 +245,129 @@ gtag('config', 'G-LVL413SV09', { 'anonymize_ip': true});
 
 
 
-<section id="ipアドレス-0.0.0.0にバインド" class="level2">
-<h2 class="anchored" data-anchor-id="ipアドレス-0.0.0.0にバインド">IPアドレス <code>0.0.0.0</code>にバインド</h2>
-<p>pythonでhttp serverを立てて，Quartoで作成したウェブサイトを以下のコマンドで公開するとします</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> python <span class="at">-m</span> http.server 3000 <span class="at">--directory</span> ./_site/</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">Serving</span> HTTP on 0.0.0.0 port 3000 <span class="op">(http:</span><span class="va">//0.0.0.0</span><span class="op">:</span><span class="va">3000/</span><span class="op">)</span> ..</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>バインド先を設定せずにserverを立ち上げたところ，<code>0.0.0.0</code> で立ち上げているようです． このとき，Firewallの3000 portをホスト側でAllowすると，同じnetworkの他の端末(例:iPad)からでもアクセスできるようになりました．</p>
-<p><strong> ▶&nbsp; プライベートIPアドレスをバインド先に指定した場合 </strong></p>
-<p>自宅内のネットワークのみで有効なプライベートIPアドレス（クラスC <code>192.168.0.0</code> ~ <code>192.168.255.255</code>）を指定してhttp serverを立たてみます．</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> python <span class="at">-m</span> http.server 3000 <span class="at">--directory</span> ./_site/ <span class="at">--bind</span> 192.168.10.105</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">Serving</span> HTTP on 192.168.10.105 port 3000 <span class="op">(http:</span><span class="va">//192.168.10.105</span><span class="op">:</span><span class="va">3000/</span><span class="op">)</span> ...</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>このとき，同じネットワーク内にあるiPadからアクセスできるようになりました． iPad側では <code>http://192.168.10.105:3000</code> に接続することでQuarto contentsにアクセスできるようになりましたが， このiPad側での操作は <code>0.0.0.0</code> で立ち上げたときと同じ操作となります．</p>
-<div class="blog-custom-border">
-<p><strong>❓ Question</strong> <br></p>
-<p>python http.server を使用して <code>0.0.0.0</code> にバインドしてhttp serverを立てたときの挙動がプライベートネットワーク内部で割り当てられたプライベートIPアドレスを指定したときと同じ挙動をするのか？</p>
-</div>
-<section id="が満たすべき性質" class="level3">
-<h3 class="anchored" data-anchor-id="が満たすべき性質"><code>0.0.0.0/8</code> が満たすべき性質</h3>
-<p>IPv4において <code>0.0.0.0</code> (IPv6では<code>::/0</code>) はSepcial-Purpose Address Registry，つまり特別な目的用に予約されたアドレスです．</p>
+<section id="what-i-want-to-do" class="level2">
+<h2 class="anchored" data-anchor-id="what-i-want-to-do">What I Want to Do</h2>
+<p><strong> ▶&nbsp; スーパーの来店時刻データ</strong></p>
 <table class="caption-top table">
-<caption>RFC6890</caption>
-<colgroup>
-<col style="width: 25%">
-<col style="width: 25%">
-</colgroup>
 <thead>
 <tr class="header">
-<th>Attribute</th>
-<th>Value</th>
+<th>member_id</th>
+<th>usage_date</th>
+<th>usage_time</th>
+<th></th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td>Address Block</td>
-<td><code>0.0.0.0/8</code></td>
+<td>123456</td>
+<td>2024-02-01</td>
+<td>08:09:00</td>
+<td></td>
 </tr>
 <tr class="even">
-<td>Name</td>
-<td>This host on this network</td>
+<td>223456</td>
+<td>2024-02-01</td>
+<td>08:10:00</td>
+<td></td>
 </tr>
 <tr class="odd">
-<td>RFC</td>
-<td>[RFC1122], Section 3.2.1.3</td>
+<td>223456</td>
+<td>2024-02-11</td>
+<td>08:10:00</td>
+<td></td>
 </tr>
 <tr class="even">
-<td>Allocation Date</td>
-<td>September 1981</td>
+<td>123456</td>
+<td>2024-02-01</td>
+<td>20:09:00</td>
+<td></td>
 </tr>
 <tr class="odd">
-<td>Termination Date</td>
-<td>N/A</td>
-</tr>
-<tr class="even">
-<td>Source</td>
-<td>True</td>
-</tr>
-<tr class="odd">
-<td>Destination</td>
-<td>False</td>
-</tr>
-<tr class="even">
-<td>Forwardable</td>
-<td>False</td>
-</tr>
-<tr class="odd">
-<td>Global</td>
-<td>False</td>
-</tr>
-<tr class="even">
-<td>Reserved-by-Protocol</td>
-<td>True</td>
+<td>323456</td>
+<td>2024-02-01</td>
+<td>20:09:00</td>
+<td></td>
 </tr>
 </tbody>
 </table>
-<p>上記より<code>0.0.0.0</code> ~ <code>0.255.255.255</code>について以下の情報を得ることができます</p>
+<p>という形でとあるスーパーの来店時刻データ<code>regmonkey-sample-data.restaurant_kawasaki.customer_record</code>が与えられているとします． このとき，以下の3つの処理を実施して，曜日×時間帯別平均来店者数の集計を行いたいとします．</p>
+<p><strong> ▶&nbsp; 処理1: 24時間オーバーのデータへ変換</strong></p>
 <ul>
-<li><code>Global</code>セクションが<code>False</code>となっていることから，グローバルIPアドレスとして使用できない．利用はローカルネットワークに限定される</li>
-<li><code>Source</code>セクション<code>True</code>より，送信元アドレスとして有効</li>
-<li><code>Destination</code>セクション<code>False</code>より，宛先アドレスとして使用できない = ルーティング不可</li>
+<li><code>00:01:00</code> → <code>24:00:00</code></li>
+<li><code>01:01:59</code> → <code>25:00:00</code></li>
 </ul>
-<p>ただし，<code>0.0.0.0</code>の具体的な意味はここからではまだわかりません．</p>
-<p><strong> ▶&nbsp; <code>0.0.0.0/0</code> vs <code>0.0.0.0/32</code> </strong></p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 33%">
-<col style="width: 33%">
-<col style="width: 33%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Attribute</th>
-<th><code>0.0.0.0/0</code></th>
-<th><code>0.0.0.0/32</code></th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>Subnet Mask</td>
-<td><code>0.0.0.0</code> (all bits variable)</td>
-<td><code>255.255.255.255</code> (all bits fixed)</td>
-</tr>
-<tr class="even">
-<td>Range</td>
-<td>All IPv4 addresses (<code>0.0.0.0</code> to <code>255.255.255.255</code>)</td>
-<td><code>0.0.0.0</code></td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="python-http-serverにおける-0.0.0.0" class="level3">
-<h3 class="anchored" data-anchor-id="python-http-serverにおける-0.0.0.0">Python http serverにおける <code>0.0.0.0</code></h3>
-<p>バインド先を指定しないでhttp serverを立てるとき，バインド先を指定しない = 有効な宛先がないことを意味します． このとき使用されるのが <code>0.0.0.0</code> です．</p>
-<p>この文脈での <code>0.0.0.0</code> は <strong>catch-all wildcard</strong> と呼ばれるもので，同じネットワーク上のすべてのインターフェースに対して， バインドするという特別な意味を持っています．コンピューターが複数のネットワークに接続していて，すべてのネットワークにバインドしたい場合に <code>0.0.0.0</code>を指定します．ただし，不必要に使用してしまうと誤って外部のネットワークに共有してしまったりするので使用は控えたほうが良いです．</p>
-<div class="blog-custom-border">
-<p><strong>📘 REMARKS</strong> <br></p>
+<p>のように夜中<code>02:59:59</code>までは<code>26:59:59</code>へ変換するという処理</p>
+<p><strong> ▶&nbsp; 処理2: <code>TIME</code>型データを丸める</strong></p>
 <ul>
-<li>Python HTTP Serverにおける <code>0.0.0.0</code> はルーティングにおけるデフォルトルートとしての<code>0.0.0.0</code>は異なります</li>
-<li>文脈に応じて <code>0.0.0.0</code> が指す内容が異なることに注意してください</li>
-<li><code>python hhtp.server</code>の文脈では<code>0.0.0.0</code>にバインドすると以下のインターフェースからアクセス可能となります
+<li><code>08:09:00</code> → <code>08:00:00</code></li>
+<li><code>08:20:00</code> → <code>08:15:00</code></li>
+</ul>
+<p>のようにTIME型データを15分刻みに丸める処理</p>
+<p><strong> ▶&nbsp; 処理3: DATE型データをISO day of weekへ変換</strong></p>
 <ul>
-<li>Localhost (<code>127.0.0.1</code>)</li>
-<li>The private network (例: <code>192.168.x.x</code>)</li>
-<li>Public network interfaces (Firewallでアクセスを許容していた場合)</li>
+<li>月曜日を<code>1</code>, 日曜日を<code>7</code>とするISO day of weekに変換する</li>
+<li>祝日は<code>8</code>をアサインする
+<ul>
+<li><code>2024-02-11</code>, <code>2024-02-23</code>は<code>8</code>がアサインされる</li>
 </ul></li>
 </ul>
-</div>
-<p>Python http serverをprivate networkに限定する意図を込めて，以下のスクリプトでホスティングすることが望ましいです</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> python3 <span class="at">-m</span> http.server <span class="at">-b</span> <span class="op">&lt;</span>your-local-private-network IP<span class="op">&gt;</span> 8080 <span class="at">--directory</span> ./_site/</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-</section>
-<section id="references" class="level2">
-<h2 class="anchored" data-anchor-id="references">References</h2>
-<ul>
-<li><a href="https://datatracker.ietf.org/doc/html/rfc5735#section-3">RFC5735</a></li>
-</ul>
+<section id="query-example" class="level2">
+<h2 class="anchored" data-anchor-id="query-example">Query Example</h2>
+<p><strong> ▶&nbsp; 処理1: 24時間オーバーのデータへ変換</strong></p>
+<p><code>TIME</code>型のままでは<code>23:59:59</code>までしかカバーされないので，extended timeの表記を試みたい場合は<code>STRING</code>型へ変換する必要があります．</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode sql code-with-copy"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> TEMP <span class="kw">FUNCTION</span> convert_extended_time(standard_time <span class="dt">TIME</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>RETURNS STRING</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="kw">AS</span> (</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  <span class="cf">CASE</span> </span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">WHEN</span> <span class="fu">EXTRACT</span>(<span class="kw">HOUR</span> <span class="kw">FROM</span> standard_time) <span class="op">&lt;</span> <span class="dv">3</span> <span class="cf">THEN</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>      FORMAT(<span class="ot">"%02d:%02d:%02d"</span>, <span class="fu">EXTRACT</span>(<span class="kw">HOUR</span> <span class="kw">FROM</span> standard_time) <span class="op">+</span> <span class="dv">24</span>, <span class="fu">EXTRACT</span>(<span class="kw">MINUTE</span> <span class="kw">FROM</span> standard_time), <span class="fu">EXTRACT</span>(<span class="dt">SECOND</span> <span class="kw">FROM</span> standard_time))</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">ELSE</span> </span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>      FORMAT(<span class="ot">"%02d:%02d:%02d"</span>, <span class="fu">EXTRACT</span>(<span class="kw">HOUR</span> <span class="kw">FROM</span> standard_time), <span class="fu">EXTRACT</span>(<span class="kw">MINUTE</span> <span class="kw">FROM</span> standard_time), <span class="fu">EXTRACT</span>(<span class="dt">SECOND</span> <span class="kw">FROM</span> standard_time))</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>  <span class="cf">END</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>);</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p><strong> ▶&nbsp; 処理2: TIME型データを丸める</strong></p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode sql code-with-copy"><code class="sourceCode sql"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> TEMP <span class="kw">FUNCTION</span> round_to_nearest_15_minute(usage_time <span class="dt">TIME</span>, round_level INT64)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>RETURNS <span class="dt">TIME</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="kw">AS</span> (</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  TIME_TRUNC(</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    TIME_SUB(usage_time, <span class="dt">INTERVAL</span> <span class="fu">MOD</span>(<span class="fu">EXTRACT</span>(<span class="kw">MINUTE</span> <span class="kw">FROM</span> usage_time), round_level) <span class="kw">MINUTE</span>),</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">MINUTE</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>);</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p><strong> ▶&nbsp; 処理3: <code>DATE</code>型データをISO day of weekへ変換</strong></p>
+<p>BigQueryが提供する <code>EXTRACT(DAYOFWEEK FROM &lt;date-column&gt;)</code> は日曜日<code>1</code>から始まり土曜日<code>7</code>で終わる形式となっているので自分で以下のように関数をUDFを定義することが必要になります．</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode sql code-with-copy"><code class="sourceCode sql"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> TEMP <span class="kw">FUNCTION</span> convert_iso_dayofweek(usage_date <span class="dt">DATE</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>RETURNS INT64</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="kw">AS</span> (</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">MOD</span>(<span class="fu">EXTRACT</span>(DAYOFWEEK <span class="kw">FROM</span> usage_date) <span class="op">+</span> <span class="dv">5</span>, <span class="dv">7</span>) <span class="op">+</span> <span class="dv">1</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>);</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p><strong> ▶&nbsp; データ抽出クエリ</strong></p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode sql code-with-copy"><code class="sourceCode sql"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">WITH</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  daily_summary <span class="kw">AS</span>(</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> </span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>        usage_date,</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>        round_to_nearest_15_minute(usage_time, <span class="dv">15</span>) <span class="kw">AS</span> rounded_usage_time,</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>        <span class="cf">CASE</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>          <span class="cf">WHEN</span> usage_date <span class="kw">in</span> (<span class="dt">DATE</span>(<span class="st">'2024-02-11'</span>), <span class="dt">DATE</span>(<span class="st">'2024-02-23'</span>)) <span class="cf">THEN</span> <span class="dv">8</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>          <span class="cf">ELSE</span> convert_iso_dayofweek(usage_date) </span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>        <span class="cf">END</span> <span class="kw">AS</span> dayofweek,</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>        <span class="fu">COUNT</span>(<span class="dv">1</span>) <span class="kw">AS</span> customer_count</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span> </span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>        `regmonkey<span class="op">-</span><span class="kw">sample</span><span class="op">-</span><span class="kw">data</span>.restaurant_kawasaki.customer_record`</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>    <span class="kw">GROUP</span> <span class="kw">BY</span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>        <span class="dv">1</span>, <span class="dv">2</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>    dayofweek,</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>    convert_extended_time(rounded_usage_time) <span class="kw">AS</span> rounded_usage_time,</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>    <span class="fu">AVG</span>(customer_count) <span class="kw">AS</span> mean_customer_count</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span></span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>    daily_summary </span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a><span class="kw">GROUP</span> <span class="kw">BY</span> </span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>  <span class="dv">1</span>, <span class="dv">2</span></span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span> <span class="kw">BY</span></span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>  <span class="dv">1</span>, <span class="dv">2</span>;</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 
 
 </section>
