@@ -1,0 +1,122 @@
+---
+title: "BigQuery: TIME型カラムを指定したレベルで丸めて集計する"
+author: "Ryo Nakagami"
+date: "2025-01-08"
+date-modified: last-modified
+categories: [sql]
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## What I Want to Do
+
+<strong > &#9654;&nbsp; スーパーの来店時刻データ</strong>
+
+|member_id|usage_date|usage_time|
+|---|---|---|---|
+|123456|2024-02-01|08:09:00|
+|223456|2024-02-01|08:10:00|
+|223456|2024-02-11|08:10:00|
+|123456|2024-02-01|20:09:00|
+|323456|2024-02-01|20:09:00|
+
+という形でとあるスーパーの来店時刻データ`regmonkey-sample-data.restaurant_kawasaki.customer_record`が与えられているとします．
+このとき，以下の3つの処理を実施して，曜日×時間帯別平均来店者数の集計を行いたいとします．
+
+<strong > &#9654;&nbsp; 処理1: 24時間オーバーのデータへ変換</strong>
+
+- `00:01:00` → `24:00:00`
+- `01:01:59` → `25:00:00`
+
+のように夜中`02:59:59`までは`26:59:59`へ変換するという処理
+
+<strong > &#9654;&nbsp; 処理2: `TIME`型データを丸める</strong>
+
+- `08:09:00` → `08:00:00`
+- `08:20:00` → `08:15:00`
+
+のようにTIME型データを15分刻みに丸める処理
+
+<strong > &#9654;&nbsp; 処理3: DATE型データをISO day of weekへ変換</strong>
+
+- 月曜日を`1`, 日曜日を`7`とするISO day of weekに変換する
+- 祝日は`8`をアサインする
+    - `2024-02-11`, `2024-02-23`は`8`がアサインされる
+
+## Query Example
+
+<strong > &#9654;&nbsp; 処理1: 24時間オーバーのデータへ変換</strong>
+
+`TIME`型のままでは`23:59:59`までしかカバーされないので，extended timeの表記を試みたい場合は`STRING`型へ変換する必要があります．
+
+```{.sql}
+CREATE TEMP FUNCTION convert_extended_time(standard_time TIME)
+RETURNS STRING
+AS (
+  CASE 
+    WHEN EXTRACT(HOUR FROM standard_time) < 3 THEN
+      FORMAT("%02d:%02d:%02d", EXTRACT(HOUR FROM standard_time) + 24, EXTRACT(MINUTE FROM standard_time), EXTRACT(SECOND FROM standard_time))
+    ELSE 
+      FORMAT("%02d:%02d:%02d", EXTRACT(HOUR FROM standard_time), EXTRACT(MINUTE FROM standard_time), EXTRACT(SECOND FROM standard_time))
+  END
+);
+```
+
+<strong > &#9654;&nbsp; 処理2: TIME型データを丸める</strong>
+
+```{.sql}
+CREATE TEMP FUNCTION round_to_nearest_15_minute(usage_time TIME, round_level INT64)
+RETURNS TIME
+AS (
+  TIME_TRUNC(
+    TIME_SUB(usage_time, INTERVAL MOD(EXTRACT(MINUTE FROM usage_time), round_level) MINUTE),
+    MINUTE
+  )
+);
+```
+
+<strong > &#9654;&nbsp; 処理3: `DATE`型データをISO day of weekへ変換</strong>
+
+BigQueryが提供する `EXTRACT(DAYOFWEEK FROM <date-column>)` は日曜日`1`から始まり土曜日`7`で終わる形式となっているので自分で以下のように関数をUDFを定義することが必要になります． 
+
+```{.sql}
+CREATE TEMP FUNCTION convert_iso_dayofweek(usage_date DATE)
+RETURNS INT64
+AS (
+  MOD(EXTRACT(DAYOFWEEK FROM usage_date) + 5, 7) + 1
+);
+
+```
+
+<strong > &#9654;&nbsp; データ抽出クエリ</strong>
+
+```{.sql}
+WITH
+  daily_summary AS(
+    SELECT 
+        usage_date,
+        round_to_nearest_15_minute(usage_time, 15) AS rounded_usage_time,
+        CASE
+          WHEN usage_date in (DATE('2024-02-11'), DATE('2024-02-23')) THEN 8
+          ELSE convert_iso_dayofweek(usage_date) 
+        END AS dayofweek,
+        COUNT(1) AS customer_count
+    FROM 
+        `regmonkey-sample-data.restaurant_kawasaki.customer_record`
+    GROUP BY
+        1, 2
+  )
+SELECT
+    dayofweek,
+    convert_extended_time(rounded_usage_time) AS rounded_usage_time,
+    AVG(customer_count) AS mean_customer_count
+FROM
+    daily_summary 
+GROUP BY 
+  1, 2
+ORDER BY
+  1, 2;
+```
