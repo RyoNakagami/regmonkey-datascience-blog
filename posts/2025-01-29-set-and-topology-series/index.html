@@ -7,9 +7,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Ryo Nakagami">
-<meta name="dcterms.date" content="2024-12-11">
+<meta name="dcterms.date" content="2025-01-29">
 
-<title>Cloud StorageからExternal Tableの作成 – regmonkey datascience blog</title>
+<title>フーリエ級数と積分理論再考 – regmonkey datascience blog</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -21,40 +21,6 @@ ul.task-list li input[type="checkbox"] {
   width: 0.8em;
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
-}
-/* CSS for syntax highlighting */
-pre > code.sourceCode { white-space: pre; position: relative; }
-pre > code.sourceCode > span { line-height: 1.25; }
-pre > code.sourceCode > span:empty { height: 1.2em; }
-.sourceCode { overflow: visible; }
-code.sourceCode > span { color: inherit; text-decoration: inherit; }
-div.sourceCode { margin: 1em 0; }
-pre.sourceCode { margin: 0; }
-@media screen {
-div.sourceCode { overflow: auto; }
-}
-@media print {
-pre > code.sourceCode { white-space: pre-wrap; }
-pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
-}
-pre.numberSource code
-  { counter-reset: source-line 0; }
-pre.numberSource code > span
-  { position: relative; left: -4em; counter-increment: source-line; }
-pre.numberSource code > span > a:first-child::before
-  { content: counter(source-line);
-    position: relative; left: -1em; text-align: right; vertical-align: baseline;
-    border: none; display: inline-block;
-    -webkit-touch-callout: none; -webkit-user-select: none;
-    -khtml-user-select: none; -moz-user-select: none;
-    -ms-user-select: none; user-select: none;
-    padding: 0 4px; width: 4em;
-  }
-pre.numberSource { margin-left: 3em;  padding-left: 4px; }
-div.sourceCode
-  {   }
-@media screen {
-pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
 </style>
 
@@ -148,11 +114,43 @@ gtag('config', 'G-LVL413SV09', { 'anonymize_ip': true});
     };
   </script>
 
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN") {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
 
 <link rel="stylesheet" href="../../styles.css">
-<meta property="og:title" content="Cloud StorageからExternal Tableの作成 – regmonkey datascience blog">
+<meta property="og:title" content="フーリエ級数と積分理論再考 – regmonkey datascience blog">
 <meta property="og:description" content="">
+<meta property="og:image" content="https://RyoNakagami.github.io/regmonkey-datascience-blog/posts/2025-01-29-set-and-topology-series/heat_conduction_example.png">
 <meta property="og:site_name" content="regmonkey datascience blog">
+<meta property="og:image:height" content="110">
+<meta property="og:image:width" content="640">
 </head>
 
 <body class="nav-fixed">
@@ -198,9 +196,9 @@ gtag('config', 'G-LVL413SV09', { 'anonymize_ip': true});
 <header id="title-block-header" class="quarto-title-block default page-columns page-full">
   <div class="quarto-title-banner page-columns page-full">
     <div class="quarto-title column-body">
-      <h1 class="title">Cloud StorageからExternal Tableの作成</h1>
+      <h1 class="title">フーリエ級数と積分理論再考</h1>
                                 <div class="quarto-categories">
-                <div class="quarto-category">BigQuery</div>
+                <div class="quarto-category">database</div>
               </div>
                   </div>
   </div>
@@ -218,7 +216,7 @@ gtag('config', 'G-LVL413SV09', { 'anonymize_ip': true});
       <div>
       <div class="quarto-title-meta-heading">Published</div>
       <div class="quarto-title-meta-contents">
-        <p class="date">2024-12-11</p>
+        <p class="date">2025-01-29</p>
       </div>
     </div>
     
@@ -241,12 +239,14 @@ gtag('config', 'G-LVL413SV09', { 'anonymize_ip': true});
    
   <ul>
   <li><a href="#このノートのスコープ" id="toc-このノートのスコープ" class="nav-link active" data-scroll-target="#このノートのスコープ">このノートのスコープ</a></li>
-  <li><a href="#external-tableとは" id="toc-external-tableとは" class="nav-link" data-scroll-target="#external-tableとは">External Tableとは？</a>
+  <li><a href="#熱伝導方程式" id="toc-熱伝導方程式" class="nav-link" data-scroll-target="#熱伝導方程式">熱伝導方程式</a></li>
+  <li><a href="#熱伝導方程式とフーリエ級数" id="toc-熱伝導方程式とフーリエ級数" class="nav-link" data-scroll-target="#熱伝導方程式とフーリエ級数">熱伝導方程式とフーリエ級数</a>
   <ul class="collapse">
-  <li><a href="#external-table-use-cases" id="toc-external-table-use-cases" class="nav-link" data-scroll-target="#external-table-use-cases">External Table use cases</a></li>
+  <li><a href="#変数分離" id="toc-変数分離" class="nav-link" data-scroll-target="#変数分離">変数分離</a></li>
+  <li><a href="#フーリエ級数の登場" id="toc-フーリエ級数の登場" class="nav-link" data-scroll-target="#フーリエ級数の登場">フーリエ級数の登場</a></li>
+  <li><a href="#フーリエ級数の問題点と積分理論再考へ" id="toc-フーリエ級数の問題点と積分理論再考へ" class="nav-link" data-scroll-target="#フーリエ級数の問題点と積分理論再考へ">フーリエ級数の問題点と積分理論再考へ</a></li>
   </ul></li>
-  <li><a href="#external-table作成" id="toc-external-table作成" class="nav-link" data-scroll-target="#external-table作成">External Table作成</a></li>
-  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
+  <li><a href="#appendix-正弦関数の積の積分公式の証明" id="toc-appendix-正弦関数の積の積分公式の証明" class="nav-link" data-scroll-target="#appendix-正弦関数の積の積分公式の証明">Appendix: 正弦関数の積の積分公式の証明</a></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
     </div>
@@ -260,132 +260,374 @@ gtag('config', 'G-LVL413SV09', { 'anonymize_ip': true});
 <section id="このノートのスコープ" class="level2">
 <h2 class="anchored" data-anchor-id="このノートのスコープ">このノートのスコープ</h2>
 <ul>
-<li>Google Cloud StorageからBigQuery上にExternal tabaleを作成する</li>
-<li>Partition Fieldが定義されたExternal tabaleを作成するための条件を確認する</li>
+<li>フーリエが熱伝導方程式の解をどのように求めたのか？</li>
+<li>どのような流れで積分の定義の再考につながったのか？</li>
 </ul>
+<p>を紹介します．</p>
 </section>
-<section id="external-tableとは" class="level2">
-<h2 class="anchored" data-anchor-id="external-tableとは">External Tableとは？</h2>
-<p>BigQueryのExternal Table（外部テーブル）は，BigQuery内にデータをコピーまたはインポートすることなく， 外部データソースに直接アクセスしてクエリを実行できる機能です．</p>
-<p>BigQueryにおけるExternal Tableの利用形式として，permanent tableとtemporary tableの２つがあります．</p>
-<ul>
-<li>permanent table: BigQuery dataset内に作成され，外部データソースにリンクされるテーブル</li>
-<li>temporary table: 外部データソースに対して一時的にクエリを実行する場合に利用されるテーブル</li>
-</ul>
-<p>一時的なテスト処理などでtemporary tableを用いることは有用ですが，分析者間でクエリやコードを共有して分析を進める場合はpermanent tableを持ちないと テーブルアクセスを共有できないので，このノートではpermanent tableを主に取り扱います．</p>
-<p><strong> ▶&nbsp; サポートされているデータストア</strong></p>
-<ul>
-<li>BigLake</li>
-<li>Cloud Storage</li>
-<li>Bigtable</li>
-<li>Google Drive</li>
-<li>Amazon S3</li>
-<li>Azure Blob Storage</li>
-</ul>
-<p>以上のデータストアがBigQueryからアクセス可能な外部データソースとしてサポートされています</p>
-<p><strong> ▶&nbsp; Pricing</strong></p>
-<p>BigQueryのPricingは</p>
-<ul>
-<li>Compute pricing: クエリの処理にかかる費用</li>
-<li>Storage pricing: データ保存費用</li>
-</ul>
-<p>の２つから構成されています．External Tableを用いると，後者の方はCloud Storage換算の費用となるため，一般的には ストレージコストを抑えることができます．ただし，External Tableにアクセスして分析するたびに</p>
-<ul>
-<li>Query cost: クエリ計算処理時間に比例するコスト</li>
-<li>Bytes cost: External tableからのデータ読み取りサイズに比例するコスト</li>
-</ul>
-<p>が発生します．</p>
-<div class="blog-custom-border">
-<p><strong>📘 Tips</strong> <br></p>
-<p>External Tableを用いた分析が一時的なものであるならばExternal Tableを用いたほうが良いと思いますが， 頻繁にBigQueryからアクセスする場合は</p>
-<ul>
-<li>Partitioning/Clusteringを用いてアクセスサイズを抑える</li>
-<li><code>SELECT</code>以下で<code>*</code>を使用せず，分析に用いるカラムを明示的に指定して，スキャンサイズを抑える</li>
-</ul>
-<p>という工夫，またはBigQuery native tableとしてデータを保持することを検討したほうが良いと思います．</p>
+<section id="熱伝導方程式" class="level2">
+<h2 class="anchored" data-anchor-id="熱伝導方程式">熱伝導方程式</h2>
+<p>物体内に温度勾配が存在すると，高温部から低温部へ熱伝導（Heat conduction）により熱エネルギーが伝わります．</p>
+<div id="fig-uniform-bar" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-uniform-bar-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="./heat_conduction_example.png" class="img-fluid figure-img">
 </div>
-<section id="external-table-use-cases" class="level3">
-<h3 class="anchored" data-anchor-id="external-table-use-cases">External Table use cases</h3>
-<p>External Tableの特徴として，</p>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-uniform-bar-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1: 長さ<span class="math inline">\(\pi\)</span>の密度が一様な棒
+</figcaption>
+</figure>
+</div>
+<p><a href="#fig-uniform-bar" class="quarto-xref">Figure&nbsp;1</a> のような細長い密度が一定の棒が与えられたとします．</p>
 <ul>
-<li>BigQuery native tableとしてデータは保持しない</li>
-<li>External Tableと紐づく外部ストアの最新データに対して，クエリ処理が走る</li>
+<li>左端を 0 として，ある点の位置を左端からの距離 <span class="math inline">\(x\)</span> で表す</li>
+<li>ある点 <span class="math inline">\(x\)</span> における時刻 <span class="math inline">\(t\)</span> での温度を <span class="math inline">\(T(x, t)\)</span> で表す</li>
+<li>単位断面積を単位時間に通過する熱エネルギーを <span class="math inline">\(q(x, t)\)</span> とする(=熱流密度)</li>
 </ul>
-<p>があります．そのため，PoCや営業段階での分析や頻繁にupdateされるデータに対してのオンライン分析といった場面で活用されるケースが多いです．</p>
-<div class="blog-custom-border">
-<p><strong>Example: 営業段階でのアドホック分析</strong> <br></p>
+<p>フーリエの法則より，熱流密度 <span class="math inline">\(q(x, t)\)</span> は温度勾配 <span class="math inline">\(\displaystyle{\frac{\partial T(x, t)}{\partial x}}\)</span> に比例するので</p>
+<p><span class="math display">\[
+q(x, t) = -\lambda \frac{\partial T(x, t)}{\partial x} \label{eq-fourier-law}
+\]</span></p>
 <ul>
-<li>BtoC向けサービスを展開している企業Aに対して営業をしているとする</li>
-<li>NDAを結んだ後に，企業Aが保有しているデータのサンプルとして２年間分の連携してもらった</li>
-<li>このデータを用いて簡易的な分析を行い，どのようなインサイトが導けそうか？を次の営業会議で企業Aに伝え説得したい</li>
+<li><span class="math inline">\(\lambda  &gt; 0\)</span>: 熱伝導率，RHSに符号マイナスがついているのは，高温から低音へ熱が流れることを表してる</li>
+<li>熱伝導率: 物質によって定まる物性値, 熱伝導率が大きいと熱エネルギーがよく伝わり，熱伝導率が小さいと熱エネルギーを伝えにくい</li>
 </ul>
-<p>という場面を考えます．</p>
-<p><strong> ▶&nbsp; Key Points</strong></p>
+<p><span class="math inline">\(\eqref{eq-fourier-law}\)</span> で表される熱の流入から，比熱 <span class="math inline">\(c &gt; 0\)</span>, 密度 <span class="math inline">\(\rho  &gt; 0\)</span> を用いると温度変化 <span class="math inline">\(\Delta T(x, t)\)</span> は熱の流入と流出２要素から以下のように表されます</p>
+<p><span class="math display">\[
+\begin{align}
+\Delta T(x, t) &amp;= \frac{1}{c\rho\Delta x}(q(x, t) - q(x + \Delta x, t))\Delta t\\
+\Rightarrow \frac{\Delta T(x, t)}{\Delta t} &amp;= \frac{1}{c\rho\Delta x}(q(x, t) - q(x + \Delta x, t))
+\end{align}
+\]</span></p>
+<p>ここで，<span class="math inline">\(\Delta t\to 0, \Delta x\to 0\)</span> とすると</p>
+<p><span class="math display">\[
+\frac{\partial T(x, t)}{\partial t} = -\frac{1}{c\rho}\frac{\partial q(x, t)}{\partial x} \label{eq-heat-balance}
+\]</span></p>
+<p><span class="math inline">\(\eqref{eq-fourier-law}\)</span>, <span class="math inline">\(\eqref{eq-heat-balance}\)</span> より</p>
+<p><span id="eq-hce-all"><span class="math display">\[
+\begin{align}
+\frac{\partial T(x, t)}{\partial t}
+    &amp;= -\frac{1}{c\rho}\frac{\partial}{\partial x}\left(-\lambda \frac{\partial T(x, t)}{\partial x} \right)\\
+    &amp;= \frac{\lambda}{c\rho}\frac{\partial^2 T(x, t)}{\partial x^2} \label{eq-hce}
+\end{align}
+\tag{1}\]</span></span></p>
+<p>これを熱伝導方程式と呼びます．<span class="math inline">\(\displaystyle\frac{\lambda}{c\rho}\)</span> は温度伝導率（温度拡散率）と呼ばれます．</p>
+<div class="nte- callout callout-style-default callout-tip no-icon callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+🍵 Green Tea Break: 比熱
+</div>
+</div>
+<div class="callout-body-container callout-body">
 <ul>
-<li>わざわざテーブルスキーマを定義する時間はあまりない→早くEDAをやりたい</li>
-<li>サンプルデータなので，プロジェクト受注後に連携されるであろうデータセットよりも情報量が少ない→わざわざテーブルスキーマしても再利用可能性は低い</li>
+<li>比熱とは 1kg の物質の温度を 1K （＝1℃）上げるのに必要な熱量のこと</li>
+<li>「温まりやすさ」 「冷めにくさ」 を表す物理量と理解できる</li>
 </ul>
-<p><strong> ▶&nbsp; External Tableのメリット</strong></p>
-<ul>
-<li>テーブルスキーマをわざわざ定義しなくても，BigQueryを用いた大容量のデータに対しての分析が可能</li>
-<li>複数の分析者間でサンプルデータをCloud Storageベースで簡単に共有できる</li>
-<li>Pythonなどの言語を用いた分析でも，予めBigQueryで前処理して小さいdatamartを作成し，それに対してEDAが実施できる</li>
-</ul>
+<p>例えば，水1kgの場合，1K 上げるのに必要な熱量は4186J</p>
+</div>
 </div>
 </section>
-</section>
-<section id="external-table作成" class="level2">
-<h2 class="anchored" data-anchor-id="external-table作成">External Table作成</h2>
-<p>ここでは，EXTERNAL PARTITION TABLEの作成を目的に</p>
-<ol type="1">
-<li>google cloud storageへのupload</li>
-<li>EXTERNAL TABLEの作成</li>
-</ol>
-<p>の２段階の流れで説明します．</p>
-<p><strong> ▶&nbsp; Cloud Storageへのupload</strong></p>
-<p><code>~/pupupuland_store_pos</code>というdirectory以下に，<code>yyyymmdd</code>形式の日付でpartitionされた<code>PARQUET</code>形式のデータがあるとします．</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pupupuland_store_pos</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">├──</span> partition_dt=2023-09-23</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ex">│</span>   └── purchase_history_2023-09-23.parquet</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="ex">├──</span> partition_dt=2023-09-24</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="ex">│</span>   └── purchase_history_2023-09-24.parquet</span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="ex">├──</span> partition_dt=2023-09-25</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="ex">│</span>   └── purchase_history_2023-09-25.parquet</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="ex">├──</span> partition_dt=2023-09-26</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="ex">│</span>   └── purchase_history_2023-09-26.parquet</span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="ex">├──</span> partition_dt=2023-09-27</span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="ex">│</span>   └── purchase_history_2023-09-27.parquet</span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="ex">├──</span> partition_dt=2023-09-28</span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="ex">│</span>   └── purchase_history_2023-09-28.parquet</span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="ex">├──</span> partition_dt=2023-09-29</span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="ex">│</span>   └── purchase_history_2023-09-29.parquet</span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="ex">└──</span> partition_dt=2023-09-30</span>
-<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>    <span class="ex">└──</span> purchase_history_2023-09-30.parquet</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>このディレクトリ構造を保持したまま，<code>gs://project-make-dedede-great-again/</code>というcloud storage bucketに格納したいとします．このとき</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">gcloud</span> storage cp <span class="at">-r</span> ~/pupupuland_store_pos/ gs://project-make-dedede-great-again/</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>以上で下準備は完了です．</p>
-<p><strong> ▶&nbsp; External Tableの作成</strong></p>
-<p>Google Cloud project <code>pupupuland-businessdata</code> の <code>dedede-holdings</code> dataset以下に先程上げた <code>pupupuland_store_pos</code> tableを作成したいと思います．</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode sql code-with-copy"><code class="sourceCode sql"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> EXTERNAL <span class="kw">TABLE</span> `pupupuland<span class="op">-</span>businessdata.dedede<span class="op">-</span>holdings.pupupuland_store_pos`</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="kw">WITH</span> <span class="kw">PARTITION</span> <span class="kw">COLUMNS</span> (</span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>partition_dt <span class="dt">DATE</span>, <span class="co">-- column order must match the external path</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>OPTIONS (</span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>uris <span class="op">=</span> [<span class="st">'gs://project-make-dedede-great-again/pupupuland_store_pos/*'</span>],</span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>format <span class="op">=</span> <span class="st">'PARQUET'</span>,</span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>hive_partition_uri_prefix <span class="op">=</span> <span class="st">'gs://project-make-dedede-great-again/pupupuland_store_pos'</span>,</span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>require_hive_partition_filter <span class="op">=</span> <span class="kw">false</span>);</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p><code>PARTITION COLUMNS</code>のフィールドに <code>partition_dt</code>と入力していますが，これは外部ファイルのパスのパターンが<code>gs://project-make-dedede-great-again/pupupuland_store_pos/partition_dt=yyyymmdd/data.parquet</code> であることを前提にしています．そのため，upload時のdirectory構造を</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">└──</span> partition_dt=2023-09-30</span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    <span class="ex">└──</span> purchase_history_20230930.parquet</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>という形にしてcloud storageにuploadしたという背景があります．DATETYPEに<code>DATE</code>と指定していますが，<code>/&lt;partition field&gt;=2018-10-18/</code>という構造になっていないと失敗することに注意してください． 他にも <code>INTEGER</code>, <code>STRING</code>, <code>TIMESTAMP</code>が指定できます．<code>TIMESTAMP</code>の場合は，<code>/&lt;partition field&gt;=2018-10-18 16:00:00+00/</code>という構造であることが必要です．</p>
-<p><code>require_hive_partition_filter</code> フィールドはクエリ時に<code>partition_dt</code>によるWHERE句フィルタリングを強制するか否かの設定フィールドです． デフォルトでは<code>false</code>となっており，この場合はフィルタリングしなくてもクエリできることを意味します．</p>
-</section>
-<section id="references" class="level2">
-<h2 class="anchored" data-anchor-id="references">References</h2>
+<section id="熱伝導方程式とフーリエ級数" class="level2">
+<h2 class="anchored" data-anchor-id="熱伝導方程式とフーリエ級数">熱伝導方程式とフーリエ級数</h2>
 <ul>
-<li><a href="https://cloud.google.com/bigquery/docs/external-tables">Introduction to external tables</a></li>
+<li>方程式: <a href="./#eq-hce-all">熱伝導方程式</a></li>
+<li>境界条件: 棒の両端の温度を 0 に保つ</li>
+<li>初期条件: 初期状態(<span class="math inline">\(t=0\)</span>)における位置 <span class="math inline">\(x\)</span> の温度が <span class="math inline">\(f(x)\)</span> で与えられている</li>
 </ul>
+<p>という設定の下，温度 <span class="math inline">\(T\)</span> の時間変化を求める問題を考えます．</p>
+<p><strong> ▶&nbsp; 境界条件</strong></p>
+<p><span class="math display">\[
+T(0, t) = T(\pi, t) = 0 \qquad (t\geq 0) \label{eq-boundary}
+\]</span></p>
+<p><strong> ▶&nbsp; 初期条件</strong></p>
+<p><span class="math display">\[
+T(x, 0) = f(x) \qquad (0 \leq x \leq \pi) \label{eq-init}
+\]</span></p>
+<div class="blog-custom-border" style="margin-top: 1rem; margin-bottom: 1rem;">
+<p><strong> ▶&nbsp; 重ね合わせの原理</strong></p>
+<p><a href="./#eq-hce-all">熱伝導方程式</a>は次のような性質があります</p>
+<ul>
+<li><span class="math inline">\(T_1, T_2\)</span> が <span class="math inline">\(\eqref{eq-hce}\)</span>, <span class="math inline">\(\eqref{eq-boundary}\)</span> を満たすとき，<span class="math inline">\(T_1 + T_2\)</span> も<span class="math inline">\(\eqref{eq-hce}\)</span>, <span class="math inline">\(\eqref{eq-boundary}\)</span> を満たす</li>
+<li><span class="math inline">\(T\)</span> が <span class="math inline">\(\eqref{eq-hce}\)</span>, <span class="math inline">\(\eqref{eq-boundary}\)</span> を満たすとき，その任意の定数倍 <span class="math inline">\(kT\)</span> も<span class="math inline">\(\eqref{eq-hce}\)</span>, <span class="math inline">\(\eqref{eq-boundary}\)</span> を満たす</li>
+</ul>
+<p>これを重ね合わせの原理と呼びます．</p>
+</div>
+<p>温度 <span class="math inline">\(T\)</span> の時間変化を求める問題を解くにあたって，フーリエは重ね合わせの原理を活用して</p>
+<ul>
+<li><span class="math inline">\(\eqref{eq-hce}\)</span>, <span class="math inline">\(\eqref{eq-boundary}\)</span> を満たす関数の条件のうち，なるべく簡単な形のものを求める</li>
+<li>得られた簡単な形の関数を足し合わせることで，初期条件 <span class="math inline">\(\eqref{eq-init}\)</span> を満たす関数を作る</li>
+</ul>
+<p>という二段構えで解くことを考えました．簡単な形の関数としてフーリエが考えたのは変数分離型の関数です．</p>
+<section id="変数分離" class="level3">
+<h3 class="anchored" data-anchor-id="変数分離">変数分離</h3>
+<p>変数分離型関数とは，位置 <span class="math inline">\(x\)</span> 飲みの関数 <span class="math inline">\(v(x)\)</span> と時刻 <span class="math inline">\(t\)</span> のみの関数 <span class="math inline">\(w(t)\)</span> の積</p>
+<p><span class="math display">\[
+T(x, t) = v(x)w(t)
+\]</span></p>
+<p>の形で表させる関数のことです．変数分離型を仮定すると熱伝導方程式は常微分方程式を用いて以下のように表せます</p>
+<p><span class="math display">\[
+\begin{align}
+\frac{c\rho}{\lambda}\frac{w^\prime(t)}{w(t)} = \frac{v^{\prime\prime}(x)}{v(x)}
+\end{align}
+\]</span></p>
+<p>LHSは<span class="math inline">\(t\)</span>のみの関数，RHSは<span class="math inline">\(x\)</span>飲みの関数であるので，方程式が恒等的に成り立つためには，両辺は定数でなければなりません．定数を <span class="math inline">\(k\)</span> と表すと</p>
+<p><span class="math display">\[
+\begin{align}
+w^\prime(t) &amp;= k Aw(t)\\
+v^{\prime\prime}(t) &amp;= k v(x)
+\end{align}
+\]</span></p>
+<p>なお <span class="math inline">\(A = \displaystyle\frac{\lambda}{c\rho}\)</span> としています．</p>
+<p><strong> ▶&nbsp; <span class="math inline">\(w(t)\)</span> について解く</strong></p>
+<p><span class="math display">\[
+\begin{align}
+\frac{dw(t)}{w(t)} &amp;= k A dt\\
+\int \frac{dw(t)}{w(t)}dt &amp;= \int k A dt \label{eq-cond}\\
+\log(\vert w(t)\vert) &amp;= k A t + C \qquad (C\text{: constant})\\
+w(t) &amp;= \alpha \exp(k At)\qquad (\alpha = \exp(C))
+\end{align}
+\]</span></p>
+<p>従って，</p>
+<p><span class="math display">\[
+\begin{align}
+w(t) = \left\{\begin{array}{c}
+\alpha\exp(kAt) &amp; (k \neq 0)\\
+\alpha &amp; (k = 0)
+\end{array}\right.
+\end{align}
+\]</span></p>
+<p><strong> ▶&nbsp; <span class="math inline">\(v(x)\)</span> について解く</strong></p>
+<p>2次線形微分方程式において，<span class="math inline">\(p, q\)</span> が定数のとき</p>
+<p><span class="math display">\[
+y^{\prime\prime} + py^{\prime} + q = 0
+\]</span></p>
+<p>の一般解は特定方程式 <span class="math inline">\(a^2 + pa + q =0\)</span> の解によって以下のように定まります</p>
+<p><strong>case 1: ２つの実数解 <span class="math inline">\(\hat a_1, \hat a_2\)</span> を持つ場合</strong></p>
+<p><span class="math display">\[
+y = A\exp(\hat a_1 x) + B\exp(\hat a_2 x)
+\]</span></p>
+<p><strong>case 2: ２つの虚数解 <span class="math inline">\(\hat a \pm \hat b i\)</span> を持つ場合</strong></p>
+<p><span class="math display">\[
+y = \exp(\hat a x)(A\cos(\hat b x) + B \sin(\hat b x))
+\]</span></p>
+<p><strong>case 3: 重解 <span class="math inline">\(\hat a\)</span> を持つ場合</strong></p>
+<p><span class="math display">\[
+y = (Ax + B)\exp(\hat a x)
+\]</span></p>
+<p>以上より，</p>
+<p><span class="math display">\[
+\begin{align}
+v(x) = \left\{\begin{array}{c}
+\beta \exp(\sqrt{k}x) + \gamma \exp(-\sqrt{k}x) &amp; \text{if } k &gt; 0\\
+\beta x + \gamma &amp; \text{if } k = 0 \\
+\beta\cos(\sqrt{\vert k\vert}x) + \gamma\sin(\sqrt{\vert k\vert}x) &amp; \text{if } k &lt;0
+\end{array}\right.
+\end{align}
+\]</span></p>
+<p>境界条件および初期条件を満たすように係数 <span class="math inline">\(\alpha, \beta, \gamma\)</span> を定めれば，解が求まることになります．</p>
+</section>
+<section id="フーリエ級数の登場" class="level3">
+<h3 class="anchored" data-anchor-id="フーリエ級数の登場">フーリエ級数の登場</h3>
+<p><strong> ▶&nbsp; <span class="math inline">\(k &gt; 0\)</span> のケース</strong></p>
+<p><span class="math inline">\(\eqref{eq-cond}\)</span> より，時間の経過とともに温度が無限大に大きくなることはないので <span class="math inline">\(k&gt; 0\)</span> はありえないことが直感的に分かりますが，<span class="math inline">\(k&gt; 0\)</span> と仮定したとき 境界条件を満たす <span class="math inline">\(\alpha, \beta, \gamma\)</span> が存在しないことを確認します．</p>
+<p><span class="math display">\[
+\begin{align}
+w(t) &amp;= \alpha\exp(kAt) \\
+v(x) &amp;= \beta \exp(\sqrt{k}x) + \gamma \exp(-\sqrt{k}x)
+\end{align}
+\]</span></p>
+<p>境界条件より</p>
+<p><span class="math display">\[
+\begin{align}
+v(0) &amp;= \beta + \gamma = 0\\
+v(\pi) &amp;= \beta\exp(\sqrt{k}\pi) + \gamma\exp(-\sqrt{k}\pi) = 0
+\end{align}
+\]</span></p>
+<p>ここから</p>
+<p><span class="math display">\[
+\beta(\exp(\sqrt{k}\pi) - \exp(-\sqrt{k}\pi)) = 0
+\]</span></p>
+<p>従って，</p>
+<p><span class="math display">\[
+\begin{align}
+&amp;\beta = \gamma = 0\\
+\Rightarrow&amp; v(x) =  0
+\end{align}
+\]</span></p>
+<p>これは <span class="math inline">\(f(x) = 0 \ \ \forall x \in [0, \pi]\)</span> 以外の場合は初期条件を満たすことがない．</p>
+<p><strong> ▶&nbsp; <span class="math inline">\(k = 0\)</span> のケース</strong></p>
+<p><span class="math display">\[
+\begin{align}
+w(t) &amp;= \alpha\\
+v(x) &amp;= \beta x + \gamma
+\end{align}
+\]</span></p>
+<p>境界条件を満たすためには <span class="math inline">\(\beta = \gamma = 0\)</span> が必要になるが，<span class="math inline">\(f(x) = 0 \ \ \forall x \in [0, \pi]\)</span> 以外の場合は初期条件を満たすことがない．</p>
+<p><strong> ▶&nbsp; <span class="math inline">\(k &lt; 0\)</span> のケース</strong></p>
+<p><span class="math display">\[
+\begin{align}
+w(t) &amp;= \alpha\exp(kAt) \\
+v(x) &amp;= \beta\cos(\sqrt{\vert k\vert}x) + \gamma\sin(\sqrt{\vert k\vert}x)
+\end{align}
+\]</span></p>
+<p>境界条件より</p>
+<p><span class="math display">\[
+\begin{align}
+\beta &amp;= 0\\
+\gamma\sin(\sqrt{\vert k\vert}\pi) &amp;= 0
+\end{align}
+\]</span></p>
+<p><span class="math inline">\(\gamma= 0\)</span> だと初期条件を満たすことができないので，<span class="math inline">\(\gamma \neq 0\)</span>. このとき，<span class="math inline">\(\sqrt{\vert k\vert} \in \mathbb Z\)</span> が解の必要条件となることが分かる． ここで，<span class="math inline">\(k = -n^2\)</span> と書き直すと</p>
+<p><span class="math display">\[
+\begin{align}
+T(x, t) = \alpha\exp(-n^2At) \cdot \gamma\sin(n\pi) \label{eq-sol-candidate}
+\end{align}
+\]</span></p>
+<p>が境界条件を満たす変数分離型の解となるとこが分かります．重ね合わせの原理より <span class="math inline">\(\eqref{eq-sol-candidate}\)</span> の定数倍も境界条件と熱伝導方程式を満たす関数となります．</p>
+<p>重ね合わせの原理より <span class="math inline">\(1 \leq n \leq N\)</span> の範囲で</p>
+<p><span class="math display">\[
+\sum_{n=1}^N a_n \alpha\exp(-n^2At) \cdot \gamma\sin(n\pi)
+\]</span></p>
+<p>も境界条件と熱伝導方程式を満たす関数となります．ここでフーリエは次のような主張をしました：</p>
+<div class="blog-custom-border" style="margin-top: 1rem; margin-bottom: 1rem;">
+<p><span class="math display">\[
+\sum_{n=1}^\infty a_n \alpha\exp(-n^2At) \cdot \gamma\sin(n\pi)
+\]</span></p>
+<p>も境界条件と熱伝導方程式を満たす関数となりえる</p>
+</div>
+<p>ここから初期条件を満たす関数を求めたいので, <span class="math inline">\(t=0\)</span> とすると</p>
+<p><span class="math display">\[
+f(x) = \sum_{n=1}^\infty b_n \sin(n\pi)
+\]</span></p>
+<p>が成り立つように <span class="math inline">\(\{b_n\}_{n=1}^\infty\)</span> を定めれば良いとなります．このとき，正弦関数の積の積分公式</p>
+<p><span class="math display">\[
+\begin{align}
+\int^{\pi}_0\sin nx \sin mx dx =\begin{cases}
+\displaystyle 0 &amp; (m\neq n)\\[4pt]
+\displaystyle \frac{\pi}{2} &amp; (m = n)
+\end{cases}
+\end{align}
+\]</span></p>
+<p>従って，</p>
+<p><span class="math display">\[
+\begin{align}
+\int^{\pi}_0f(x)\sin mx\ dx
+&amp; = \int^\pi_0 \sum_{n=1}^\infty b_n \sin(n\pi) \sin(m\pi) dx\\
+&amp;= \sum_{n=1}^\infty \int^\pi_0b_n \sin(n\pi) \sin(m\pi) dx\\
+&amp;= \frac{\pi}{2}b_m
+\end{align}
+\]</span></p>
+<p>となり，</p>
+<p><span class="math display">\[
+b_n = \frac{2}{\pi}\int^{\pi}_0f(x)\sin nx \ dx
+\]</span></p>
+<p>このように求めた級数関数が変数分離型を仮定したときの熱伝導方程式の解となりうるとフーリエは主張しました． これがフーリエ級数の誕生です.</p>
+</section>
+<section id="フーリエ級数の問題点と積分理論再考へ" class="level3">
+<h3 class="anchored" data-anchor-id="フーリエ級数の問題点と積分理論再考へ">フーリエ級数の問題点と積分理論再考へ</h3>
+<p>フーリエ級数が登場初期には以下のような批判にさらされました:</p>
+<ul>
+<li>フーリエ級数が収束する保証はどこにあるのか？</li>
+<li><span class="math inline">\(0\)</span>から<span class="math inline">\(\pi\)</span>までの特定の一個の<span class="math inline">\(x\)</span>について<span class="math inline">\(f(x)\)</span>の値を変更しても積分の値には影響しないので異なる関数が同じフーリエ級数で表現されてしまうのではないか？</li>
+<li>無限級数の項別積分(無限和と積分の順序交換)ができる保証はどこにあるのか？</li>
+</ul>
+<p>無限和と積分の順序交換の批判とは，仮に熱分布関数<span class="math inline">\(T(x, t)\)</span>がフーリエ級数の形式で表せることができたとしても</p>
+<p><span class="math display">\[
+\begin{align*}
+&amp;\int^\pi_{-\pi}\sum_{k=1}^\infty (a_k \cos kx + b_k \sin kx)\cos nx\ dx \\
+&amp;=\sum_{k=1}^\infty \left(a_k \int^\pi_{-\pi}\cos kx \cos nx\ dx + b_k \int^\pi_{-\pi}\sin kx \cos nx\ dx\right)
+\end{align*}
+\]</span></p>
+<p>ができる保証がないというものです. これはフーリエ級数のそれ自体の問題というよりかは</p>
+<ul>
+<li>どんな関数が積分可能か？</li>
+<li>どのようなときに項別積分ができるのか？</li>
+</ul>
+<p>という積分の定義・理論の問題です．フーリエの時代では積分の理論が十分なものではなく，微分の逆として積分が捉えられており，上記の問題に答えることができませんでした． 以上が，熱の変化という自然科学現象の解明のため提案されたフーリエ級数が数学理論，特に積分理論の再整備の必要性を促した流れとなります．</p>
+</section>
+</section>
+<section id="appendix-正弦関数の積の積分公式の証明" class="level2">
+<h2 class="anchored" data-anchor-id="appendix-正弦関数の積の積分公式の証明">Appendix: 正弦関数の積の積分公式の証明</h2>
+<div class="blog-custom-border">
+<div id="exr-" class="custom_problem theorem exercise">
+<p><span class="theorem-title"><strong>Exercise 1</strong></span> <br></p>
+<p><span class="math inline">\(n,k\)</span>をそれぞれ自然数としたとき</p>
+<p><span class="math display">\[
+\begin{align}
+\int^{\pi}_0\sin nx \sin kx dx =\begin{cases}
+\displaystyle 0 &amp; (k\neq n)\\[4pt]
+\displaystyle \frac{\pi}{2} &amp; (k = n)
+\end{cases}
+\end{align}
+\]</span></p>
+</div>
+</div>
+<!--::: {.callout-note collapse="true" icon=false}-->
+<div class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-2-contents" aria-controls="callout-2" aria-expanded="true" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Proof
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-2" class="callout-2-contents callout-collapse collapse show">
+<div class="callout-body-container callout-body">
+<p>積和の公式より</p>
+<p><span class="math display">\[
+\sin \alpha\sin \beta=-\frac{1}{2} \left\{\cos(\alpha+\beta)-\cos(\alpha-\beta)\right\}
+\]</span></p>
+<p>この積和の公式を用いると</p>
+<p><span class="math display">\[
+\begin{align}
+&amp;\int^{\pi}_0\sin nx \sin kx\ dx \\
+&amp;= -\frac{1}{2}\int^{\pi}_0 \left\{\cos(n+k)x-\cos(n-k)x\right\} dx \\
+&amp;= -\frac{1}{2}\left\{\int^{\pi}_0\cos(n+k)x\ dx- \int^{\pi}_0\cos(n-k)x\ dx\right\}
+\end{align}
+\]</span></p>
+<p>つぎに以下のケースを考えます</p>
+<ul>
+<li><span class="math inline">\(n=k\)</span>のとき</li>
+<li><span class="math inline">\(n\neq k\)</span>のとき</li>
+</ul>
+<blockquote class="blockquote">
+<p><span class="math inline">\(n=k\)</span>のとき</p>
+</blockquote>
+<p><span class="math display">\[
+-\frac{1}{2}\left\{\int^{\pi}_0\cos(n+k)x\ dx- \int^{\pi}_0\cos(n-k)x\ dx\right\}
+\]</span></p>
+<p>の第二項は<span class="math inline">\(\pi\)</span>となる一方, 第一項は</p>
+<p><span class="math display">\[
+\begin{align}
+\int^{\pi}_0\cos(n+k)x dx &amp;= -\left[\sin(n+k)x\right]^{\pi}_0\\
+&amp;= 0
+\end{align}
+\]</span></p>
+<p>従って,</p>
+<p><span class="math display">\[
+-\frac{1}{2}\left\{\int^{\pi}_0\cos(n+k)x\ dx- \int^{\pi}_0\cos(n-k)x\ dx\right\} = \frac{\pi}{2}
+\]</span></p>
+<blockquote class="blockquote">
+<p><span class="math inline">\(n\neq k\)</span>のとき</p>
+</blockquote>
+<p><span class="math display">\[
+\begin{align}
+\int^{\pi}_0\cos(n-k)x\ dx &amp;= -\left[\sin(n-k)x\right]^{\pi}_0 = 0\\[3pt]
+\int^{\pi}_0\cos(n+k)x\ dx &amp;= -\left[\sin(n+k)x\right]^{\pi}_0 = 0
+\end{align}
+\]</span></p>
+<p>より</p>
+<p><span class="math display">\[
+-\frac{1}{2}\left\{\int^{\pi}_0\cos(n+k)x\ dx- \int^{\pi}_0\cos(n-k)x\ dx\right\} = 0
+\]</span></p>
+</div>
+</div>
+</div>
 
 
 </section>
