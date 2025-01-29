@@ -1,0 +1,455 @@
+---
+title: "フーリエ級数と積分理論再考"
+author: "Ryo Nakagami"
+date: "2025-01-29"
+date-modified: last-modified
+categories: [フーリエ変換]
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## このノートのスコープ
+
+- フーリエが熱伝導方程式の解をどのように求めたのか？
+- どのような流れで積分の定義の再考につながったのか？
+
+を紹介します．
+
+
+## 熱伝導方程式
+
+物体内に温度勾配が存在すると，高温部から低温部へ熱伝導（Heat conduction）により熱エネルギーが伝わります．
+
+![長さ$\pi$の密度が一様な棒](./heat_conduction_example.png){#fig-uniform-bar}
+
+@fig-uniform-bar のような細長い密度が一定の棒が与えられたとします．
+
+- 左端を 0 として，ある点の位置を左端からの距離 $x$ で表す
+- ある点 $x$ における時刻 $t$ での温度を $T(x, t)$ で表す
+- 単位断面積を単位時間に通過する熱エネルギーを $q(x, t)$ とする(=熱流密度)
+
+フーリエの法則より，熱流密度 $q(x, t)$ は温度勾配 $\displaystyle{\frac{\partial T(x, t)}{\partial x}}$ に比例するので
+
+$$
+q(x, t) = -\lambda \frac{\partial T(x, t)}{\partial x} \label{eq-fourier-law}
+$$
+
+- $\lambda  > 0$: 熱伝導率，RHSに符号マイナスがついているのは，高温から低音へ熱が流れることを表してる
+- 熱伝導率: 物質によって定まる物性値, 熱伝導率が大きいと熱エネルギーがよく伝わり，熱伝導率が小さいと熱エネルギーを伝えにくい
+
+\eqref{eq-fourier-law} で表される熱の流入から，比熱 $c > 0$, 密度 $\rho  > 0$ を用いると温度変化 $\Delta T(x, t)$ は熱の流入と流出２要素から以下のように表されます
+
+$$
+\begin{align}
+\Delta T(x, t) &= \frac{1}{c\rho\Delta x}(q(x, t) - q(x + \Delta x, t))\Delta t\\
+\Rightarrow \frac{\Delta T(x, t)}{\Delta t} &= \frac{1}{c\rho\Delta x}(q(x, t) - q(x + \Delta x, t))
+\end{align}
+$$
+
+ここで，$\Delta t\to 0, \Delta x\to 0$ とすると
+
+$$
+\frac{\partial T(x, t)}{\partial t} = -\frac{1}{c\rho}\frac{\partial q(x, t)}{\partial x} \label{eq-heat-balance}
+$$
+
+\eqref{eq-fourier-law}, \eqref{eq-heat-balance} より
+
+$$
+\begin{align}
+\frac{\partial T(x, t)}{\partial t}
+    &= -\frac{1}{c\rho}\frac{\partial}{\partial x}\left(-\lambda \frac{\partial T(x, t)}{\partial x} \right)\\
+    &= \frac{\lambda}{c\rho}\frac{\partial^2 T(x, t)}{\partial x^2} \label{eq-hce}
+\end{align}
+$${#eq-hce-all}
+
+これを熱伝導方程式と呼びます．$\displaystyle\frac{\lambda}{c\rho}$ は温度伝導率（温度拡散率）と呼ばれます．
+
+::: {.nte- .callout-tip icon="false"}
+# 🍵 Green Tea Break: 比熱
+
+- 比熱とは 1kg の物質の温度を 1K （＝1℃）上げるのに必要な熱量のこと
+- 「温まりやすさ」 「冷めにくさ」 を表す物理量と理解できる
+
+例えば，水1kgの場合，1K 上げるのに必要な熱量は4186J
+
+:::
+
+
+## 熱伝導方程式とフーリエ級数
+
+- 方程式: [熱伝導方程式](./#eq-hce-all)
+- 境界条件: 棒の両端の温度を 0 に保つ
+- 初期条件: 初期状態($t=0$)における位置 $x$ の温度が $f(x)$ で与えられている
+
+という設定の下，温度 $T$ の時間変化を求める問題を考えます．
+
+<strong > &#9654;&nbsp; 境界条件</strong>
+
+$$
+T(0, t) = T(\pi, t) = 0 \qquad (t\geq 0) \label{eq-boundary}
+$$
+
+<strong > &#9654;&nbsp; 初期条件</strong>
+
+$$
+T(x, 0) = f(x) \qquad (0 \leq x \leq \pi) \label{eq-init}
+$$
+
+<div class="blog-custom-border" style="margin-top: 1rem; margin-bottom: 1rem;">
+<strong > &#9654;&nbsp; 重ね合わせの原理</strong>
+
+[熱伝導方程式](./#eq-hce-all)は次のような性質があります
+
+-  $T_1, T_2$ が \eqref{eq-hce}, \eqref{eq-boundary} を満たすとき，$T_1 + T_2$ も\eqref{eq-hce}, \eqref{eq-boundary} を満たす
+-  $T$ が \eqref{eq-hce}, \eqref{eq-boundary} を満たすとき，その任意の定数倍 $kT$ も\eqref{eq-hce}, \eqref{eq-boundary} を満たす
+
+これを重ね合わせの原理と呼びます．
+
+</div>
+
+温度 $T$ の時間変化を求める問題を解くにあたって，フーリエは重ね合わせの原理を活用して
+
+- \eqref{eq-hce}, \eqref{eq-boundary} を満たす関数の条件のうち，なるべく簡単な形のものを求める
+- 得られた簡単な形の関数を足し合わせることで，初期条件 \eqref{eq-init} を満たす関数を作る
+
+という二段構えで解くことを考えました．簡単な形の関数としてフーリエが考えたのは変数分離型の関数です．
+
+### 変数分離
+
+変数分離型関数とは，位置 $x$ 飲みの関数 $v(x)$ と時刻 $t$ のみの関数 $w(t)$ の積
+
+$$
+T(x, t) = v(x)w(t)
+$$
+
+の形で表させる関数のことです．変数分離型を仮定すると熱伝導方程式は常微分方程式を用いて以下のように表せます
+
+$$
+\begin{align}
+\frac{c\rho}{\lambda}\frac{w^\prime(t)}{w(t)} = \frac{v^{\prime\prime}(x)}{v(x)}
+\end{align}
+$$
+
+LHSは$t$のみの関数，RHSは$x$飲みの関数であるので，方程式が恒等的に成り立つためには，両辺は定数でなければなりません．定数を $k$ と表すと
+
+$$
+\begin{align}
+w^\prime(t) &= k Aw(t)\\ 
+v^{\prime\prime}(t) &= k v(x) 
+\end{align}
+$$
+
+なお $A = \displaystyle\frac{\lambda}{c\rho}$ としています．
+
+<strong > &#9654;&nbsp; $w(t)$ について解く</strong>
+
+$$
+\begin{align}
+\frac{dw(t)}{w(t)} &= k A dt\\
+\int \frac{dw(t)}{w(t)}dt &= \int k A dt \label{eq-cond}\\
+\log(\vert w(t)\vert) &= k A t + C \qquad (C\text{: constant})\\
+w(t) &= \alpha \exp(k At)\qquad (\alpha = \exp(C))
+\end{align}
+$$
+
+従って，
+
+$$
+\begin{align}
+w(t) = \left\{\begin{array}{c}
+\alpha\exp(kAt) & (k \neq 0)\\
+\alpha & (k = 0)
+\end{array}\right.
+\end{align}
+$$
+
+<strong > &#9654;&nbsp; $v(x)$ について解く</strong>
+
+2次線形微分方程式において，$p, q$ が定数のとき
+
+$$
+y^{\prime\prime} + py^{\prime} + q = 0
+$$
+
+の一般解は特定方程式 $a^2 + pa + q =0$ の解によって以下のように定まります
+
+**case 1: ２つの実数解 $\hat a_1, \hat a_2$ を持つ場合**
+
+$$
+y = A\exp(\hat a_1 x) + B\exp(\hat a_2 x)
+$$
+
+
+**case 2: ２つの虚数解 $\hat a \pm \hat b i$ を持つ場合**
+
+$$
+y = \exp(\hat a x)(A\cos(\hat b x) + B \sin(\hat b x))
+$$
+
+
+**case 3: 重解 $\hat a$ を持つ場合**
+
+$$
+y = (Ax + B)\exp(\hat a x)
+$$
+
+以上より，
+
+$$
+\begin{align}
+v(x) = \left\{\begin{array}{c}
+\beta \exp(\sqrt{k}x) + \gamma \exp(-\sqrt{k}x) & \text{if } k > 0\\
+\beta x + \gamma & \text{if } k = 0 \\
+\beta\cos(\sqrt{\vert k\vert}x) + \gamma\sin(\sqrt{\vert k\vert}x) & \text{if } k <0
+\end{array}\right.
+\end{align}
+$$
+
+境界条件および初期条件を満たすように係数 $\alpha, \beta, \gamma$ を定めれば，解が求まることになります．
+
+
+### フーリエ級数の登場
+
+<strong > &#9654;&nbsp; $k > 0$ のケース</strong>
+
+\eqref{eq-cond} より，時間の経過とともに温度が無限大に大きくなることはないので $k> 0$ はありえないことが直感的に分かりますが，$k> 0$ と仮定したとき 境界条件を満たす $\alpha, \beta, \gamma$ が存在しないことを確認します．
+
+$$
+\begin{align}
+w(t) &= \alpha\exp(kAt) \\
+v(x) &= \beta \exp(\sqrt{k}x) + \gamma \exp(-\sqrt{k}x) 
+\end{align}
+$$
+
+境界条件より
+
+$$
+\begin{align}
+v(0) &= \beta + \gamma = 0\\
+v(\pi) &= \beta\exp(\sqrt{k}\pi) + \gamma\exp(-\sqrt{k}\pi) = 0
+\end{align}
+$$
+
+ここから
+
+$$
+\beta(\exp(\sqrt{k}\pi) - \exp(-\sqrt{k}\pi)) = 0
+$$
+
+従って，
+
+$$
+\begin{align}
+&\beta = \gamma = 0\\
+\Rightarrow& v(x) =  0
+\end{align}
+$$
+
+これは $f(x) = 0 \ \ \forall x \in [0, \pi]$ 以外の場合は初期条件を満たすことがない．
+
+<strong > &#9654;&nbsp; $k = 0$ のケース</strong>
+
+$$
+\begin{align}
+w(t) &= \alpha\\
+v(x) &= \beta x + \gamma
+\end{align}
+$$
+
+境界条件を満たすためには $\beta = \gamma = 0$ が必要になるが，$f(x) = 0 \ \ \forall x \in [0, \pi]$ 以外の場合は初期条件を満たすことがない．
+
+<strong > &#9654;&nbsp; $k < 0$ のケース</strong>
+
+$$
+\begin{align}
+w(t) &= \alpha\exp(kAt) \\
+v(x) &= \beta\cos(\sqrt{\vert k\vert}x) + \gamma\sin(\sqrt{\vert k\vert}x)
+\end{align}
+$$
+
+境界条件より
+
+$$
+\begin{align}
+\beta &= 0\\
+\gamma\sin(\sqrt{\vert k\vert}\pi) &= 0
+\end{align}
+$$
+
+$\gamma= 0$ だと初期条件を満たすことができないので，$\gamma \neq 0$. このとき，$\sqrt{\vert k\vert} \in \mathbb Z$ が解の必要条件となることが分かる．
+ここで，$k = -n^2$ と書き直すと
+
+$$
+\begin{align}
+T(x, t) = \alpha\exp(-n^2At) \cdot \gamma\sin(n\pi) \label{eq-sol-candidate}
+\end{align}
+$$
+
+が境界条件を満たす変数分離型の解となるとこが分かります．重ね合わせの原理より \eqref{eq-sol-candidate} の定数倍も境界条件と熱伝導方程式を満たす関数となります．
+
+重ね合わせの原理より $1 \leq n \leq N$ の範囲で
+
+$$
+\sum_{n=1}^N a_n \alpha\exp(-n^2At) \cdot \gamma\sin(n\pi)
+$$
+
+も境界条件と熱伝導方程式を満たす関数となります．ここでフーリエは次のような主張をしました：
+
+<div class="blog-custom-border" style="margin-top: 1rem; margin-bottom: 1rem;">
+
+$$
+\sum_{n=1}^\infty a_n \alpha\exp(-n^2At) \cdot \gamma\sin(n\pi)
+$$
+
+も境界条件と熱伝導方程式を満たす関数となりえる
+
+</div>
+
+ここから初期条件を満たす関数を求めたいので, $t=0$ とすると
+
+$$
+f(x) = \sum_{n=1}^\infty b_n \sin(n\pi)
+$$
+
+が成り立つように $\{b_n\}_{n=1}^\infty$ を定めれば良いとなります．このとき，正弦関数の積の積分公式
+
+$$
+\begin{align}
+\int^{\pi}_0\sin nx \sin mx dx =\begin{cases}
+\displaystyle 0 & (m\neq n)\\[4pt]
+\displaystyle \frac{\pi}{2} & (m = n)
+\end{cases}
+\end{align}
+$$
+
+従って，
+
+$$
+\begin{align}
+\int^{\pi}_0f(x)\sin mx\ dx 
+& = \int^\pi_0 \sum_{n=1}^\infty b_n \sin(n\pi) \sin(m\pi) dx\\
+&= \sum_{n=1}^\infty \int^\pi_0b_n \sin(n\pi) \sin(m\pi) dx\\
+&= \frac{\pi}{2}b_m
+\end{align}
+$$
+
+となり，
+
+$$
+b_n = \frac{2}{\pi}\int^{\pi}_0f(x)\sin nx \ dx
+$$
+
+このように求めた級数関数が変数分離型を仮定したときの熱伝導方程式の解となりうるとフーリエは主張しました．
+これがフーリエ級数の誕生です.
+
+### フーリエ級数の問題点と積分理論再考へ
+
+フーリエ級数が登場初期には以下のような批判にさらされました:
+
+- フーリエ級数が収束する保証はどこにあるのか？
+- $0$から$\pi$までの特定の一個の$x$について$f(x)$の値を変更しても積分の値には影響しないので異なる関数が同じフーリエ級数で表現されてしまうのではないか？
+- 無限級数の項別積分(無限和と積分の順序交換)ができる保証はどこにあるのか？
+
+無限和と積分の順序交換の批判とは，仮に熱分布関数$T(x, t)$がフーリエ級数の形式で表せることができたとしても
+
+$$
+\begin{align*}
+&\int^\pi_{-\pi}\sum_{k=1}^\infty (a_k \cos kx + b_k \sin kx)\cos nx\ dx \\
+&=\sum_{k=1}^\infty \left(a_k \int^\pi_{-\pi}\cos kx \cos nx\ dx + b_k \int^\pi_{-\pi}\sin kx \cos nx\ dx\right)
+\end{align*}
+$$
+
+ができる保証がないというものです. これはフーリエ級数のそれ自体の問題というよりかは
+
+- どんな関数が積分可能か？
+- どのようなときに項別積分ができるのか？
+
+という積分の定義・理論の問題です．フーリエの時代では積分の理論が十分なものではなく，微分の逆として積分が捉えられており，上記の問題に答えることができませんでした．
+以上が，熱の変化という自然科学現象の解明のため提案されたフーリエ級数が数学理論，特に積分理論の再整備の必要性を促した流れとなります．
+
+## Appendix: 正弦関数の積の積分公式の証明
+
+<div class="blog-custom-border">
+::: {#exr- .custom_problem }
+<br>
+
+$n,k$をそれぞれ自然数としたとき
+
+$$
+\begin{align}
+\int^{\pi}_0\sin nx \sin kx dx =\begin{cases}
+\displaystyle 0 & (k\neq n)\\[4pt]
+\displaystyle \frac{\pi}{2} & (k = n)
+\end{cases}
+\end{align}
+$$
+
+:::
+
+</div>
+
+<!--::: {.callout-note collapse="true" icon=false}-->
+::: {.callout-note collapse="false" icon=false}
+## Proof
+
+積和の公式より
+
+$$
+\sin \alpha\sin \beta=-\frac{1}{2} \left\{\cos(\alpha+\beta)-\cos(\alpha-\beta)\right\}
+$$
+
+この積和の公式を用いると
+
+$$
+\begin{align}
+&\int^{\pi}_0\sin nx \sin kx\ dx \\
+&= -\frac{1}{2}\int^{\pi}_0 \left\{\cos(n+k)x-\cos(n-k)x\right\} dx \\
+&= -\frac{1}{2}\left\{\int^{\pi}_0\cos(n+k)x\ dx- \int^{\pi}_0\cos(n-k)x\ dx\right\}
+\end{align}
+$$
+
+つぎに以下のケースを考えます
+
+- $n=k$のとき
+- $n\neq k$のとき
+
+> $n=k$のとき
+
+$$
+-\frac{1}{2}\left\{\int^{\pi}_0\cos(n+k)x\ dx- \int^{\pi}_0\cos(n-k)x\ dx\right\}
+$$
+
+の第二項は$\pi$となる一方, 第一項は
+
+$$
+\begin{align}
+\int^{\pi}_0\cos(n+k)x dx &= -\left[\sin(n+k)x\right]^{\pi}_0\\
+&= 0
+\end{align}
+$$
+
+従って, 
+
+$$
+-\frac{1}{2}\left\{\int^{\pi}_0\cos(n+k)x\ dx- \int^{\pi}_0\cos(n-k)x\ dx\right\} = \frac{\pi}{2}
+$$
+
+
+> $n\neq k$のとき
+
+$$
+\begin{align}
+\int^{\pi}_0\cos(n-k)x\ dx &= -\left[\sin(n-k)x\right]^{\pi}_0 = 0\\[3pt]
+\int^{\pi}_0\cos(n+k)x\ dx &= -\left[\sin(n+k)x\right]^{\pi}_0 = 0
+\end{align}
+$$
+
+より
+
+$$
+-\frac{1}{2}\left\{\int^{\pi}_0\cos(n+k)x\ dx- \int^{\pi}_0\cos(n-k)x\ dx\right\} = 0
+$$
+:::
