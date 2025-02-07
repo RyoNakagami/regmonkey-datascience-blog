@@ -373,3 +373,54 @@ plt.show()
 - $N_0 = N_\infty$: 変化なし
 - $N_0 > N_\infty$: $N_\infty$に近づく方向で減少していく．減衰の度合いは減衰していく
 - $N_0 = 0$: これも一つの均衡だが，ちょっとしたショックがあるだけで $N_\infty$ を目指すPathに乗ってしまう(= **unstable equilibrium**)
+
+<strong > &#9654;&nbsp; Validation</strong>
+
+ヴェアフルストモデルが人口動態を表した良いモデルなのか，1820-1930のアメリカの人口データを用いて検証してみます．
+
+```{python}
+import pandas as pd
+
+# Historical population data (year, population in millions)
+data = {
+    "year": [1820, 1830, 1840, 1850, 1860, 1870, 1880, 1890, 1900, 1910, 1920, 1930, 2000],
+    "us_population_million": [9.6, 12.9, 17.1, 23.2, 31.4, 38.6, 50.2, 62.9, 76.0, 92.0, 106.5, 123.2, 282.2]
+}
+
+# Create DataFrame
+df = pd.DataFrame(data)
+
+# Display table
+df
+```
+
+パラメーターを $N_0 = 3.9, k = 0.3134, N_\infty = 197$ と選ぶと
+
+::: {#fig-us-population-plot .center}
+
+```{python}
+t_index = np.linspace(0, (df.shape[0] + 10), 100)
+sol = solve_ivp(logistic_growth, [0, t_index[-1]], [3.9], t_eval=t_index, args=(0.3134, 197))
+plt.plot(1790 + sol.t*10, sol.y[0], linewidth=2, label=f"prediction")
+plt.scatter(
+    df.year,
+    df.us_population_million,
+    color="gray",
+    alpha=0.8,
+    marker="x",
+    label="actual data points",
+)
+plt.xlabel('year')
+plt.ylabel('population(million)')
+plt.legend()
+plt.show()
+```
+
+Model prediction vs actual USA population
+
+:::
+
+このように, 1800-1930年のアメリカ人口動態を上手く説明するモデルとなっていることがわかります．一方，モデルの上限は $197\times 10^6$ であるが，2000年の人口は
+$282.2\times 10^6$ となっており，長期における人口動態を説明できるものにはなっていないことも読み取れます．
+
+$N_\infty$ の仮定が間違っていたと解釈することが一つ考えられますが，人口変化を支配する法則は技術変化や政治といった要因に影響を受けるため，常に同じ支配法則に基づいていると仮定することが間違っているとも解釈することが出来ます．

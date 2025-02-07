@@ -1,0 +1,286 @@
+---
+title: "有限個の多項式のテイラー展開"
+author: "Ryo Nakagami"
+date: "2025-02-02"
+date-modified: last-modified
+categories: [解析]
+listing_category: math-general
+jupyter: python3
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## 高階微分法とライプニッツの公式
+
+$y = f(x)$ の導関数を $f^\prime(x)$ とするとき，第二階の導関数を $f^{\prime\prime}(x)$ と表記し，第 $n$ 階の導関数を $f^{(n)}(x)$ と表記します．
+一点 $x$ において
+
+$$
+\begin{gather}
+f^{\prime\prime}(x) = \frac{d}{dx}\left(\frac{dy}{dx}\right) = \frac{d^2y}{dx^2}\\
+f^{(n)}(x) = \frac{d^ny}{dx^n}
+\end{gather}
+$$
+
+となります．
+
+<strong > &#9654;&nbsp; 記号の差異: $d^2y$ vs $dx^2$</strong>
+
+$d^2y = d(dy)$，$dx^2 = (dx)^2$ の意味で，この意味の差異を表現するため記号でも表記が異なっています．微分記号を用いて
+
+$$
+dy = f^\prime(x)dx
+$$
+
+と書くとき，両辺の微分を取れば，
+
+$$
+\begin{align}
+d(dy) &= \frac{d(f^{\prime}(x))}{dx}(dx)^2 + f^\prime(x)\frac{d(dx)}{dx}dx\\
+      &= f^{\prime\prime}(x)(dx)^2 + f^\prime(x)d(dx) \label{eq-second-diff}
+\end{align}
+$$
+
+$x$ が独立変数であるならば $dx$ は $x$ の水準関係なく自由に取れるので，$\frac{d(dx)}{dx} = 0$．従って，
+
+$$
+d^2y = f^{\prime\prime}(x)dx^2
+$$
+
+となります．もし，$x = \varphi(t)$ であるならば，$d^2x = \varphi^{\prime\prime}(t)dt^2$ となるので
+
+$$
+\frac{d}{dt^2}f(\varphi(t)) = f^{\prime\prime}(\varphi(t))(\varphi^\prime(t))^2 + f^\prime(\varphi(t))\varphi^{\prime\prime}(t)
+$$
+
+### ライプニッツの公式
+
+<div class="blog-custom-border" style="margin-top: 1rem; margin-bottom: 1rem;">
+::: {#thm- .custom_problem }
+: ライプニッツの公式(Leibniz rule)
+<br>
+
+$u, v$ が $x$ の関数であるとき，
+
+$$
+\begin{align}
+\frac{d^n(uv)}{dx^n} 
+    &= u^{(n)}v + \left(\begin{array}{c}n\\1\end{array}\right)u^{(n-1)}v^{\prime} + \left(\begin{array}{c}n\\2\end{array}\right)u^{(n-2)}v^{\prime\prime}+\cdots+ \left(\begin{array}{c}n\\n-1\end{array}\right)u^{\prime}v^{(n-1)} +uv^{(n)}\\
+    &= \sum_{k=0}^n \left(\begin{array}{c}n\\ k\end{array}\right)u^{(n-k)}v^{(k)}
+\end{align}
+$$
+
+:::
+
+</div>
+
+<!--::: {.callout-note collapse="true" icon=false}-->
+::: {.callout-note collapse="false" icon=false}
+## Proof
+
+$n=1$ のときは，積の微分公式より
+
+$$
+\frac{d(uv)}{dx^n} = \frac{du}{dx}v + \frac{dv}{dx}u
+$$
+
+$n\geq 2$ については，帰納法を用いて示す．$n=t$ のときライプニッツの公式が成立すると仮定する．
+
+このとき，
+
+$$
+\begin{align}
+\frac{d^{(t+1)}(uv)}{dx^{t+1}}
+    &= \frac{d}{dt}\left(\frac{d^{(t)}(uv)}{dx^{t}}\right)\\
+    &= \frac{d}{dt}\left(\sum_{k=0}^t \left(\begin{array}{c}t\\ k\end{array}\right)u^{(t-k)}v^{(k)}\right)\\
+    &= \sum_{k=0}^t \left(\begin{array}{c}t\\ k\end{array}\right)[u^{(t-k+1)}v^{(k)} + u^{(t-k)}v^{(k+1)}]\\
+    &= \sum_{k=0}^t \left(\begin{array}{c}t\\ k\end{array}\right)u^{(t-k+1)}v^{(k)} + \sum_{k=0}^t \left(\begin{array}{c}t\\ k\end{array}\right)u^{(t-k)}v^{(k+1)}\\
+    &= \left\{u^{(t+1)}v + \sum_{k=1}^t \left(\begin{array}{c}t\\ k\end{array}\right)u^{(t-k+1)}v^{(k)}\right\}+ \left\{uv^{(t+1)} + \sum_{k=0}^{t-1} \left(\begin{array}{c}t\\ k\end{array}\right)u^{(t-k)}v^{(k+1)}\right\}\\
+    &= \left\{u^{(t+1)}v + \sum_{k=1}^t \left(\begin{array}{c}t\\ k\end{array}\right)u^{(t-k+1)}v^{(k)}\right\}+ \left\{uv^{(t+1)} + \sum_{j=1}^{t} \left(\begin{array}{c}t\\ j-1\end{array}\right)u^{(t-j+1)}v^{j}\right\}\\
+    &= u^{(t+1)}v + uv^{(t+1)} + \sum_{k=1}^t \left\{\left(\begin{array}{c}t\\ k\end{array}\right) + \left(\begin{array}{c}t\\ k-1\end{array}\right)\right\}u^{(t-k+1)}v^{(k)}\\
+    &= u^{(t+1)}v + uv^{(t+1)} + \sum_{k=1}^t \left(\begin{array}{c}t+1\\ k\end{array}\right)u^{(t+1-k)}v^{(k)}\\
+    &= \sum_{k=0}^{t+1} \left(\begin{array}{c}t+1\\ k\end{array}\right)u^{(t+1-k)}v^{(k)}
+\end{align}
+$$
+
+となり，$n = t + 1$ の場合のライプニッツの公式の成立が確かめられた．
+
+:::
+
+::: {#exm- .custom_problem }
+<br>
+
+$y = x^2\sin(x)$ について $n$ 階導関数を求めめたいとします．
+
+$$
+(\sin x)^{(k)} = \sin\left(x + \frac{\pi}{2}k\right) 
+$$
+
+であるので
+
+$n=1$ のときは
+
+$$
+y^\prime = x^2\sin\left(x + \frac{\pi}{2}\right) + 2x\sin(x)
+$$
+
+$n\geq 2$ のときは，$x^2$ が2回微分可能であることを考慮してライプニッツルールを利用すると
+
+$$
+\begin{align}
+\frac{d^n}{dx^{n}}(x^2\sin x)
+    &= x^2(\sin(x))^{(n)} + 2nx(\sin(x))^{(n-1)} + n(n-1)(\sin(x))^{(n-2)}\\
+    &= x^2\sin\left(x + \frac{\pi}{2}n\right) + 2nx\sin\left(x + \frac{\pi}{2}(n-1)\right) + n(n-1)\sin\left(x + \frac{\pi}{2}(n-2)\right)   
+\end{align}
+$$
+
+:::
+
+---
+
+::: {#exm- .custom_problem }
+<br>
+
+$$
+\begin{align}
+(x\sin x)^{(n)} = x\sin\left(x + \frac{\pi}{2}n\right) + n \sin\left(x + \frac{\pi}{2}(n-1)\right)\\
+(x\cos x)^{(n)} = x\cos\left(x + \frac{\pi}{2}n\right) + n \cos\left(x + \frac{\pi}{2}(n-1)\right)\\
+(x^2\exp(x))^{(n)} = x^2\exp(x) + 2nx\exp(x) + n(n-1)\exp(x)
+\end{align}
+$$
+
+
+:::
+
+## 有限個の多項式のテイラー展開
+
+$n$ 次式の $f(x)$ を考えます．このとき，定義域の任意の点 $a$ を用いて，以下のように表すとします
+
+$$
+f(x) = a_0 + a_1(x-a) + a_2(x-a)^2 + \cdots + a_n(x-a)^n
+$$
+
+$x = a$ のとき，$f(a) = a_0$．両辺を $k$ 回微分すると
+
+$$
+f^{(k)}(x) = a_kk! + a_{k+1}\frac{(k+1)!}{1!}(x-a) + a_{k+2}\frac{(k+2)!}{2!}(x-a)^2 + \cdots + a_{n}\frac{n!}{(n-k)!}(x-a)^{n-k}
+$$
+
+このとき，$f^{(k)}(a) = a_kk!$ であるので，$a_k = \frac{f^{(k)}(a)}{k!}$ を得る．従って，$n$ 次式の $f(x)$ は
+
+$$
+f(x) = f(a) + \frac{f^{\prime}(a)}{1!}(x-a) + \frac{f^{(2)}(a)}{2!}(x-a)^2 + \cdots + \frac{f^{(n)}(a)}{n!}(x-a)^n\label{eq-poly}
+$$
+
+と表すことが出来ます．
+
+::: {#exm- .custom_problem }
+<br>
+
+$f(x) = x^n$ を
+
+$$
+f(x) = a_0 + a_1(x-1) + a_2(x-1)^2 + \cdots + a_n(x-1)^n
+$$
+
+で表したいとします．このとき，\eqref{eq-poly} より
+
+$$
+\begin{align}
+x^n 
+    &= 1 + \frac{n}{1!}(x-1)+ \frac{n(n-1)}{2!}(x-1)^2 + \cdots + \frac{n!}{n!}(x-1)^n\\
+    &= \sum_{k=0}^n \left(\begin{array}{c}n\\ k\end{array}\right)(x-1)^k
+\end{align}
+$$
+
+と表せます．これを更に式変形すると
+
+$$
+\begin{align}
+\sum_{k=0}^n \left(\begin{array}{c}n\\ k\end{array}\right)(x-1)^k
+    &= \sum_{k=0}^n \left(\begin{array}{c}n\\ k\end{array}\right)(x-1)^k 1^{n-k}\\
+    &= (x - 1 + 1)^n\\
+    &= x^n
+\end{align}
+$$
+
+よって $x^n$ の $x = 1$ まわりでのテイラー展開は $(x - 1 + 1)^n$ の二項展開と関係づけて理解することが出来ます．
+
+:::
+---
+
+<div class="blog-custom-border" style="margin-top: 1rem; margin-bottom: 1rem;">
+::: {#thm- .custom_problem }
+<br>
+
+$n$ 次式の $f(x)$ について，$x=a$ が $k$ 重解であるための必要十分条件は
+
+$$
+\begin{gather}
+f(a) = f^\prime(a) = \cdots = f^{(k-1)}(a) = 0\\
+f^{(k)}(a) \neq 0
+\end{gather}
+$$
+
+:::
+
+</div>
+
+<!--::: {.callout-note collapse="true" icon=false}-->
+::: {.callout-note collapse="false" icon=false}
+## Proof
+
+$x=a$ が $k$ 重解であるということは，$f(x) = (x-a)^kg(x), g(a)\neq 0$ と同値であることに留意して以下示します．
+
+<strong > &#9654;&nbsp; 十分性</strong>
+
+\eqref{eq-poly} より
+
+$$
+\begin{align}
+f(x) 
+    &=\frac{f^{(k)}(a)}{k!}(x-a)^k + \frac{f^{(k+1)}(a)}{(k+1)!}(x-a)^{k+1} + \cdots +\frac{f^{(n)}(a)}{n!}(x-a)^n\\
+    &= (x-a)^k\left\{\frac{f^{(k)}(a)}{k!} + \frac{f^{(k+1)}(a)}{(k+1)!}(x-a)^{1} + \cdots + \frac{f^{(n)}(a)}{n!}(x-a)^{n-k}\right\}\\
+    &= (x-a)^kg(x)
+\end{align}
+$$
+
+このとき，$f^{(k)}(a) \neq 0$ より $g(a)\neq 0$. 以上より，十分性は示せた．
+
+
+<strong > &#9654;&nbsp; 必要性</strong>
+
+$f(x) = (x-a)^kg(x), g(a)\neq 0$ のとき，$f(a) = 0$ は自明． この式を $m$ 回微分するとライプニッツルールより
+
+$$
+\begin{aligned}
+f^{(m)}(x) =& (x-a)^kg^{(m)}(x) + \left(\begin{array}{c}m\\ 1\end{array}\right)k(x-a)^{k-1}g^{(m-1)}(x) \\
+            &+ \cdots + \left(\begin{array}{c}m\\ m\end{array}\right)k(k-1)\cdots(k-m+1)(x-a)^{k-m}g(x)
+\end{aligned}
+$$
+
+$m < k$ であるならば，$f^{(m)}(a) = 0$，また $m = k$ であるならば
+
+$$
+f^{(k)}(a) = k!g(a) \neq 0
+$$
+
+従って，必要性も示された．
+
+:::
+
+
+```{python}
+import plotly.express as px
+import plotly.io as pio
+gapminder = px.data.gapminder()
+gapminder2007 = gapminder.query("year == 2007")
+fig = px.scatter(gapminder2007, 
+                 x="gdpPercap", y="lifeExp", color="continent", 
+                 size="pop", size_max=60,
+                 hover_name="country")
+fig.show()
+```
