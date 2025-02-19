@@ -1,0 +1,291 @@
+---
+title: "Group毎に定義されたラグ変数の作成"
+author: "Ryo Nakagami"
+date: "2025-02-19"
+date-modified: last-modified
+format: 
+  html:
+    embed-resources: false
+categories: [python]
+listing_category: datascience-python-series
+comments:
+    utterances:
+             repo: RyoNakagami/regmonkey-datascience-blog
+             label: discussion
+             issue-term: title
+---
+
+## ラグ変数の作成
+
+次のような`pandas.DataFrame`を考えます
+
+```{python}
+#| code-fold: true
+import pandas as pd
+import polars as pl
+
+df = pd.DataFrame(
+    {
+        "entity_col": ["A", "A", "A", "A", "A", "A", "B", "B", "B", "C"],
+        "state": [1, 0, 1, 1, 1, 0, 0, 0, 0, 1],
+        "time_col": pd.to_datetime([
+            "2021-01-02",
+            "2021-01-03",
+            "2021-01-04",
+            "2021-01-01",
+            "2021-01-03",
+            "2021-01-04",
+            "2021-02-02",
+            "2021-02-03",
+            "2021-02-10",
+            "2021-01-02",
+        ]),
+        "temp": [1, 2, 11, 13, 12, 14, 10, 9, 8, 0],
+    }
+)
+
+df
+```
+
+<div class="blog-custom-border" style="margin-top: 1rem; margin-bottom: 1rem;">
+<strong >📘 実施したい処理</strong> <br>
+
+- `(entity_col, state)`でGroup Keysとして，各Group内部で `time_col` の順番に応じて `temp`カラムについてラグ変数を作成したい
+- ラグ変数の名前は Defaultでは `f"{target_column}_1lag`, 指定があった場合はそれに倣うとする
+
+</div>
+
+### 前位処理関数: `generate_lag_variable_with_group_key`
+
+```{python}
+# | code-fold: false
+from typing import Optional
+
+
+def generate_lag_variable_with_group_key(
+    df: pd.DataFrame | pl.DataFrame,
+    target_column: str,
+    sort_key: list[str],
+    group_key: list[str],
+    lag_size: int,
+    ascending: list[bool] | bool = True,
+    lagged_col_name: Optional[str] = None,
+) -> pd.DataFrame | pl.DataFrame:
+    """
+    Generate a lagged variable in a DataFrame with a specified group key.
+
+    This function creates a new column in the DataFrame that contains
+    the lagged values of an existing column, grouped by specified keys.
+    It supports both pandas and polars DataFrames.
+
+    Parameters:
+        df (pd.DataFrame | pl.DataFrame):
+            The input DataFrame, either pandas or polars.
+
+        col (str):
+            The name of the column to generate the lagged variable from.
+
+        sort_key (list[str]):
+            The list of columns to sort the DataFrame by before generating the lagged variable.
+
+        group_key (list[str]):
+            The list of columns to group the DataFrame by before generating the lagged variable.
+
+        lag_size (int):
+            The number of periods to lag the variable.
+
+        ascending (list[bool] | bool, optional):
+            The sort order for each column in sort_key. Defaults to True.
+
+        lagged_col_name (Optional[str], optional):
+            The name of the new lagged column. If None, defaults to "{col}_{lag_size}lag".
+
+    Returns:
+        pd.DataFrame | pl.DataFrame: The DataFrame with the new lagged variable column.
+
+    Raises:
+        TypeError: If the input DataFrame is neither pandas.DataFrame nor polars.DataFrame.
+    """
+
+    # set up common variables
+    if lagged_col_name is None:
+        lagged_col_name = f"{target_column}_{lag_size}lag"
+
+    result_sort_key = group_key + sort_key
+
+    if isinstance(df, pd.DataFrame):
+        # Sort the dataframe by the specified sort key
+        df_sorted = df.sort_values(by=sort_key, ascending=ascending)
+
+        # Generate the lagged variable
+        df_sorted[lagged_col_name] = df_sorted.groupby(group_key)[target_column].shift(
+            lag_size
+        )
+
+        # Sort the dataframe by the group key and sort key
+        result_sort_key = group_key + sort_key
+        df_result = df_sorted.sort_values(by=result_sort_key).reset_index(drop=True)
+
+    elif isinstance(df, pl.DataFrame):
+        if isinstance(ascending, list):
+            order_reverse = [not x for x in ascending]
+        else:
+            order_reverse = not ascending
+
+        df_sorted = df.sort(sort_key, descending=order_reverse)
+        df_sorted = df_sorted.with_columns(
+            pl.col(target_column)
+            .shift(lag_size)
+            .over(group_key)
+            .alias(lagged_col_name)
+        )
+        df_result = df_sorted.sort(result_sort_key)
+
+    else:
+        raise TypeError(
+            f"type(df) is {type(df)}: df should be pandas.DataFrame or polars.DataFrame"
+        )
+
+    return df_result
+```
+
+### 挙動確認
+
+<strong > &#9654;&nbsp; `pandas.DataFrame`</strong>
+
+```{python}
+#| code-fold: false
+generate_lag_variable_with_group_key(
+    df=df,
+    target_column="temp",
+    sort_key=["time_col"],
+    group_key=["entity_col", "state"],
+    lag_size=1,
+    ascending= [True]
+)
+```
+
+<strong > &#9654;&nbsp; `polars.DataFrame`</strong>
+
+```{python}
+#| code-fold: false
+df_polars = pl.DataFrame(df)
+generate_lag_variable_with_group_key(
+    df=df_polars,
+    target_column="temp",
+    sort_key=["time_col"],
+    group_key=["entity_col", "state"],
+    lag_size=1,
+)
+```
+
+### Unit test with pytest
+
+<div class="blog-custom-border" style="margin-top: 1rem; margin-bottom: 1rem;">
+<strong >📘 テスト方針</strong> <br>
+
+- [ ] 異なるラグサイズ（lag size）の処理: ラグサイズの値を自由に指定できるか？
+- [ ] カスタムラグカラム名の指定: ラグカラムに任意の名前を付けることができるか？。
+- [ ] ソート順の指定: 昇順（`ascending=True`）または降順（`ascending=False`）でソートできるか？
+- [ ] 不正な入力タイプのエラー処理: 入力値が不正な場合，適切なエラーメッセージを表示するか？
+
+</div>
+
+<strong > &#9654;&nbsp; Test Examples</strong>
+
+
+```{python}
+#| code-fold: false
+import pytest
+import pandas as pd
+import polars as pl
+import numpy as np
+
+# Import the function to be tested
+# from hogehoge import generate_lag_variable_with_group_key  # Replace with actual module name
+
+@pytest.fixture
+def sample_pandas_df():
+    """Fixture to provide a sample Pandas DataFrame"""
+    return pd.DataFrame({
+        "entity": ["A", "A", "A", "B", "B", "B"],
+        "time": ["2023-01-01", "2023-01-02", "2023-01-03",
+                 "2023-01-01", "2023-01-02", "2023-01-03"],
+        "value": [10, 20, 30, 100, 200, 300]
+    }).assign(time=lambda df: pd.to_datetime(df["time"]))  # Ensure datetime type
+
+@pytest.fixture
+def sample_polars_df():
+    """Fixture to provide a sample Polars DataFrame"""
+    return pl.DataFrame({
+        "entity": ["A", "A", "A", "B", "B", "B"],
+        "time": ["2023-01-01", "2023-01-02", "2023-01-03",
+                 "2023-01-01", "2023-01-02", "2023-01-03"],
+        "value": [10, 20, 30, 100, 200, 300]
+    }).with_columns(pl.col("time").str.to_date())  # Ensure datetime type
+
+@pytest.mark.parametrize("df_type", ["pandas", "polars"])
+def test_generate_lag_variable_basic(df_type, sample_pandas_df, sample_polars_df):
+    """Test basic functionality with Pandas and Polars"""
+    df = sample_pandas_df if df_type == "pandas" else sample_polars_df
+    result = generate_lag_variable_with_group_key(
+        df=df,
+        target_column="value",
+        sort_key=["time"],
+        group_key=["entity"],
+        lag_size=1
+    )
+
+    assert "value_1lag" in result.columns, "Lagged column not found!"
+    expected_values_pandas = [np.nan, 10.0, 20.0, np.nan, 100.0, 200.0]  # Expected shifted values
+    expected_values_polars = [None, 10, 20, None, 100, 200]  # Expected shifted values
+    if df_type == "pandas":
+        assert np.array_equal(result["value_1lag"].to_list(), expected_values_pandas, equal_nan=True)
+    else:
+        assert result["value_1lag"].to_list() == expected_values_polars 
+
+def test_generate_lag_variable_custom_column(sample_pandas_df):
+    """Test if custom column name works correctly"""
+    result = generate_lag_variable_with_group_key(
+        df=sample_pandas_df,
+        target_column="value",
+        sort_key=["time"],
+        group_key=["entity"],
+        lag_size=1,
+        lagged_col_name="custom_lag"
+    )
+    assert "custom_lag" in result.columns, "Custom lag column name not applied!"
+
+def test_generate_lag_variable_with_descending_order(sample_pandas_df):
+    """Test sorting order with descending time"""
+    result = generate_lag_variable_with_group_key(
+        df=sample_pandas_df,
+        target_column="value",
+        sort_key=["time"],
+        group_key=["entity"],
+        lag_size=1,
+        ascending=False  # Reverse sorting order
+    )
+    expected_values = [20.0, 30.0, np.nan, 200.0, 300.0, np.nan]  # Because order is reversed
+    assert np.array_equal(result["value_1lag"].to_list(), expected_values, equal_nan=True)
+
+def test_generate_lag_variable_invalid_input():
+    """Test function raises TypeError for invalid input"""
+    with pytest.raises(TypeError):
+        generate_lag_variable_with_group_key(
+            df="not_a_dataframe",  # Invalid type
+            target_column="value",
+            sort_key=["time"],
+            group_key=["entity"],
+            lag_size=1
+        )
+```
+
+<div style='padding-left: 2em; padding-right: 2em; border-radius: 0em; border-style:solid; border-color:#ffa657;'>
+<strong style="color:#ffa657">注意点 !</strong> <br> 
+
+- `np.nan != np.nan` であるため，`np.nan`を含むリストを比較する場合，`==` を直接使用しても正しく機能しません
+- `NaN` は未定義値であるため，`NaN` は自身と等しくない
+
+
+</div>
