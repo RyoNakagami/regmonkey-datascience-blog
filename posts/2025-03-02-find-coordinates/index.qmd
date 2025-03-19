@@ -444,7 +444,7 @@ $$
 \eqref{#eq-circle} に則り，もっと直接的に
 
 $$
-L(\beta) = \sqrt{(x_i - \beta_1)^2 + (y_i - \beta_2)^2 - \beta_0^2} \label{#eq-mle}
+L(\beta) = (\sqrt{(x_i - \beta_1)^2 + (y_i - \beta_2)^2} - \beta_0)^2
 $$
 
 を最小する形でパラメーターを推定してみます．このとき．residualが$N(0, \sigma)$ に従うならばLikelihoodは
@@ -466,7 +466,7 @@ def lik(parameters, x, y):
     y_0 = parameters[1]
     r_0 = parameters[2]
     sigma = parameters[3]
-    g_x = (((x - x_0) ** 2 + (y - y_0) ** 2 - r_0 ** 2))
+    g_x = (np.sqrt((np.sqrt((x - x_0) ** 2 + (y - y_0) ** 2) - r_0)**2)) ** 2
 
     L = len(x) / 2 * np.log(sigma**2) +  1 / (2 * sigma**2) * np.sum(g_x)
     return L
@@ -489,20 +489,81 @@ def mle_solver(
 mle_res = estimator_simulator(mle_solver)
 
 # plot
-fig, ax = plt.subplots(1, 2)
+fig, axes= plt.subplots(1, 2)
 
-sns.kdeplot(x=mle_res[:, 0], y=mle_res[:, 1], cmap="Blues", fill=True, ax=ax[0])
-sns.kdeplot(x=mle_res[:, 2], cmap="Blues", fill=True, ax=ax[1])
+sns.kdeplot(x=mle_res[:, 0], y=mle_res[:, 1], cmap="Blues", fill=True, ax=axes[0])
+sns.kdeplot(x=mle_res[:, 2], cmap="Blues", fill=True, ax=axes[1])
 
 # Show the plot
-ax[0].set_xlabel("estimated x coordinate")
-ax[0].set_ylabel("estimated y coordinate")
-ax[0].set_title("MLE 2D Density Plot\nwith 1000 iterations")
-ax[0].set_aspect("equal")
-ax[1].set_title("Raidus Density Plot\nwith 1000 iterations")
+axes[0].set_xlabel("estimated x coordinate")
+axes[0].set_ylabel("estimated y coordinate")
+axes[0].set_title("MLE 2D Density Plot\nwith 1000 iterations")
+axes[0].set_aspect("equal")
+axes[1].set_title("Raidus Density Plot\nwith 1000 iterations")
 
 plt.show()
 ```
+
+定式化は正しいはずですが，$(x_0, y_0, r_0)$ は効率的な推定量となっていない疑いがあることが読み取れます．
+
+次に，
+
+$$
+L(\beta) = \sqrt{(x_i - \beta_1)^2 + (y_i - \beta_2)^2 - \beta_0^2} \label{#eq-mle}
+$$
+
+をLoss functionとして推定してみます．
+
+
+```{python}
+import numpy as np
+from scipy.optimize import minimize
+
+
+def lik(parameters, x, y):
+    x_0 = parameters[0]
+    y_0 = parameters[1]
+    r_0 = parameters[2]
+    sigma = parameters[3]
+    g_x = (x - x_0) ** 2 + (y - y_0) ** 2 - r_0**2
+
+    L = len(x) / 2 * np.log(sigma**2) +  1 / (2 * sigma**2) * np.sum(g_x)
+    return L
+
+
+def mle_solver(
+    df: pd.DataFrame, xy_columns: tuple[str] = ("x_coordinate", "y_coordinate")
+):
+
+    x_attack = df[xy_columns[0]].values
+    y_attack = df[xy_columns[1]].values
+    lik_model = minimize(
+        lambda params: lik(params, x_attack, y_attack),
+        np.array([1, 1, 20, 1]),
+        method="L-BFGS-B",
+    )
+    return lik_model["x"]
+
+
+mle_res = estimator_simulator(mle_solver)
+
+# plot
+fig, axes= plt.subplots(1, 2)
+
+sns.kdeplot(x=mle_res[:, 0], y=mle_res[:, 1], cmap="Blues", fill=True, ax=axes[0])
+sns.kdeplot(x=mle_res[:, 2], cmap="Blues", fill=True, ax=axes[1])
+
+# Show the plot
+axes[0].set_xlabel("estimated x coordinate")
+axes[0].set_ylabel("estimated y coordinate")
+axes[0].set_title("MLE 2D Density Plot\nwith 1000 iterations")
+axes[0].set_aspect("equal")
+axes[1].set_title("Raidus Density Plot\nwith 1000 iterations")
+
+plt.show()
+```
+
+
 
 先程よりは精度良く推定できているように見えますが，\eqref{#eq-mle} は
 
@@ -511,3 +572,59 @@ L(\beta) = \sqrt{\epsilon_i^2 + 2\beta_0 \epsilon_i}
 $$
 
 となるので，そもそもMLEの定式化が間違っていることがわかります．また，$\beta_0$ が大きいほどresidualが大きくなる傾向があることから，unbiasedな推定量は得られていないことがわかります．
+
+<strong > &#9654;&nbsp; Regression with stan</strong>
+
+cmdstanを用いて砲台座標を推定する例を紹介します．まずstan modelを以下のように設定します．
+
+- 砲撃距離のノイズについて $N(0, 1)$ であることが既にわかっている状況を想定
+- 予定砲撃距離 $r_0$ は $\operatorname{Uniform}(2, 30)$ の事前分布がある
+
+```{.stan}
+data {
+    int<lower=1> N;  // Number of data points
+    array[N] real y; // outcomes
+    array[N] real x; // outcomes
+}
+
+parameters {
+    real<lower=0> r_0; // probability of success
+    real x_0;             // Center x-coordinate
+    real y_0;             // Center y-coordinate
+}
+
+model {
+    // priors
+    r_0 ~ uniform(2, 30);
+    real sigma = 1;
+
+    // objective loss
+    array[N] real circle_equation;
+    for (i in 1:N) {
+        circle_equation[i] = sqrt((x[i] - x_0)^2 + (y[i] - y_0)^2) - r_0;
+    }
+
+    circle_equation ~ normal(0, sigma);
+}
+```
+
+その後，このモデルを用いて推定したものが以下となります．
+
+```{python}
+# | code-fold: false
+from cmdstanpy import CmdStanModel
+
+df_stan = gpd_dataframe(0, 0, 1)
+data = {
+    "N": df_stan.shape[0],
+    "y": df_stan.y_coordinate.values,
+    "x": df_stan.x_coordinate.values,
+    "sigma": 1,
+}
+
+model = CmdStanModel(stan_file="./stanmodel.stan")
+fit = model.sample(data=data, seed=42)
+fit.summary()
+```
+
+Credible intervalを見ると $(0, 0)$ は推定区間に含まれている一方，Mean, Medianともに $y_0$ の方は乖離した値が推定されてしまっています．
