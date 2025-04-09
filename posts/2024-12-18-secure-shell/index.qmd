@@ -1,0 +1,443 @@
+---
+title: "Secure Shellの仕組み"
+author: "Ryo Nakagami"
+date: "2024-12-18"
+date-modified: last-modified
+categories: [ssh]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## SSHの仕組み
+
+<div class="blog-custom-border" style="margin-top: 1rem; margin-bottom: 1rem;">
+<strong>Def: Secure Shell</strong> <br>
+
+SSH(Secure SHell)は，ネットワークで接続された他コンピューターを遠隔操作するためのプロトコルのこと
+
+</div>
+
+SSHプロトコルには現在，SSH1とSSH2という２つのプロトコルがあります. それぞれのプロトコルには互換性はありません. 
+一般的には，SSH1プロトコルには脆弱性が発見されているのでSSH2を用います. Ubuntu Serverでは，デフォルトでSSH2のみが有効となっています.
+
+<strong > &#9654;&nbsp; 特徴</strong>
+
+1. 強力な認証機能と暗号化により，ファイル転送やリモート操作を安全に行うことができる
+2. ユーザーログイン時のユーザー認証に先立って，**クライアントがサーバーの正当性を確認するホスト認証が毎回行われる**ため偽サーバーに接続することで発生する情報漏えいリスクを低減することができる
+3. クライアント側から `ssh` コマンドを用いてSSH接続を試みる場合は，接続先のコンピュータで`sshd`（SSH daemon：SSHのサーバプログラム）が 動作している必要がある
+
+<!--::: {.callout-note collapse="true" icon=false}-->
+::: {.callout-note collapse="false" icon=false}
+## SSH接続の認証手順
+
+SSH接続を試みる際の認証は
+
+- ホスト認証
+- ユーザー認証
+
+の２段階に分かれます
+
+<strong > &#9654;&nbsp; ホスト認証</strong>
+
+```{mermaid}
+sequenceDiagram
+    participant A as ssh(client)
+    participant B as sshd(server)
+    A->>B: ssh接続要求
+    B->>A: ホスト認証鍵をクライアントへ渡す
+    A->>B: ホスト認証鍵で暗号化した乱数をサーバーへ渡す
+    B->>A: ホスト認証鍵の秘密鍵で復号化し，そのハッシュ値を送付
+    Note over A,B: ハッシュ値を比較し一致していれば接続成功<br>=ホスト認証完了
+```
+
+<strong > &#9654;&nbsp; 秘密鍵公開鍵によるユーザー認証</strong>
+
+ユーザー認証はホスト認証完了後に行われる処理となります. 
+
+```{mermaid}
+sequenceDiagram
+    participant A as ssh(client)
+    participant B as sshd(server)
+    A-->>B: 公開鍵をサーバーに設置
+    A->>B: ssh接続要求
+    B->>A: 公開鍵で暗号化した乱数をssh側に渡す
+    A->>B: 秘密鍵で復号化し，そのハッシュ値を送付
+    Note over A,B: ハッシュ値を比較し一致していれば接続成功<br>=ユーザー認証完了
+```
+
+:::
+
+### ホスト認証
+
+<div class="blog-custom-border" style="margin-top: 1rem; margin-bottom: 1rem;">
+<strong>Def: ホスト認証</strong> <br>
+
+接続先が正当な相手であるのかどうかの認証のこと
+
+</div>
+
+`ssh`コマンドで初めてサーバーに接続するとき，サーバーから送られてきた公開鍵のフィンガープリントの値が表示される. このフィンガープリントをクライアント側で受け入れると，`~/.ssh/known_hosts`に以下の情報が登録されます
+
+- 接続先サーバーのホスト名
+- 接続先サーバーのIPアドレス
+- 接続先サーバーの公開鍵
+
+初回接続時の際は，接続先サーバーのホスト認証鍵を持っていないので,接続先ホストが登録されていない旨のWarningが表示されます.
+このとき，接続をこのまま続けるか？と聞かれます. yesと選択すると，SSH接続先サーバーが`~/.ssh/known_hosts`に登録されます.
+
+```{.zsh}
+% ssh hogehoge@123.456.78.9
+The authenticity of host '123.456.78.9 (123.456.78.9)' can not be established.
+ECDSA key fingerprint is SHA256:ghzvH/1TBjI0wvlYiRNDJvUsiYAX/R9eip5bw6+Rv10.
+Are you sure you want to continue connecting (yes/no/[fingerprint])?
+$ yes
+Warning: Permanently added '123.456.78.9' (ECDSA) to the list of known hosts.
+Password:
+Last login: Thu Apr 11 04:16:45 2021
+```
+
+上記における`ECDSA key fingerprintSHA256:ghzvH/1TBjI0wvlYiRNDJvUsiYAX/R9eip5bw6+Rv10`，の意味はSHA256で公開鍵をハッシュ化すると
+`ghzvH/1TBjI0wvlYiRNDJvUsiYAX/R9eip5bw6+Rv10`というフィンガープリントが発行されることを指しています.
+
+
+一度接続するとクライアントの `known_hosts` というファイルにサーバーの公開鍵が保存されるので，初回接続以降は自動的に認証が行われるため警告が表示されなくなります. 
+
+<strong > &#9654;&nbsp; WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED! </strong>
+
+目的外のサーバーに接続している場合やサーバーの公開鍵が変わっている場合，警告が表示されます.一般的にはホストキーの変更は滅多に行わなれないため、許可済みのサーバーに接続した際、 WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED! のような警告が出た場合は注意する必要があります.
+
+```{.zsh}
+% ssh ubuntu@12.3.4.56
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+
+@@
+IT IS POSSIBLE THAT SOMEONE IS DOING SOMETHING NASTY!
+Someone could be eavesdropping on you right now (man-in-the-middle attack)!
+It is also possible that a host key has just been changed.
+The fingerprint for the ECDSA key sent by the remote host is
+SHA256:tfZBzQ16o7O7SH6u4ixBmL061Sxz8DOo1cFZ9oMuGjE.
+Please contact your system administrator.
+Add correct host key in /home/hogehoge/.ssh/known_hosts to get rid of this message.
+Offending ECDSA key in /home/hogehoge/.ssh/known_hosts:4
+  remove with:
+  ssh-keygen -f "/home/hogehoge/.ssh/known_hosts" -R "12.3.4.56"
+ECDSA host key for 12.3.4.56 has changed and you have requested strict checking.
+Host key verification failed.
+```
+
+### ユーザー認証
+
+ホスト認証後に実施されるユーザー認証は，デフォルトでは，公開鍵認証，パスワード認証の順に実施されます.
+**公開鍵認証を行うには予めクライアントの公開鍵を接続先サーバーに登録する必要があります**.
+
+<strong > &#9654;&nbsp; 公開鍵の置き場所</strong>
+
+公開鍵によるユーザー認証を行うにはクライアントが作成した秘密鍵/公開鍵キーペアのうち，後者をサーバー側にコピーする必要があります. 一般的には
+
+- `~/.ssh/authorized_keys`ファイルに登録する
+- `~/.ssh/authorized_keys`以外のファイルに保存したい場合は，サーバー側の設定ファイル`sshd_config`で明示的に参照ファイルを指定する
+
+::: {#exm- .custom_problem }
+**: sshd_config設定**
+<br>
+
+`etc/ssh/sshd_config` にて `AuthorizedKeysFile` フィールドに
+
+```{.txt}
+AuthorizedKeysFile     .ssh/authorized_keys .ssh/authorized_keys2
+```
+
+と設定することで `.ssh/authorized_keys`，`.ssh/authorized_keys2` の２つを公開鍵読み込みファイルとして認識させることができます
+
+
+:::
+
+## `ssh` コマンドの実践
+### `ssh`コマンド
+
+SSHを使ってサーバーに接続するには，以下のように`ssh`コマンドを使います. 
+終了する場合は，`exit`，または `Ctrl` + `D`を入力します.
+
+```zsh
+% ssh [option] <username>@<hostname>
+```
+
+|Option|説明|
+|---|---|
+|`-p ポート番号` | 接続に使用するポート番号を指定する|
+|`-l ユーザー名` | 接続に使用するユーザー名を指定する|
+|`-i IDファイル` | 接続に使用する公開鍵ファイルを指定する|
+|`-f` | コマンドを実行する際にsshをバックグラウンドにする（Xアプリケーションを実行する際に使用）|
+|`-F 設定ファイル` | 設定ファイルを指定する|
+
+: {tbl-colwidths="[20,80]"}
+
+<strong > &#9654;&nbsp; 接続先情報の設定ファイル: `~/.ssh/config`</strong>
+
+`ssh`コマンド実行時のオプションを`~/.ssh/config`で登録することができます.
+
+```
+Host DEDEDE
+  HostName 100.21.209.82
+  User kirby_MBP
+  Port 1000
+  IdentityFile ~/.ssh/my_id_rsa
+  LocalForward 9999 localhost:9999
+```
+
+と設定すると以下のコマンドは同じ挙動になります
+
+```zsh
+% ssh DEDEDE
+% ssh kirby_MBP@100.21.209.82 -p 1000 -i ~/.ssh/my_id_rsa -L 9999:localhost:9999
+```
+
+
+### `ssh-keygen`コマンドによる認証鍵生成
+
+```zsh
+% ssh-keygen [option]
+```
+
+|Option|説明|
+|---|---|
+|`-t タイプ`|暗号化タイプの指定|
+|`-l`|鍵のフィンガープリントを表示する|
+|`-f ファイル名`|鍵ファイルを指定する（生成または読み出すファイルを指定）|
+|`-R ホスト名`|指定したホスト情報をknwon_hostsファイルから削除する|
+|`-C コメント`|コメントを指定する（デフォルトは「ユーザー名@ホスト名」。「-C ""」でコメントを削除）|
+
+: {tbl-colwidths="[20,80]"}
+
+<strong > &#9654;&nbsp; 暗号化アルゴリズムの種類</strong>
+
+|SSH version|ssh-keygenコマンド|
+|---|---|
+|SSH1 RSA|`ssh-keygen -t rsa1`|
+|SSH2 DSA|`ssh-keygen -t dsa`|
+|SSH2 RSA|`ssh-keygen -t rsa`|
+|SSH2 ECDSA|`ssh-keygen -t ecdsa`|
+|SSH2 ED25519|`ssh-keygen -t ed25519`|
+
+: {tbl-colwidths="[30,70]"}
+
+::: {.nte- .callout-tip icon="false"}
+# 🍵 ED25519のススメ
+
+[GitHub](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent)や[GitLab](https://docs.gitlab.com/ee/user/ssh.html)のドキュメントを確認すると，`ED25519`の使用が推奨されています.
+
+GitLabより引用すると
+
+> The book Practical Cryptography With Go suggests that ED25519 keys are more secure and performant than RSA keys. OpenSSH 6.5 introduced ED25519 SSH keys in 2014，and they should be available on most operating systems. 
+
+ED25519は以下のような特徴があります
+
+- 楕円曲線を用いた暗号
+- RSAやDSAの鍵長の約半分以下で同等のセキュリティ強度が得られる
+- 鍵長が短いので，暗号化/復号化の計算を高速に行える
+
+従って，以下のコマンドで鍵を生成するようにしてください.
+
+```zsh
+% ssh-keygen -t e
+```
+
+:::
+
+<strong > &#9654;&nbsp; 鍵の生成</strong>
+
+`ssh-keygen`コマンドを使うと
+
+1. 鍵ファイル名の指定（そのまま`Enter`を入力するとデフォルトのファイル名となる）
+2. パスフレーズの入力（特別な理由がない限り設定する）
+
+が求められます. 特段の事情がない限り個人的には設定する方針としています.
+なお生成される公開鍵には，デフォルトではユーザ名とホスト名がコメントとして記載されています(以下の例では`hoge@foofoo`)
+
+```zsh
+% ssh-keygen -t ed25519                                           
+Generating public/private ed25519 key pair.
+Enter file in which to save the key (/home/hogehoge/.ssh/id_ed25519): hogehoge_ed25519
+Enter passphrase (empty for no passphrase): 
+Enter same passphrase again: 
+Your identification has been saved in hogehoge_ed25519
+Your public key has been saved in hogehoge_ed25519.pub
+The key fingerprint is:
+SHA256:MnM1r0IqwugnLCTEnSHjuPoTk7mdmSMExw+r5cOkrwQ hoge@foofoo
+The key's randomart image is:
++--[ED25519 256]--+
+|@+%.  o  o       |
+|.o.Eo *  + S     |
+|. o..oo +        |
+|@+%.  o  o       |
+| .oo=.= S =      |
+|   ..B o + +     |
+|    = * . o .    |
+| o++o            |
+|+B==.. ....      |
++----[SHA256]-----+
+```
+
+秘密鍵の作成後，誤って内容が書き換わってしまうリスクを抑えるため，Permissionを`400`に設定しときます:
+
+```zsh
+% sudo chmod 400 id_ed25519
+```
+
+### `ssh-copy-id`コマンド: 接続先ホストへの公開鍵登録
+
+鍵ペア作成後，公開鍵を接続先ホストへ登録する必要あります. この時使われるコマンドが `ssh-copy-id`コマンドです.
+なお，初回登録時点では接続先ホストではパスワード認証によるログインが許可されている必要があります.
+
+::: {#exm- .custom_problem }
+**: `ssh-copy-id`コマンド**
+<br>
+
+以下のコマンドで接続先サーバーの`.ssh/authorized_keys`に公開鍵を追記することができます
+
+```zsh
+% ssh-copy-id [-p ポート番号] -i 公開鍵ファイル名 USERNAME@$HOST
+
+# 以下のコマンドと同義
+# cat 公開鍵ファイル名 \
+#  | ssh -p ポート番号 USERNAME@$HOST \
+#  "mkdir -p ~/.ssh; cat >> ~/.ssh/authorized_keys"
+```
+
+- `.ssh/authorized_keys`ファイルが存在しなくても，自動的に作成してくれます
+- このコマンド実施時には接続先ホストのパスワード入力が求められます. 
+- 登録後はOpenSSHサーバーの設定を変更し，パスワード認証を無効にすることが推奨されます.
+
+:::
+---
+
+### `sshpass` コマンド
+
+- `sshpass`(noninteractive ssh password provider)とは，sshコマンドでSSH接続を試みる際に要求されるログインパスワードを
+事前に指定した方法でコマンドプロンプトへ渡し，簡単にSSH接続を実現するCLI機能のこと
+- `sshpass -p <password> ssh <usename@>接続先ホスト` という形で実行するとシステムユーザーによる`ps`コマンドで
+パスワードがバレてしまうというリスクがあるので，便利さの一方，セキュリティリスクがある点について留意が必要
+
+<strong > &#9654;&nbsp; インストール方法</strong>
+
+```zsh
+% sudo apt install sshpass ## Ubuntu
+```
+
+Macだと以下のようなメッセージで怒られます.
+
+```
+#Error: No available formula or cask with the name "sshpass".
+#We won't add sshpass because it makes it too easy for novice SSH users to
+#ruin SSH's security.
+```
+
+それでもインストールしたい場合は，ソースから直接以下のような方法でインストールします:
+
+```zsh
+% wget http://sourceforge.net/projects/sshpass/files/latest/download -O sshpass.tar.gz
+% tar -xvf sshpass.tar.gz
+% cd sshpass-1.08
+% ./configure
+% sudo make install 
+% which sshpass ##pathが通っているか確認
+```
+
+<strong > &#9654;&nbsp; `sshpass`コマンドの利用方法</strong>
+
+ヘルプコマンドで利用方法を確認してみます:
+
+```zsh
+% sshpass -h
+Usage: sshpass [-f|-d|-p|-e] [-hV] command parameters
+   -f filename   Take password to use from file
+   -d number     Use number as file descriptor for getting password
+   -p password   Provide password as argument (security unwise)
+   -e            Password is passed as env-var "SSHPASS"
+   With no parameters - password will be taken from stdin
+
+   -P prompt     Which string should sshpass search for to detect a password prompt
+   -v            Be verbose about what you're doing
+   -h            Show help (this screen)
+   -V            Print version information
+At most one of -f，-d，-p or -e should be used
+```
+
+```zsh
+% sshpass -p '<passphrase>' ssh username@host 
+```
+
+という形で利用することもできますが，`ps`コマンドでpassphraseがダダ漏れになってしまうので
+
+```zsh
+% sshpass -f <configfilepath> ssh username@host
+```
+
+または，`-e`オプションを指定することで環境変数`SSHPASS`を参照することができるので
+
+```zsh
+% export SSHPASS='my_pass_here'
+% echo $SSHPASS
+% sshpass -e ssh username@host 
+```
+
+### `scp` コマンド: ホストとクライアント間のファイル転送
+
+```zsh
+% scp [オプション] コピー元 コピー先 
+```
+
+コピー元，コピー先はそれぞれのPATHを入力しますがリモート側/ローカル側の書式例は以下です:
+
+- リモートサーバー側: `username@hostname：PATH`
+- ローカルクライアント側:`PATH`
+
+
+|Option|説明|
+|---|---|
+|`-i 秘密鍵ファイル`| 	RSAまたはDSA認証の秘密鍵ファイルを指定する|
+|`-P ポート番号`| 	ポート番号を指定する|
+|`-p`| コピー元ファイルとディレクトリの更新時間、アクセス時間、パーミッションを保持したまま転送する場合|
+|`-r` |	ディレクトリ内を再帰的にコピーする|
+
+: {tbl-colwidths="[20,80]"}
+
+<strong > &#9654;&nbsp; ローカルからリモートホストにファイル/ディレクトリをコピー</strong>
+
+```zsh
+## ファイルのコピー
+% scp ~/tmp/file1 user@192.168.10.1:/home/user/tmp/ 
+
+## ディレクトリのコピー
+% scp -r ~/tmp user1@192.168.10.1:/home/user/tmp
+
+## sshpassとの組合せ
+% sshpass -f passwordFile scp ~/tmp/file1 user@192.168.10.1:/home/user/tmp/ 
+```
+
+
+<strong > &#9654;&nbsp; リモートホストからローカルにファイル/ディレクトリをコピー</strong>
+
+```zsh
+## ファイルのコピー
+% scp user@192.168.10.1:/home/user/file1 ~/tmp
+ 
+## ディレクトリのコピー
+% scp -r user@192.168.10.1:/home/user/tmp ~/tmp
+ 
+## 複数のファイルを、{}で囲んで「,」で区切り指定しコピーする例
+% scp user@192.168.10.1:/home/user/{file1,file2,file3} ~/tmp
+```
+
+<strong > &#9654;&nbsp; リモートホストから別のリモートホストにファイル/ディレクトリをコピー</strong>
+
+```zsh
+% scp user1@192.168.10.1:/home/user/tmp/file1 user2@192.168.10.2:/home/user/tmp/
+```
