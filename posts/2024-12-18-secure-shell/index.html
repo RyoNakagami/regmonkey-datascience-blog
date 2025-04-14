@@ -1,0 +1,1340 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="ja_JP.UTF-8" xml:lang="ja_JP.UTF-8"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.6.43">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Ryo Nakagami">
+<meta name="dcterms.date" content="2024-12-18">
+
+<title>Secure Shellの仕組み – regmonkey datascience blog</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<link href="../../img/favicon.ico" rel="icon">
+<script src="../../site_libs/quarto-html/quarto.js"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-7fd0fe4245b865325b8ce8dccb604d59.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark-dc95f10abd972b9c41a78ec8992004fc.css" rel="prefetch" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-1d6599c07ed1f7ed447d062017a5593d.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark-856c73c830dcd2681fee44a241ab8756.min.css" rel="prefetch" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script async="" src="https://www.googletagmanager.com/gtag/js?id=G-LVL413SV09"></script>
+
+<script type="text/javascript">
+
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-LVL413SV09', { 'anonymize_ip': true});
+</script>
+<style>
+
+      .quarto-title-block .quarto-title-banner h1,
+      .quarto-title-block .quarto-title-banner h2,
+      .quarto-title-block .quarto-title-banner h3,
+      .quarto-title-block .quarto-title-banner h4,
+      .quarto-title-block .quarto-title-banner h5,
+      .quarto-title-block .quarto-title-banner h6
+      {
+        color: #ffffff;
+      }
+
+      .quarto-title-block .quarto-title-banner {
+        color: #ffffff;
+      }
+</style>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+  new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+  j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+  'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+  })(window,document,'script','dataLayer','GTM-K8BNZQM');</script>
+  <!-- End Google Tag Manager -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&amp;display=swap" rel="stylesheet">
+<script>
+    MathJax = {
+        tex: {
+            tags: 'all'  // should be 'ams', 'none', or 'all'
+        }
+    };
+</script>
+<meta name="mermaid-theme" content="neutral">
+<script src="../../site_libs/quarto-diagram/mermaid.min.js"></script>
+<script src="../../site_libs/quarto-diagram/mermaid-init.js"></script>
+<link href="../../site_libs/quarto-diagram/mermaid.css" rel="stylesheet">
+
+
+<link rel="stylesheet" href="../../styles.css">
+<meta property="og:title" content="Secure Shellの仕組み – regmonkey datascience blog">
+<meta property="og:description" content="">
+<meta property="og:site_name" content="regmonkey datascience blog">
+</head>
+
+<body class="nav-fixed">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top quarto-banner">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">Home</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-bi-book" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+      <i class="bi bi-book" role="img">
+</i> 
+ <span class="menu-text"></span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-bi-book">    
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/statistics-for-regression-monkey/">
+ <span class="dropdown-text">Statistics Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/python-statisticalpackage-techniques/">
+ <span class="dropdown-text">Python package building Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/regmonkey_datavisualization/">
+ <span class="dropdown-text">Data Visualization Blog</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../dictionary/dict.html"> 
+<span class="menu-text">Dictionary</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../about.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/RyoNakagami/regmonkey-datascience-blog"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="../../index.xml"> <i class="bi bi-rss" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">Secure Shellの仕組み</h1>
+                                <div class="quarto-categories">
+                <div class="quarto-category">ssh</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      <div>
+      <div class="quarto-title-meta-heading">Author</div>
+      <div class="quarto-title-meta-contents">
+               <p>Ryo Nakagami </p>
+            </div>
+    </div>
+      
+      <div>
+      <div class="quarto-title-meta-heading">Published</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">2024-12-18</p>
+      </div>
+    </div>
+    
+      <div>
+      <div class="quarto-title-meta-heading">Modified</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date-modified">2025-04-14</p>
+      </div>
+    </div>
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#sshの仕組み" id="toc-sshの仕組み" class="nav-link active" data-scroll-target="#sshの仕組み">SSHの仕組み</a>
+  <ul class="collapse">
+  <li><a href="#ホスト認証" id="toc-ホスト認証" class="nav-link" data-scroll-target="#ホスト認証">ホスト認証</a></li>
+  <li><a href="#ユーザー認証" id="toc-ユーザー認証" class="nav-link" data-scroll-target="#ユーザー認証">ユーザー認証</a></li>
+  </ul></li>
+  <li><a href="#ssh-コマンドの実践" id="toc-ssh-コマンドの実践" class="nav-link" data-scroll-target="#ssh-コマンドの実践"><code>ssh</code> コマンドの実践</a>
+  <ul class="collapse">
+  <li><a href="#sshコマンド" id="toc-sshコマンド" class="nav-link" data-scroll-target="#sshコマンド"><code>ssh</code>コマンド</a></li>
+  <li><a href="#ssh-keygenコマンドによる認証鍵生成" id="toc-ssh-keygenコマンドによる認証鍵生成" class="nav-link" data-scroll-target="#ssh-keygenコマンドによる認証鍵生成"><code>ssh-keygen</code>コマンドによる認証鍵生成</a></li>
+  <li><a href="#ssh-copy-idコマンド-接続先ホストへの公開鍵登録" id="toc-ssh-copy-idコマンド-接続先ホストへの公開鍵登録" class="nav-link" data-scroll-target="#ssh-copy-idコマンド-接続先ホストへの公開鍵登録"><code>ssh-copy-id</code>コマンド: 接続先ホストへの公開鍵登録</a></li>
+  <li><a href="#sshpass-コマンド" id="toc-sshpass-コマンド" class="nav-link" data-scroll-target="#sshpass-コマンド"><code>sshpass</code> コマンド</a></li>
+  <li><a href="#scp-コマンド-ホストとクライアント間のファイル転送" id="toc-scp-コマンド-ホストとクライアント間のファイル転送" class="nav-link" data-scroll-target="#scp-コマンド-ホストとクライアント間のファイル転送"><code>scp</code> コマンド: ホストとクライアント間のファイル転送</a></li>
+  </ul></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content">
+
+
+
+
+
+<section id="sshの仕組み" class="level2">
+<h2 class="anchored" data-anchor-id="sshの仕組み">SSHの仕組み</h2>
+<div class="blog-custom-border" style="margin-top: 1rem; margin-bottom: 1rem;">
+<p><strong>Def: Secure Shell</strong> <br></p>
+<p>SSH(Secure SHell)は，ネットワークで接続された他コンピューターを遠隔操作するためのプロトコルのこと</p>
+</div>
+<p>SSHプロトコルには現在，SSH1とSSH2という２つのプロトコルがあります. それぞれのプロトコルには互換性はありません. 一般的には，SSH1プロトコルには脆弱性が発見されているのでSSH2を用います. Ubuntu Serverでは，デフォルトでSSH2のみが有効となっています.</p>
+<p><strong> ▶&nbsp; 特徴</strong></p>
+<ol type="1">
+<li>強力な認証機能と暗号化により，ファイル転送やリモート操作を安全に行うことができる</li>
+<li>ユーザーログイン時のユーザー認証に先立って，<strong>クライアントがサーバーの正当性を確認するホスト認証が毎回行われる</strong>ため偽サーバーに接続することで発生する情報漏えいリスクを低減することができる</li>
+<li>クライアント側から <code>ssh</code> コマンドを用いてSSH接続を試みる場合は，接続先のコンピュータで<code>sshd</code>（SSH daemon：SSHのサーバプログラム）が 動作している必要がある</li>
+</ol>
+<!--::: {.callout-note collapse="true" icon=false}-->
+<div class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-1-contents" aria-controls="callout-1" aria-expanded="true" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+SSH接続の認証手順
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-1" class="callout-1-contents callout-collapse collapse show">
+<div class="callout-body-container callout-body">
+<p>SSH接続を試みる際の認証は</p>
+<ul>
+<li>ホスト認証</li>
+<li>ユーザー認証</li>
+</ul>
+<p>の２段階に分かれます</p>
+<p><strong> ▶&nbsp; ホスト認証</strong></p>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">sequenceDiagram
+    participant A as ssh(client)
+    participant B as sshd(server)
+    A-&gt;&gt;B: ssh接続要求
+    B-&gt;&gt;A: ホスト認証鍵をクライアントへ渡す
+    A-&gt;&gt;B: ホスト認証鍵で暗号化した乱数をサーバーへ渡す
+    B-&gt;&gt;A: ホスト認証鍵の秘密鍵で復号化し，そのハッシュ値を送付
+    Note over A,B: ハッシュ値を比較し一致していれば接続成功&lt;br&gt;=ホスト認証完了
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+<p><strong> ▶&nbsp; 秘密鍵公開鍵によるユーザー認証</strong></p>
+<p>ユーザー認証はホスト認証完了後に行われる処理となります.</p>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">sequenceDiagram
+    participant A as ssh(client)
+    participant B as sshd(server)
+    A--&gt;&gt;B: 公開鍵をサーバーに設置
+    A-&gt;&gt;B: ssh接続要求
+    B-&gt;&gt;A: 公開鍵で暗号化した乱数をssh側に渡す
+    A-&gt;&gt;B: 秘密鍵で復号化し，そのハッシュ値を送付
+    Note over A,B: ハッシュ値を比較し一致していれば接続成功&lt;br&gt;=ユーザー認証完了
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<section id="ホスト認証" class="level3">
+<h3 class="anchored" data-anchor-id="ホスト認証">ホスト認証</h3>
+<div class="blog-custom-border" style="margin-top: 1rem; margin-bottom: 1rem;">
+<p><strong>Def: ホスト認証</strong> <br></p>
+<p>接続先が正当な相手であるのかどうかの認証のこと</p>
+</div>
+<p><code>ssh</code>コマンドで初めてサーバーに接続するとき，サーバーから送られてきた公開鍵のフィンガープリントの値が表示される. このフィンガープリントをクライアント側で受け入れると，<code>~/.ssh/known_hosts</code>に以下の情報が登録されます</p>
+<ul>
+<li>接続先サーバーのホスト名</li>
+<li>接続先サーバーのIPアドレス</li>
+<li>接続先サーバーの公開鍵</li>
+</ul>
+<p>初回接続時の際は，接続先サーバーのホスト認証鍵を持っていないので,接続先ホストが登録されていない旨のWarningが表示されます. このとき，接続をこのまま続けるか？と聞かれます. yesと選択すると，SSH接続先サーバーが<code>~/.ssh/known_hosts</code>に登録されます.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> ssh hogehoge@123.456.78.9</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">The</span> authenticity of host <span class="st">'123.456.78.9 (123.456.78.9)'</span> can not be established.</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ex">ECDSA</span> key fingerprint is SHA256:ghzvH/1TBjI0wvlYiRNDJvUsiYAX/R9eip5bw6+Rv10.</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="ex">Are</span> you sure you want to continue connecting <span class="pp">(</span><span class="ss">yes/no/</span><span class="pp">[</span><span class="st">fingerprint</span><span class="pp">])?</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> yes</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="ex">Warning:</span> Permanently added <span class="st">'123.456.78.9'</span> <span class="op">(ECDSA)</span> to the list of known hosts.</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="ex">Password:</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="ex">Last</span> login: Thu Apr 11 04:16:45 2021</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>上記における<code>ECDSA key fingerprintSHA256:ghzvH/1TBjI0wvlYiRNDJvUsiYAX/R9eip5bw6+Rv10</code>，の意味はSHA256で公開鍵をハッシュ化すると <code>ghzvH/1TBjI0wvlYiRNDJvUsiYAX/R9eip5bw6+Rv10</code>というフィンガープリントが発行されることを指しています.</p>
+<p>一度接続するとクライアントの <code>known_hosts</code> というファイルにサーバーの公開鍵が保存されるので，初回接続以降は自動的に認証が行われるため警告が表示されなくなります.</p>
+<p><strong> ▶&nbsp; WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED! </strong></p>
+<p>目的外のサーバーに接続している場合やサーバーの公開鍵が変わっている場合，警告が表示されます.一般的にはホストキーの変更は滅多に行わなれないため、許可済みのサーバーに接続した際、 WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED! のような警告が出た場合は注意する必要があります.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> ssh ubuntu@12.3.4.56</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="ex">@</span>    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="ex">@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="ex">@@</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="ex">IT</span> IS POSSIBLE THAT SOMEONE IS DOING SOMETHING NASTY!</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="ex">Someone</span> could be eavesdropping on you right now <span class="pp">(</span><span class="ss">man-in-the-middle attack</span><span class="pp">)</span>!</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="ex">It</span> is also possible that a host key has just been changed.</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="ex">The</span> fingerprint for the ECDSA key sent by the remote host is</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="ex">SHA256:tfZBzQ16o7O7SH6u4ixBmL061Sxz8DOo1cFZ9oMuGjE.</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="ex">Please</span> contact your system administrator.</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="ex">Add</span> correct host key in /home/hogehoge/.ssh/known_hosts to get rid of this message.</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="ex">Offending</span> ECDSA key in /home/hogehoge/.ssh/known_hosts:4</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>  <span class="ex">remove</span> with:</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ssh-keygen</span> <span class="at">-f</span> <span class="st">"/home/hogehoge/.ssh/known_hosts"</span> <span class="at">-R</span> <span class="st">"12.3.4.56"</span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a><span class="ex">ECDSA</span> host key for 12.3.4.56 has changed and you have requested strict checking.</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a><span class="ex">Host</span> key verification failed.</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</section>
+<section id="ユーザー認証" class="level3">
+<h3 class="anchored" data-anchor-id="ユーザー認証">ユーザー認証</h3>
+<p>ホスト認証後に実施されるユーザー認証は，デフォルトでは，公開鍵認証，パスワード認証の順に実施されます. <strong>公開鍵認証を行うには予めクライアントの公開鍵を接続先サーバーに登録する必要があります</strong>.</p>
+<p><strong> ▶&nbsp; 公開鍵の置き場所</strong></p>
+<p>公開鍵によるユーザー認証を行うにはクライアントが作成した秘密鍵/公開鍵キーペアのうち，後者をサーバー側にコピーする必要があります. 一般的には</p>
+<ul>
+<li><code>~/.ssh/authorized_keys</code>ファイルに登録する</li>
+<li><code>~/.ssh/authorized_keys</code>以外のファイルに保存したい場合は，サーバー側の設定ファイル<code>sshd_config</code>で明示的に参照ファイルを指定する</li>
+</ul>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Example 1</strong></span> <strong>: sshd_config設定</strong> <br></p>
+<p><code>etc/ssh/sshd_config</code> にて <code>AuthorizedKeysFile</code> フィールドに</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode txt code-with-copy"><code class="sourceCode default"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>AuthorizedKeysFile     .ssh/authorized_keys .ssh/authorized_keys2</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>と設定することで <code>.ssh/authorized_keys</code>，<code>.ssh/authorized_keys2</code> の２つを公開鍵読み込みファイルとして認識させることができます</p>
+</div>
+</section>
+</section>
+<section id="ssh-コマンドの実践" class="level2">
+<h2 class="anchored" data-anchor-id="ssh-コマンドの実践"><code>ssh</code> コマンドの実践</h2>
+<section id="sshコマンド" class="level3">
+<h3 class="anchored" data-anchor-id="sshコマンド"><code>ssh</code>コマンド</h3>
+<p>SSHを使ってサーバーに接続するには，以下のように<code>ssh</code>コマンドを使います. 終了する場合は，<code>exit</code>，または <code>Ctrl</code> + <code>D</code>を入力します.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> ssh <span class="pp">[</span><span class="st">option</span><span class="pp">]</span> <span class="op">&lt;</span>username<span class="op">&gt;</span>@<span class="op">&lt;</span>hostname<span class="op">&gt;</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 80%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Option</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>-p ポート番号</code></td>
+<td>接続に使用するポート番号を指定する</td>
+</tr>
+<tr class="even">
+<td><code>-l ユーザー名</code></td>
+<td>接続に使用するユーザー名を指定する</td>
+</tr>
+<tr class="odd">
+<td><code>-i IDファイル</code></td>
+<td>接続に使用する公開鍵ファイルを指定する</td>
+</tr>
+<tr class="even">
+<td><code>-f</code></td>
+<td>コマンドを実行する際にsshをバックグラウンドにする（Xアプリケーションを実行する際に使用）</td>
+</tr>
+<tr class="odd">
+<td><code>-F 設定ファイル</code></td>
+<td>設定ファイルを指定する</td>
+</tr>
+</tbody>
+</table>
+<p><strong> ▶&nbsp; 接続先情報の設定ファイル: <code>~/.ssh/config</code></strong></p>
+<p><code>ssh</code>コマンド実行時のオプションを<code>~/.ssh/config</code>で登録することができます.</p>
+<pre><code>Host DEDEDE
+  HostName 100.21.209.82
+  User kirby_MBP
+  Port 1000
+  IdentityFile ~/.ssh/my_id_rsa
+  LocalForward 9999 localhost:9999</code></pre>
+<p>と設定すると以下のコマンドは同じ挙動になります</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> ssh DEDEDE</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> ssh kirby_MBP@100.21.209.82 <span class="at">-p</span> 1000 <span class="at">-i</span> ~/.ssh/my_id_rsa <span class="at">-L</span> 9999:localhost:9999</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</section>
+<section id="ssh-keygenコマンドによる認証鍵生成" class="level3">
+<h3 class="anchored" data-anchor-id="ssh-keygenコマンドによる認証鍵生成"><code>ssh-keygen</code>コマンドによる認証鍵生成</h3>
+<div class="sourceCode" id="cb7"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> ssh-keygen <span class="pp">[</span><span class="st">option</span><span class="pp">]</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 80%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Option</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>-t タイプ</code></td>
+<td>暗号化タイプの指定</td>
+</tr>
+<tr class="even">
+<td><code>-l</code></td>
+<td>鍵のフィンガープリントを表示する</td>
+</tr>
+<tr class="odd">
+<td><code>-f ファイル名</code></td>
+<td>鍵ファイルを指定する（生成または読み出すファイルを指定）</td>
+</tr>
+<tr class="even">
+<td><code>-R ホスト名</code></td>
+<td>指定したホスト情報をknwon_hostsファイルから削除する</td>
+</tr>
+<tr class="odd">
+<td><code>-C コメント</code></td>
+<td>コメントを指定する（デフォルトは「ユーザー名@ホスト名」。「-C ““」でコメントを削除）</td>
+</tr>
+</tbody>
+</table>
+<p><strong> ▶&nbsp; 暗号化アルゴリズムの種類</strong></p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 30%">
+<col style="width: 70%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>SSH version</th>
+<th>ssh-keygenコマンド</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>SSH1 RSA</td>
+<td><code>ssh-keygen -t rsa1</code></td>
+</tr>
+<tr class="even">
+<td>SSH2 DSA</td>
+<td><code>ssh-keygen -t dsa</code></td>
+</tr>
+<tr class="odd">
+<td>SSH2 RSA</td>
+<td><code>ssh-keygen -t rsa</code></td>
+</tr>
+<tr class="even">
+<td>SSH2 ECDSA</td>
+<td><code>ssh-keygen -t ecdsa</code></td>
+</tr>
+<tr class="odd">
+<td>SSH2 ED25519</td>
+<td><code>ssh-keygen -t ed25519</code></td>
+</tr>
+</tbody>
+</table>
+<div class="nte- callout callout-style-default callout-tip no-icon callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+🍵 ED25519のススメ
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><a href="https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent">GitHub</a>や<a href="https://docs.gitlab.com/ee/user/ssh.html">GitLab</a>のドキュメントを確認すると，<code>ED25519</code>の使用が推奨されています.</p>
+<p>GitLabより引用すると</p>
+<blockquote class="blockquote">
+<p>The book Practical Cryptography With Go suggests that ED25519 keys are more secure and performant than RSA keys. OpenSSH 6.5 introduced ED25519 SSH keys in 2014，and they should be available on most operating systems.</p>
+</blockquote>
+<p>ED25519は以下のような特徴があります</p>
+<ul>
+<li>楕円曲線を用いた暗号</li>
+<li>RSAやDSAの鍵長の約半分以下で同等のセキュリティ強度が得られる</li>
+<li>鍵長が短いので，暗号化/復号化の計算を高速に行える</li>
+</ul>
+<p>従って，以下のコマンドで鍵を生成するようにしてください.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> ssh-keygen <span class="at">-t</span> e</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</div>
+<p><strong> ▶&nbsp; 鍵の生成</strong></p>
+<p><code>ssh-keygen</code>コマンドを使うと</p>
+<ol type="1">
+<li>鍵ファイル名の指定（そのまま<code>Enter</code>を入力するとデフォルトのファイル名となる）</li>
+<li>パスフレーズの入力（特別な理由がない限り設定する）</li>
+</ol>
+<p>が求められます. 特段の事情がない限り個人的には設定する方針としています. なお生成される公開鍵には，デフォルトではユーザ名とホスト名がコメントとして記載されています(以下の例では<code>hoge@foofoo</code>)</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> ssh-keygen <span class="at">-t</span> ed25519                                           </span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="ex">Generating</span> public/private ed25519 key pair.</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="ex">Enter</span> file in which to save the key <span class="pp">(</span><span class="ss">/home/hogehoge/.ssh/id_ed25519</span><span class="pp">)</span>: hogehoge_ed25519</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="ex">Enter</span> passphrase <span class="pp">(</span><span class="ss">empty for no passphrase</span><span class="pp">)</span>: </span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="ex">Enter</span> same passphrase again: </span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="ex">Your</span> identification has been saved in hogehoge_ed25519</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a><span class="ex">Your</span> public key has been saved in hogehoge_ed25519.pub</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a><span class="ex">The</span> key fingerprint is:</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a><span class="ex">SHA256:MnM1r0IqwugnLCTEnSHjuPoTk7mdmSMExw+r5cOkrwQ</span> hoge@foofoo</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="ex">The</span> key<span class="st">'s randomart image is:</span></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a><span class="st">+--[ED25519 256]--+</span></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a><span class="st">|@+%.  o  o       |</span></span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a><span class="st">|.o.Eo *  + S     |</span></span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a><span class="st">|. o..oo +        |</span></span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a><span class="st">|@+%.  o  o       |</span></span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a><span class="st">| .oo=.= S =      |</span></span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a><span class="st">|   ..B o + +     |</span></span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a><span class="st">|    = * . o .    |</span></span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a><span class="st">| o++o            |</span></span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a><span class="st">|+B==.. ....      |</span></span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a><span class="st">+----[SHA256]-----+</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>秘密鍵の作成後，誤って内容が書き換わってしまうリスクを抑えるため，Permissionを<code>400</code>に設定しときます:</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> sudo chmod 400 id_ed25519</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</section>
+<section id="ssh-copy-idコマンド-接続先ホストへの公開鍵登録" class="level3">
+<h3 class="anchored" data-anchor-id="ssh-copy-idコマンド-接続先ホストへの公開鍵登録"><code>ssh-copy-id</code>コマンド: 接続先ホストへの公開鍵登録</h3>
+<p>鍵ペア作成後，公開鍵を接続先ホストへ登録する必要あります. この時使われるコマンドが <code>ssh-copy-id</code>コマンドです. なお，初回登録時点では接続先ホストではパスワード認証によるログインが許可されている必要があります.</p>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Example 2</strong></span> <strong>: <code>ssh-copy-id</code>コマンド</strong> <br></p>
+<p>以下のコマンドで接続先サーバーの<code>.ssh/authorized_keys</code>に公開鍵を追記することができます</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> ssh-copy-id <span class="pp">[</span><span class="op">-</span><span class="st">p ポート番号</span><span class="pp">]</span> <span class="at">-i</span> 公開鍵ファイル名 USERNAME@<span class="va">$HOST</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="co"># 以下のコマンドと同義</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="co"># cat 公開鍵ファイル名 \</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a><span class="co">#  | ssh -p ポート番号 USERNAME@$HOST \</span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a><span class="co">#  "mkdir -p ~/.ssh; cat &gt;&gt; ~/.ssh/authorized_keys"</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<ul>
+<li><code>.ssh/authorized_keys</code>ファイルが存在しなくても，自動的に作成してくれます</li>
+<li>このコマンド実施時には接続先ホストのパスワード入力が求められます.</li>
+<li>登録後はOpenSSHサーバーの設定を変更し，パスワード認証を無効にすることが推奨されます.</li>
+</ul>
+</div>
+<hr>
+</section>
+<section id="sshpass-コマンド" class="level3">
+<h3 class="anchored" data-anchor-id="sshpass-コマンド"><code>sshpass</code> コマンド</h3>
+<ul>
+<li><code>sshpass</code>(noninteractive ssh password provider)とは，sshコマンドでSSH接続を試みる際に要求されるログインパスワードを 事前に指定した方法でコマンドプロンプトへ渡し，簡単にSSH接続を実現するCLI機能のこと</li>
+<li><code>sshpass -p &lt;password&gt; ssh &lt;usename@&gt;接続先ホスト</code> という形で実行するとシステムユーザーによる<code>ps</code>コマンドで パスワードがバレてしまうというリスクがあるので，便利さの一方，セキュリティリスクがある点について留意が必要</li>
+</ul>
+<p><strong> ▶&nbsp; インストール方法</strong></p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> sudo apt install sshpass <span class="co">## Ubuntu</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>Macだと以下のようなメッセージで怒られます.</p>
+<pre><code>#Error: No available formula or cask with the name "sshpass".
+#We won't add sshpass because it makes it too easy for novice SSH users to
+#ruin SSH's security.</code></pre>
+<p>それでもインストールしたい場合は，ソースから直接以下のような方法でインストールします:</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> wget http://sourceforge.net/projects/sshpass/files/latest/download <span class="at">-O</span> sshpass.tar.gz</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> tar <span class="at">-xvf</span> sshpass.tar.gz</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> cd sshpass-1.08</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> ./configure</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> sudo make install </span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> which sshpass <span class="co">##pathが通っているか確認</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p><strong> ▶&nbsp; <code>sshpass</code>コマンドの利用方法</strong></p>
+<p>ヘルプコマンドで利用方法を確認してみます:</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> sshpass <span class="at">-h</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="ex">Usage:</span> sshpass <span class="pp">[</span><span class="op">-</span><span class="st">f|</span><span class="op">-</span><span class="st">d|</span><span class="op">-</span><span class="st">p|</span><span class="op">-</span><span class="st">e</span><span class="pp">]</span> <span class="pp">[</span><span class="op">-</span><span class="st">hV</span><span class="pp">]</span> command parameters</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>   <span class="ex">-f</span> filename   Take password to use from file</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>   <span class="ex">-d</span> number     Use number as file descriptor for getting password</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>   <span class="ex">-p</span> password   Provide password as argument <span class="op">(sec</span>urity unwise)</span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>   -e            Password is passed as env-var <span class="st">"SSHPASS"</span></span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>   With no parameters - password will be taken from stdin</span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>   -P prompt     Which string should sshpass search for to detect a password prompt</span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>   -v            Be verbose about what you<span class="st">'re doing</span></span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a><span class="st">   -h            Show help (this screen)</span></span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a><span class="st">   -V            Print version information</span></span>
+<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a><span class="st">At most one of -f，-d，-p or -e should be used</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb16"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> sshpass <span class="at">-p</span> <span class="st">'&lt;passphrase&gt;'</span> ssh username@host </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>という形で利用することもできますが，<code>ps</code>コマンドでpassphraseがダダ漏れになってしまうので</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> sshpass <span class="at">-f</span> <span class="op">&lt;</span>configfilepath<span class="op">&gt;</span> ssh username@host</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>または，<code>-e</code>オプションを指定することで環境変数<code>SSHPASS</code>を参照することができるので</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> export SSHPASS=<span class="st">'my_pass_here'</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> echo <span class="va">$SSHPASS</span></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> sshpass <span class="at">-e</span> ssh username@host </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</section>
+<section id="scp-コマンド-ホストとクライアント間のファイル転送" class="level3">
+<h3 class="anchored" data-anchor-id="scp-コマンド-ホストとクライアント間のファイル転送"><code>scp</code> コマンド: ホストとクライアント間のファイル転送</h3>
+<div class="sourceCode" id="cb19"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> scp <span class="pp">[</span><span class="st">オプション</span><span class="pp">]</span> コピー元 コピー先 </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>コピー元，コピー先はそれぞれのPATHを入力しますがリモート側/ローカル側の書式例は以下です:</p>
+<ul>
+<li>リモートサーバー側: <code>username@hostname：PATH</code></li>
+<li>ローカルクライアント側:<code>PATH</code></li>
+</ul>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 80%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Option</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>-i 秘密鍵ファイル</code></td>
+<td>RSAまたはDSA認証の秘密鍵ファイルを指定する</td>
+</tr>
+<tr class="even">
+<td><code>-P ポート番号</code></td>
+<td>ポート番号を指定する</td>
+</tr>
+<tr class="odd">
+<td><code>-p</code></td>
+<td>コピー元ファイルとディレクトリの更新時間、アクセス時間、パーミッションを保持したまま転送する場合</td>
+</tr>
+<tr class="even">
+<td><code>-r</code></td>
+<td>ディレクトリ内を再帰的にコピーする</td>
+</tr>
+</tbody>
+</table>
+<p><strong> ▶&nbsp; ローカルからリモートホストにファイル/ディレクトリをコピー</strong></p>
+<div class="sourceCode" id="cb20"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="co">## ファイルのコピー</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> scp ~/tmp/file1 user@192.168.10.1:/home/user/tmp/ </span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a><span class="co">## ディレクトリのコピー</span></span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> scp <span class="at">-r</span> ~/tmp user1@192.168.10.1:/home/user/tmp</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a><span class="co">## sshpassとの組合せ</span></span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> sshpass <span class="at">-f</span> passwordFile scp ~/tmp/file1 user@192.168.10.1:/home/user/tmp/ </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p><strong> ▶&nbsp; リモートホストからローカルにファイル/ディレクトリをコピー</strong></p>
+<div class="sourceCode" id="cb21"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="co">## ファイルのコピー</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> scp user@192.168.10.1:/home/user/file1 ~/tmp</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a> </span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a><span class="co">## ディレクトリのコピー</span></span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> scp <span class="at">-r</span> user@192.168.10.1:/home/user/tmp ~/tmp</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a> </span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a><span class="co">## 複数のファイルを、{}で囲んで「,」で区切り指定しコピーする例</span></span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> scp user@192.168.10.1:/home/user/<span class="dt">{</span>file1<span class="op">,</span>file2<span class="op">,</span>file3<span class="dt">}</span> ~/tmp</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p><strong> ▶&nbsp; リモートホストから別のリモートホストにファイル/ディレクトリをコピー</strong></p>
+<div class="sourceCode" id="cb22"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> scp user1@192.168.10.1:/home/user/tmp/file1 user2@192.168.10.2:/home/user/tmp/</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script>
+    document.querySelectorAll('.custom_problem .theorem-title').forEach((title) => {
+        let modName = title.innerHTML;
+        modName = modName.replace("Exercise", "Problem");
+        modName = modName.replace("Example", "<strong>&#9654;</strong>&nbsp; Example");
+        title.innerHTML = modName;
+    });
+ </script>
+ 
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const disableStylesheet = (stylesheets) => {
+    for (let i=0; i < stylesheets.length; i++) {
+      const stylesheet = stylesheets[i];
+      stylesheet.rel = 'prefetch';
+    }
+  }
+  const enableStylesheet = (stylesheets) => {
+    for (let i=0; i < stylesheets.length; i++) {
+      const stylesheet = stylesheets[i];
+      stylesheet.rel = 'stylesheet';
+    }
+  }
+  const manageTransitions = (selector, allowTransitions) => {
+    const els = window.document.querySelectorAll(selector);
+    for (let i=0; i < els.length; i++) {
+      const el = els[i];
+      if (allowTransitions) {
+        el.classList.remove('notransition');
+      } else {
+        el.classList.add('notransition');
+      }
+    }
+  }
+  const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+    const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+    const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+    let newTheme = '';
+    if(darkModeDefault) {
+      newTheme = isAlternate ? baseTheme : alternateTheme;
+    } else {
+      newTheme = isAlternate ? alternateTheme : baseTheme;
+    }
+    const changeGiscusTheme = () => {
+      // From: https://github.com/giscus/giscus/issues/336
+      const sendMessage = (message) => {
+        const iframe = document.querySelector('iframe.giscus-frame');
+        if (!iframe) return;
+        iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+      }
+      sendMessage({
+        setConfig: {
+          theme: newTheme
+        }
+      });
+    }
+    const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+    if (isGiscussLoaded) {
+      changeGiscusTheme();
+    }
+  }
+  const toggleColorMode = (alternate) => {
+    // Switch the stylesheets
+    const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+    manageTransitions('#quarto-margin-sidebar .nav-link', false);
+    if (alternate) {
+      enableStylesheet(alternateStylesheets);
+      for (const sheetNode of alternateStylesheets) {
+        if (sheetNode.id === "quarto-bootstrap") {
+          toggleBodyColorMode(sheetNode);
+        }
+      }
+    } else {
+      disableStylesheet(alternateStylesheets);
+      toggleBodyColorPrimary();
+    }
+    manageTransitions('#quarto-margin-sidebar .nav-link', true);
+    // Switch the toggles
+    const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+    for (let i=0; i < toggles.length; i++) {
+      const toggle = toggles[i];
+      if (toggle) {
+        if (alternate) {
+          toggle.classList.add("alternate");     
+        } else {
+          toggle.classList.remove("alternate");
+        }
+      }
+    }
+    // Hack to workaround the fact that safari doesn't
+    // properly recolor the scrollbar when toggling (#1455)
+    if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+      manageTransitions("body", false);
+      window.scrollTo(0, 1);
+      setTimeout(() => {
+        window.scrollTo(0, 0);
+        manageTransitions("body", true);
+      }, 40);  
+    }
+  }
+  const isFileUrl = () => { 
+    return window.location.protocol === 'file:';
+  }
+  const hasAlternateSentinel = () => {  
+    let styleSentinel = getColorSchemeSentinel();
+    if (styleSentinel !== null) {
+      return styleSentinel === "alternate";
+    } else {
+      return false;
+    }
+  }
+  const setStyleSentinel = (alternate) => {
+    const value = alternate ? "alternate" : "default";
+    if (!isFileUrl()) {
+      window.localStorage.setItem("quarto-color-scheme", value);
+    } else {
+      localAlternateSentinel = value;
+    }
+  }
+  const getColorSchemeSentinel = () => {
+    if (!isFileUrl()) {
+      const storageValue = window.localStorage.getItem("quarto-color-scheme");
+      return storageValue != null ? storageValue : localAlternateSentinel;
+    } else {
+      return localAlternateSentinel;
+    }
+  }
+  const darkModeDefault = false;
+  let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+  // Dark / light mode switch
+  window.quartoToggleColorScheme = () => {
+    // Read the current dark / light value 
+    let toAlternate = !hasAlternateSentinel();
+    toggleColorMode(toAlternate);
+    setStyleSentinel(toAlternate);
+    toggleGiscusIfUsed(toAlternate, darkModeDefault);
+  };
+  // Ensure there is a toggle, if there isn't float one in the top right
+  if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+    const a = window.document.createElement('a');
+    a.classList.add('top-right');
+    a.classList.add('quarto-color-scheme-toggle');
+    a.href = "";
+    a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+    const i = window.document.createElement("i");
+    i.classList.add('bi');
+    a.appendChild(i);
+    window.document.body.appendChild(a);
+  }
+  // Switch to dark mode if need be
+  if (hasAlternateSentinel()) {
+    toggleColorMode(true);
+  } else {
+    toggleColorMode(false);
+  }
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const onCopySuccess = function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  }
+  const getTextToCopy = function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+    text: getTextToCopy
+  });
+  clipboard.on('success', onCopySuccess);
+  if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+    const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+      text: getTextToCopy,
+      container: window.document.getElementById('quarto-embedded-source-code-modal')
+    });
+    clipboardModal.on('success', onCopySuccess);
+  }
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp("https:\/\/RyoNakagami\.github\.io\/regmonkey-datascience-blog\/");
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+<script src="https://utteranc.es/client.js" repo="RyoNakagami/regmonkey-datascience-blog" issue-term="title" theme="github-light" crossorigin="anonymous" async="">
+</script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+      &nbsp;
+    </div>   
+    <div class="nav-footer-center">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+ © Copyright RyoNak
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="../../LICENSE">
+<p>License</p>
+</a>
+  </li>  
+</ul>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></div>
+    <div class="nav-footer-right">
+      &nbsp;
+    </div>
+  </div>
+</footer>
+
+
+
+
+</body></html>
