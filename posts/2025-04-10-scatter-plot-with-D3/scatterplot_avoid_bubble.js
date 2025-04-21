@@ -25,7 +25,7 @@ let y = d3
   .domain([2, 6])
   .range([height, 0]);
 
-let r = 3;
+let r = d3.scaleSqrt().domain([0, 10]).range([2, 15]);
 
 // Point color
 let ptcolor = "#808080";
@@ -99,12 +99,9 @@ function initChart() {
     .attr("cx", (d) => x(d.meaning_mean))
     .attr("cy", (d) => y(d.schappy_mean))
     .attr("fill", ptcolor)
-    .attr("fill-opacity", 0.7)
-    .attr("r", 3)
-    .attr("stroke", "#fff")
-    .attr("stroke-width", ".5px");
+    .attr("r", (d) => r(d.relwt))
 
-  //   setInteraction();
+  setInteraction();
 }
 
 function setInteraction() {
