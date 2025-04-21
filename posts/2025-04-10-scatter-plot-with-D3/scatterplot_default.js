@@ -4,7 +4,6 @@ let margin = { top: 20, right: 20, bottom: 50, left: 20 },
   width = 350 - margin.left - margin.right,
   height = 500 - margin.top - margin.bottom;
 
-
 // Start SVG
 let svg = d3
   .select("#chart")
