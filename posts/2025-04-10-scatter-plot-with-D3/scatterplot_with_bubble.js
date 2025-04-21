@@ -102,7 +102,7 @@ function initChart() {
     .attr("fill-opacity", 0.7)
     .attr("r", (d) => r(d.relwt))
     .attr("stroke", "#fff")
-    .attr("stroke-width", ".5px");
+    .attr("stroke-width", ".5px")
 
   setInteraction();
 }
