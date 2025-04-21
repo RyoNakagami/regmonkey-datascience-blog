@@ -1,0 +1,140 @@
+---
+title: "D3を用いた散布図生成"
+subtitle: "Visualization for the Web with D3"
+author: "Ryo Nakagami"
+date: "2025-04-10"
+categories: [D3, EDA]
+listing_category: datascience-statistics-series
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+resources:
+    - ./scatterplot_avoid.js
+    - ./scatterplot_avoid_bubble.js
+    
+---
+
+## 問題設定と可視化
+
+:::{.callout-note}
+## 可視化方針
+
+<strong > &#9654;&nbsp; Question</strong>
+
+- 日常活動について，活動に対して感じる有意義さと活動を通して得られる幸福感はどのように相関しているのか？
+
+<strong > &#9654;&nbsp; Data</strong>
+
+|||
+|---|---|
+|Dataset|2022 American Time Use Survey|
+|PATH|[`./act_means.tsv`](./act_means.tsv)|
+|About|洗濯や調理などの日常活動に従事するときに感じる幸福度と有意義さをスコア化して，その平均を活動ごとに表したもの|
+
+: {tbl-colwidths="[25, 75]"}
+
+<strong > &#9654;&nbsp; 可視化コンポーネント: normal</strong>
+
+- [`scatter_plot_default.html`](./scatter_plot_default.html): HTML sturecture
+- [`scatterplot_style.css`](./scatterplot_style.css): CSS for styling
+- [`scatterplot_default.js`](./scatterplot_default.js): JS for scatterplot
+
+<strong > &#9654;&nbsp; 可視化コンポーネント: bubble version</strong>
+
+- [`scatter_plot_default.html`](./scatter_plot_with_bubble.html): HTML sturecture
+- [`scatterplot_with_bubble.js`](./scatterplot_with_bubble.js): JS for scatterplot
+
+:::
+
+## scatter plot with D3
+
+Meaningfullness vs Hapiness について２つのplotを以下では提示しています．
+左右のFigureは同じデータを使っているにも関わらず印象が異なります．
+
+:::{.callout-note}
+## 解釈
+
+- Scatter Plot: Meaningfullness と Hapiness の間にはハッキリとした相関関係は見られない
+- Bubble Plot: 活動別従事者割合(`relwt`)をweightとして，それをbubble sizeに当てはめた場合，meaningfullnessとHapinessの間には正の相関があると推察できる
+
+:::
+
+scatter plotでは各点が等しく重要であるという印象を読み手に与えますが，aggregateデータではcount sizeがindexごとによって異なるケースでは
+「各点が等しく重要」というのはミスリーディングかもしれません．このような場合，各indexの`count size`という第３の情報を**バブルの面積に比例させる**ことで表すというBubble plotの利用が考えられます．
+
+ただし，バブルの導入により各点が重なって読みづらくなってしまうというトレードオフもあるので，`opacity`の調整や，そもそも使用しないなどの意思決定をケースバイケースで実施していくことが必要です．
+
+::: columns
+::: column
+
+<strong > &#9654;&nbsp; Scatter Plot</strong>
+
+::: {.iframe-container}
+<iframe src="./scatter_plot_default.html" width="100%" height="550px"></iframe>
+:::
+:::
+
+::: column
+
+<strong > &#9654;&nbsp; Bubble Plot</strong>
+
+::: {.iframe-container}
+<iframe src="./scatter_plot_with_bubble.html" width="100%" height="550px"></iframe>
+:::
+:::
+
+:::
+
+:::{.callout-important}
+## Bubble Plotのコツ
+
+- バブルの大きさは通常「面積」で表現するべき
+- `d3.scaleSqrt()` を使ってバブルの半径をsqrtスケーリングすると，面積をデータに比例させることができます
+- バブル同士が重なってしまうと個別の値が読み取りにくくなるので，透過度(`opacity`)の調整やBorder colorの導入の検討が必要
+
+:::
+
+### アンチパターン: 透過度の重要性
+
+scatter plot, bubble plotにおいて，透過度（opacity）の調整は，**データの密度や重なりを視覚的に正確に伝える**という効果を持つ重要な視覚的テクニックです．
+
+<strong > &#9654;&nbsp; 可視化シーン別透過度調整の効果</strong>
+
+- scatter plot`: 重なりが多いところが自然と濃くなるため，**「どこに多くのデータが集中しているか」**が明確になる
+- bubble plot`: 先に描いた点や小さい円が完全に見えなくなることを防ぐ
+
+
+以下では透過度を全く調整せずに可視化した場合を示しています．
+
+
+::: columns
+::: column
+
+<strong > &#9654;&nbsp; Scatter Plot</strong>
+
+- すべての点が同じ濃さのため，data point密度の「濃度差が表現されない」
+- バブルのサイズや色も一定なので視覚的には「一様」に見えてしまい、分布の濃淡や偏り、異常検知が難しくなる
+
+
+::: {.iframe-container}
+<iframe src="./scatter_plot_avoid.html" width="100%" height="550px"></iframe>
+:::
+:::
+
+::: column
+
+<strong > &#9654;&nbsp; Bubble Plot</strong>
+
+- 小さなバブルが大きなバブルの下に隠れて見えなくなる
+- 密集したエリアがごちゃごちゃして読みづらくなる
+- どのバブルがどの値か判別しにくくなるため，面積情報のメリットが薄れる
+
+::: {.iframe-container}
+<iframe src="./scatter_plot_avoid_bubble.html" width="100%" height="550px"></iframe>
+:::
+:::
+
+
+:::
