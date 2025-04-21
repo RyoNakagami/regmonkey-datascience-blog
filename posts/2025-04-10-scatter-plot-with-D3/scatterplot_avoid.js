@@ -4,6 +4,7 @@ let margin = { top: 20, right: 20, bottom: 50, left: 20 },
   width = 350 - margin.left - margin.right,
   height = 500 - margin.top - margin.bottom;
 
+
 // Start SVG
 let svg = d3
   .select("#chart")
@@ -25,7 +26,7 @@ let y = d3
   .domain([2, 6])
   .range([height, 0]);
 
-let r = d3.scaleSqrt().domain([0, 10]).range([2, 15]);
+let r = 3;
 
 // Point color
 let ptcolor = "#808080";
@@ -99,9 +100,9 @@ function initChart() {
     .attr("cx", (d) => x(d.meaning_mean))
     .attr("cy", (d) => y(d.schappy_mean))
     .attr("fill", ptcolor)
-    .attr("r", (d) => r(d.relwt))
+    .attr("r", 3);
 
-  setInteraction();
+  //   setInteraction();
 }
 
 function setInteraction() {
