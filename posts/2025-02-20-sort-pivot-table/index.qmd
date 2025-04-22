@@ -1,0 +1,239 @@
+---
+title: "pivot tableのcolumn, rowのsort"
+author: "Ryo Nakagami"
+date: "2025-02-20"
+format: 
+  html:
+    embed-resources: false
+categories: [python, 前処理]
+listing_category: datascience-preprocess-series
+comments:
+    utterances:
+             repo: RyoNakagami/regmonkey-datascience-blog
+             label: discussion
+             issue-term: title
+---
+
+## 問題設定
+
+<div class="blog-custom-border" style="margin-top: 1rem; margin-bottom: 1rem;">
+::: {#exr- .custom_problem }
+<br>
+
+```{python}
+import numpy as np
+import pandas as pd
+
+np.random.seed(42)
+
+def random_choice_from_list(
+    candidate: list | np.ndarray,
+    sampling_size: int,
+    p: list | tuple | np.ndarray = None,
+):
+    if sampling_size <= 0:
+        raise ValueError("sampling_size must be greater than 0.")
+
+    if p is None:
+        p = np.repeat(1 / len(candidate), sampling_size)
+
+    if min(p) < 0 or max(p) > 1:
+        raise ValueError("All probabilities in 'p' must be between 0 and 1 inclusive.")
+
+    if not np.isclose(sum(p), 1):
+        raise ValueError("The probabilities in 'p' must sum to 1.")
+
+    return np.random.choice(candidate, size=sampling_size, p=p)
+
+
+# Params
+N = 100
+A_list = ["H", "He", "Li", "Be", "B", "C", "N", "O", "F", "Ne"]
+A_prob = np.array([1, 4, 3, 4, 1, 6, 7, 8, 9, 10])
+A_prob = A_prob / sum(A_prob)
+
+B_list = ["one", "two", "three", "four"]
+B_prob = np.array([7, 8, 6, 1])
+B_prob = B_prob / sum(B_prob)
+
+
+# DGP
+df = pd.DataFrame(
+    {
+        "element": random_choice_from_list(A_list, N, A_prob),
+        "class": random_choice_from_list(B_list, N, B_prob),
+        "density": np.random.uniform(0, 1, N),
+    }
+)
+
+df.head()
+```
+
+<strong > &#9654;&nbsp; 問題設定</strong>
+
+- [ ] 上記のデータについて `(element, class)` をkey，frequencyをvalueとした二次元分割表を作成する
+- [ ] 二次元分割表をcolumn, rowそれぞれの方向について，合計frequencyに基づいたsortを行う
+
+:::
+
+</div>
+
+## Solution with `pandas`
+
+<!--::: {.callout-note collapse="true" icon=false}-->
+::: {.callout-note collapse="false" icon=false}
+## Task 1: `(element, class)` をkey，frequencyをvalueとした二次元分割表を作成する
+
+`pandas.pivot_table`を用いればかんたんに実行できます．
+
+```{python}
+#| code-fold: show
+# Compute the pivot table
+pivot_table = pd.pivot_table(
+    df,
+    index="element",  # Rows
+    columns="class",  # Columns
+    aggfunc="size",  # Frequency count
+    fill_value=0,  # Fill missing values with 0
+)
+
+pivot_table
+```
+
+:::
+
+
+<!--::: {.callout-note collapse="true" icon=false}-->
+::: {.callout-note collapse="false" icon=false}
+## Task 2: 二次元分割表をcolumn, rowそれぞれの方向について，合計frequencyに基づいたsortを行う
+
+pivot table化された `pandas.DataFrame` に対するソート操作は
+
+- row操作 ; `.loc` のindexの操作
+- column操作: `.loc` のcolumnの操作
+
+となります．
+
+<strong > &#9654;&nbsp; rowのsort</strong>
+
+```{python}
+#| code-fold: show
+pivot_table = pivot_table.loc[
+    pivot_table.sum(axis=1).sort_values(ascending=False).index
+]
+pivot_table
+```
+
+<strong > &#9654;&nbsp; columnのsort</strong>
+
+```{python}
+#| code-fold: show
+pivot_table = pivot_table.loc[:, pivot_table.sum(axis=0).sort_values(ascending=False).index]
+pivot_table
+```
+
+<strong > &#9654;&nbsp; 検証</strong>
+
+```{python}
+pivot_table_total = pivot_table.copy()
+
+# row sum
+pivot_table_total['total'] = pivot_table_total.sum(axis=1)
+
+# column sum
+pivot_table_total.loc['column_sum'] =  pivot_table_total.sum(axis=0)
+
+# 検証
+pivot_table_total
+```
+
+:::
+
+## Visualization
+
+<div class="blog-custom-border" style="margin-top: 1rem; margin-bottom: 1rem;">
+<strong>可視化方針</strong> <br>
+
+- `class`出現割合は`element`毎に大きく異なるのかみたい
+- frequencyそのままで比較すると出現割合比較にならないので，`axis = 1`の方向で割合として計算する(以後，`normalized_pivot`と呼ぶ)
+- `normalized_pivot`をheatmapで可視化する，可視化の際に出現頻度を右側に参照できるようにする(sample sizeが小さいところは無視したい)
+
+</div>
+
+<strong > &#9654;&nbsp; `normalized_pivot` の作成</strong>
+
+```{python}
+#| code-fold: show
+normalized_pivot = pivot_table.div(pivot_table.sum(axis=1), axis=0)
+normalized_pivot
+```
+
+<strong > &#9654;&nbsp; 可視化コード</strong>
+
+```{python}
+# | code-fold: show
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Plot heatmap
+fig, ax = plt.subplots(1, 2, figsize=(10, 6), gridspec_kw={"width_ratios": [3, 1]})
+
+sns.heatmap(normalized_pivot, annot=True, fmt=".2f", cmap="PuBu", ax=ax[0])
+ax[0].set_title("Heatmap of Normalized Pivot Table")
+ax[0].set_ylabel("Element")
+ax[0].set_xlabel("Class")
+
+sns.barplot(
+    y=pivot_table.index,
+    x=pivot_table.sum(axis=1),
+    alpha=0.8,
+    color="#0047AB",
+    orient="h",
+    ax=ax[1],
+)
+ax[1].set_title("Element Frequency Barplot")
+ax[1].set_xlabel("Frequency")
+
+plt.tight_layout()
+plt.show()
+```
+
+::: {.nte- .callout-tip icon="false"}
+# 🍵 color mapのカスタマイズ
+
+color sequenceをlightcoral, ivory, Dodgersblue という順番にしたい場合は
+
+```{python}
+# | code-fold: show
+from matplotlib.colors import LinearSegmentedColormap
+
+custom_cpam = LinearSegmentedColormap.from_list("lightcoral_ivory_blue", ["#F08080", "#FFFFF0", "#1E90FF"])
+```
+
+とすることで自分好みにカスタマイズすることができます．
+
+```{python}
+# Plot heatmap
+fig, ax = plt.subplots(1, 2, figsize=(10, 6), gridspec_kw={"width_ratios": [3, 1]})
+
+sns.heatmap(normalized_pivot, annot=True, fmt=".2f", cmap=custom_cpam , ax=ax[0])
+ax[0].set_title("Heatmap of Normalized Pivot Table")
+ax[0].set_ylabel("Element")
+ax[0].set_xlabel("Class")
+
+sns.barplot(
+    y=pivot_table.index,
+    x=pivot_table.sum(axis=1),
+    alpha=1,
+    color="#6699CC",
+    orient="h",
+    ax=ax[1],
+)
+ax[1].set_title("Element Frequency Barplot")
+ax[1].set_xlabel("Frequency")
+
+plt.tight_layout()
+plt.show()
+```
+
+:::
