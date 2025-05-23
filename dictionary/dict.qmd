@@ -1,5 +1,5 @@
 ---
-title: "Dictionary"
+title: "備忘録"
 about:
   template: jolla
 format: 
@@ -8,7 +8,15 @@ format:
             - ../include/mathjax_read.html
 ---
 
-## Row {.tabset}
+
+
+## row {.tabset}
+
+### Glossary
+
+:::: {.no-border-top-table #DictTable}
+
+<input type="text" id="searchInput" placeholder="Search... (regex, space-separated AND)" style="width: 50%;">
 
 
 ```{python}
@@ -33,3 +41,147 @@ df = (
 
 display(Markdown(df.to_markdown(index = True)))
 ```
+
+<script>
+// Debounce function to limit how often search is performed
+function debounce(func, wait) {
+  let timeout;
+  return function(...args) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(this, args), wait);
+  };
+}
+
+document.getElementById('searchInput').addEventListener('keyup', debounce(function() {
+  let filter = this.value.trim();
+  let regexes = [];
+
+  // Split search terms by space and create regex for each
+  if (filter) {
+    const terms = filter.split(/\s+/);
+    regexes = terms.map(term => {
+      try {
+        return new RegExp(term, 'i');
+      } catch (e) {
+        console.warn(`Invalid regex: ${term}`);
+        return null;
+      }
+    }).filter(regex => regex !== null);
+  }
+
+  const rows = document.querySelectorAll('#DictTable tbody tr');
+  rows.forEach(row => {
+    const rowText = row.textContent;
+    const matchesAll = regexes.length === 0 || regexes.every(regex => regex.test(rowText));
+    row.style.display = matchesAll ? '' : 'none';
+  });
+}, 300)); // Wait 300ms after last keypress before searching
+</script>
+
+::::
+
+### 便利コマンド
+
+:::: {.no-border-top-table #CommandTable}
+
+<input type="text" id="searchInputCommand" placeholder="Search... (regex, space-separated AND)" style="width: 50%;">
+
+```{python}
+# | echo: false
+#| tbl-colwidths: [30,10, 30, 30]
+from keyword_dict import COMMAND_CONFIG, CommandField
+
+# fetch colnames
+cols = list(CommandField.model_json_schema()["properties"].keys())
+
+# define dictionary df
+df_command = (
+    pd.DataFrame(COMMAND_CONFIG.command_list, columns=cols)
+    .map(lambda x: x[1] if x else None)
+)
+
+display(Markdown(df_command.to_markdown(index = False)))
+```
+
+<script>
+// Reuse the same debounce function
+document.getElementById('searchInputCommand').addEventListener('keyup', debounce(function() {
+  let filter = this.value.trim();
+  let regexes = [];
+
+  // Split search terms by space and create regex for each
+  if (filter) {
+    const terms = filter.split(/\s+/);
+    regexes = terms.map(term => {
+      try {
+        return new RegExp(term, 'i');
+      } catch (e) {
+        console.warn(`Invalid regex: ${term}`);
+        return null;
+      }
+    }).filter(regex => regex !== null);
+  }
+
+  const rows = document.querySelectorAll('#CommandTable tbody tr');
+  rows.forEach(row => {
+    const rowText = row.textContent;
+    const matchesAll = regexes.length === 0 || regexes.every(regex => regex.test(rowText));
+    row.style.display = matchesAll ? '' : 'none';
+  });
+}, 300)); // Wait 300ms after last keypress before searching
+</script>
+
+::::
+
+### Ubuntu Tool
+
+:::: {.no-border-top-table #CommandTable}
+
+<input type="text" id="searchInputGnomeTool" placeholder="Search... (regex, space-separated AND)" style="width: 50%;">
+
+```{python}
+# | echo: false
+#| tbl-colwidths: [10,10, 60, 20]
+from keyword_dict import GNOME_TOOL_CONFIG, GnomeToolField
+
+# fetch colnames
+cols = list(GnomeToolField.model_json_schema()["properties"].keys())
+
+# define dictionary df
+df_command = (
+    pd.DataFrame(GNOME_TOOL_CONFIG.tool_list, columns=cols)
+    .map(lambda x: x[1] if x else None)
+)
+
+display(Markdown(df_command.to_markdown(index = False)))
+```
+
+<script>
+// Reuse the same debounce function
+document.getElementById('searchInputGnomeTool').addEventListener('keyup', debounce(function() {
+  let filter = this.value.trim();
+  let regexes = [];
+
+  // Split search terms by space and create regex for each
+  if (filter) {
+    const terms = filter.split(/\s+/);
+    regexes = terms.map(term => {
+      try {
+        return new RegExp(term, 'i');
+      } catch (e) {
+        console.warn(`Invalid regex: ${term}`);
+        return null;
+      }
+    }).filter(regex => regex !== null);
+  }
+
+  const rows = document.querySelectorAll('#CommandTable tbody tr');
+  rows.forEach(row => {
+    const rowText = row.textContent;
+    const matchesAll = regexes.length === 0 || regexes.every(regex => regex.test(rowText));
+    row.style.display = matchesAll ? '' : 'none';
+  });
+}, 300)); // Wait 300ms after last keypress before searching
+</script>
+
+::::
