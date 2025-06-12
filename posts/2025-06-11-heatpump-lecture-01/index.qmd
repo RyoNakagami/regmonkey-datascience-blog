@@ -1,0 +1,316 @@
+---
+title: "冷凍サイクルとヒートポンプの基礎"
+subtitle: "冷凍空調技術 - 001"
+author: "Ryo Nakagami"
+date: "2025-06-11"
+categories: [ヒートポンプ]
+listing_category: physics-listings
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+
+## ものを冷やす仕組み
+
+熱は常に「[高温から低温へ移動(=熱力学の第２法則)]{.regmonkey-bold}」します．この性質を利用して，冷却は次のように行われます：
+
+- 対象物よりも温度の低いものを接触させて熱を移動させる = [熱伝導ベース]{.regmonkey-bold}
+- 蒸発や断熱膨張などの物理現象を利用して、周囲から熱を奪う = [相変化ベース]{.regmonkey-bold}
+
+ものを冷やすのは熱伝導ベースと相変化ベースの２つがありますが，冷却効率は大きく異なります．
+
+| 項目    | 顕熱冷却                 | 蒸発冷却               |
+| ------- | -------------------- | ------------------ |
+| 熱の種類    | 顕熱（温度変化）             | 潜熱（状態変化）           |
+| 冷却効率（J/g） | 例：水を用いて10℃分熱を吸収する → 約42 J/g吸収 | 水1gの蒸発 → 約2260 J/g吸収 |
+| エネルギー吸収 | 小さい（比熱×温度差に依存）       | 大きい（潜熱は比熱の数十倍）     |
+| 使用例     | 冷水で冷やす，金属板で放熱など      | 汗の蒸発，気化式冷却，打ち水     |
+
+
+同じ質量の水を使っても，蒸発させた方がはるかに多くの熱エネルギーを奪えるため、冷却効率が高いという特徴が有ります．
+
+::: {.callout-note}
+
+## 顕熱と比熱と潜熱
+
+- 1kgの冷水が $4.1916$ kJ の熱を取り入れると，1Kだけ温度が上昇する．
+- 水を20℃→30℃に温めるときに使う熱は「顕熱」
+- 物質1kgの温度を1K上げるのに必要な熱量は「比熱」
+- 物質が状態変化（固体⇄液体⇄気体）するときに温度を変えずに出入りする熱は「潜熱」
+
+:::
+
+### 0℃以下の低温までものを冷やしたいとき → 冷媒の登場
+
+熱を取り除きたいときは，蒸発潜熱を利用した冷却が効率が良いとわかりましたが，常圧のもとでは水は 100℃で沸騰，蒸発となります(標準沸点が100℃)．一方，絶対圧 0.6108 kPa のような低圧にすれば 0℃で水は沸騰→蒸発しますが，
+
+- ものを0℃まで冷やしたい場合は，この圧力を保つことが必要 → 高性能な真空ポンプが必要
+- 0℃以下まで冷やしたいとしても，0℃で水は凍ってしまうので，0℃以下の低温を得ることはできない
+
+0℃以下の低温を得るには，[あまり高真空にすることなく，低い温度で沸騰・蒸発し，しかも蒸発線熱の大きい物質を媒体として選ば良いとなります．
+このような熱を取り去る媒体を冷媒といいます．]{.regmonkey-bold}
+
+::: {#def- .custom_problem .blog-custom-border}
+## 冷媒
+<br>
+
+冷媒（refrigerant）とは，蒸発・凝縮などの相変化を通じて熱を運ぶ物質であり，主に冷凍機やエアコン，ヒートポンプで使われます．
+蒸気圧圧縮冷凍装置で用いられる冷媒として，アンモニアやフルオロカーボン(R 134 a, R410 aなど)がある．
+
+:::
+
+### 蒸発器・凝縮器・圧縮機・膨張弁
+
+:::: {.columns}
+::: {.column width="60%"}
+
+![](./heat-pump.png)
+
+:::
+::: {.column width="40%"}
+
+冷凍装置において，冷媒の蒸発線熱を利用してものを冷却するには，冷媒と物とを直接接触させずに，冷却館内や容器内で冷媒を沸騰・蒸発させ．その壁（例: 配管壁）を介して冷却します．このような冷却管や容器で構成されたものを[蒸発器]{.regmonkey-bold}といいます．
+
+熱吸収した冷媒蒸気を蒸発器から取り除かなれば，一定の蒸発温度を維持することができなくなってしまいます．そのため発生した冷媒蒸気を蒸発器から常に取り除かなければなりません．
+
+冷媒が沸騰・蒸発する温度（飽和温度）は圧力が下がるに伴って低下，逆に圧力上がると飽和温度も上昇します．この性質を活用し，蒸発器内で発生した蒸気に対して圧力を加える + 周囲（例: 外気温）から得られる外気や水で冷却して再び液化します．
+
+:::
+
+このように冷媒は装置内を蒸発，圧力上昇，液化，膨張，再蒸発といった状態変化を繰り返しながら循環し，目的の冷凍作用を行います．
+この過程のことを[冷凍サイクル]{.regmonkey-bold}と呼びます．
+
+::::
+
+:::: {.no-border-top-table}
+
+|構成要素|説明|
+|---|---|
+|蒸発器|低圧の液体冷媒が熱を吸収して蒸発し，周囲から熱を奪うことで冷却を行う熱器|
+|圧縮機|蒸気が凝縮する圧力まで高めるために用いられる機器．空調機のの消費電力の約８割を占める|
+|凝縮器|高圧・高温の冷媒蒸気を冷却し，凝縮させる伝熱管や容器で構成された機器|
+|膨張弁|圧力が高い凝縮器と圧力が低い蒸発器を結び通路の弁．凝縮した高圧の冷媒液を，低圧の蒸発器で蒸発した量だけ弁を調整して補給することで，蒸発器内を一定の低い圧力に保つ|
+: {tbl-colwidths="[15,85]"}
+::::
+
+
+## 冷凍装置の効率係数
+
+[圧縮機の仕事量]{.mini-section}
+
+圧縮機に流出に有する冷媒1kgが保有するエネルギーは運動エネルギーや位置エネルギーが十分小さく無視できる場合には
+
+$$
+\underbrace{h}_{\text{比エンタルピー}} = \underbrace{u}_{\text{内部エネルギー}} + \underbrace{p\nu}_{\text{冷媒流動の仕事}}
+$$
+
+- $h$: 流動する冷媒の保有エネルギー
+- $p$: 圧力
+- $\nu$: 比体積(冷媒蒸気1kgの体積)
+- 単位はいずれも J/kg
+
+したがって，以下のように変数を整理すると
+
+- $q_m$ [kg/s] : 圧縮機に単位時間に流出入する冷媒量, 冷媒流量
+- $h_1$: 圧縮機入口の冷媒の比エンタルピー
+- $h_2$: 圧縮機出口の冷媒の比エンタルピー
+
+圧縮機によって冷媒に加えられる単位時間あたりの圧縮仕事 $P$ [kW] は以下のように表すことができます
+
+$$
+P = q_m(h_2 - h_1)
+$$
+
+[蒸発器の熱交換量]{.mini-section}
+
+蒸発器においては，冷媒は熱を組み上げ，その量だけ保有エネルギーが増大します．冷媒 1kg あたりが組み上げる熱量(冷凍効果)[kL/kg]を $r$ とすると
+
+- $h_1$: 蒸発器出口の冷媒の比エンタルピー
+- $h_4$: 入口の比エンタルピー
+
+を用いて，
+
+$$
+r = h_1 - h_4
+$$
+
+また，単位時間あたりの交換熱量 $\Phi_o$ は
+
+$$
+\Phi_o = q_m(h_4 - h_1)
+$$
+
+[凝縮器の熱交換量]{.mini-section}
+
+凝縮器では冷媒は熱放出し，その単位時間あたりの放出熱量 $\Phi_k$ [kW] を凝縮負荷と呼び，
+
+- $h_2$: 凝縮器入口の冷媒比エンタルピー
+- $h_3$: 凝縮器出口の冷媒比エンタルピー
+
+より
+
+$$
+\Phi_k = q_m(h_2 - h_3)
+$$
+
+### 熱力学第一法則(エネルギー保存の法則)
+
+単位時間あたりに冷凍装置に入るすべてのエネルギーは，単位時間あたりに装置から出るすべてのエネルギーと等しくなければなりません．ここから次の式が成立します:
+
+$$
+\Phi_k = \Phi_o + P
+$$
+
+::: {#def- .custom_problem .blog-custom-border}
+## 冷凍サイクルの成績係数
+<br>
+
+冷凍作用を行うのに必要なエネルギー $P$ と冷凍能力 $\Phi_o$ の比を冷凍サイクルの成績係数($COP_c$)といい
+
+$$
+COP_c = \frac{\Phi_o}{P}
+$$
+
+この値は同じ冷凍装置であっても，運転条件によって変わる．
+
+:::
+
+冷凍サイクルの成績係数が大きいほど小さい動力で大きな冷凍能力が得られると解釈できます．
+
+## ヒートポンプ
+
+::: {#def- .custom_problem .blog-custom-border}
+## ヒートポンプ
+<br>
+
+冷媒を凝縮するために凝縮器で熱量 $\Phi_k$ を放熱しているが，これを暖房やその他の加熱源として利用する装置をヒートポンプ装置と呼び，そのサイクルをヒートポンプサイクルという．
+
+:::
+
+「冷媒の流れ方向自体は同じだが，吸熱と放熱の役割が冷凍機と逆になる．つまり，蒸発器で吸収した熱を暖房として利用するのがヒートポンプである」点に注意してください．
+
+ヒートポンプサイクルの成績係数 $COP_h$ は
+
+$$
+\begin{align}
+COP_h 
+  &= \frac{\Phi_k}{P}\\
+  &= \frac{\Phi_o + P}{P}\\
+  &= COP_c + 1
+\end{align}
+$$
+
+この式より，ヒートポンプサイクルの成績係数は，同じ温度条件の冷凍サイクルの成績係数よりも１だけかならず大きい値になることがわかります．
+
+
+## 理解度チェック問題
+
+::: {#exr- .custom_problem  .blog-custom-border}
+<br>
+
+次の記述の内，正しいものを選べ
+
+a. 冷媒の蒸発潜熱は冷媒の種類関係なく一定である
+b. 同じ温度のもとでは，標準沸点の低い冷媒ほど圧力は高くなる
+c. 蒸気圧縮冷凍装置では，冷媒の蒸発の潜熱を利用して冷却作用を行う
+d. 冷凍装置では，蒸発器で取り入れた熱れようと凝縮器で放出する熱量は等しい
+e. 蒸気圧縮冷凍装置の冷却能力は，圧縮機に加えるエネルギーに等しい
+f. 吸収冷凍装置の駆動源は熱であり，これを再生器に加えることにより低温を得る
+g. 蒸気圧縮ヒートポンプでは，装置内を循環する冷媒の流れ方向が冷凍サイクルのそれと逆方向になる
+h. 蒸気圧縮ヒートポンプの成績係数は，同じ温度条件での冷凍サイクルの成績係数より１だけ大きい．
+i. 冷凍サイクルの成績係数は，蒸発温度や凝縮温度には関係しない
+j. ヒートポンプの成績係数の値は常に1より大きい
+
+:::
+
+::: {.callout-note collapse="true" icon=false}
+## Solution
+
+b, c, f, h. j
+
+:::
+
+::: {#exr- .custom_problem .blog-custom-border}
+<br>
+
+冷凍能力 4.5 kWの冷凍装置があり，圧縮機の消費動力は 1.5 kWである．この装置の凝縮器で放出される熱量 [kW] はいくらか．また，この装置の冷凍サイクル成績係数はいくらか？
+
+:::
+
+::: {.callout-note collapse="true" icon=false}
+## Solution
+
+凝縮器で放出される熱量(凝縮負荷) $\Phi_k$ は
+
+$$
+\Phi_k = 4.5 \text{kW}  + 1.5 \text{kW}= 6 \text{kW}
+$$
+
+成績係数 $COP_c$ は
+
+$$
+COP_c = \frac{4.5 \text{kW}}{1.5 \text{kW}} = 3
+$$
+
+
+:::
+
+
+## Appendix: 数値目安
+
+```{python}
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+# read data
+df = pd.read_csv("./r134_property.csv")
+
+# plot temperature and pressure(mPa)
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+
+# Set plot background color
+fig.patch.set_facecolor('#EFF5F5')
+fig.suptitle('R-134a Temperature vs Vapor Pressure', fontsize=16) # Overall title
+
+ax1.plot(
+    df["temperature"],    # X-axis: Vapor Pressure
+    df["Mpa"],  # Y-axis: Temperature
+    color='black',
+    linestyle='solid', # Equivalent to 'dot' dash in Plotly
+    # marker='o',    # Add markers
+    markersize=4,  # Adjust marker size as desired
+    label='R-134a Vapor Pressure' # Optional: Add a label for legend
+)
+
+ax2.plot(
+    df["temperature"],    # X-axis: Vapor Pressure
+    df["Mpa"],  # Y-axis: Temperature
+    color='black',
+    linestyle='solid', # Equivalent to 'dot' dash in Plotly
+    # marker='o',    # Add markers
+    markersize=4,  # Adjust marker size as desired
+    label='R-134a Vapor Pressure' # Optional: Add a label for legend
+)
+
+# Set axis 1 titles
+ax1.set_title("R-134a Temperature vs. Vapor Pressure")
+ax1.set_xlabel("Temperature (°C)")
+ax1.set_ylabel("Vapor Pressure (Mpa)")
+ax1.grid(True, which='both', color='#DDEEEF', linestyle='-', linewidth=0.5)
+ax1.set_axisbelow(True)
+
+# Set axis 2 titles
+ax2.set_yscale('log')
+ax2.grid(True, which='both', color='#DDEEEF', linestyle='-', linewidth=0.5)
+ax2.set_axisbelow(True)
+ax2.set_xlabel("Temperature (°C)")
+ax2.set_ylabel("Vapor Pressure (Mpa) [Log Scale]") # Indicate log scale in label
+ax2.set_title("Logarithmic Pressure Scale")
+
+
+plt.show()
+```
