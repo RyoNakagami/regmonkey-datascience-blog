@@ -1,0 +1,230 @@
+---
+title: "CSVファイルの特定のカラムをawkで計算変換する"
+author: "Ryo Nakagami"
+date: "2025-06-24"
+date-modified: "2025-06-24"
+categories: [前処理, shell, awk]
+listing_category: datascience-preprocess-series
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## Goal
+
+- CSV ファイル内の第2列の値を線形変換を通して別の単位に変換すること
+
+
+## Full Command
+
+[ワンライナースタイル]{.mini-section}
+
+```{.zsh}
+awk -F',' 'BEGIN{OFS=","; a = 0;  b = 101325 / 760} NR==1 {print $0} NR>1 {if ($2 ~ /^[0-9.]+$/) {$2 = sprintf("%.3f", a * $2 + b)} print $0}' input.csv
+```
+
+[改行有りスタイル]{.mini-section}
+
+```{.zsh}
+awk -F',' '
+BEGIN {
+    OFS = ",";
+    a = 2.5;          # 傾き（倍率）
+    b = 10;           # 切片（加算値）
+}
+NR == 1 {
+    print $0;         # ヘッダーはそのまま
+}
+NR > 1 {
+    if ($2 ~ /^[0-9.]+$/) {
+        $2 = sprintf("%.3f", a * $2 + b);  # 線形変換
+    }
+    print $0;
+}
+' input.csv
+```
+
+- 改行有りスタイルでは line seperator `;` は使用しなくても大丈夫です
+
+
+## 🔍 Explanation
+
+:::: {.no-border-top-table}
+
+| 構成要素                                         | 内容                                                                                   |
+| ------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `awk`                                       | AWK インタープリタを起動                                                                   |
+| `-F','`                                     | **入力のフィールド区切り文字**をカンマに設定します．これにより、AWK が入力を CSV ファイルとして扱います                          |
+| `'BEGIN{}`                                  | `BEGIN` ブロックは、**データ処理の前に一度だけ実行**．`{}` 内部で処理を設定 |
+| `OFS=",";`                                  | `OFS=","` で出力の区切り文字をカンマに設定，CSV 形式で出力されるようにする |
+| `a = 0`                                     | `a` は 変数変換のための切片係数 |
+| `b = 101325 / 760`                          | `b` は 変数変換のための傾き係数 |
+| `NR==1 {print $0}`                          | **最初の行**（`NR==1`）の場合は，行全体（`$0`）をそのまま出力．これによりヘッダー行が変更されずに保持                   |
+| `NR>1 { ... }`                              | 2行目以降の処理を指定   |
+| `if ($2 ~ /^[0-9.]+$/)`                     | 第2列（圧力）が数値（正の小数や整数）であるかを確認．数値以外の場合はスキップ                                      |
+| `$2 = sprintf("%.3f", $2 * conversion)`     | 第2列を変換係数で掛け算し，小数第3位で丸めて文字列に整形|
+| `print $0` (最後)                            |変換後の行を出力|
+
+::::
+
+::: {#exm- .custom_problem .no-border-top-table}
+
+
+| 変換内容               | `a`     | `b`     | 説明              |
+| ------------------ | ------- | ------- | --------------- |
+| mmHg → Pa          | 133.322 | 0       | mmHg → Paの圧力変換         |
+| 華氏 (°F) → 摂氏 (°C)  | 5/9     | -32×5/9 | 温度変換            |
+| センサー電圧 → 実測値       | 任意      | 任意      | 校正式に応じて設定       |
+| 線形スケーリング (例: 0\~1) | 任意      | 任意      | 最小-最大正規化などに応用可能 |
+: {tbl-colwidths="[30,15,15,40]"}
+
+
+:::
+---
+
+
+## 📜 カスタムシェルスクリプト `linear_convert`
+
+::: {.custom_problem .blog-custom-border}
+
+- CSVファイルの指定列を線形変換し出力するスクリプト
+- 線形変換の式は以下
+
+$$
+y = a\times x + b
+$$
+
+- 対象列の値が数値でない場合は、指定した文字列に置換するか，もしくは元の値を保持
+- 対象列は1から始まる番号で指定
+
+:::
+
+[仕様]{.mini-section}
+
+- 入力CSVはカンマ区切りである必要があり
+
+
+
+[Defintion]{.mini-section}
+
+
+```{.zsh}
+#!/bin/bash
+: '
+linear_convert - CSVファイルの指定列を線形変換し出力するスクリプト
+
+Usage:
+  ./linear_convert <a: slope> <b: intercept> <column_num> <precision> <input_csv_file> [na_replacement|keep]
+
+Arguments:
+  a               傾き（線形変換の倍率）
+  b               切片（線形変換の加算値）
+  column_num      変換対象の列番号（1始まり）
+  precision       出力する小数点以下の桁数
+  input_csv_file  入力CSVファイルのパス
+  na_replacement  欠損値・非数値の置換文字列または"keep"（省略時は"keep"）
+
+Description:
+  指定したCSVファイルの指定列の値に対して、線形変換 y = a * x + b を適用します。
+  欠損値や数値でない値は、指定した文字列に置換するか、"keep"指定であればそのまま保持します。
+
+Example:
+  # 第3列を y=2.5*x + 10 に変換し、小数点2桁で出力。欠損値はそのまま保持。
+  ./linear_convert.sh 2.5 10 3 2 input.csv
+
+  # 欠損値を"Missing"に置換する場合
+  ./linear_convert.sh 2.5 10 3 2 input.csv Missing
+'
+
+# --- 引数チェック ---
+if [ "$#" -lt 5 ] || [ "$#" -gt 6 ]; then
+  echo "Usage: $0 <a: slope> <b: intercept> <column_num> <precision> <input_csv_file> [na_replacement|keep]"
+  echo "Example: $0 2.5 10 3 2 input.csv Missing"
+  echo "na_replacement options: NA, Missing, 0, or keep (default: keep)"
+  exit 1
+fi
+
+# --- 引数を変数に代入 ---
+a="$1"
+b="$2"
+col="$3"
+precision="$4"
+input_file="$5"
+na_replacement="${6:-keep}"   # 6番目の引数がなければ keep をデフォルトに
+
+awk -F',' -v a="$a" -v b="$b" -v col="$col" -v prec="$precision" -v na="$na_replacement" '
+BEGIN {
+    OFS = ",";
+    format = "%." prec "f";
+}
+NR == 1 {
+    print $0;
+}
+NR > 1 {
+    val = $col;
+    if (val ~ /^[0-9.]+$/) {
+        $col = sprintf(format, a * val + b);
+    } else {
+        if (na == "keep") {
+            $col = val;   # 欠損・非数値はそのまま保持
+        } else {
+            $col = na;    # na_replacement で置換
+        }
+    }
+    print $0;
+}
+' "$input_file"
+
+```
+
+[Usage]{.mini-section}
+
+```{.bash}
+linear_convert <a: slope> <b: intercept> <column_num> <precision> <input_csv_file> [na_replacement|keep]
+```
+
+[Inputs]{.mini-section}
+
+| 引数名              | 説明                                        |
+| ---------------- | ----------------------------------------- |
+| `a`              | 線形変換の傾き（倍率）                               |
+| `b`              | 線形変換の切片（加算値）                              |
+| `column_num`     | 変換対象の列番号（1始まり）                            |
+| `precision`      | 出力する小数点以下の桁数                              |
+| `input_csv_file` | 入力CSVファイルのパス                              |
+| `na_replacement` | 欠損値・非数値の置換文字列 または `"keep"`（省略時は `"keep"`） |
+
+::: {#exm- .custom_problem }
+[第3列に対し y = 2.5 * x + 10 の変換を適用し，小数点以下2桁で表示]{.def-title}
+
+
+```{.bash}
+./linear_convert 2.5 10 3 2 input.csv
+```
+
+:::
+---
+
+::: {#exm- .custom_problem }
+[欠損値を "Missing" に置換する場合]{.def-title}
+
+
+```{.bash}
+./linear_convert 2.5 10 3 2 input.csv Missing
+```
+
+:::
+---
+
+::: {#exm- .custom_problem }
+[欠損値を 0 に置換する場合]{.def-title}
+
+
+```{.bash}
+./linear_convert 2.5 10 3 2 input.csv 0
+```
+
+:::
+---

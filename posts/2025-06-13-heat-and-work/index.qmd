@@ -1,0 +1,831 @@
+---
+title: "エントロピーとエンタルピー"
+author: "Ryo Nakagami"
+date: "2025-06-13"
+date-modified: "2025-06-19"
+categories: [熱力学]
+listing_category: physics-listings
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## 熱と仕事の基礎事項
+
+- 熱は，冷媒などの物質が保有しているエネルギーの１つの形態
+- 仕事もエネルギーの一つの形態
+
+そのため，熱と仕事は相互に変換することが可能です．
+
+:::: {.columns .flex}
+::: {.column width="74%"}
+
+[仕事⇒発熱]{.border-bottom-header}
+
+![仕事による摩擦熱の発生](./masatu.gif)
+
+:::
+::: {.column width="26%"}
+
+[発熱⇒仕事]{.border-bottom-header}
+
+:::{.flex .items-center .justify-center .text-center}
+
+![加熱時の気体の膨張による仕事](./DT_isoBar.gif)
+
+:::
+
+:::
+::::
+
+流体（特に気体）を加熱すると，体積膨張を通して外部に対して仕事をするようになります．
+右上図が示すようにシリンダとピストンに閉じ込められた空間内の気体（閉鎖系）に熱を加えると，
+
+- 気体は温度が上昇（=内部エネルギーの増加）
+- 気体は膨張することによって，ピストンを押し下げ，外部に対して仕事する
+
+という状態の変化が生じます．シリンダ内の1kgあたりの気体について考えると
+
+$$
+q_{12} = u_2 - u_1 + w_{12} \label{first-law}
+$$
+
+- $q_{12}$: 気体に加えられた熱量 [kJ/kg]
+- $u_i$: 状態 $i$ の内部エネルギーの変化
+- $w_{12}$: 状態変化に伴って発生する外部になす仕事
+- 状態1: 変化前の状態
+- 状態2: 変化後の状態
+
+\eqref{first-law} を閉鎖系の熱力学第一法則（エネルギー保存則）といいます．これを微小な変化に対して表すと
+
+$$
+dq = du + dw \label{first-law-2}
+$$
+
+### 絶対仕事
+
+- シリンダは閉鎖系
+- シリンダは断熱素材でできている(断熱変化)
+- シリンダとピストンの間の摩擦および気体の流動摩擦は発生しない
+- ピストンに作用する圧力は空間内の圧力に等しい
+
+と仮定します．系が外部にする仕事は，系が膨張することを通して行われます．またピストンの観点からみると
+
+$$
+\text{仕事 [J]} = \text{力 [N]}\times\text{移動距離 [m]}
+$$
+
+です．ピストンの断面積にかかる力は $\text{圧力}\times \text{断面積}$ で表せるので
+
+
+$$
+dw = pAdx = pdv \label{absolute-work}
+$$
+
+- $A$: ピストンの断面積 [$\text{m}^2$]
+- $p$: シリンダ内圧力 [kPa]
+- $x$: 気体膨張に伴うピストン上昇距離 [m]
+- $v$: 気体の比体積 [$\text{m}^3$/kg]
+
+\eqref{absolute-work} より気体がなす仕事 $w_{12}$ は
+
+$$
+w_{12} = \int^2_1 p dv
+$$
+
+と計算できます．
+
+
+
+```{python}
+#| label: fig-pv-plot-example
+import matplotlib.pyplot as plt
+import numpy as np
+
+def plot_pv_diagram():
+    # 理想気体の比熱比 (γ) を設定
+    # 断熱変化は PV^γ = const で表される
+    gamma = 1.4  # 単原子分子理想気体の場合 5/3 = 1.67, 二原子分子理想気体の場合 7/5 = 1.4
+
+    # 点 A の状態量
+    PA = 4.0  # P軸のスケールに合わせて適当な値に調整
+    VA = 1.0  # V軸のスケールに合わせて適当な値に調整
+    TA = PA * VA # PV = nRT なので，T は PV に比例すると考えられる
+
+    # 点 B の状態量 (断熱変化による)
+    # PB * VB^gamma = PA * VA^gamma
+    # ここでは，VB を仮定して PB を計算する
+    VB = 5.0 # VAより大きい値で，グラフに収まるように適当に設定
+    PB = PA * (VA / VB)**gamma
+
+    # 等温変化の計算 (PV = const)
+    # T = TA の等温線
+    V_iso_TA = np.linspace(0.5, 7.0, 100) # 広めの範囲でプロット
+    V_iso_TB = np.linspace(0.5, 7.0, 100) # 広めの範囲でプロット
+    P_iso_TA = (PA * VA) / V_iso_TA
+    P_iso_TB = (PA * VB) / V_iso_TB
+
+    # T = TB の等温線
+    # TB = PB * VB
+    P_iso_TB = (PB * VB) / V_iso_TA # 同じV範囲で計算
+
+    # 断熱変化の計算 (PV^gamma = const)
+    V_adiabatic = np.linspace(VA, VB, 100) # AからBまでの範囲
+    P_adiabatic = PA * (VA / V_adiabatic)**gamma
+
+    # Matplotlibでプロット
+    plt.figure(figsize=(8, 6))
+
+    # 断熱変化の曲線 (AからB)
+    plt.plot(V_adiabatic, P_adiabatic, color='blue', linewidth=2, label='断熱変化')
+    plt.plot([VA, VA], [0, PA], 'k:', linewidth=0.8) # 垂直な点線
+    plt.plot([0, VA], [PA, PA], 'k:', linewidth=0.8) # 水平な点線
+    plt.plot([VB, VB], [0, PB], 'k:', linewidth=0.8) # 垂直な点線
+    plt.plot([0, VB], [PB, PB], 'k:', linewidth=0.8) # 水平な点線
+
+    # 等温変化の曲線
+    plt.plot(V_iso_TA, P_iso_TA, 'k--', linewidth=0.8, label='等温変化')
+    plt.text(V_iso_TA[-1] * 0.9, P_iso_TA[-1] * 1.1, f'T = TA', fontsize=10, ha='right', va='bottom',
+             bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", lw=0.5))
+
+    plt.plot(V_iso_TB, P_iso_TB, 'k--', linewidth=0.8)
+    plt.text(V_iso_TB[20] * 0.8, P_iso_TB[20] * 0.8, f'T = TB', fontsize=10, ha='left', va='top',
+             bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", lw=0.5))
+
+
+    # 点 A と 点 B のプロット
+    plt.plot(VA, PA, 'ko', markersize=6)
+    plt.text(VA * 0.95, PA * 1.05, 'A', fontsize=12, ha='right')
+
+    plt.plot(VB, PB, 'ko', markersize=6)
+    plt.text(VB * 1.02, PB * 0.9, 'B', fontsize=12, ha='left')
+
+    # 軸ラベルとタイトル
+    plt.xlabel('v')
+    plt.ylabel('p')
+    plt.title('PV plot')
+
+    # 軸の範囲を設定
+    plt.xlim(0, 7.5)
+    plt.ylim(0, 5.0)
+
+    # 凡例
+    # plt.legend() # 等温変化と断熱変化の凡例は曲線上に直接記述した方が見やすいかも
+
+    # グリッド
+    plt.grid(True, linestyle=':', alpha=0.6)
+
+    # 軸の目盛りとラベル
+    plt.xticks([VA, VB], [f'$v_1$', f'$v_2$'])
+    plt.yticks([PB, PA], [f'$p_2$', f'$p_1$'])
+
+    plt.tight_layout()
+    plt.show()
+
+# 関数を呼び出してグラフを表示
+plot_pv_diagram()
+```
+
+[圧力一定のもとで熱を加える]{.mini-section}
+
+圧力一定のもとで熱を加える場合，\eqref{first-law-2} は定圧比熱 $c_p$ [kJ/kg･K] を用いると
+
+$$
+\begin{align}
+dq
+  &= c_pdT\\
+  &= du + pdv
+\end{align}
+$$
+
+[容積一定のもとで熱を加える]{.mini-section}
+
+ふたや壁が動かなくて外に膨張できない状況で気体を加熱すると，$dv = dw = 0$ とみなせるので，定容比熱 $c_v$ [kJ/kg･K] を用いると
+
+$$
+dq = c_vdT = du
+$$
+
+[断熱圧縮時の内部エネルギー増大]{.mini-section}
+
+\eqref{first-law} において，状態1から状態2 へ変化するとき熱の授受のない断熱圧縮を考えます．このとき，
+
+$$
+dq = 0
+$$
+
+であり，圧縮仮定で気体の定容比熱が変わらないとすると
+
+```{python}
+#| label: fig-pv-plot
+import matplotlib.pyplot as plt
+import numpy as np
+
+def plot_pv_diagram():
+    # 理想気体の比熱比 (γ) を設定
+    # 断熱変化は PV^γ = const で表される
+    gamma = 1.4  # 単原子分子理想気体の場合 5/3 = 1.67, 二原子分子理想気体の場合 7/5 = 1.4
+
+    # 点 A の状態量
+    PA = 4.0  # P軸のスケールに合わせて適当な値に調整
+    VA = 1.0  # V軸のスケールに合わせて適当な値に調整
+    TA = PA * VA # PV = nRT なので，T は PV に比例すると考えられる
+
+    # 点 B の状態量 (断熱変化による)
+    # PB * VB^gamma = PA * VA^gamma
+    # ここでは，VB を仮定して PB を計算する
+    VB = 5.0 # VAより大きい値で，グラフに収まるように適当に設定
+    PB = PA * (VA / VB)**gamma
+
+    # 等温変化の計算 (PV = const)
+    # T = TA の等温線
+    V_iso_TA = np.linspace(0.5, 7.0, 100) # 広めの範囲でプロット
+    V_iso_TB = np.linspace(0.5, 7.0, 100) # 広めの範囲でプロット
+    P_iso_TA = (PA * VA) / V_iso_TA
+    P_iso_TB = (PA * VB) / V_iso_TB
+
+    # T = TB の等温線
+    # TB = PB * VB
+    P_iso_TB = (PB * VB) / V_iso_TA # 同じV範囲で計算
+
+    # 断熱変化の計算 (PV^gamma = const)
+    V_adiabatic = np.linspace(VA, VB, 100) # AからBまでの範囲
+    P_adiabatic = PA * (VA / V_adiabatic)**gamma
+
+    # Matplotlibでプロット
+    plt.figure(figsize=(8, 6))
+
+    # 断熱変化の曲線 (AからB)
+    plt.plot(V_adiabatic, P_adiabatic, color='blue', linewidth=2, label='断熱変化')
+    plt.plot([VA, VA], [0, PA], 'k:', linewidth=0.8) # 垂直な点線
+    plt.plot([0, VA], [PA, PA], 'k:', linewidth=0.8) # 水平な点線
+    plt.plot([VB, VB], [0, PB], 'k:', linewidth=0.8) # 垂直な点線
+    plt.plot([0, VB], [PB, PB], 'k:', linewidth=0.8) # 水平な点線
+
+    # 等温変化の曲線
+    plt.plot(V_iso_TA, P_iso_TA, 'k--', linewidth=0.8, label='等温変化')
+    plt.text(V_iso_TA[-1] * 0.9, P_iso_TA[-1] * 1.1, f'T = TA', fontsize=10, ha='right', va='bottom',
+             bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", lw=0.5))
+
+    plt.plot(V_iso_TB, P_iso_TB, 'k--', linewidth=0.8)
+    plt.text(V_iso_TB[20] * 0.8, P_iso_TB[20] * 0.8, f'T = TB', fontsize=10, ha='left', va='top',
+             bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", lw=0.5))
+
+
+    # 点 A と 点 B のプロット
+    plt.plot(VA, PA, 'ko', markersize=6)
+    plt.text(VA * 0.95, PA * 1.05, 'A', fontsize=12, ha='right')
+
+    plt.plot(VB, PB, 'ko', markersize=6)
+    plt.text(VB * 1.02, PB * 0.9, 'B', fontsize=12, ha='left')
+
+    # 軸ラベルとタイトル
+    plt.xlabel('v')
+    plt.ylabel('p')
+    plt.title('PV plot')
+
+    # 軸の範囲を設定
+    plt.xlim(0, 7.5)
+    plt.ylim(0, 5.0)
+
+    # 凡例
+    # plt.legend() # 等温変化と断熱変化の凡例は曲線上に直接記述した方が見やすいかも
+
+    # グリッド
+    plt.grid(True, linestyle=':', alpha=0.6)
+
+    # 軸の目盛りとラベル
+    plt.xticks([VA, VB], [f'$v_2$', f'$v_1$'])
+    plt.yticks([PB, PA], [f'$p_1$', f'$p_2$'])
+
+    plt.tight_layout()
+    plt.show()
+
+# 関数を呼び出してグラフを表示
+plot_pv_diagram()
+```
+
+
+$$
+\begin{align}
+c_vdT &= -p dv\\
+\int_{\text{state 1}}^{\text{state 2}}c_vdT
+  &= u_2 - u_1\\
+  &= -\int_{v1}^{v2}p dv
+\end{align}
+$$
+
+圧縮の場合 $\int_{v1}^{v2}p dv$ は負となります．これは[外部から仕事がなされる]{.regmonkey-bold}ことを意味します．熱力学第一法則法則より，外部からの仕事は比内部エネルギー $u$ の増加に使われることになります．
+
+## エンタルピー
+
+::: {#def- .custom_problem .blog-custom-border}
+[エンタルピー]{.def-title}
+
+流動過程にある気体/流体が保有する状態量としてのエネルギーは，運動エネルギーや位置エネルギーが無視できる場合には，エンタルピー $H$ [kJ] で表される．
+質量 1kg あたりのエンタルピーを比エンタルピー $h$ [kJ/kg] という．
+
+比エンタルピー $h$ は比内部エネルギー $u$, 流動仕事 $pv$ との和で以下のように表せる：
+ 
+$$
+h = u + pv
+$$
+
+:::
+
+全微分の公式を用いると比エンタルピーの変化は
+
+$$
+dh = du + pdv + vdp
+$$
+
+ここで \eqref{first-law-2} を用いて再整理すると
+
+$$
+dh = dq + vdp
+$$
+
+したがって，状態1から状態2へ変化する場合
+
+$$
+\begin{align}
+h_2 - h_1
+  &= q_{12} + \int^2_1vdp \label{enthalpy-diff}
+\end{align}
+$$
+
+流動系において，運動エネルギーや位置エネルギーが無視できる場合には
+
+$$
+q_{12} - l_{12} = h_2 - h_1
+$$
+
+この $l_{12}$ を[工業仕事]{.regmonkey-bold} といい，流動過程において流体と外部の間で実際に授受される仕事です．
+
+\eqref{enthalpy-diff} より
+
+$$
+l_{12} = -\int^2_1vdp
+$$
+
+圧縮の場合，RHSは負の値になります．
+
+[断熱圧縮の場合]{.mini-section}
+
+断熱圧縮の場合，外から受け取る熱量はないので $dq = 0$ つまり，
+
+$$
+h_2 - h_1 = \int^2_1 vdp
+$$
+
+このとき，[$h_2 - h_1$ は下のp-v線図上で `1-2-3-4-1` で囲まれた面積]{.regmonkey-bold}で表されます．
+
+
+```{python}
+#| label: fig-adiabatic-compression
+#| fig-cap: "Adiabatic compression process shown on a PV diagram"
+
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+def plot_pv_diagram():
+    # 理想気体の比熱比 (γ) を設定
+    # 断熱変化は PV^γ = const で表される
+    gamma = 1.4  # 単原子分子理想気体の場合 5/3 = 1.67, 二原子分子理想気体の場合 7/5 = 1.4
+
+    # 点 A の状態量
+    PA = 4.0  # P軸のスケールに合わせて適当な値に調整
+    VA = 1.0  # V軸のスケールに合わせて適当な値に調整
+    TA = PA * VA # PV = nRT なので，T は PV に比例すると考えられる
+
+    # 点 B の状態量 (断熱変化による)
+    # PB * VB^gamma = PA * VA^gamma
+    # ここでは，VB を仮定して PB を計算する
+    VB = 5.0 # VAより大きい値で，グラフに収まるように適当に設定
+    PB = PA * (VA / VB)**gamma
+
+    # 等温変化の計算 (PV = const)
+    # T = TA の等温線
+    V_iso_TA = np.linspace(0.5, 7.0, 100) # 広めの範囲でプロット
+    V_iso_TB = np.linspace(0.5, 7.0, 100) # 広めの範囲でプロット
+    P_iso_TA = (PA * VA) / V_iso_TA
+    P_iso_TB = (PA * VB) / V_iso_TB
+
+    # T = TB の等温線
+    # TB = PB * VB
+    P_iso_TB = (PB * VB) / V_iso_TA # 同じV範囲で計算
+
+    # 断熱変化の計算 (PV^gamma = const)
+    V_adiabatic = np.linspace(VA, VB, 100) # AからBまでの範囲
+    P_adiabatic = PA * (VA / V_adiabatic)**gamma
+
+    # Matplotlibでプロット
+    plt.figure(figsize=(8, 6))
+
+    # 断熱変化の曲線 (AからB)
+    plt.plot(V_adiabatic, P_adiabatic, color='blue', linewidth=2, label='断熱変化')
+    plt.plot([VA, VA], [0, PA], 'k:', linewidth=0.8) # 垂直な点線
+    plt.plot([0, VA], [PA, PA], 'k:', linewidth=0.8) # 水平な点線
+    plt.plot([VB, VB], [0, PB], 'k:', linewidth=0.8) # 垂直な点線
+    plt.plot([0, VB], [PB, PB], 'k:', linewidth=0.8) # 水平な点線
+
+
+    # 点 A と 点 B のプロット
+    plt.plot(VA, PA, 'ko', markersize=6)
+    plt.text(VA * 0.95, PA * 1.05, '2', fontsize=12, ha='right')
+    plt.text(0, -0.25, '0', fontsize=12, ha='center')
+
+    plt.plot(VB, PB, 'ko', markersize=6)
+    plt.text(VB * 1.02, PB * 0.9, '1', fontsize=12, ha='left')
+
+    # 軸ラベルとタイトル
+    plt.xlabel('v')
+    plt.ylabel('p')
+    plt.title('Enthalpy increase during adiabatic compression')
+
+    # 軸の範囲を設定
+    plt.xlim(0, 7.5)
+    plt.ylim(0, 5.0)
+
+    # 凡例
+    # plt.legend() # 等温変化と断熱変化の凡例は曲線上に直接記述した方が見やすいかも
+
+    # グリッド
+    plt.grid(True, linestyle=':', alpha=0.6)
+
+    # 軸の目盛りとラベル
+    plt.xticks([VA, VB], [f'2\'', f'1\''], fontsize=12)
+    plt.yticks([PB, PA], [f'4', f'3'], fontsize=12)
+
+    plt.tight_layout()
+    plt.show()
+
+# 関数を呼び出してグラフを表示
+plot_pv_diagram()
+```
+
+### 工業仕事
+
+:::: {.columns}
+::: {.column width="40%"}
+
+![](./compression.png){fig-align="center"}
+
+:::
+::: {.column width="60%"}
+
+{{< reveal_vspace 1em >}}
+
+:::{ style="padding-left: 1em;"}
+
+左図のような流動系の往復圧縮機での圧縮を考えます．プロセスは
+
+- 上死点から下死点までピストンが下がったとき，@fig-adiabatic-compression の状態1に相当する空気をを吸い込みます（$p_1v_1$ の外部から流入する仕事）
+- その後，ピストンを２の地点まで動かして断熱圧縮 = 状態1→状態2へ断熱圧縮
+- ピストンが2から上死点の間は吐出し弁が開き，気体を流出させることで $p_2v_2$ の仕事を流出
+
+:::
+:::
+::::
+
+[流体の吐出しによる外部への仕事]{.mini-section}
+
+吐出し弁から流体を流出させることで外部になす仕事は @fig-adiabatic-compression の `2'-2-3-0` の面積に相当するので
+
+$$
+\text{流体の吐出しによる外部への仕事} = p_2v_2
+$$
+
+[流体の吸込みによる外部からの仕事]{.mini-section}
+
+ピストンの下降の家庭で吸込み弁からシリンダ内に流入する気体が，シリンダ内の期待に対してする仕事は @fig-adiabatic-compression の `1'-1-4-0` の面積に相当するので
+
+$$
+\text{流体の吸込みによる外部からの仕事} = p_1v_1
+$$
+
+[流体圧縮に要する絶対仕事]{.mini-section}
+
+シリンダ内の気体の圧縮に必要な仕事は @fig-adiabatic-compression の `1'-1-2-2'` の面積に相当するので
+
+$$
+\text{流体圧縮に要する絶対仕事} = \int_1^2 pdv
+$$
+
+
+[断熱の流動系が外部になす仕事]{.mini-section}
+
+断熱の流動系が外部になす仕事は，絶対仕事 $w_{12}$ より流動仕事を引けば良いので
+
+$$
+\begin{align}
+w_{12} - (p_2v_2 - p_1v_1)
+  &= - \int^2_1vdp\\
+  &= l_{12}
+\end{align}
+$$
+
+圧縮の場合は，仕事が入ってくるので右辺の値は負の値になります．断熱圧縮では加わった仕事に相当するだけ圧縮気体の比エンタルピーは増大することになります．
+
+\eqref{enthalpy-diff} と照らし合わせると，熱交換がある場合の圧縮では，出入りした熱量 $q_{12}$ に相当するだけd比エンタルピーが増減することがわかります．
+
+
+## エントロピー
+
+::: {#def- .custom_problem .blog-custom-border}
+[エントロピー]{.def-title}
+
+エントロピーとは，ある変化が可逆変化とどの程度違うかを示す状態量のこと．単位質量の流体にある絶対温度 $T(K)$ で熱量 $dq$ が加えられた場合，
+$dq/T$ を比エントロピー増加量 $ds$ [J/kg･K] で表現される．
+
+- 可逆変化かつ断熱 → $ds = 0$
+- 不可逆変化では $ds > 0$
+
+:::
+
+[可逆断熱変化とエントロピー変化]{.mini-section}
+
+可逆断熱変化では $dq = 0$ となるので定義より
+
+$$
+ds = 0
+$$
+
+したがって，可逆断熱変化は等比エントロピー変化であることがわかります．
+
+::: {.nte- .callout-tip icon="false"}
+# 冷凍サイクルにおける断熱膨張
+
+断熱圧縮のコンプレッサーを冷媒で駆動すると原理的には断熱膨張エンジンになります．
+理想の圧縮工程では，冷媒とシリンダとの間に熱の出入りの無い断熱圧縮をし，エントロピー変化もゼロです（=可逆変化）．ただし，断熱変化は必ずしも可逆変化ではありません．
+
+例えば，膨張弁は断熱変化ですが可逆変化ではありません．「熱力学の第二法則より物質は高圧から低圧に流れ，逆には流れない」のが直感的説明です．
+また，凝縮，蒸発の行程は全て不可逆変化で，エントロピーは増加します。
+
+:::
+
+
+[等圧変化とエントロピー変化]{.mini-section}
+
+等圧変化を考えると，
+
+$$
+dq = c_p dT
+$$
+
+より
+
+$$
+ds = c_p \frac{dT}{T}
+$$
+
+したがって，熱交換器のような等圧変化において，絶対温度 $T_1$ の流体が熱量を受けて $T_2$ となった場合，定圧比熱 $c_p$ が一定であれば，エントロピー変化量 $s_2 - s_1$ は
+
+$$
+\begin{align}
+s_2 - s_1
+  &= \int^2_1 ds \\
+  &= c_p \int^2_1\frac{dT}{T}\\
+  &= c_p\log\left(\frac{T_2}{T_1}\right)
+\end{align}
+$$
+
+となり，Ts線図を使用すると温度上昇曲線は指数曲線となります．また定義より
+
+$$
+dq = Tds
+$$
+
+なので，状態1から状態2への変化に要する熱量 $q_{12}$ は
+
+$$
+q_{12} = \int^2_1 T ds
+$$
+
+と積分に対応 = Ts線図の$s_1$, $s_2$区間の曲線面積に対応して理解することができます．
+
+
+### 可逆過程（＝平衡状態の空間）の熱力学
+
+可逆変化においては $dq = Tds$ が成立します．また，熱力学第一法則より
+
+$$
+du = dq - pdv
+$$
+
+であるので，可逆過程における流体の内部エネルギーの微小変化は
+
+$$
+du = Tds - pdv
+$$
+
+となります．これらを整理すると
+
+$$
+\begin{align}
+\left(\frac{\partial u}{\partial s}\right)_v &= T\\
+\left(\frac{\partial u}{\partial v}\right)_s &= -p\\
+\left(\frac{\partial s}{\partial u}\right)_v &= \frac{1}{T}\\
+\left(\frac{\partial s}{\partial v}\right)_u &= \frac{p}{T}
+\end{align}
+$$
+
+### Maxwellの関係式: エントロピー変化と全微分
+
+$s = s(T, v)$ とみると，熱力学第一法則から
+
+$$
+\begin{align}
+ds 
+  &= \frac{dq}{T}\\
+  &= \frac{1}{T}(du + pdv)\\
+  &= \frac{1}{T}\left[\left(\frac{\partial u}{\partial T}\right)_vdT + \left(\frac{\partial u}{\partial v}\right)_Tdv + pdv\right]\\
+  &= \frac{1}{T}\left(\frac{\partial u}{\partial T}\right)_vdT + \frac{1}{T}\left[\left(\frac{\partial u}{\partial v}\right)_T + p\right]dv
+\end{align}
+$$
+
+全微分を整理すると
+
+$$
+\frac{\partial}{\partial v}\left[\frac{1}{T}\left(\frac{\partial u}{\partial T}\right)_v\right] = \frac{\partial}{\partial T}\left[\frac{1}{T}\left(\left(\frac{\partial u}{\partial v}\right)_T + p\right)\right]
+$$
+
+つまり
+
+$$
+\begin{align}
+\text{RHS}&=\frac{1}{T}\frac{\partial^2u}{\partial v\partial T}\\
+\text{LHS}&=-\frac{1}{T^2}\left[\left(\frac{\partial u}{\partial v}\right)_T + p\right] + \frac{1}{T}\frac{\partial^2 u}{\partial T \partial v} + \frac{1}{T}\left(\frac{\partial P}{\partial T}\right)_v
+\end{align}
+$$
+
+これらを整理すると次の関係式が導出できます
+
+$$
+\begin{align}
+\left(\frac{\partial u}{\partial v}\right)_T
+  &= T\left(\frac{\partial p}{\partial T}\right)_v - p\\
+  &= T^2\frac{\partial}{\partial T}\left(\frac{p}{T}\right)
+\end{align}
+$$
+
+単原子理想気体では $u = u(T)$ であるので
+
+$$
+\frac{\partial}{\partial T}\left(\frac{p}{T}\right) = 0 \label{eq-ideal}
+$$
+
+また，\eqref{eq-ideal} が成立するということは $p/T$ が $v$ のみの関数であることを意味するので
+
+$$
+p = f(v)T
+$$
+
+と成ることがわかります．
+
+
+## 📘 理解度チェック
+
+::: {#exr- .custom_problem .blog-custom-border}
+[熱力学エネルギー]{.def-title}
+
+熱力学エネルギーを簡潔に説明せよ
+
+:::
+
+::: {.callout-note collapse="true" icon=false}
+## Solution
+
+物体を構成する原子や分子の，熱運動による運動エネルギーと位置エネルギーの総和を，その熱力学エネルギーという
+
+:::
+
+
+::: {#exr- .custom_problem .blog-custom-border}
+[熱力学第一法則]{.def-title}
+
+次の記述のうち正しいものはどれか？
+
+a. 一定容積（定積）で熱を加えると，体積が変わらないため外部に対して仕事をしない．そのため，その熱量はすべて内部エネルギーの変化に等しい，
+
+:::
+
+::: {.callout-note collapse="true" icon=false}
+## Solution
+
+a, 
+
+:::
+
+::: {#exr- .custom_problem .blog-custom-border}
+[熱力学第二法則]{.def-title}
+
+次の記述のうち正しいものはどれか？
+
+a. 熱は高温の物体から低温の物体にしか移動しない．このように，自然には逆向きの変化が発生しないことを不可逆変化という
+
+:::
+
+::: {.callout-note collapse="true" icon=false}
+## Solution
+
+a, 
+
+:::
+
+
+::: {#exr- .custom_problem .blog-custom-border}
+[エントロピーの基礎]{.def-title}
+
+熱量とエンタルピーの違いを説明せよ
+
+:::
+
+::: {.callout-note collapse="true" icon=false}
+## Solution
+
+- 熱量とはある物質から外部へ放出した（または外部から取込んだ）熱エネルギーのこと（外部エネルギー）
+- エンタルピーはある物質が持っているエネルギー（熱＋圧力Energy）のこと
+
+ある物質のエンタルピーが変化すると，その分だけ外部と熱や動力を出し入れします．水１kgの温度が１℃下がるのは，4.186kJの熱量で冷却されたからですが，4.186kJの熱量は外部エネルギーとなります．冷却の結果として１℃当り4.186kJ/kgだけ比エンタルピー（or内部エネルギー）が低いと表現する場合は状態量としての記述になります．
+
+:::
+
+::: {#exr- .custom_problem .blog-custom-border}
+[冷凍サイクルと熱力学性質]{.def-title}
+
+
+次の記述のうち正しいものはどれか？
+
+a. 冷媒の熱力学性質を表にした飽和表から，飽和液及び飽和蒸気の比体積，比エンタルピー，比エントロピーなどを読み取ることができる．そして，飽和蒸気の比エンタルピーと飽和液の比エンタルピーの差が蒸発潜熱となる．
+b. 圧縮機の圧力比が大きいほど，圧縮前後の比エンタルピー差は大きくなる．その結果，単位冷媒循環量あたりの理論断熱圧縮動力も大きくなる
+
+:::
+
+::: {.callout-note collapse="true" icon=false}
+## Solution
+
+a, b
+
+:::
+
+::: {#exr- .custom_problem .blog-custom-border}
+[エントロピー]{.def-title}
+
+閉じた系内の物質について
+
+$$
+\begin{align}
+T &= \frac{u}{c}\\
+p &= \frac{RT}{v}
+\end{align}
+$$
+
+が成立するとします．$c$ は定数，$R$ は気体定数．基準状態のエントロピーを $s_0 = s(u_0, v_0)$ として，ここから $s(u, v)$ の状態までのエントロピー変化を
+$s(u, v) - s_0$ とする．$s(u, v)$ を求めよ
+
+:::
+
+::: {.callout-note collapse="true" icon=false}
+## Solution
+
+熱力学第一法則より
+
+$$
+\begin{align}
+ds
+  &= \frac{dq}{T}\\
+  &= \frac{1}{T}(du + pdv)\\
+  &= \frac{c}{u}du + \frac{R}{v}dv
+\end{align}
+$$
+
+これを積分すれば $s = s(u, v)$ が得られるので
+
+$$
+s(u, v) = c\log(u) + R\log(v) + \text{constant}
+$$
+
+$s_0 = s(u_0, v_0)$ であるので
+
+$$
+s = c\log(u/u_0) + R\log(v/v_0) + s_0
+$$
+
+
+:::
+
+
+
+## Appendix: 圧力の公式
+
+圧力とは $1\text{m}^2$ あたりに働く力のことをいいます．力との関係は以下のように表せます
+
+$$
+\text{圧力[Pa]} = \frac{\text{加えた力[N]}}{\text{その力が加わっている面積}[\text{m}^2]}
+$$
+
+圧力の組立単位は $\text{N}/\text{m}^2$ となりますが，通常は $1 \text{N}/\text{m}^2 = 1\text{Pa}$ としてPaを用いて表します．
