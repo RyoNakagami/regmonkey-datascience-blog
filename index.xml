@@ -10,7 +10,664 @@
 <atom:link href="https://ryonakagami.github.io/regmonkey-datascience-blog/index.xml" rel="self" type="application/rss+xml"/>
 <description></description>
 <generator>quarto-1.7.32</generator>
-<lastBuildDate>Thu, 12 Jun 2025 00:00:00 GMT</lastBuildDate>
+<lastBuildDate>Tue, 24 Jun 2025 00:00:00 GMT</lastBuildDate>
+<item>
+  <title>CSVファイルの特定のカラムをawkで計算変換する</title>
+  <dc:creator>Ryo Nakagami</dc:creator>
+  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-06-24-awk-preprocess-with-calculation/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+
+<section id="goal" class="level2">
+<h2 class="anchored" data-anchor-id="goal">Goal</h2>
+<ul>
+<li>CSV ファイル内の第2列の値を線形変換を通して別の単位に変換すること</li>
+</ul>
+</section>
+<section id="full-command" class="level2">
+<h2 class="anchored" data-anchor-id="full-command">Full Command</h2>
+<p><span class="mini-section">ワンライナースタイル</span></p>
+<div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb1-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">awk</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-F</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">','</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'BEGIN{OFS=","; a = 0;  b = 101325 / 760} NR==1 {print $0} NR&gt;1 {if ($2 ~ /^[0-9.]+$/) {$2 = sprintf("%.3f", a * $2 + b)} print $0}'</span> input.csv</span></code></pre></div>
+<p><span class="mini-section">改行有りスタイル</span></p>
+<div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb2-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">awk</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-F</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">','</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'</span></span>
+<span id="cb2-2"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">BEGIN {</span></span>
+<span id="cb2-3"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">    OFS = ",";</span></span>
+<span id="cb2-4"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">    a = 2.5;          # 傾き（倍率）</span></span>
+<span id="cb2-5"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">    b = 10;           # 切片（加算値）</span></span>
+<span id="cb2-6"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">}</span></span>
+<span id="cb2-7"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">NR == 1 {</span></span>
+<span id="cb2-8"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">    print $0;         # ヘッダーはそのまま</span></span>
+<span id="cb2-9"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">}</span></span>
+<span id="cb2-10"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">NR &gt; 1 {</span></span>
+<span id="cb2-11"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">    if ($2 ~ /^[0-9.]+$/) {</span></span>
+<span id="cb2-12"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">        $2 = sprintf("%.3f", a * $2 + b);  # 線形変換</span></span>
+<span id="cb2-13"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">    }</span></span>
+<span id="cb2-14"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">    print $0;</span></span>
+<span id="cb2-15"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">}</span></span>
+<span id="cb2-16"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'</span> input.csv</span></code></pre></div>
+<ul>
+<li>改行有りスタイルでは line seperator <code>;</code> は使用しなくても大丈夫です</li>
+</ul>
+</section>
+<section id="explanation" class="level2">
+<h2 class="anchored" data-anchor-id="explanation">🔍 Explanation</h2>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 66%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>構成要素</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>awk</code></td>
+<td>AWK インタープリタを起動</td>
+</tr>
+<tr class="even">
+<td><code>-F','</code></td>
+<td><strong>入力のフィールド区切り文字</strong>をカンマに設定します．これにより、AWK が入力を CSV ファイルとして扱います</td>
+</tr>
+<tr class="odd">
+<td><code>'BEGIN{}</code></td>
+<td><code>BEGIN</code> ブロックは、<strong>データ処理の前に一度だけ実行</strong>．<code>{}</code> 内部で処理を設定</td>
+</tr>
+<tr class="even">
+<td><code>OFS=",";</code></td>
+<td><code>OFS=","</code> で出力の区切り文字をカンマに設定，CSV 形式で出力されるようにする</td>
+</tr>
+<tr class="odd">
+<td><code>a = 0</code></td>
+<td><code>a</code> は 変数変換のための切片係数</td>
+</tr>
+<tr class="even">
+<td><code>b = 101325 / 760</code></td>
+<td><code>b</code> は 変数変換のための傾き係数</td>
+</tr>
+<tr class="odd">
+<td><code>NR==1 {print $0}</code></td>
+<td><strong>最初の行</strong>（<code>NR==1</code>）の場合は，行全体（<code>$0</code>）をそのまま出力．これによりヘッダー行が変更されずに保持</td>
+</tr>
+<tr class="even">
+<td><code>NR&gt;1 { ... }</code></td>
+<td>2行目以降の処理を指定</td>
+</tr>
+<tr class="odd">
+<td><code>if ($2 ~ /^[0-9.]+$/)</code></td>
+<td>第2列（圧力）が数値（正の小数や整数）であるかを確認．数値以外の場合はスキップ</td>
+</tr>
+<tr class="even">
+<td><code>$2 = sprintf("%.3f", $2 * conversion)</code></td>
+<td>第2列を変換係数で掛け算し，小数第3位で丸めて文字列に整形</td>
+</tr>
+<tr class="odd">
+<td><code>print $0</code> (最後)</td>
+<td>変換後の行を出力</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="exm-" class="custom_problem no-border-top-table theorem example">
+<p><span class="theorem-title"><strong>Example 1</strong></span> &nbsp;</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 30%">
+<col style="width: 15%">
+<col style="width: 15%">
+<col style="width: 40%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>変換内容</th>
+<th><code>a</code></th>
+<th><code>b</code></th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>mmHg → Pa</td>
+<td>133.322</td>
+<td>0</td>
+<td>mmHg → Paの圧力変換</td>
+</tr>
+<tr class="even">
+<td>華氏 (°F) → 摂氏 (°C)</td>
+<td>5/9</td>
+<td>-32×5/9</td>
+<td>温度変換</td>
+</tr>
+<tr class="odd">
+<td>センサー電圧 → 実測値</td>
+<td>任意</td>
+<td>任意</td>
+<td>校正式に応じて設定</td>
+</tr>
+<tr class="even">
+<td>線形スケーリング (例: 0~1)</td>
+<td>任意</td>
+<td>任意</td>
+<td>最小-最大正規化などに応用可能</td>
+</tr>
+</tbody>
+</table>
+</div>
+<hr>
+</section>
+<section id="カスタムシェルスクリプト-linear_convert" class="level2">
+<h2 class="anchored" data-anchor-id="カスタムシェルスクリプト-linear_convert">📜 カスタムシェルスクリプト <code>linear_convert</code></h2>
+<div class="custom_problem blog-custom-border">
+<ul>
+<li>CSVファイルの指定列を線形変換し出力するスクリプト</li>
+<li>線形変換の式は以下</li>
+</ul>
+<p><img src="https://latex.codecogs.com/png.latex?%0Ay%20=%20a%5Ctimes%20x%20+%20b%0A"></p>
+<ul>
+<li>対象列の値が数値でない場合は、指定した文字列に置換するか，もしくは元の値を保持</li>
+<li>対象列は1から始まる番号で指定</li>
+</ul>
+</div>
+<p><span class="mini-section">仕様</span></p>
+<ul>
+<li>入力CSVはカンマ区切りである必要があり</li>
+</ul>
+<p><span class="mini-section">Defintion</span></p>
+<div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb3-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#!/bin/bash</span></span>
+<span id="cb3-2"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">:</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'</span></span>
+<span id="cb3-3"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">linear_convert - CSVファイルの指定列を線形変換し出力するスクリプト</span></span>
+<span id="cb3-4"></span>
+<span id="cb3-5"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">Usage:</span></span>
+<span id="cb3-6"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">  ./linear_convert &lt;a: slope&gt; &lt;b: intercept&gt; &lt;column_num&gt; &lt;precision&gt; &lt;input_csv_file&gt; [na_replacement|keep]</span></span>
+<span id="cb3-7"></span>
+<span id="cb3-8"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">Arguments:</span></span>
+<span id="cb3-9"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">  a               傾き（線形変換の倍率）</span></span>
+<span id="cb3-10"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">  b               切片（線形変換の加算値）</span></span>
+<span id="cb3-11"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">  column_num      変換対象の列番号（1始まり）</span></span>
+<span id="cb3-12"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">  precision       出力する小数点以下の桁数</span></span>
+<span id="cb3-13"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">  input_csv_file  入力CSVファイルのパス</span></span>
+<span id="cb3-14"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">  na_replacement  欠損値・非数値の置換文字列または"keep"（省略時は"keep"）</span></span>
+<span id="cb3-15"></span>
+<span id="cb3-16"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">Description:</span></span>
+<span id="cb3-17"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">  指定したCSVファイルの指定列の値に対して、線形変換 y = a * x + b を適用します。</span></span>
+<span id="cb3-18"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">  欠損値や数値でない値は、指定した文字列に置換するか、"keep"指定であればそのまま保持します。</span></span>
+<span id="cb3-19"></span>
+<span id="cb3-20"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">Example:</span></span>
+<span id="cb3-21"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">  # 第3列を y=2.5*x + 10 に変換し、小数点2桁で出力。欠損値はそのまま保持。</span></span>
+<span id="cb3-22"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">  ./linear_convert.sh 2.5 10 3 2 input.csv</span></span>
+<span id="cb3-23"></span>
+<span id="cb3-24"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">  # 欠損値を"Missing"に置換する場合</span></span>
+<span id="cb3-25"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">  ./linear_convert.sh 2.5 10 3 2 input.csv Missing</span></span>
+<span id="cb3-26"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'</span></span>
+<span id="cb3-27"></span>
+<span id="cb3-28"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># --- 引数チェック ---</span></span>
+<span id="cb3-29"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">[</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">-lt</span> 5 <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">]</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">||</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">[</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">-gt</span> 6 <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">]</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">;</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">then</span></span>
+<span id="cb3-30">  <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Usage: </span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$0</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> &lt;a: slope&gt; &lt;b: intercept&gt; &lt;column_num&gt; &lt;precision&gt; &lt;input_csv_file&gt; [na_replacement|keep]"</span></span>
+<span id="cb3-31">  <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Example: </span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$0</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> 2.5 10 3 2 input.csv Missing"</span></span>
+<span id="cb3-32">  <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"na_replacement options: NA, Missing, 0, or keep (default: keep)"</span></span>
+<span id="cb3-33">  <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">exit</span> 1</span>
+<span id="cb3-34"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">fi</span></span>
+<span id="cb3-35"></span>
+<span id="cb3-36"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># --- 引数を変数に代入 ---</span></span>
+<span id="cb3-37"><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">a</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$1</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span></span>
+<span id="cb3-38"><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">b</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$2</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span></span>
+<span id="cb3-39"><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">col</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$3</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span></span>
+<span id="cb3-40"><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">precision</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$4</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span></span>
+<span id="cb3-41"><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">input_file</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$5</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span></span>
+<span id="cb3-42"><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">na_replacement</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">${6</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:-</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">keep</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">}</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>   <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 6番目の引数がなければ keep をデフォルトに</span></span>
+<span id="cb3-43"></span>
+<span id="cb3-44"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">awk</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-F</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">','</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-v</span> a=<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$a</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-v</span> b=<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$b</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-v</span> col=<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$col</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-v</span> prec=<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$precision</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-v</span> na=<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$na_replacement</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'</span></span>
+<span id="cb3-45"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">BEGIN {</span></span>
+<span id="cb3-46"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">    OFS = ",";</span></span>
+<span id="cb3-47"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">    format = "%." prec "f";</span></span>
+<span id="cb3-48"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">}</span></span>
+<span id="cb3-49"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">NR == 1 {</span></span>
+<span id="cb3-50"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">    print $0;</span></span>
+<span id="cb3-51"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">}</span></span>
+<span id="cb3-52"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">NR &gt; 1 {</span></span>
+<span id="cb3-53"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">    val = $col;</span></span>
+<span id="cb3-54"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">    if (val ~ /^[0-9.]+$/) {</span></span>
+<span id="cb3-55"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">        $col = sprintf(format, a * val + b);</span></span>
+<span id="cb3-56"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">    } else {</span></span>
+<span id="cb3-57"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">        if (na == "keep") {</span></span>
+<span id="cb3-58"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">            $col = val;   # 欠損・非数値はそのまま保持</span></span>
+<span id="cb3-59"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">        } else {</span></span>
+<span id="cb3-60"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">            $col = na;    # na_replacement で置換</span></span>
+<span id="cb3-61"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">        }</span></span>
+<span id="cb3-62"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">    }</span></span>
+<span id="cb3-63"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">    print $0;</span></span>
+<span id="cb3-64"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">}</span></span>
+<span id="cb3-65"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$input_file</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span></span></code></pre></div>
+<p><span class="mini-section">Usage</span></p>
+<div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">linear_convert</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;</span>a: slope<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;</span>b: intercept<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;</span>column_num<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;</span>precision<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;</span>input_csv_file<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> [na_replacement<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">keep]</span></span></code></pre></div>
+<p><span class="mini-section">Inputs</span></p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 28%">
+<col style="width: 71%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>引数名</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>a</code></td>
+<td>線形変換の傾き（倍率）</td>
+</tr>
+<tr class="even">
+<td><code>b</code></td>
+<td>線形変換の切片（加算値）</td>
+</tr>
+<tr class="odd">
+<td><code>column_num</code></td>
+<td>変換対象の列番号（1始まり）</td>
+</tr>
+<tr class="even">
+<td><code>precision</code></td>
+<td>出力する小数点以下の桁数</td>
+</tr>
+<tr class="odd">
+<td><code>input_csv_file</code></td>
+<td>入力CSVファイルのパス</td>
+</tr>
+<tr class="even">
+<td><code>na_replacement</code></td>
+<td>欠損値・非数値の置換文字列 または <code>"keep"</code>（省略時は <code>"keep"</code>）</td>
+</tr>
+</tbody>
+</table>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Example 2</strong></span> <span class="def-title">第3列に対し y = 2.5 * x + 10 の変換を適用し，小数点以下2桁で表示</span></p>
+<div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">./linear_convert</span> 2.5 10 3 2 input.csv</span></code></pre></div>
+</div>
+<hr>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Example 3</strong></span> <span class="def-title">欠損値を “Missing” に置換する場合</span></p>
+<div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">./linear_convert</span> 2.5 10 3 2 input.csv Missing</span></code></pre></div>
+</div>
+<hr>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Example 4</strong></span> <span class="def-title">欠損値を 0 に置換する場合</span></p>
+<div class="sourceCode" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">./linear_convert</span> 2.5 10 3 2 input.csv 0</span></code></pre></div>
+</div>
+<hr>
+
+
+</section>
+
+ ]]></description>
+  <category>前処理</category>
+  <category>shell</category>
+  <category>awk</category>
+  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-06-24-awk-preprocess-with-calculation/</guid>
+  <pubDate>Tue, 24 Jun 2025 00:00:00 GMT</pubDate>
+</item>
 <item>
   <title>物質量と気体の体積</title>
   <dc:creator>Ryo Nakagami</dc:creator>
@@ -41,7 +698,7 @@
 <p>以上より</p>
 <p><img src="https://latex.codecogs.com/png.latex?%0AN_A%20=%20%5Cfrac%7B%5Ctext%7B1%E5%86%86%E7%8E%89%E4%BD%93%E7%A9%8D%5Bcm%5D%7D%5E3%7D%7B%5Ctext%7B%E5%8D%98%E4%BD%8D%E6%A0%BC%E5%AD%90%E4%BD%93%E7%A9%8D%5Bcm%5D%7D%5E3%7D%20%5Ctimes%204%20%5Ctimes%20%5Cfrac%7B%5Ctext%7B%E3%82%A2%E3%83%AB%E3%83%9F%E3%83%8B%E3%82%A6%E3%83%A0%E3%83%A2%E3%83%AB%E8%B3%AA%E9%87%8F%5Bg/mol%5D%7D%7D%7B%5Ctext%7B1%E5%86%86%E7%8E%89%E8%B3%AA%E9%87%8F%5Bg%5D%7D%7D%0A"></p>
 <p>となるはずなので</p>
-<div id="057049c5" class="cell" data-execution_count="1">
+<div id="d7f2176d" class="cell" data-execution_count="1">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><span class="im" style="color: #00769E;
@@ -421,7 +1078,7 @@ Solution
 <div id="exm-" class="custom_problem theorem example">
 <p><span class="theorem-title"><strong>Example 2</strong></span> <span class="def-title">水1gの潜熱</span></p>
 <p>水は極性分子で，水素結合が強いため，蒸発に多くのエネルギーが必要という特徴が有ります．</p>
-<div id="0adc3847" class="cell" data-execution_count="1">
+<div id="ac4ed88c" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><span class="im" style="color: #00769E;
@@ -995,7 +1652,7 @@ Solution
 </section>
 <section id="appendix-数値目安" class="level2">
 <h2 class="anchored" data-anchor-id="appendix-数値目安">Appendix: 数値目安</h2>
-<div id="dbddbe07" class="cell" data-execution_count="2">
+<div id="29f0d88d" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><span class="im" style="color: #00769E;
@@ -4982,180 +5639,6 @@ font-style: inherit;"># Ctrl + v + Home</span></span></code></pre></div>
   <category>製造業</category>
   <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-04-24-reciprocating-engine/</guid>
   <pubDate>Thu, 24 Apr 2025 00:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>D3を用いた散布図生成</title>
-  <dc:creator>Ryo Nakagami</dc:creator>
-  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-04-10-scatter-plot-with-D3/</link>
-  <description><![CDATA[ 
-
-
-
-
-
-
-<section id="問題設定と可視化" class="level2">
-<h2 class="anchored" data-anchor-id="問題設定と可視化">問題設定と可視化</h2>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-可視化方針
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p><strong> ▶&nbsp; Question</strong></p>
-<ul>
-<li>日常活動について，活動に対して感じる有意義さと活動を通して得られる幸福感はどのように相関しているのか？</li>
-</ul>
-<p><strong> ▶&nbsp; Data</strong></p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 25%">
-<col style="width: 75%">
-</colgroup>
-<tbody>
-<tr class="odd">
-<td>Dataset</td>
-<td>2022 American Time Use Survey</td>
-</tr>
-<tr class="even">
-<td>PATH</td>
-<td><a href="./act_means.tsv"><code>./act_means.tsv</code></a></td>
-</tr>
-<tr class="odd">
-<td>About</td>
-<td>洗濯や調理などの日常活動に従事するときに感じる幸福度と有意義さをスコア化して，その平均を活動ごとに表したもの</td>
-</tr>
-</tbody>
-</table>
-<p><strong> ▶&nbsp; 可視化コンポーネント: normal</strong></p>
-<ul>
-<li><a href="./scatter_plot_default.html"><code>scatter_plot_default.html</code></a>: HTML sturecture</li>
-<li><a href="./scatterplot_style.css"><code>scatterplot_style.css</code></a>: CSS for styling</li>
-<li><a href="./scatterplot_default.js"><code>scatterplot_default.js</code></a>: JS for scatterplot</li>
-</ul>
-<p><strong> ▶&nbsp; 可視化コンポーネント: bubble version</strong></p>
-<ul>
-<li><a href="./scatter_plot_with_bubble.html"><code>scatter_plot_with_bubble.html</code></a>: HTML sturecture</li>
-<li><a href="./scatterplot_with_bubble.js"><code>scatterplot_with_bubble.js</code></a>: JS for bubbleplot</li>
-</ul>
-</div>
-</div>
-</section>
-<section id="scatter-plot-with-d3" class="level2">
-<h2 class="anchored" data-anchor-id="scatter-plot-with-d3">scatter plot with D3</h2>
-<p>Meaningfullness vs Hapiness について２つのplotを以下では提示しています． 左右のFigureは同じデータを使っているにも関わらず印象が異なります．</p>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-解釈
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>Scatter Plot: Meaningfullness と Hapiness の間にはハッキリとした相関関係は見られない</li>
-<li>Bubble Plot: 活動別従事者割合(<code>relwt</code>)をweightとして，それをbubble sizeに当てはめた場合，meaningfullnessとHapinessの間には正の相関があると推察できる</li>
-</ul>
-</div>
-</div>
-<p>scatter plotでは各点が等しく重要であるという印象を読み手に与えますが，aggregateデータではcount sizeがindexごとによって異なるケースでは 「各点が等しく重要」というのはミスリーディングかもしれません．このような場合，各indexの<code>count size</code>という第３の情報を<strong>バブルの面積に比例させる</strong>ことで表すというBubble plotの利用が考えられます．</p>
-<p>ただし，バブルの導入により各点が重なって読みづらくなってしまうというトレードオフもあるので，<code>opacity</code>の調整や，そもそも使用しないなどの意思決定をケースバイケースで実施していくことが必要です．</p>
-<div class="columns">
-<div class="column">
-<p><strong> ▶&nbsp; Scatter Plot</strong></p>
-<div class="iframe-container">
-<script src="./scatterplot_default.js"></script>
-<iframe src="./scatter_plot_default.html" width="100%" height="550px">
-</iframe>
-</div>
-</div><div class="column">
-<p><strong> ▶&nbsp; Bubble Plot</strong></p>
-<div class="iframe-container">
-<script src="./scatterplot_with_bubble.js"></script>
-<iframe src="./scatter_plot_with_bubble.html" width="100%" height="550px">
-</iframe>
-</div>
-</div>
-</div>
-<div class="callout callout-style-default callout-important callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-Bubble Plotのコツ
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>バブルの大きさは通常「面積」で表現するべき</li>
-<li><code>d3.scaleSqrt()</code> を使ってバブルの半径をsqrtスケーリングすると，面積をデータに比例させることができます</li>
-<li>バブル同士が重なってしまうと個別の値が読み取りにくくなるので，透過度(<code>opacity</code>)の調整やBorder colorの導入の検討が必要</li>
-</ul>
-</div>
-</div>
-<section id="アンチパターン-透過度の重要性" class="level3">
-<h3 class="anchored" data-anchor-id="アンチパターン-透過度の重要性">アンチパターン: 透過度の重要性</h3>
-<p>scatter plot, bubble plotにおいて，透過度（opacity）の調整は，<strong>データの密度や重なりを視覚的に正確に伝える</strong>という効果を持つ重要な視覚的テクニックです．</p>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-可視化シーン別透過度調整の効果
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>scatter plot: 重なりが多いところが自然と濃くなるため，<strong>「どこに多くのデータが集中しているか」</strong>が明確になる</li>
-<li>bubble plot: 先に描いた点や小さい円が完全に見えなくなることを防ぐ</li>
-</ul>
-</div>
-</div>
-<p>以下では透過度を全く調整せずに可視化した場合を示しています．</p>
-<div class="columns">
-<div class="column">
-<p><strong> ▶&nbsp; Scatter Plot</strong></p>
-<ul>
-<li>すべての点が同じ濃さのため，data point密度の「濃度差が表現されない」</li>
-<li>バブルのサイズや色も一定なので視覚的には「一様」に見えてしまい、分布の濃淡や偏り、異常検知が難しくなる</li>
-</ul>
-<div class="iframe-container">
-<script src="./scatterplot_avoid.js"></script>
-<iframe src="./scatter_plot_avoid.html" width="100%" height="550px">
-</iframe>
-</div>
-</div><div class="column">
-<p><strong> ▶&nbsp; Bubble Plot</strong></p>
-<ul>
-<li>小さなバブルが大きなバブルの下に隠れて見えなくなる</li>
-<li>密集したエリアがごちゃごちゃして読みづらくなる</li>
-<li>どのバブルがどの値か判別しにくくなるため，面積情報のメリットが薄れる</li>
-</ul>
-<div class="iframe-container">
-<script src="./scatterplot_avoid_bubble.js"></script>
-<iframe src="./scatter_plot_avoid_bubble.html" width="100%" height="550px">
-</iframe>
-</div>
-</div>
-</div>
-
-
-</section>
-</section>
-
- ]]></description>
-  <category>D3</category>
-  <category>EDA</category>
-  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-04-10-scatter-plot-with-D3/</guid>
-  <pubDate>Thu, 10 Apr 2025 00:00:00 GMT</pubDate>
 </item>
 </channel>
 </rss>
