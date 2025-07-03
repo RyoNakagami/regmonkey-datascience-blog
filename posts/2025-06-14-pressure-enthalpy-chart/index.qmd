@@ -406,6 +406,70 @@ plt.show()
 - 冷媒液に潜熱が加えられ，乾き度が大きくなり，飽和蒸気となる
 - 更に顕熱が加えられ，加熱蒸気になり，圧縮機に吸い込まれる
 
+### 非共沸混合冷媒のPH線図
+
+湿り蒸気領域における等温線は，単一成分冷媒では等圧線と並行ですが，非共沸混合冷媒では右下がりの勾配を持った線になります．
+湿り蒸気が加熱（蒸発器内）または冷却（凝縮器内）に伴う相変化によって乾き度が変化すると，湿り蒸気中の飽和蒸気と飽和液のいずれも混合組成割合が
+変わるため，[等温のもとでは，飽和圧力が変化する]{.regmonkey-bold}ことによる．
+
+```{python}
+# | label: fig-ph-mix-chart
+# | fig-cap: ""
+
+fluid = "R407C"  # 任意の冷媒に変更可
+pa_converter = 10**6
+
+
+def linear_interp_inf(x):
+    x = np.array(x)
+    mask = np.isfinite(x)  # finiteなインデックス
+    return np.interp(np.arange(len(x)), np.where(mask)[0], x[mask])
+
+
+# Saturation curve
+T_min = PropsSI("Ttriple", fluid) + 1.0  # [K]
+T_crit = PropsSI("Tcrit", fluid)  # [K]
+T_sat = np.linspace(T_min, T_crit - 1e-5, 200)
+
+p_sat = PropsSI("P", "T", T_sat, "Q", 0, fluid)
+h_liq = PropsSI("H", "T", T_sat, "Q", 0, fluid) / 1000  # [kJ/kg]
+h_vap = PropsSI("H", "T", T_sat, "Q", 1, fluid) / 1000  # [kJ/kg]
+
+plt.figure(figsize=(8, 6))
+plt.plot(h_liq, p_sat / pa_converter, label="Saturated Liquid")
+plt.plot(h_vap, p_sat / pa_converter, label="Saturated Vapor")
+
+# 適当な等温線（任意で）
+for T_iso in np.linspace(T_crit - 123.5, T_crit + 60, 4):
+    p_iso = np.logspace(np.log10(p_sat.min()), np.log10(p_sat.max()), 150)
+    h_iso = PropsSI("H", "T", T_iso, "P", p_iso, fluid) / 1000
+    h_iso = linear_interp_inf(h_iso)
+    plt.plot(
+        h_iso,
+        p_iso / pa_converter,
+        linestyle="-",
+        label=f"{T_iso - 273.15:.0f} °C Isotherm",
+    )
+
+plt.yscale("log")
+plt.xlabel("Enthalpy [kJ/kg]")
+plt.ylabel("Pressure [MPa]")
+plt.title(f"Pressure–Enthalpy (p-h) Diagram for {fluid}")
+plt.legend()
+plt.grid(True, which="both", ls=":")
+plt.tight_layout()
+plt.show()
+```
+
+::: {#def- .custom_problem .blog-custom-border}
+[温度勾配]{.def-title}
+
+ある一定の等圧線上の沸点と露点の温度が異なり，露点における温度のほうが沸点における温度よりも高くなっているとき，この等圧線上の沸点と露点との温度差を温度勾配と呼ぶ
+
+:::
+
+- R404AやR410Aは0.2~0.4Kのオーダー
+- R407Cは温度勾配が大きく4.5Kほど
 
 ## 📘 理解度チェック
 
