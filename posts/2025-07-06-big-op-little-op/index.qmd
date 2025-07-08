@@ -1,0 +1,825 @@
+---
+title: "統計学におけるBig OpとLittle Op"
+author: "Ryo Nakagami"
+date: "2025-07-06"
+date-modified: "2025-07-08"
+categories: [統計]
+listing_category: datascience-statistics-series
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.7.0/dist/mermaid.min.js"></script>
+
+## 無限小の比較
+
+
+::: {#def- .custom_problem .blog-custom-border}
+[無限小]{.def-title}
+
+
+独立変数のある一定の変動に伴って0に収束する変数を無限性という．
+
+$$
+\lim_{x\to a}f(x) = 0
+$$
+
+のとき，[$f(x)$ は $x\to a$ のとき無限小]{.regmonkey-bold}である．
+
+:::
+
+::: {#exm- .custom_problem }
+[無限小]{.def-title}
+
+$$
+\begin{align}
+\sin x & \ \ \text{ as } \ \ x\to 0\\
+\sqrt{1-x^2} & \ \ \text{ as } \ \ x\to 1-0\\
+\exp(-x) & \ \ \text{ as } \ \ x\to \infty\\
+\sqrt{(x-a)^2 + (y-b)^2} & \ \ \text{ as } \ \ x\to a, y\to b
+\end{align}
+$$
+
+
+:::
+
+
+### 無限小の比較
+
+::: {#def- .custom_problem .blog-custom-border}
+[高位・同位の無限小]{.def-title}
+
+$\lim_{x\to a}f(x) = 0, \lim_{x\to a}g(x) = 0$ とする
+
+[高位の無限小]{.mini-section}
+
+$$
+\lim_{x\to a} \frac{f(x)}{g(x)} = 0
+$$
+
+が成り立つとき，[$f(x)$ は $g(x)$ より高位の無限小]{.regmonkey-bold}であるという．定義より $f(x)$ は $g(x)$ より速くゼロに近づくことになります．このとき次のように表します
+
+$$
+f(x) =  \omicron(g(x))
+$$
+
+
+[同位の無限小]{.mini-section}
+
+$$
+\lim_{x\to a} \frac{f(x)}{g(x)} = \alpha(\neq 0)
+$$
+
+が成り立つとき，[$f(x)$ は $g(x)$ と同位の無限小]{.regmonkey-bold}であるという．
+
+
+[ラージ・オーダー]{.mini-section}
+
+$|f(x)/g(x)|$ が $a$ を含むある開集合で有界のとき，次のように表す
+
+$$
+f(x) = \mathcal{O}(g(x))
+$$
+
+$f(x) = \omicron(g(x))$ ならば $f(x) = \mathcal{O}(g(x))$ です．
+
+:::
+
+
+
+::: {#exm- .custom_problem }
+[ランダウの記号]{.def-title}
+
+$$
+\begin{align}
+\lim_{x\to 0}\frac{x^2}{x} = 0 &\Longrightarrow x^2 = \omicron(x) \ \ (x \to 0)\\
+\lim_{x\to 0}\frac{x^2 + x^3 + x^4}{x} = 0 &\Longrightarrow x^2 + x^3 + x^4 = \omicron(x) \ \ (x \to 0)\\
+\lim_{x\to 0}\frac{x + x^2}{x} = 1 &\Longrightarrow x + x^2 = \mathcal{O}(x) \ \ (x \to 0)\\
+\lim_{x\to \infty}\frac{\exp(-x)}{1/x} = 0 &\Longrightarrow \exp(-x) = \omicron(1/x) \ \ (x \to \infty)\\
+\lim_{x\to \infty}\frac{\exp(-x)}{1/x^k} = 0 &\Longrightarrow \exp(-x) = \omicron(1/x^k) \ \ (x \to \infty)\\
+\lim_{x\to \infty}\frac{1 - \exp(x)}{x} = 1 &\Longrightarrow 1 - \exp(x) = \mathcal{O}(x) \ \ (x \to 0)
+\end{align}
+$$
+
+
+:::
+
+::: {#exm- .custom_problem }
+
+$$
+f(x) = \frac{\exp(x) - (1 + x)}{x^2}
+$$
+
+について考えてみます．$x=0$ のときは $f(x)$ はそのまま評価できませんが，ロピタルの定理を用いると
+
+$$
+\lim_{x\to 0}\frac{\exp(x) - (1 + x)}{x^2} = \frac{1}{2}
+$$
+
+つまり，$\exp(x) - (1 + x) = \mathcal{O}(x^2) \ \ (x\to 0)$ ということになります．Plotlyで確認したのが以下：
+
+```{python}
+import numpy as np
+import plotly.graph_objects as go
+
+# Define x values, avoiding x=0 to prevent division by zero
+x = np.linspace(-2, 2, 1000)
+x = x[x != 0]  # remove x=0
+
+# Define the function
+y = (np.exp(x) - (1 + x)) / x**2
+
+# Create the plot
+fig = go.Figure()
+
+fig.add_trace(
+    go.Scatter(
+        x=x, y=y, mode="lines", name="(exp(x) - (1 + x)) / x²", line=dict(color="blue")
+    )
+)
+
+# Optionally add the limit as x -> 0
+fig.add_trace(
+    go.Scatter(
+        x=[0],
+        y=[0.5],  # limit is 0.5
+        mode="markers",
+        name="Limit at x=0",
+        marker=dict(size=8, color="red", symbol="circle"),
+    )
+)
+
+# Customize layout
+fig.update_layout(
+    title="Plot of (exp(x) - (1 + x)) / x²",
+    xaxis_title="x",
+    yaxis_title="f(x)",
+    template="plotly_white",
+    showlegend=True,
+    width=800,
+    height=500,  # <-- Set figure size here
+)
+
+fig.show()
+```
+
+:::
+
+::: {#thm- .custom_problem .blog-custom-border}
+[正弦関数とラージオーダー]{.def-title}
+
+$$
+n\sin(n) = \mathcal{O}(n) \, \ (n\to\infty)
+$$
+
+:::
+
+::: {.callout-note collapse="false" icon=false}
+## Proof
+
+$\sin(n) \leq 1 \, \ \forall n$ より $n\sin(n) \leq n \, \ \forall n$． 
+
+つまり，
+
+$$
+\lim_{n\to \infty} \left|\frac{n\sin(n)}{n}\right| \leq 1
+$$
+
+従って，$n\sin(n) = \mathcal{O}(n) \, \ (n\to\infty)$
+
+:::
+
+
+### 統計学でのランダウ記号の取り扱い
+
+::: {#def- .custom_problem .blog-custom-border}
+
+1. $N = 1, 2, 3, \cdots$ として，数列 $\{a_N\}$ について $N^{-\lambda}a_N$ が有界のとき，$\{a_N\}$ は $\mathcal{O}(N^\lambda)$ であると表記する
+2. 数列 $\{a_N\}$ について $N^{-\lambda}a_N \to 0$のとき，$\{a_N\}$ は $\omicron(N^\lambda)$ であると表記する
+
+:::
+
+- 定義より $\lim_{N\to\infty} a_N = 0$ であるならば, $a_N = \omicron(1)$
+- $a_n = \log(N)$ であるならば，任意の $\lambda  > 0$ について $a_N = \omicron(N^\lambda)$ 
+- $a_n = 10 +\sqrt{N}$ であるならば，$a_N = \mathcal{O}(N^{1/2})$ 
+- $a_n = 10 +\sqrt{N}$ であるならば，任意の $\lambda  > 0$ について $a_N = \omicron(N^{1/2+\lambda})$ 
+
+## Big OpとLittle Op
+
+Big OpとLittle Opは，ある確率変数が（ある上限やゼロに）どのように収束するかの表記表現です．
+
+::: {#def- .custom_problem .blog-custom-border}
+[probability limitとLittle Op]{.def-title}
+
+確率変数列 $\{x_N\}$ が定数 $a$ に確率収束するとは, 任意の $\epsilon >0$ に対して
+
+$$
+P[|x_N - a|>\epsilon] \to 0 \  \ \text{as } \  \ N \to \infty
+$$
+
+が成立することである．これを以下のように表記する
+
+$$
+\begin{align}
+x_N & \overset{p}{\to}a\\
+\mathrm{plim}\,\ x_N &= a
+\end{align}
+$$
+
+とくに，$a = 0$ のとき，
+
+$$
+x_n = \omicron_p(1)
+$$
+
+と表記する．
+
+:::
+
+確率収束は次のようにリフレーズすることができます:
+
+
+$$
+\forall \epsilon >0, \forall \delta >0 , \exists n_0 \in \mathbb N [n\geq n_0 \Rightarrow P(|X_n - \alpha| > \epsilon) < \delta]
+$$
+
+- $\epsilon$: accuracy level
+- $\delta$: confidence level
+- 任意に与えられたaccuracyとconfidenceの水準に対して，$n$ が十分大きければ $X_n$ は指定した精度と信頼度の範囲内で $\alpha$ に等しくなる
+- 確率収束は $N$ が十分大きければ $X_N$ は $\alpha$ 近傍にほぼ確実に存在すると解釈できる
+
+
+::: {#exm-converge-in-prob .custom_problem}
+<br>
+
+$X_1, \cdots, X_n, \cdots$ を互いに独立な確率変数として，それらの確率関数を
+
+$$
+X_n = \left\{\begin{array}{c}
+0 & \text{with probability} \ \ 1 - \frac{1}{n}\\
+n & \text{with probability} \ \ \frac{1}{n}
+\end{array}\right.
+$$
+
+
+とします．このとき，
+
+$$
+P[|X_n| > \epsilon] = P[X_n > \epsilon] = \frac{1}{n} \to 0 \  \ (n\to \infty)
+$$
+
+であるので，$X_n$ は0に確率収束 $X_n = \omicron_p(1)$ することがわかります．
+
+:::
+
+***
+
+[確率収束と二乗収束]{.mini-section}
+
+確率変数 $X_n$ が二乗収束するとします．つまり，
+
+$$
+\lim_{n\to N}\mathbb E[(X_n - X)^2] = 0
+$$
+
+$X_n$ が確率収束するならば，確率収束の定義とマルコフ不等式より
+
+
+$$
+\begin{align}
+P[|X_n - X| > \epsilon]
+  &= P[(X_n - X)^2 > \epsilon^2]\\
+  &\leq \frac{E[(X_n - X)^2]}{\epsilon^2}
+\end{align}
+$$
+
+従って，$X_n\overset{m.s.}{\to} X \Longrightarrow X_n\overset{p}{\to} X$ が成立します．
+一方，[逆は成立しません]{.regmonkey-bold}．
+
+@exm-converge-in-prob は確率収束の例でしたが，
+
+$$
+\begin{align}
+E[(X_n)^2] = \frac{1}{n}n^2 = n \to\infty \text{ as } \ \ n\to\infty
+\end{align}
+$$
+
+
+::: {.callout-note}
+### 統計学における収束の関係性
+
+```{mermaid}
+graph LR
+  A[Almost Sure Convergence] --> B[Convergence in Probability]
+  B --> C[Convergence in Distribution]
+  D[Lᵖ Convergence] --> B
+```
+
+
+:::
+
+
+::: {#def- .custom_problem .blog-custom-border}
+[Big Op]{.def-title}
+
+確率変数列 $\{x_N\}$ が [bounded in probability]{.regmonkey-bold} であるとは，任意の $\epsilon >0$ について，
+
+$$
+\exists b_\epsilon > 0, N_\epsilon \Longrightarrow P(|x_N| \geq b_\epsilon) < \epsilon \, \ \forall N\geq N_{\epsilon}
+$$
+
+が成立することである．これを $x_N = \mathcal{O}_p(1)$ と表記する．
+
+:::
+
+[スモールオーダーとラージオーダーとOp]{.mini-section}
+
+$C_N$ を非確率変数数列とします．このとき，
+
+$$
+\begin{align}
+C_N = \mathcal{O}_p(1) \  \ & \text{if and only if} \  \ C_N = \mathcal{O}(1)\\
+C_N = \omicron_p(1) \  \ & \text{if and only if} \  \ C_N = \omicron(1)
+\end{align}
+$$
+
+::: {#thm-entail .custom_problem .blog-custom-border}
+[Probability limit and Big Op]{.def-title}
+
+$x_N \overset{p}{\to} a$ が成立するならば $x_N = \mathcal{O}_p(1)$
+
+:::
+
+::: {.callout-note collapse="false" icon=false}
+## Proof
+
+$x_N \overset{p}{\to} a$ より
+
+$$
+\forall \epsilon, \delta > 0, \exists N_\epsilon, N \geq N_\epsilon\Rightarrow P(|x_N - \alpha| > \delta) < \epsilon
+$$
+
+次に $|X_n|$ について考えると
+
+$$
+\begin{align}
+&|X_n| = |X_n - \alpha + \alpha| \leq |X_n - \alpha| + |\alpha| \because{三角不等式}\\
+&\Rightarrow |X_n| - |\alpha| \leq |X_n - \alpha|
+\end{align}
+$$
+
+従って，$\forall \epsilon, \delta > 0, \exists N_\epsilon, N \geq N_\epsilon$ について
+
+$$
+\begin{align}
+&P(|x_N - \alpha| > \delta) < \epsilon\\
+&\Rightarrow P(|X_n| - |\alpha| > \delta) < \epsilon\\
+&\Rightarrow P(|X_n| > |\alpha| + \delta) < \epsilon
+\end{align}
+$$
+
+任意の $\delta > 0$ について成立するので，$b_\epsilon = |\alpha| + 1$ とすれば $X_n=\mathcal{O}_p(1)$ が成立する．
+
+:::
+
+::: {#def-ohpee-with-order .custom_problem .blog-custom-border}
+[確率収束オーダー]{.def-title}
+
+1. 確率変数列 $X_N$ と非確率変数列 $a_N >0$ について $X_N/a_N = \omicron_p(1)$ であるとき，$X_n = \omicron_p(a_N)$ であるという
+2. 確率変数列 $X_N$ と非確率変数列 $a_N >0$ について $X_N/a_N = \mathcal{O}_p(1)$ であるとき，$X_n = \mathcal{O}_p(a_N)$ であるという
+
+:::
+
+@def-ohpee-with-order より，確率変数列 $x_n = \omicron_p(N^\delta)$, $\delta \in\mathbb R$ とき，
+
+$$
+\begin{align}
+N^{-\delta}x_n \overset{p}{\to}0
+\end{align}
+$$
+
+となります．
+
+::: {.callout-note}
+
+@thm-entail を用いると，$X_N = \omicron_p(a_n)$ が成立するならば $\mathcal{O}_p(a_n)$ が成立します． 
+
+:::
+
+
+::: {#exm- .custom_problem }
+<br>
+
+$z$ を確率変数としたとき，$x_N \equiv \sqrt{N}z$ とていぎします．このとき，以下が成立します
+
+$$
+\begin{align}
+x_n &= \mathcal{O}_p(N^{1/2})\\
+x_n &= \omicron_p(N^{\delta}) \  \ \forall \delta > \frac{1}{2}
+\end{align}
+$$
+
+
+:::
+
+:::{.callout-note}
+## Property
+
+$$
+\begin{align}
+\omicron_p(1) + \omicron_p(1) &= \omicron_p(1) \because{\text{Continuous Mapping Theorem}}\\
+\mathcal{O}_p(1) + \omicron_p(1) &= \mathcal{O}_p(1)\\
+\mathcal{O}_p(1)\omicron_p(1) &=\omicron_p(1)\\
+R_n\times\omicron_p(1) &= \omicron_p(R_n)
+\end{align}
+$$
+
+:::
+
+::: {#exm-sum-of-op .custom_problem }
+[sum of $\omicron_p(1)$ not necessarily equals $\omicron_p(1)$]{.def-title}
+
+$X_{ni} = \frac{1}{n}$ という確率変数を考えます．
+
+定義より
+
+$$
+\operatorname{plim} X_{ni} = 0
+$$
+
+つまり，$X_{ni} = \omicron_p(1)$ です．ここで
+
+$$
+Y_n = \frac{1}{n}\sum_{i=1}^nX_{ni}
+$$
+
+を考えます．このとき，
+
+$$
+\begin{align}
+Y_n
+  &= \frac{1}{n}\sum_{i=1}^nX_{ni}\\
+  &= \frac{n(n+1)}{2n^{2}}\\
+  &\to \frac{1}{2}
+\end{align}
+$$
+
+従って，$Y_n \neq \omicron_p(1)$ となります．
+
+
+:::
+
+***
+
+上記の @exm-sum-of-op の関連として $n$ 応じて大きくなる $M(N)$ 個(例として $M(N) = \frac{N}{2}$)の $X_{ni}$ の合計でも考えることができます．$X_{ni} = 1$ を考えると，
+$X_{ni} = \mathcal{O}_p(1)$ は自明ですが
+
+$$
+\sum_{i=1}^{M(N)}X_{ni} = \sum_{i=1}^{M(N)}1 = M(N)\to \infty
+$$
+
+また，$X_{ni} = 1/n$ を考えると，$X_{ni} = \omicron_p(1)$ は自明ですが
+
+$$
+\sum_{i=1}^{M(N)}X_{ni} = \sum_{i=1}^{M(N)}\frac{1}{N} = \frac{M(N)}{N}
+$$
+
+となり，$M(N) = \frac{N}{2}$ であるならば $\frac{1}{2}$ に収束してしまい，$\sum_{i=1}^{M(N)}X_{ni}\neq \omicron_p(1)$ となってしまいます．
+
+
+### 収束レート
+
+:::: {.no-border-top-table}
+
+| 表記                     | ゼロへの収束速度 | 説明                   |
+| ---------------------- | -------- | -------------------- |
+| $\mathcal{O}_p(1)$     | 遅い       | 確率的に有界だが、ゼロに収束とは限らない |
+| $\mathcal{O}_p(1/\log(n))$   | ちょっと速い       | ゼロに $\log(n)$ の速さで近づく      |
+| $\mathcal{O}_p(1/\sqrt(n))$   | もうちょっと速い       | ゼロに $\sqrt(n)$ の速さで近づく      |
+| $\mathcal{O}_p(1/n)$   | 速い       | ゼロに $n$ の速さで近づく      |
+| $\mathcal{O}_p(1/n^2)$ | もっと速い    | $n^2$ の速さでゼロに近づく     |
+: {tbl-colwidths="[20,25,55]"}
+
+::::
+
+２つのレートを考えます
+
+$$
+\begin{align}
+R^{(1)} &= \frac{1}{n^{1/2}}\\
+R^{(2)} &= \frac{1}{n^{1/3}}
+\end{align}
+$$
+
+
+そして，ある確率変数 $Y_n = \omicron_p(1)$ とします．ここで，次のように変数を定義します
+
+$$
+\begin{align}
+X_n^{(1)} &= \frac{1}{n^{1/2}}Y_n = \omicron_p(R^{(1)})\\
+X_n^{(2)} &= \frac{1}{n^{1/3}}Y_n = \omicron_p(R^{(2)})
+\end{align}
+$$
+
+このとき，$n\to\infty$ における各 $Y_n$ の値を所与とすると，$X_n^{(2)}$ の方が $X_n^{(1)}$ よりも大きくなります．
+つまり，$X_n^{(1)}$ の方が確率的にゼロへ速く収束します．
+
+::: {.callout-note}
+### 次元の呪い
+
+$d$ 次元確率ベクトル $\pmb{X}_i$ の密度関数 $f(\pmb{x})$ を多変量カーネル推定量を用いて推定する場合を考えます．
+
+$$
+\hat{f}(\pmb{x}) \frac{1}{|\pmb{H}|}\sum_{i=1}^nK(\pmb{H}^{-1}(\pmb{X}_i - \pmb{x}))
+$$
+
+
+
+多変量カーネルのAMISE(Asymptotic Mean Integrated Squared Error)は
+
+$$
+\operatorname{AMISE}(\hat{f}(\pmb{x})) = \omicron_p(n^{-4/(d+4)})
+$$
+
+となりますが，
+
+- $d=1$ のときは $n^{-4/5}$ の速さで0に収束
+- $d=2$ のときは $n^{-2/3}$ の速さで0に収束
+- $d=3$ のときは $n^{-4/7}$ の速さで0に収束
+
+と $d$ が大きくなるについて遅くなります．これを[次元の呪い(curse of dimensionality)]{.regmonkey-bold}と呼びます．
+
+:::
+
+::: {#exm- .custom_problem }
+<br>
+
+$X_n \sim N(0, n)$ という確率変数を考えます．変数変換を行うと
+
+$$
+\frac{X_n}{\sqrt{n}}\sim N(0, 1)
+$$
+
+標準正規分布の性質より $Z\sim N(0, 1)$ のとき，任意の $\epsilon > 0$ について $P(|Z| > M) < \epsilon$ を満たすような $M$ が存在するので
+
+$$
+X_n = \mathcal{O}_p(\sqrt{n})
+$$
+
+上記より $X_n$ はBig OpとLittle Opの関係より $X_n = \omicron_p(n)$ であることはわかりますが，ちゃんと確認してみたいと思います．
+
+$$
+\begin{align}
+\frac{X_n}{n}\sim N\left(0, \frac{1}{n}\right)
+\end{align}
+$$
+
+$\alpha \sim N\left(0, \frac{1}{n}\right)$ とすると，
+
+$$
+\begin{align}
+P(|\alpha| > \epsilon)
+  &= P(\frac{1}{\sqrt{n}}|Z| > \epsilon)\\
+  &=  P(|Z| > \sqrt{n}\epsilon)\\
+  &\overset{p}{\to}0
+\end{align}
+$$
+
+従って，$X_n = \omicron_p(n)$ が示せました．
+
+:::
+
+### rate of convergence: mean vs median
+
+正規分布に従う確率変数 $X_i \sim N(\theta, \sigma^2)$ について考えます．
+
+- $\overline{X}_N$: sample mean
+- $\hat M_N$: sample median, $\hat M_N = \operatorname{Med}(X_1, \cdots, X_N)$
+
+とすると，それぞれの漸近分布は
+
+$$
+\begin{align}
+\overline{X}_N &\sim N\left(\theta, \frac{\sigma^2}{N}\right)\\
+\hat M_N &\sim N\left(\theta, \frac{\pi\sigma^2}{2N}\right)
+\end{align}
+$$
+
+[収束スピードイメージの確認]{.mini-section}
+
+- sample meanのほうがsample medianと比べてより効率的と一見見える（分散が小さい）
+- $\theta$ を中心に分布している = unbiased
+- $n$ が大きくなるにつれて，$x = \theta$ のprobability densityが大きくなっている = consistency
+
+
+```{python}
+import numpy as np
+import pandas as pd
+import plotly.express as px
+
+
+# サンプル平均・中央値を1000回計算
+def rep_sample(N, reps=1000):
+    data = {"N": [], "Estimator": [], "estimate": []}
+    for _ in range(reps):
+        sample = np.random.normal(loc=0, scale=1, size=N)
+        data["N"].append(N)
+        data["Estimator"].append("Mean")
+        data["estimate"].append(np.mean(sample))
+        data["N"].append(N)
+        data["Estimator"].append("Median")
+        data["estimate"].append(np.median(sample))
+    return pd.DataFrame(data)
+
+
+# サンプルサイズのリスト
+np.random.seed(89)
+Ns = [5] + list(range(50, 251, 50))
+df_all = pd.concat([rep_sample(N) for N in Ns], ignore_index=True)
+
+# Plotlyでヒストグラム描画（facet by N）
+fig = px.histogram(
+    df_all,
+    x="estimate",
+    color="Estimator",
+    facet_col="N",
+    facet_col_wrap=2,
+    histnorm="probability density",  # Rと同様の密度
+    opacity=0.6,
+    nbins=50,
+    labels={"estimate": "Value", "N": "Sample Size"},
+)
+
+# オーバーレイ + サイズ変更
+fig.update_layout(
+    barmode="overlay",  # オーバーレイ表示
+    bargap=0.1,
+    width=1000,  # ← 横幅（px）
+    height=800,  # ← 高さ（px）
+    legend=dict(orientation="h", y=-0.1),
+    title=dict(
+        text="Sampling Distributions of Mean vs Median by Sample Size (Overlayed)",
+        y=0.95,  # ← タイトルをより上に配置
+        x=0.5,  # 中央に配置（オプション）
+        xanchor="center",
+        yanchor="bottom",
+    ),
+)
+
+fig.update_layout(
+    margin=dict(t=100),  # 上側余白を増やす
+    title_font_size=20
+)
+
+# ラベルの整形（例: "N=50" → "N = 50"）
+fig.for_each_annotation(lambda a: a.update(text=a.text.replace("N=", "N = ")))
+
+fig.show()
+```
+
+[Op表記を用いた収束レートの確認]{.mini-section}
+
+Op表記を用いてsample meanとsample medianの収束レートを確認してみます．まず，以下のような変換を実施します
+
+$$
+\begin{aligned}
+\psi_\text{Mean} &= \hat{\theta} - \theta \\
+&= \mathcal{N}(\theta, \frac{\sigma^2}{N}) - \mathcal{N}(\theta,0) \\
+&= \mathcal{N}(0,\frac{\sigma^2}{N})\\
+&= \frac{1}{\sqrt{N}}\mathcal{N}(0,\sigma^2)
+\end{aligned}
+$$
+
+$$
+\begin{aligned}
+\psi_\text{Med.} &= \mathcal{N}(\theta, \frac{\pi\sigma^2}{2N}) - \mathcal{N}(\theta,0)  \\
+& = \mathcal{N}(0, \frac{\pi\sigma^2}{2N})\\
+&= \frac{\sqrt{\pi}}{\sqrt{2N}}\mathcal{N}(0,\sigma^2)
+\end{aligned}
+$$
+
+従って，
+
+$$
+\begin{align}
+\psi_\text{Mean} = \mathcal{O}_p\left(\frac{1}{\sqrt{N}}\right).\\
+\psi_\text{Med.} = \mathcal{O}_p\left(\frac{\pi}{\sqrt{2N}}\right).
+\end{align}
+$$
+
+$\frac{1}{\sqrt{N}} < \frac{\pi}{\sqrt{2N}}$ であるので，sample medianのほうが収束レートが遅いことがわかります．
+
+```{python}
+import numpy as np
+import pandas as pd
+import plotly.express as px
+
+# Nの範囲を定義（0.01 から 100、ステップ 0.01）
+N = np.arange(0.01, 100.01, 0.01)
+
+# 平均と中央値の収束速度
+mean_convergence = 1 / np.sqrt(N)
+median_convergence = np.sqrt(np.pi) / np.sqrt(2 * N)
+
+# データフレームに変換して tidy 形式に変換
+df = pd.DataFrame({
+    "N": N,
+    "Mean": mean_convergence,
+    "Median": median_convergence
+})
+df_melted = df.melt(id_vars="N", var_name="Estimator", value_name="Rate")
+
+# Plotly で線グラフ描画
+fig = px.line(df_melted, x="N", y="Rate", color="Estimator",
+              title="Asymptotic Convergence Rate: Mean vs Median",
+              labels={"Rate": "Convergence Rate", "N": "Sample Size"})
+
+fig.update_layout(
+    yaxis=dict(range=[0, 1]),
+    legend=dict(orientation="h", y=-0.2)
+)
+
+fig.show()
+
+```
+
+## Appendix: 連続確率分布における中央値の漸近分布
+
+連続確率分布に従う $\{X_1, \cdots, X_n\} \overset{\mathrm{iid}}{\sim} F$ を考えます．
+
+- CDF: $F_X(x) = P(X_i \leq x)$
+- inverse CDF: $F^{-1}_X(t)$
+- pdf: $f_X(x) = F^\prime_X(x)$
+- Bernoulli r.v.: $Z_i(x) \equiv I\{X_i \leq x\}$
+
+$Z_i$ についてはBernoulli r.v. であるので
+
+$$
+\begin{gather}
+\mathbb E(Z_i(x)) =  \mathbb E\left(I\{X_i\le x\}\right) = P(X_i\le x)=F_X(x)\\
+\operatorname{Var}(Z_i(x)) = F_X(x)[1-F_X(x)]
+\end{gather}
+$$
+
+次に $Z_i((x))$ のsample meanの変数として $Y_n(x)$ を以下のように定義します
+
+$$
+Y_n(x) = \frac{1}{n}\sum_{i=1}^nZ_i(x) = \hat F_n(x)
+$$
+
+- $\hat F_n(x)$: 経験分布関数
+
+このとき，
+
+$$
+\begin{align}
+\mathbb E[Y_n(x)] &= F_X(x)\\
+\operatorname{Var}(Y_n(x)) &= \frac{1}{n}F_X(x)[1-F_X(x)]
+\end{align}
+$$
+
+ここで，CLTを用いると
+
+$$
+\begin{align}
+\sqrt n\Big(Y_n(x) - F_X(x)\Big) 
+  &= \sqrt n\Big(\hat F_X(x) - F_X(x)\Big)\\
+  &\overset{d}{\rightarrow} N\left(0,F_X(x)[1-F_X(x)]\right)
+\end{align}
+$$
+
+$F^{-1}_X(\cdot)$ という変数変換とDelta methodを組み合わせると
+
+$$
+\sqrt n\Big(F^{-1}_X(\hat F_n(x)) - F^{-1}_X(F_X(x))\Big) \overset{d}{\rightarrow} N\left(0,\frac {F_X(x)[1-F_X(x)]}{\left[f_x\left(F^{-1}_X(F_X(x))\right)\right]^2} \right)
+$$
+
+true median $x = m$ で評価すると
+
+$$
+\sqrt n\Big(F^{-1}_X(\hat F_n(m)) - m\Big) \overset{d}{\rightarrow} N\left(0,\frac {1}{\left[2f_x(m)\right]^2} \right)
+$$
+
+$F^{-1}_X(\hat F_n(m))$ は sample median $\hat m$ に収束するので
+
+$$
+\sqrt n\Big(\hat m - m\Big)\overset{d}{\rightarrow} N\left(0,\frac {1}{\left[2f_x(m)\right]^2} \right)
+$$
+
+正規分布 $X_i\sim N(0, \sigma^2)$ の場合を考えると
+
+$$
+\sqrt n\Big(\hat m - m\Big)\overset{d}{\rightarrow} N\left(0,\frac {\pi\sigma^2}{2} \right)
+$$
+
+
+
+References
+----------
+- [Econometric Analysis of Cross Section and Panel Data, 2010 > Ch3. Basic Asymptotitc Theory p37](https://www.jstor.org/stable/j.ctt5hhcfr)
+- [Introduction to Probability, Dimitri P. Bertsekas and John N. Tsitsiklis](https://www.vfu.bg/en/e-Learning/Math--Bertsekas_Tsitsiklis_Introduction_to_probability.pdf)
+- [Ma, Y., Genton, M. G., & Parzen, E. (2011). Asymptotic properties of sample quantiles of discrete distributions. Annals of the Institute of Statistical Mathematics, 63(2), 227-243.](https://link.springer.com/article/10.1007/s10463-008-0215-z)
+- [Statistics for Regression Monkeys > マルコフ不等式](https://ryonakagami.github.io/statistics-for-regression-monkey/posts/statistics101/expectation.html#markov-and-chebyshev-inequalities)
