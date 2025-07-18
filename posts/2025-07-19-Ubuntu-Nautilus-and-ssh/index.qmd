@@ -1,0 +1,104 @@
+---
+title: "NautilusからSSH先のファイルを操作する"
+author: "Ryo Nakagami"
+date: "2025-07-19"
+date-modified: "2025-07-20"
+categories: [環境構築, Linux]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## SSH先のファイルをNautilusで操作する
+
+::: {.custom_problem .blog-custom-border}
+[手順]{.def-title-no-before}
+
+
+1. NautilusをClient側で開く
+2. サイドバー下部の「その他の場所」をクリック
+3. 「サーバーへ接続」に以下を入力：
+
+```bash
+ssh://<ユーザー名>@<ホスト名またはIPアドレス>
+```
+
+:::
+
+[入力箇所]{.mini-section}
+
+Nautilusのbottom sectionにある「Connect to Server」の`Enter server address ...` の部分で接続設定をします．`.ssh/config`で
+
+```yml
+Host pupupuserver
+  HostName 192.168.1.100
+  User kirby
+  LocalForward 8787 localhost:8787
+```
+
+とHost設定を行っていれば
+
+```bash
+ssh://pupupuserver
+```
+
+と入力してもOKです．
+
+![nautilus](./nautilus.png)
+
+::: {.callout-note}
+### sshfsを用いたmount
+
+```bash
+mkdir ./remote
+sshfs pupupuserver:/home/kirby ./remote
+```
+
+とすれば，ローカルのフォルダに直接ssh接続先ディレクトリをマウントすることができます．個人の方針として，
+
+- アクセスしたいディレクトリが明確に定まっている状況
+- 分析プロジェクトとかでVSCode経由でSサーバーディレクトリを操作したいとき
+
+という状況のときに使用しています．
+
+:::
+
+
+
+## 多段SSH（踏み台サーバ経由）の場合
+
+踏み台設定は以下のような状況を考えます
+
+```yml
+Host jumpserver
+  HostName jump.example.com
+  User kirby
+  LocalForward 8787 localhost:8787
+
+Host targetserver
+  HostName 192.168.1.110
+  User kirby
+  LocalForward 8787 localhost:8787
+```
+
+::: {.custom_problem .blog-custom-border}
+[手順: SSHトンネルを張ってlocalhostに接続]{.def-title-no-before}
+
+
+1. SSHトンネルを貼る 
+
+```bash
+ssh -N -L 2222:192.168.1.110:22 kirby@jump.example.com
+```
+
+2. サイドバー下部の「その他の場所」をクリック
+3. 「サーバーへ接続」に以下を入力：
+
+```bash
+ssh://kirby@localhost:2222
+```
+
+:::

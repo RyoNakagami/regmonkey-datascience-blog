@@ -1,0 +1,312 @@
+---
+title: "カントールの対関数の全単射性の証明"
+author: "Ryo Nakagami"
+date: "2025-06-18"
+date-modified: "2025-07-14"
+categories: [集合論]
+listing_category: set-and-topology-series
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## カントールの対関数
+
+::: {.callout-note}
+## 自然数集合の定義
+
+$\mathbb N = \{1, 2, 3, \cdots\}$ とする．
+
+:::
+
+::: {#def- .custom_problem .blog-custom-border}
+[カントールの対関数]{.def-title}
+
+次の関数 $J: \mathbb N\times \mathbb N\to \mathbb N$ をカントールの対関数という
+
+$$
+J(x, y) = \frac{(x + y - 2)(x + y - 1)}{2} + y
+$$
+
+- $J$ は全単射という性質があります
+
+:::
+
+カントールの対関数のイメージは @fig-cantor-plot です．$J: \mathbb N\times \mathbb N\to \mathbb N$ が全単射であることから，自然数の対 $(m, n)$ 全体の作る集合は
+$\mathbb N$ と濃度が同じ = 可算集合であることがわかるようになります．
+
+
+
+```{python}
+#| label: fig-cantor-plot
+#| fig-cap: ""
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Define the grid size
+max_val = 5
+X, Y = np.meshgrid(np.arange(1, max_val + 1), np.arange(1, max_val + 1))
+
+# Compute Cantor pairing number
+Z = ((X + Y - 2) * (X + Y - 1)) // 2 + Y
+
+# Flatten the arrays for easier iteration and sorting
+points = []
+for i in range(X.shape[0]):
+    for j in range(X.shape[1]):
+        x = X[i, j]
+        y = Y[i, j]
+        z = Z[i, j]
+        if z <= 15:
+            points.append((z, x, y))  # (number, x, y)
+
+# Sort by the Cantor number
+points.sort()
+
+# Plotting
+plt.figure(figsize=(7, 7))
+plt.xlim(0.3, max_val + 0.3)
+plt.ylim(0.3, max_val + 0.3)
+plt.xticks(np.arange(1, max_val + 1))
+plt.yticks(np.arange(1, max_val + 1))
+plt.grid(True)
+
+# Plot points and labels
+for z, x, y in points:
+    plt.text(x, y + 0.1, str(z), ha='center', va='center', fontsize=12, color='black')
+    plt.plot(x, y, 'ko', markersize=5)
+
+# Draw arrows from one point to the next in order
+for i in range(len(points) - 1):
+    _, x0, y0 = points[i]
+    _, x1, y1 = points[i + 1]
+    dx = x1 - x0
+    dy = y1 - y0
+    plt.arrow(x0, y0, dx * 0.85, dy * 0.85,
+              head_width=0.1, head_length=0.1,
+              length_includes_head=True, linestyle='dashed', color='#575757')
+
+plt.title('Cantor Pairing Function with Ordered Arrows')
+plt.xlabel('x')
+plt.ylabel('y')
+plt.gca().set_aspect('equal')
+plt.tight_layout()
+plt.show()
+```
+
+::: {.callout-note collapse="false" icon=false}
+## Proof: 全射性の証明
+
+任意の $k\in \mathbb N$ について，ある $x, y \in \mathbb N$ が存在して，$J(x, y) = k$ になることを，数学的帰納法を用いると容易に示すことができます．
+
+[$k = 1$ について]{.mini-section}
+
+$k = 1$ については，$(x, y) = (1, 1)$ とすると，
+
+$$
+J(1, 1) = \frac{(1 + 1 - 2)(1 + 1 - 1)}{2} + 1
+$$
+
+より自明．
+
+[$k > 1$ について]{.mini-section}
+
+つぎに，ある $k\in \mathbb N$ について，ある $x, y \in \mathbb N$ が存在すると仮定して，$k+1$ についても同様に成り立つことを示します．
+
+$x = 1$ のときは $(x^\prime, y^\prime) = (y + 1, 1)$ とおくと，
+
+$$
+\begin{align}
+J(x^\prime, y^\prime) 
+  &= \frac{(x^\prime + y^\prime - 2)(x^\prime + y^\prime - 1)}{2} + y^\prime\\
+  &= \frac{(y + 1 + 1 - 2)(y + 1 + 1 - 1)}{2} + 1\\
+  &= \frac{(y)(y + 1)}{2} + 1\\
+  &= \frac{(y - 1)(y)}{2} + y + 1\\
+  &= J(x, y) + 1\\
+  &= k + 1
+\end{align}
+$$
+
+$x > 1$ のときは $(x^\prime, y^\prime) = (x - 1, y + 1)$ とおくと，
+
+$$
+\begin{align}
+J(x^\prime, y^\prime) 
+  &= \frac{(x + y - 2)(x + y - 1)}{2} + y + 1\\
+  &= J(x, y) + 1\\
+  &= k + 1
+\end{align}
+$$
+
+以上の数学的帰納法により，任意の $k \in \mathbb{N}$ に対して，ある $(x, y) \in \mathbb{N}^2$ が存在して $J(x, y) = k$ となる．
+
+:::
+
+::: {.callout-note collapse="false" icon=false}
+## Proof: 単射性の証明
+
+$(x, y)\neq (x^\prime, y^\prime)$ を任意にとると，
+
+$x + y = x^\prime + y^\prime$ のときは，
+
+$$
+J(x, y) - J(x^\prime, y^\prime) = y - y^\prime \neq 0
+$$
+
+$x + y \neq x^\prime + y^\prime$ のときは，$x + y < x^\prime + y^\prime$ としても一般性を失わないので，
+
+$$
+\begin{align}
+J(x, y)
+  &= \sum^{x + y - 2}_i i + y\\
+  &\leq \sum^{x + y - 2}_i i + x + y - 1\\
+  &= \sum^{x + y - 1}_i\\
+  &\leq \sum^{x^\prime + y^\prime - 2}_i\\
+  &< \sum^{x^\prime + y^\prime - 2}_i + y^\prime\\
+  &= J(x^\prime, y^\prime)
+\end{align}
+$$
+
+従って，単射性が示された．
+
+:::
+
+## カントールの対関数の逆関数
+
+証明の関係上，$\mathbb N = \{0, 1, 2, 3, \cdots\}$ とします．
+
+このとき，のカントール対関数は
+
+$$
+J(x, y) = \frac{(x + y)(x + y + 1)}{2} + y
+$$
+
+となります．
+
+::: {#thm- .custom_problem  .blog-custom-border}
+[カントールの対関数の逆関数]{.def-title}
+
+$$
+J(x, y) = \frac{(x + y)(x + y + 1)}{2} + y
+$$
+
+の逆関数は
+
+$$
+t = \left\lfloor \frac{-1 + \sqrt{1 + 8J}}{2}\right\rfloor
+$$
+
+とおくと，
+
+$$
+\begin{cases}
+x =\frac{t^3 + 3t}{2} - J\\
+y = J - \frac{t^2 + t}{2}
+\end{cases}
+$$
+
+:::
+
+::: {.callout-note collapse="false" icon=false}
+## Proof
+
+$t = x + y$ とおくと，カントールの対関数は
+
+$$
+\begin{align}
+J(x, y) &= \frac{t^2 + t}{2} + y\\
+J(x, 0) &= \frac{x^2 + x}{2}
+\end{align}
+$$
+
+また定義より
+
+$$
+\begin{align}
+J(x, y) &= J(x + y, 0) + y\\
+J(x, y) &= J(0, x + y) - x\\
+J(0, x+y) + 1 &= J(x + y + 1, 0)
+\end{align}
+$$
+
+従って，
+
+$$
+J(x + y, 0) \leq J(x, y) \leq J(0, x + y) < J(x + y + 1, 0)
+$$
+
+つまり，
+
+$$
+\frac{t^2 + t}{2} \leq J(x, y)  = \frac{t^2 + t}{2} + y < \frac{(t + 1)^2 + t + 1}{2}
+$$
+
+これを整理すると
+
+$$
+\begin{gather}
+t^2 + t - 2J \leq 0\\
+(t + 1)^2 + (t + 1) - 2J > 0
+\end{gather}
+$$
+
+これを解くと，
+
+$$
+\begin{gather}
+\frac{-1 - \sqrt{1 + 8J}}{2} \leq t \leq \frac{-1 + \sqrt{1 + 8J}}{2}\\
+t + 1 <\frac{-1 - \sqrt{1 + 8J}}{2} \lor \frac{-1 + \sqrt{1 + 8J}}{2} < t + 1\\
+\end{gather}
+$$
+
+ここで，$t \geq 0$ であることから
+
+$$
+t  \leq \frac{-1 + \sqrt{1 + 8J}}{2} < t + 1
+$$
+
+$t \in \mathbb N$ より
+
+$$
+t = \left\lfloor \frac{-1 + \sqrt{1 + 8J}}{2}\right\rfloor
+$$
+
+これを，$(x, y)$ に対応させると
+
+$$
+\begin{align}
+x &= t - y\\
+y &= J - \frac{t^2 + t}{2}
+\end{align}
+$$
+
+よって，
+
+$$
+\begin{cases}
+x =\frac{t^3 + 3t}{2} - J\\
+y = J - \frac{t^2 + t}{2}
+\end{cases}
+$$
+
+:::
+
+::: {.callout-note}
+
+$\mathbb N = \{1, 2, 3, \cdots\}$ とした場合は
+
+$$
+t = \left\lfloor \frac{-1 + \sqrt{8J - 7}}{2}\right\rfloor
+$$
+
+$$
+\begin{cases}
+x =\frac{t^3 + 3t}{2} - J + 2\\
+y = J - \frac{t^2 + t}{2}
+\end{cases}
+$$
+
+
+:::

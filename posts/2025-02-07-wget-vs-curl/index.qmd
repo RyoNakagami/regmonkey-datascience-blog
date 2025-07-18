@@ -1,0 +1,121 @@
+---
+title: "wget vs curl"
+author: "Ryo Nakagami"
+date: "2025-02-07"
+date-modified: "2025-07-18"
+categories: [shell]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+[Key Takeaways]{.mini-section}
+
+`wget` と `curl` はどちらもコマンドラインで使える HTTP クライアントですが，シチュエーションに応じて以下のような使い分けがあります
+
+:::: {.no-border-top-table}
+
+| シチュエーション           | 推奨コマンド | 理由                                                                                 |
+| ------------------ | ------ | ---------------------------------------------------------------------------------- |
+| ファイルやウェブサイトのダウンロード | `wget` | `wget` はデフォルトでファイルを保存し，再帰的なダウンロード（`-r`）やレジューム（中断再開）も簡単に可能|
+| API とのやりとり・JSON 送信 | `curl` | `curl` は HTTP ヘッダーのカスタマイズ，POST/PUT/DELETE メソッドの指定，JSONデータの送信など，APIとの通信に必要な機能が豊富|
+| スクリプトで細かく制御したい     | `curl` | `curl` はレスポンスヘッダーやステータスコードの取得，認証，プロキシの設定などが詳細に設定可能|
+: {tbl-colwidths="[33,15,52]"}
+
+::::
+
+## `wget` コマンド
+
+::: {#def- .custom_problem .blog-custom-border}
+[wgetコマンド]{.def-title}
+
+- `wget` コマンドは，WEBサーバーからコンテンツを取得するためのコマンド
+- GUIを使わずにインターネットからファイルをダウンロードする際に使用される
+
+:::
+
+[options]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| オプション            | Syntax 例                                | 動作                                                                            |
+| ---------------- | --------------------------------------- | ---------------------------------------------------------------------------------- |
+| `-r` (recursive) | `wget -r http://example.com`            | **再帰的ダウンロード**|
+| `-A` (accept)    | `wget -r -A pdf,jpg http://example.com` | **ダウンロード対象ファイルのホワイトリスト**を指定．指定された拡張子やキーワードを含むファイルのみをダウンロード対象．カンマ区切りで複数指定可能． |
+| `-R` (reject)    | `wget -r -R gif,zip http://example.com` | **ダウンロード対象外ファイルのブラックリスト**を指定．指定された拡張子や文字列を含むファイルはダウンロードしない．こちらもカンマ区切りで複数指定可能．  |
+| `-O`             | `wget -O wp.zip http://example.com`     | **ダウンロード対象ファイルの名前を指定**|
+| `-P`             | `wget -P /home/jay/Downloads http://example.com` |**ダウンロード先のディレクトリを指定**|
+| `-c`             |`wget -c https://example.com/largefile.zip`|ダウンロードを途中から再開するオプション|
+: {tbl-colwidths="[20,40,45]"}
+::::
+
+[`wget -c`の注意点]{.mini-section}
+
+- `wget -c`は不安定なネットワーク環境下での大容量ファイルのダウンロードのときに推奨
+- サーバー側がRange リクエスト（部分的なダウンロード）に対応していない場合は無効
+
+
+## `curl` コマンド
+
+::: {#def- .custom_problem .blog-custom-border}
+[curlコマンド]{.def-title}
+
+- さまざまなプロトコルに対応したデータを転送するためのコマンド
+
+:::
+
+
+[options]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| オプション | Syntax 例                               | 動作説明                              |
+| ----- | -------------------------------------- | --------------------------------- |
+| `-X`  | `curl -X POST https://example.com/api` | HTTPメソッドを明示的に指定（例: `POST`, `PUT`） |
+| `-x`  | `curl -x http://proxy.example.com:8080 URL` | 指定したプロキシサーバーを経由してリクエストを送る                                                            |
+| `-d`  | `curl -d "key1=value1&key2=value2" URL`     | HTTP POST リクエストのボディにデータを送信（デフォルトで `Content-Type: application/x-www-form-urlencoded`） |
+| `-s`  | `curl -s https://example.com`               | 進行状況やエラーメッセージなどの出力を抑制（"silent mode"）                                                 |
+| `-o`  | `curl -o myfile.html https://example.com`   | 出力内容を指定したファイル名で保存                                                                    |
+| `-O`  | `curl -O https://example.com/index.html`    | URL から取得したファイル名そのままで保存                                                               |
+| `-L`  | `curl -L https://example.com`               | リダイレクトを自動で追跡                                                                         |
+
+: {tbl-colwidths="[20,40,45]"}
+::::
+
+
+
+::: {#exm- .custom_problem }
+[よく使う構文]{.def-title}
+
+| 構文例                                                             | 説明              |
+| --------------------------------------------------------------- | --------------- |
+| `curl https://example.com`                                      | 指定したURLからデータを取得 |
+| `curl -o file.html https://example.com`                         | ファイルに保存してダウンロード |
+| `curl -I https://example.com`                                   | HTTPヘッダーだけ取得    |
+| `curl -X POST -d "a=1&b=2" https://api.example.com`             | POSTリクエスト送信     |
+| `curl -H "Authorization: Bearer TOKEN" https://api.example.com` | 認証付きリクエスト送信     |
+: {tbl-colwidths="[60,40]"}
+
+:::
+***
+
+
+## 比較まとめ表
+
+:::: {.no-border-top-table}
+
+| 項目          | `wget`              | `curl`                               |
+| ----------- | ------------------- | ------------------------------------ |
+| 主な用途        | **ファイルのダウンロード**     | **データの送受信**（API など）                  |
+| サポートプロトコル   | HTTP, HTTPS, FTP など | HTTP, HTTPS, FTP, SFTP, SCP, LDAP など |
+| 再帰ダウンロード    | ◯（Webサイトごとダウンロード可能） | ✕（スクリプトで再現は可能）                       |
+| アップロード    | ✕（不可）                        | 〇(可能) |
+| レジューム（中断再開） | ◯（`-c` オプション）       | ◯（`-C -` オプションなど）                    |
+| デフォルト出力     | ファイル保存              | 標準出力（ターミナルに出る）                       |
+| POST リクエスト  | △（あまり使われない）         | ◯（API テストなどに最適）                      |
+: {tbl-colwidths="[20,40,40]"}
+
+::::
