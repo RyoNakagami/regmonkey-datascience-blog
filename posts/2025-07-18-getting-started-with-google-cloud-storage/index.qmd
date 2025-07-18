@@ -1,0 +1,83 @@
+---
+title: "bq commandを用いたPatitioned BigQuery External Tableの作成"
+author: "Ryo Nakagami"
+date: "2025-07-18"
+date-modified: "2025-07-19"
+categories: [環境構築, gcloud, BigQuery]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## Google Cloud Storageでの保存形式
+
+以下の形式でparquet fileがGoogle Cloud Storageで`gs://regression-monkey-data/pupupuland_store_pos/`以下に保存されているとします．
+
+```zsh
+pupupuland_store_pos
+├── partition_dt=2023-09-23
+│   └── part-0.parquet
+├── partition_dt=2023-09-24
+│   └── part-0.parquet
+└── partition_dt=2023-09-25
+    └── part-0.parquet
+```
+
+## bq command
+
+[partitiopn_dtをpartition columnとしたtableの作成]{.mini-section}
+
+```{.bash}
+bq_upload() {
+  local project_id='regression-monkey-data'
+  local dataset_id='pupupuland'
+  local table_name='pupupuland_store_pos'
+  local upload_target="${project_id}:${dataset_id}.${table_name}"
+
+  bq mkdef \
+  --source_format=PARQUET \
+  --hive_partitioning_mode=AUTO \
+  --hive_partitioning_source_uri_prefix=gs://regression-monkey-data/pupupuland_store_pos/ \
+  --require_hive_partition_filter=false \
+  'gs://regression-monkey-data/pupupuland_store_pos/*' \
+  > pupupuland_store_pos_external_def.json
+
+  bq mk --external_table_definition=pupupuland_store_pos_external_def.json "${upload_target}"
+
+}
+
+# main
+bq_upload
+```
+
+### `bq mkdef`の役割
+
+::: {.custom_problem .blog-custom-border}
+[`bq mkdef`の役割]{.def-title-no-before}
+
+GCS 上の Parquet ファイルを外部テーブルとして定義するための JSON 定義ファイルを作成
+
+:::
+
+:::: {.no-border-top-table}
+
+| オプション名                               | 意味                                                                 |
+|--------------------------------------------|----------------------------------------------------------------------|
+| `--source_format=PARQUET`                  | 読み込むファイル形式が Parquet であることを指定                   |
+| `--hive_partitioning_mode=AUTO`            | Hive形式のディレクトリ構造（例：`partition_month=2024-07/`）からパーティション列を自動推定 |
+| `--hive_partitioning_source_uri_prefix=gs://...` | パーティション構造の共通プレフィックス（＝分岐が始まるルート）を指定|
+| `--require_hive_partition_filter=false`    | パーティション列によるフィルターを必須にしない（＝全体スキャンも可能） |
+| `'gs://.../*'`                             | 対象とするファイル群のパス                                        |
+| `> pupupuland_store_pos_external_def.json` | 結果として、外部テーブル定義を JSON ファイルに保存する            |
+
+: {tbl-colwidths="[45,55]"}
+
+::::
+
+
+References
+----------
+- [Cloud StorageからExternal Tableの作成](../2024-12-11-BQ-create-external-table/index.html)

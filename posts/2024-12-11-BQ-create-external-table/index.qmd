@@ -2,6 +2,7 @@
 title: "Cloud StorageからExternal Tableの作成"
 author: "Ryo Nakagami"
 date: "2024-12-11"
+date-modified: "2025-07-19"
 categories: [BigQuery]
 listing_category: development
 comments:
@@ -18,19 +19,30 @@ comments:
 
 ## External Tableとは？
 
-BigQueryのExternal Table（外部テーブル）は，BigQuery内にデータをコピーまたはインポートすることなく，
-外部データソースに直接アクセスしてクエリを実行できる機能です．
+::: {#def- .custom_problem .blog-custom-border}
+[External Table]{.def-title}
 
-BigQueryにおけるExternal Tableの利用形式として，permanent tableとtemporary tableの２つがあります．
+- BigQueryのExternal Table（外部テーブル）は，BigQuery内にデータをコピーまたはインポートすることなく， 外部データソースに直接アクセスしてクエリを実行できる機能
+- BigQueryにおけるExternal Tableの利用形式として，permanent tableとtemporary tableの２つがあります
+
+:::
+
+[permanent tableとtemporary table]{.mini-section}
 
 - permanent table: BigQuery dataset内に作成され，外部データソースにリンクされるテーブル
 - temporary table: 外部データソースに対して一時的にクエリを実行する場合に利用されるテーブル
 
-一時的なテスト処理などでtemporary tableを用いることは有用ですが，分析者間でクエリやコードを共有して分析を進める場合はpermanent tableを持ちないと
-テーブルアクセスを共有できないので，このノートではpermanent tableを主に取り扱います．
+::: {.callout-note}
 
-<strong > &#9654;&nbsp; サポートされているデータストア</strong>
+一時的なテスト処理などでtemporary tableを用いることは有用ですが，分析者間でクエリやコードを共有して分析を進める場合はpermanent tableを用いないと
+テーブルアクセスを共有できません．
 
+:::
+
+
+[サポートされているデータストア<]{.mini-section}
+
+BigQueryからアクセス可能な外部データソースとしてサポートされているデータストアは以下:
 
 - BigLake
 - Cloud Storage
@@ -39,9 +51,8 @@ BigQueryにおけるExternal Tableの利用形式として，permanent tableとt
 - Amazon S3
 - Azure Blob Storage
 
-以上のデータストアがBigQueryからアクセス可能な外部データソースとしてサポートされています
 
-<strong > &#9654;&nbsp; Pricing</strong>
+[Pricing]{.mini-section}
 
 BigQueryのPricingは
 
@@ -56,8 +67,8 @@ BigQueryのPricingは
 
 が発生します．
 
-<div class="blog-custom-border">
-<strong >📘 Tips</strong> <br>
+::: {.callout-note}
+### Pricing費用低減のTips
 
 External Tableを用いた分析が一時的なものであるならばExternal Tableを用いたほうが良いと思いますが，
 頻繁にBigQueryからアクセスする場合は
@@ -67,11 +78,12 @@ External Tableを用いた分析が一時的なものであるならばExternal 
 
 という工夫，またはBigQuery native tableとしてデータを保持することを検討したほうが良いと思います．
 
-</div>
+:::
 
 ### External Table use cases
 
-External Tableの特徴として，
+::: {.custom_problem .blog-custom-border}
+[External Tableの特徴]{.def-title-no-before}
 
 - BigQuery native tableとしてデータは保持しない
 - External Tableと紐づく外部ストアの最新データに対して，クエリ処理が走る
@@ -79,27 +91,32 @@ External Tableの特徴として，
 があります．そのため，PoCや営業段階での分析や頻繁にupdateされるデータに対してのオンライン分析といった場面で活用されるケースが多いです．
 
 
-<div class="blog-custom-border">
-<strong >Example: 営業段階でのアドホック分析</strong> <br>
+:::
+
+
+
+::: {#exm- .custom_problem }
+[営業段階でのアドホック分析]{.def-title}
+
 
 - BtoC向けサービスを展開している企業Aに対して営業をしているとする
 - NDAを結んだ後に，企業Aが保有しているデータのサンプルとして２年間分の連携してもらった
 - このデータを用いて簡易的な分析を行い，どのようなインサイトが導けそうか？を次の営業会議で企業Aに伝え説得したい
 
-という場面を考えます．
-
-<strong > &#9654;&nbsp; Key Points</strong>
+という場面を考えます．このとき，
 
 - わざわざテーブルスキーマを定義する時間はあまりない→早くEDAをやりたい
 - サンプルデータなので，プロジェクト受注後に連携されるであろうデータセットよりも情報量が少ない→わざわざテーブルスキーマしても再利用可能性は低い
 
-<strong > &#9654;&nbsp; External Tableのメリット</strong>
+
+External Tableを利用することで以下のようなメリットを享受することができます:
 
 - テーブルスキーマをわざわざ定義しなくても，BigQueryを用いた大容量のデータに対しての分析が可能
 - 複数の分析者間でサンプルデータをCloud Storageベースで簡単に共有できる
 - Pythonなどの言語を用いた分析でも，予めBigQueryで前処理して小さいdatamartを作成し，それに対してEDAが実施できる
 
-</div>
+:::
+***
 
 ## External Table作成
 
@@ -110,7 +127,7 @@ External Tableの特徴として，
 
 の２段階の流れで説明します．
 
-<strong > &#9654;&nbsp; Cloud Storageへのupload</strong>
+### Cloud Storageへのupload
 
 `~/pupupuland_store_pos`というdirectory以下に，`yyyymmdd`形式の日付でpartitionされた`PARQUET`形式のデータがあるとします．
 
@@ -142,35 +159,48 @@ gcloud storage cp -r ~/pupupuland_store_pos/ gs://project-make-dedede-great-agai
 
 以上で下準備は完了です．
 
-<strong > &#9654;&nbsp; External Tableの作成</strong>
+[External Tableの作成]{.mini-section}
 
 Google Cloud project `pupupuland-businessdata` の `dedede-holdings` dataset以下に先程上げた `pupupuland_store_pos` tableを作成したいと思います． 
 
 ```{.sql}
 CREATE EXTERNAL TABLE `pupupuland-businessdata.dedede-holdings.pupupuland_store_pos`
-WITH PARTITION COLUMNS (
-partition_dt DATE, -- column order must match the external path
-)
 OPTIONS (
-uris = ['gs://project-make-dedede-great-again/pupupuland_store_pos/*'],
-format = 'PARQUET',
-hive_partition_uri_prefix = 'gs://project-make-dedede-great-again/pupupuland_store_pos',
-require_hive_partition_filter = false);
+  format = 'PARQUET',
+  uris = ['gs://project-make-dedede-great-again/pupupuland_store_pos/*'],
+  hive_partition_uri_prefix = 'gs://project-make-dedede-great-again/pupupuland_store_pos/', -- 末尾にスラッシュを追加
+  require_hive_partition_filter = false
+);
 ```
 
-`PARTITION COLUMNS`のフィールドに `partition_dt`と入力していますが，これは外部ファイルのパスのパターンが`gs://project-make-dedede-great-again/pupupuland_store_pos/partition_dt=yyyymmdd/data.parquet`
-であることを前提にしています．そのため，upload時のdirectory構造を
+[`require_hive_partition_filter` フィールド]{.mini-section}
 
-```{.bash}
-└── partition_dt=2023-09-30
-    └── purchase_history_20230930.parquet
+- `require_hive_partition_filter` フィールドはクエリ時に`partition_dt`によるWHERE句フィルタリングを強制するか否かの設定フィールドです．
+- デフォルトでは`false`となっており，この場合はフィルタリングしなくてもクエリできることを意味します．
+
+## Appendix: Hive形式
+
+::: {#def- .custom_problem .blog-custom-border}
+[Hive形式]{.def-title}
+
+- `<ベースパス>/<列名>=<値>/<ファイル名>`という構造を用いたファイルパスベースのパーティション構造
+
+:::
+
+```zsh
+gs://bucket/retail_data/partition_month=2022-07-01/part-0001.parquet
+gs://bucket/retail_data/partition_month=2022-08-01/part-0001.parquet
 ```
 
-という形にしてcloud storageにuploadしたという背景があります．DATETYPEに`DATE`と指定していますが，`/<partition field>=2018-10-18/`という構造になっていないと失敗することに注意してください．
-他にも `INTEGER`, `STRING`, `TIMESTAMP`が指定できます．`TIMESTAMP`の場合は，`/<partition field>=2018-10-18 16:00:00+00/`という構造であることが必要です．
+という形式で`parquet`が格納されているときに, `hive_partitioning_mode=AUTO` を指定して外部テーブルを作成すると
 
-`require_hive_partition_filter` フィールドはクエリ時に`partition_dt`によるWHERE句フィルタリングを強制するか否かの設定フィールドです．
-デフォルトでは`false`となっており，この場合はフィルタリングしなくてもクエリできることを意味します．
+- `partition_month` 列が自動で追加される
+- `WHERE partition_month = '2022-07-01'` のようなクエリが使える
+- クエリ効率もよくなる（パーティションプルーニング）
+
+というメリットがあります．
+
+
 
 
 References

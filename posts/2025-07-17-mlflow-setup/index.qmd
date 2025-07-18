@@ -1,0 +1,425 @@
+---
+title: "モデル管理プラットフォームMLflowの設定"
+author: "Ryo Nakagami"
+date: "2025-07-17"
+date-modified: "2025-07-18"
+categories: [環境構築]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## MLflowサーバーアクセスイメージ
+
+::: {.callout-note}
+## セキュリティを保ちつつローカルからリモート操作
+
+- クライアント視点では，自分の `localhost:5000` にアクセスしている体感
+- 実際には `ssh -L` によってサーバの MLflow にトンネル転送されている
+
+:::
+
+::: {#fig-plot .center}
+
+```{mermaid}
+sequenceDiagram
+    participant ClientPC as クライアントPC<br>(Python)
+    participant SSH as SSHトンネル<br>(ポートフォワーディング)
+    participant MLflowServer as Docker上のMLflow Server<br>(mlflow server 起動中)
+
+    ClientPC -->> SSH: HTTPリクエスト<br>(localhost:5000 → SSHトンネル)
+    SSH -->> MLflowServer: HTTPリクエスト<br>(サーバlocalhost:5000)
+    MLflowServer -->> SSH: HTTPレスポンス
+    SSH -->> ClientPC: HTTPレスポンス
+```
+
+:::
+
+[スコープについて]{.mini-section}
+
+- Artifact StoreやBackend Storeはサーバーのストーレージ領域を使用することにします
+
+
+## MLflowサーバーの保存領域
+
+ログやメタデータ，ファイル成果物を保存・管理する保存領域として，Artifact store と Backend storeの２種類があります．
+
+::: {#fig-plot .center}
+
+```{mermaid}
+graph TB
+    A[MLflow Tracking<br>mlflow server] --> B[Backend Store<br>メタデータ保存]
+    A --> C[Artifact Store<br>成果物ファイル保存]
+```
+
+:::
+
+:::: {.no-border-top-table}
+
+|保存領域|役割|
+|-------|---|
+|Artifact Store|実験で生成された Artifacts = 成果物（モデル，画像，ログファイルなど） を保存する領域|
+|Backend Store|モデルや実験やRunのメタデータ(パラメータ，Metricsなどを含む)を格納する領域|
+: {tbl-colwidths="[25,75]"}
+
+::::
+
+### Artifact Store
+
+:::: {.columns}
+::: {.column width="50%"}
+
+[保存オブジェクト例]{.border-bottom-header}
+
+基本的には以下のような大容量になりがちなものを保存します
+
+- 学習済みモデル(`model.pkl`)
+- 学習に出力した画像やプロット(`ts-plot.png`)
+- 学習時に利用したデータ(`train.parquet`)
+
+:::
+::: {.column width="50%"}
+
+[サポートされる保存先]{.border-bottom-header}
+
+- ローカルディレクトリ(例: `/mlflow/mlruns`)
+- Amazon S3(例: `s3://<bucket>/<path>`)
+- Google Cloud Storage(例: `gs://<bucket>/<path>`)
+- Azure Blob Storage
+- FTP/SFTP ServerやNFS共有ディレクトリなど
+
+:::
+::::
+
+### Backend Store
+
+:::: {.columns}
+::: {.column width="50%"}
+
+[保存オブジェクト例]{.border-bottom-header}
+
+- Model ID
+- Run ID
+- Start & end time
+- Parameters
+- Metrics
+- Source file name
+
+:::
+::: {.column width="50%"}
+
+[サポートされる保存先]{.border-bottom-header}
+
+- デフォルトではローカルの `./mlruns` ディレクトリに保存
+- configureでデータベースを指定可能
+
+:::
+::::
+
+## MLflowサーバー構築手順
+### サーバー側での公式MLflow Docker Imageのインストール
+
+{{< reveal_vspace 1em >}}
+
+[最新版MLflowイメージのPull]{.mini-section}
+
+```zsh
+docker pull ghcr.io/mlflow/mlflow:latest
+```
+
+{{< reveal_vspace 1em >}}
+
+[MLflowイメージversionの確認]{.mini-section}
+
+```zsh
+docker run --rm ghcr.io/mlflow/mlflow:latest mlflow --version
+```
+
+{{< reveal_vspace 1em >}}
+
+[MLflowイメージの削除]{.mini-section}
+
+```zsh
+docker rmi ghcr.io/mlflow/mlflow:latest
+```
+
+### DockerベースのMLflow環境の構築
+
+基本手順としては
+
+- Artifact Storeの作成と指定(`./mlruns`)
+- Backend Storeの作成と指定(`./mlflow.db`)
+
+を行います．Dockerベースで行うため，Permissionの指定には注意します．
+
+```zsh
+# MLflowのデータを保存したい任意のディレクトリに移動
+cd <target-directory>
+
+# tracking dataを保存するために使用する空のSQLiteデータベースファイルを作成
+touch ./mlflow.db
+
+# Artifact（モデル，プロットなど）を保存するためのディレクトリを作成
+mkdir -p ./mlruns
+
+# MLflowデータベースファイルに読み書き権限を設定．Dockerコンテナ内でMLflowが正しく動作するために必要
+chmod 666 ./mlflow.db
+
+# MLflowの実行（run）ディレクトリに読み書き実行権限を設定．MLflowがArtifactを作成&保存可能にするため必要。
+chmod 777 ./mlruns
+
+# MLflowサーバーをDockerコンテナとして起動．--host 0.0.0.0以下はMLflowサーバーに任意のIPアドレスからポート5000でアクセス可能にするため
+docker run -d --name mlflow-server -p 5000:5000 \
+  -v $(pwd)/mlruns:/mlflow/mlruns \ 
+  -v $(pwd)/mlflow.db:/mlflow/mlflow.db \ 
+  ghcr.io/mlflow/mlflow:latest mlflow server \ 
+  --backend-store-uri sqlite:///mlflow/mlflow.db \ 
+  --default-artifact-root /mlflow/mlruns \ 
+  --host 0.0.0.0 --port 5000
+```
+
+[MLflowコンテナの停止と削除]{.mini-section}
+
+```zsh
+# 現在実行中のコンテナ mlflow-server を 停止 
+docker stop mlflow-server 
+
+# 停止された mlflow-server コンテナを 削除 
+docker rm mlflow-server
+```
+
+::: {.callout-note}
+
+- コンテナを削除しても，`mlruns/` や `mlflow.db` がマウントされていれば中のデータは保持されます
+
+:::
+
+### Docker compose fileの作成
+
+- コンテナの構成・起動・管理を簡潔・再現可能にしたい
+- 毎回 `docker run`の長いスクリプトを実施したくない
+
+以上の理由から，`docker-compose.yml`ベースでコンテナの起動を実施します．
+
+[docker-compose.ymlの実装]{.mini-section}
+
+```yml
+services:
+  mlflow-server:
+    image: ghcr.io/mlflow/mlflow:latest
+    container_name: mlflow-server
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./mlruns:/mlflow/mlruns
+      - ./mlflow.db:/mlflow/mlflow.db
+    command: >
+      mlflow server
+      --backend-store-uri sqlite:///mlflow/mlflow.db
+      --default-artifact-root /mlflow/mlruns
+      --host 0.0.0.0
+      --port 5000
+```
+
+[servicesセクション]{.mini-section}
+
+```yml
+services:
+  mlflow-server:
+```
+
+- Compose で起動するサービスの名前を `mlflow-server` と指定
+- あくまでコンテナ名ではなく，docker composeで管理するサービス名
+
+[container_nameの指定]{.mini-section}
+
+```yml
+container_name: mlflow-server
+```
+
+- 起動したコンテナの名前を明示的に `mlflow-server` に指定
+
+
+[ポートの指定]{.mini-section}
+
+```zsh
+ports:
+  - "5000:5000"
+```
+
+- `host-port:container-port`の順番で指定
+- ホストのポート5000 を，コンテナのポート5000 にマッピング
+- `http://localhost:5000` でブラウザからアクセスできるようになる
+
+[Volumesの指定]{.mini-section}
+
+```zsh
+volumes:
+  - ./mlruns:/mlflow/mlruns
+  - ./mlflow.db:/mlflow/mlflow.db
+```
+
+- artifact（成果物）保存先: `./mlruns:/mlflow/mlruns`
+- backend store保存先: `./mlflow.db:/mlflow/mlflow.db`
+
+[command]{.mini-section}
+
+- `mlflow server`: MLflow Tracking Server を起動
+- `--backend-store-uri sqlite:///mlflow/mlflow.db`: SQLite を使用
+- `--host 0.0.0.0`: 外部アクセスを許可
+
+[実行方法]{.mini-section}
+
+```zsh
+# カレントディレクトリに mlflow.db が無いなら作成しておく
+touch mlflow.db
+chmod 666 mlflow.db  # SQLiteが読み書きできるように
+
+# コンテナ作成
+docker compose up -d
+
+# コンテナ起動
+docker compose start
+
+# 停止
+docker compose stop
+
+# 削除
+docker compose down
+
+# 稼動状況の確認
+docker ps -f name=mlflow-server
+```
+
+::: {.callout-note}
+### その他の設定例
+
+本記事では紹介しませんが，さらなる設定として以下のような方針が考えられます
+
+- PostgreSQL や MySQL に backend-store を切り替える
+- S3 や MinIO に artifact-store を変更
+- systemd 経由で自動起動
+
+:::
+
+
+## ssh経由でのMLFlowへのアクセス
+
+ブラウザでlocalhostアクセスするためには，SSH接続時に自動的にポートフォワーディング（ローカルフォワード） する設定が必要です．これは
+
+```zsh
+ssh -L 5000:localhost:5000 user@remote
+```
+
+というコマンドでも実現可能ですが，`.ssh/config` に以下のように記載したほうが楽に成ると判断しています．
+
+```yml
+Host mlflowserver
+    Hostname mlserver-desktop
+    User hoshinokirby
+    ForwardAgent yes
+    RequestTTY yes 
+    LocalForward 5000 localhost:5000
+```
+
+この設定のよって，`ssh user@remote` だけで，自動的にポートフォワーディングしてくれます．
+
+### BackgroundでSSH接続
+
+::: {.custom_problem .blog-custom-border}
+[background接続]{.def-title-no-before}
+
+MLflowサーバーの `~/mlflow-playground` に`docker-compose.yml` があり，それを立ち上がっている状況で，backgroundでssh接続したい場合は以下のコマンドを実行します．
+
+```zsh
+ssh mlflowserver -fN
+```
+
+:::
+
+[`-fN` オプション]{.mini-section}
+
+:::: {.no-border-top-table}
+
+|オプション|動作|
+|--------|---|
+|`-f`|SSH接続後，すぐにバックグラウンドに回る（foreground → background）|
+|`-N`|リモートでコマンドを実行せず、シェルも起動しない（トンネル用途向け）|
+|`-T`|疑似ターミナル（tty）を割り当てない．対話的操作が不要な非対話型コマンドの実行時に使用|
+: {tbl-colwidths="[25,75]"}
+
+::::
+
+
+[接続状況の確認]{.mini-section}
+
+ssh コマンドがバックグラウンドでまだ動いているか確認したい場合，現在動作中の ssh 関連プロセスを表示することで確かめます．
+
+```zsh
+ps aux | grep "ssh -fN -L 5000:localhost:5000" | grep -v grep
+```
+
+:::: {.no-border-top-table}
+
+| コマンド部分         | 意味                                                     |
+| -------------- | ------------------------------------------------------ |
+| `ps aux`       | 全ユーザー（`a`）、端末に関係なく（`x`）、詳細情報（`u`）付きで **すべてのプロセスを一覧表示** |
+| `grep "ssh"`   | その中から **「ssh」を含む行**だけを抽出                               |
+| `grep -v grep` | さらにそこから **`grep ssh` 自体の行を除外**<br>（`-v`は「除外」を意味）       |
+
+
+::::
+
+該当プロセスをkillしたい場合は
+
+```zsh
+# ssh processをkill
+kill [PID]
+
+# 強制kill
+kill -9 [PID]
+```
+
+となります．または，`pkill`を用いて
+
+```zsh
+pkill -f "ssh mlflowserver -fT"
+```
+
+:::: {.no-border-top-table}
+
+| 部分                       | 意味                                            |
+| ------------------------ | --------------------------------------------- |
+| `pkill`                  | 条件に合うプロセスに\*\*終了シグナル（デフォルトは `SIGTERM`）\*\*を送る |
+| `-f`                     | **プロセス名だけでなくコマンドライン全体**を検索対象にする               |
+| `"ssh mlflowserver -fT"` | 条件：`ssh mlflowserver -fT` を含むコマンドを実行しているプロセス  |
+
+::::
+
+
+# Appendix: Linux File Permission
+
+| 数値 | パーミッション | 意味              |
+| -- | ------- | --------------- |
+| 4  | `r--`   | **read**（読み取り）  |
+| 2  | `-w-`   | **write**（書き込み） |
+| 1  | `--x`   | **execute**（実行） |
+| 0  | `---`   | 何も許可しない         |
+
+# Appendix: Docker compose Command
+
+:::: {.no-border-top-table}
+
+| コマンド                  | 何をするか                            |
+| --------------------- | -------------------------------- |
+| `docker compose up`    | コンテナを**作成・起動**．構成（Dockerfile, docker-compose.yml）が変われば再構築する |
+| `docker compose start` | すでに存在するコンテナを**起動のみ**する．構成変更は反映されない                          |
+| `docker compose stop` | **コンテナを停止**するが，**定義やボリュームは残る**   |
+| `docker compose down` | **コンテナを停止・削除**し，**ネットワークや定義も削除** |
+
+: {tbl-colwidths="[25,75]"}
+
+::::

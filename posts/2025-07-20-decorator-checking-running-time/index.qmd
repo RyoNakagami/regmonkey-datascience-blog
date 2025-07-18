@@ -1,0 +1,159 @@
+---
+title: "実行時間計測デコレーター"
+author: "Ryo Nakagami"
+date: "2025-07-20"
+date-modified: "2025-07-20"
+categories: [環境構築, python]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+##  実行時間を秒単位で表示するデコレータ
+
+::: {#def- .custom_problem .blog-custom-border}
+[デコレーター]{.def-title}
+
+- デコレータとは，関数の前後に追加処理（ロギング・計測・バリデーションなど）を組み込む仕組み
+
+:::
+
+
+
+```{python}
+#| code-overflow: wrap
+#| code-fold: show
+
+from time import time, sleep
+
+def running_time(func):
+    """
+    関数の実行時間（秒）を有効桁小数点３桁で表示して、元の関数の戻り値を返すデコレータ
+    """
+    def wrapper(*args, **kwargs):
+        start = time()
+        result = func(*args, **kwargs)
+        end = time()
+        elapsed = end - start
+        print(f"Execution time: {elapsed:.3f} seconds")
+        return result
+    return wrapper
+```
+
+::: {#exm- .custom_problem }
+[カントールの対関数の逆関数と実行時間計算]{.def-title}
+
+```{python}
+#| code-overflow: wrap
+#| code-fold: show
+
+import numpy as np
+
+@running_time
+def compute_contor_inverse(J: int):
+    """Compute the inverse of the Cantor pairing function.
+    
+    The Cantor pairing function maps pairs of natural numbers to single natural numbers.
+    This function computes the inverse mapping, taking a natural number and returning the 
+    original pair of numbers.
+    
+    Args:
+        J (int): A natural number that was produced by the Cantor pairing function.
+            Must be non-negative.
+    
+    Returns:
+        tuple[int, int]: A pair (x, y) of numbers such that their Cantor pairing 
+        would produce J. The first element x represents the first number in the original 
+        pair, and y represents the second number.
+    """
+
+    t = int((np.sqrt(1 + 8 * J) - 1) // 2)
+    x = (t ** 3 + 3 * t) // 2 - J
+    y = J - (t ** 2 + t) // 2
+
+    return x, y
+
+
+output = compute_contor_inverse(100)
+print(output)
+```
+
+:::
+***
+
+## デコレーター自身に引数を読み込ませる場合
+
+上記の `running_time` で小数点桁数を３桁固定としていましたが，これを引数に応じて変化させる場合を考えます．
+
+```{python}
+# | code-overflow: wrap
+# | code-fold: show
+
+from time import time, sleep
+
+
+def running_time_with_input(decimal: int = 3):
+    def decorator(func):
+        """
+        関数の実行時間（秒）を有効桁小数点３桁で表示して、元の関数の戻り値を返すデコレータ
+        """
+
+        def wrapper(*args, **kwargs):
+            start = time()
+            result = func(*args, **kwargs)
+            end = time()
+            elapsed = end - start
+            print(f"Execution time: {elapsed:.{decimal}f} seconds")
+            return result
+
+        return wrapper
+
+    return decorator
+```
+
+[実行例]{.mini-section}
+
+```{python}
+#| code-overflow: wrap
+#| code-fold: show
+#| 
+@running_time_with_input(decimal=10)
+def do_task():
+    sleep(1.2345)
+
+do_task()
+# => Execution time: 1.23 seconds
+```
+
+
+
+
+
+
+## Appendix: `*args` と `**kwargs`
+
+:::: {.no-border-top-table}
+
+| 書き方        | 意味                               | 例                                                  |
+| ---------- | -------------------------------- | -------------------------------------------------- |
+| `*args`    | タプルとして位置引数を全部受け取る| `func(1, 2, 3)` → `args = (1, 2, 3)`               |
+| `**kwargs` | 辞書としてキーワード引数を全部受け取る  | `func(a=10, b=20)` → `kwargs = {'a': 10, 'b': 20}` |
+: {tbl-colwidths="[10,45,45]"}
+
+::::
+
+[動作確認]{.mini-section}
+
+
+```{python}
+#| code-overflow: wrap
+#| code-fold: show
+def example(*args, **kwargs):
+    print("args:", args)
+    print("kwargs:", kwargs)
+
+example(1, 2, 3, a=10, b=20)
+```
