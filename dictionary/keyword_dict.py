@@ -51,6 +51,15 @@ class GreekLetterConfig(BaseModel):
     GreekLetter: list[GreekLetterField]
 
 
+class UbuntuDirectoryField(BaseModel):
+    directory: str
+    description: str
+
+
+class UbuntuDirectoryConfig(BaseModel):
+    UbuntuDirectory: list[UbuntuDirectoryField]
+
+
 def new_config(paths_to_config: List[pathlib.Path]) -> Config:
     """Generates a Config object from a yaml file.
 
@@ -139,11 +148,35 @@ def new_greek_letter_config(paths_to_config: List[pathlib.Path]) -> GreekLetterC
     return config
 
 
+def new_ubuntu_directory_config(
+    paths_to_config: List[pathlib.Path],
+) -> UbuntuDirectoryConfig:
+    """Generates a UbuntuDirectoryConfig object from a yaml file.
+
+    Args:
+        path_to_config (str): Path to the configuration file.
+
+    Returns:
+        UbuntuDirectoryConfig: A UbuntuDirectoryConfig object.
+    """
+
+    merged_config = {}
+
+    for path in paths_to_config:
+        with open(path, encoding="utf-8") as f:
+            yaml_config = yaml.safe_load(f)
+            merged_config.update(yaml_config)
+    config: UbuntuDirectoryConfig = UbuntuDirectoryConfig.model_validate(merged_config)
+
+    return config
+
+
 # Define multiple config paths
 CONFIG_FILES = [pathlib.Path(__file__).parent / "dictionary.yml"]
 COMMAND_CONFIG_FILES = [pathlib.Path(__file__).parent / "command_dictionary.yml"]
 GNOME_TOOL_CONFIG_FILES = [pathlib.Path(__file__).parent / "toollist.yml"]
 GREEK_LETTER_CONFIG_FILES = [pathlib.Path(__file__).parent / "greekletter.yml"]
+UBUNTU_DIRECTORY_CONFIG_FILES = [pathlib.Path(__file__).parent / "ubuntu_directory.yml"]
 
 # Create Config and CommandConfig instances
 CONFIG: Config = new_config(paths_to_config=CONFIG_FILES)
@@ -153,4 +186,7 @@ GNOME_TOOL_CONFIG: GnomeToolConfig = new_gnome_tool_config(
 )
 GREEK_LETTER_CONFIG: GreekLetterConfig = new_greek_letter_config(
     paths_to_config=GREEK_LETTER_CONFIG_FILES
+)
+UBUNTU_DIRECTORY_CONFIG: UbuntuDirectoryConfig = new_ubuntu_directory_config(
+    paths_to_config=UBUNTU_DIRECTORY_CONFIG_FILES
 )

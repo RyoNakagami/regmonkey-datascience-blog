@@ -185,6 +185,61 @@ document.getElementById('searchInputGnomeTool').addEventListener('keyup', deboun
 
 ::::
 
+### Ubuntu Directory
+
+:::: {.no-border-top-table #UbuntuDirectory}
+
+<input type="text" id="searchInputUbuntuDirectory" placeholder="Search... (regex, space-separated AND)" style="width: 50%;">
+
+```{python}
+# | echo: false
+#| tbl-colwidths: [10,90]
+from keyword_dict import UBUNTU_DIRECTORY_CONFIG, UbuntuDirectoryField
+
+# fetch colnames
+cols = list(UbuntuDirectoryField.model_json_schema()["properties"].keys())
+
+# define dictionary df
+df_command = (
+    pd.DataFrame(UBUNTU_DIRECTORY_CONFIG.UbuntuDirectory, columns=cols)
+    .map(lambda x: x[1] if x else None)
+)
+
+display(Markdown(df_command.to_markdown(index = False)))
+```
+
+<script>
+// Reuse the same debounce function
+document.getElementById('searchInputUbuntuDirectory').addEventListener('keyup', debounce(function() {
+  let filter = this.value.trim();
+  let regexes = [];
+
+  // Split search terms by space and create regex for each
+  if (filter) {
+    const terms = filter.split(/\s+/);
+    regexes = terms.map(term => {
+      try {
+        return new RegExp(term, 'i');
+      } catch (e) {
+        console.warn(`Invalid regex: ${term}`);
+        return null;
+      }
+    }).filter(regex => regex !== null);
+  }
+
+  const rows = document.querySelectorAll('#UbuntuDirectory tbody tr');
+  rows.forEach(row => {
+    const rowText = row.textContent;
+    const matchesAll = regexes.length === 0 || regexes.every(regex => regex.test(rowText));
+    row.style.display = matchesAll ? '' : 'none';
+  });
+}, 300)); // Wait 300ms after last keypress before searching
+</script>
+
+::::
+
+
+
 ### ギリシャ文字
 
 :::: {.no-border-top-table #GreekLetterTable}
