@@ -1,0 +1,230 @@
+---
+title: "追加されたPersonal Package Archive(PPA)の管理"
+author: "Ryo Nakagami"
+date: "2021-01-16"
+date-modified: "2025-07-20"
+categories: [環境構築, Linux]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+
+::: {.callout}
+
+この記事は[Ryo's Tech Blog > add-apt-repository ppaとはなにか？](https://ryonakagami.github.io/2021/01/16/apt-ppa-repository/#how-to-list-up-packages-from-ppa)からの修正版です．
+
+:::
+
+## Personal Package Archive(PPA)とはなにか？
+
+::: {#def- .custom_problem .blog-custom-border}
+[PPA]{.def-title}
+
+- PPAはPersonal Package Archiveの略称でlaunchpad.netに用意された個人用リポジトリ
+- PPAを用いることで，開発者は自由にプログラム配布用のレポジトリを作成することができる.
+- ユーザーは `sources.list` へ repositoryの情報を加えるだけ(多くの場合 `add-apt-repository` コマンドを用いる)で，`apt`コマンド経由でプログラムが利用可能
+
+:::
+
+つまるところ，PPAs（Personal Package Archives）は，標準的なソフトウェア配布チャンネルに含まれないソフトウェアや更新プログラムのために使用されます．
+公式のUbuntuリポジトリでは多くのパッケージが提供されていますが，提供されているバージョンが最新バージョンとは限りません．
+
+- 最新のソフトウェアを使用したい
+- 最先端の機能にアクセスしたい
+
+というときに，`add-apt-repository` コマンドを用いて `PPA` を登録し，packageへアクセスします．
+PPAを登録すると，`apt upgrade`でアップグレードの対象となるため，システム全体で一括してアップグレードをかけることができる便利さがあります．
+
+[Ubuntu公式レポジトリポリシー]{.mini-section}
+
+- Ubuntuの公式リポジトリは，「一度リリースしたら，できる限り同じバージョンのまま不具合修正とセキュリティ対応を行う」という保守方針を取っています
+- 基本的には，動作安定性の確保から「one release, one package」という関係になっているので，機能追加された最新版packageは新しいpackageとしてリリースされる必要があります
+- 機能追加のたびに新しいpackageを作る必要があるのでUbuntu公式レポジトリでは多くのpackageが少し古いバージョンになっています
+
+```{mermaid}
+sequenceDiagram
+    participant Dev as 開発者（ソフトウェア提供者）
+    participant PPA as PPAインフラ（Launchpad）
+    participant User as エンドユーザー
+    participant Ubuntu as Ubuntu公式リポジトリ
+
+    Dev->>PPA: ソースパッケージのアップロード
+    PPA->>PPA: 自動でバイナリをビルド
+    PPA-->>User: パッケージの提供（apt経由で）
+    
+    Note right of User: 公式と同じUIで<br/>インストール・アップデート可能
+
+    Dev-->>Ubuntu: 品質の高いPPAを公式提案
+    Ubuntu->>Ubuntu: 検証・品質チェック and 公式リポジトリに統合
+    Ubuntu-->>User: 公式レポジトリーからの提供
+
+    Note right of Ubuntu: 開発者が作成したPPAを<br/>ベースに採用できる
+```
+
+### PPAの追加
+
+[Basic Syntax]{.mini-section}
+
+```bash
+sudo add-apt-repository ppa:<ppa-name>
+```
+
+追加されたリポジトリの情報は，`/etc/apt/sources.list.d` ディレクトリ以下に`.list`ファイルとして格納されます．`.list`ファイルの内容例としては
+
+```zsh
+deb http://ppa.launchpad.net/c2d4u.team/c2d4u4.0+/ubuntu jammy main
+# deb-src http://ppa.launchpad.net/c2d4u.team/c2d4u4.0+/ubuntu jammy main
+```
+
+:::: {.no-border-top-table}
+
+| 項目                             | 内容                                   |
+| ------------------------------ | ------------------------------------ |
+| `deb`                          | バイナリパッケージ（`.deb`）を取得する行              |
+| `http://ppa.launchpad.net/...` | PPA の URL（Launchpad にホスト）            |
+| `jammy`                        | 対象の Ubuntu バージョン|
+| `main`                         | セクション名（PPAでは基本的に `main`）          |
+| `# deb-src ...`                | ソースコード用（多くの場合コメントアウト）         |
+: {tbl-colwidths="[42,58]"}
+
+::::
+
+
+::: {#exm- .custom_problem }
+[R setup]{.def-title}
+
+R や CRAN パッケージを最新版をdeb packageとして提供するレポジトリとして，`c2d4u.team/c2d4u4.0+` があります．追加コマンドは以下
+
+```zsh
+# PPAの追加
+% sudo add-apt-repository ppa:c2d4u.team/c2d4u4.0+
+
+# パッケージリスト更新
+% sudo apt update
+
+# R本体をインストール
+% sudo apt install r-base
+```
+
+また，`/etc/apt/sources.list.d` ディレクトリ以下について確認してみると
+
+```zsh
+% ls /etc/apt/sources.list.d | grep "c2d4u"
+c2d4u_team-ubuntu-c2d4u4_0_-jammy.list
+```
+
+:::
+***
+
+
+### 可能な限りPPA経由のパッケージインストールは避ける
+
+::: {.callout-warning}
+### PPA利用の注意点
+
+- PPAは公式リポジトリのようなチェックは行われないので，品質や信頼性のリスクは追加したユーザー責任
+- PPAと公式の両方にパッケージがある場合，PPAに存在するパッケージのバージョンが公式リポジトリのバージョンより高かったら，アップグレード時にPPA版のバージョンに更新されてしまう
+
+:::
+
+PPAと公式の両方にパッケージがある場合は，どちらも優先度は等しく，どちらが最新バージョンかどうかで利用バージョンが決定されます．PPAが更新された結果，`apt update`で意図せずversionが更新されてしまって，依存関係問題から今まで動いていたのにある日突然ソフトが動かなくなったという自体に陥るリスクがあります. 
+
+[PPA利用にあたってのチェック項目]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| チェック項目                     | 内容                                                                                         | 推奨される確認方法                                         |
+|----------------------------------|----------------------------------------------------------------------------------------------|------------------------------------------------------------|
+| PPA作成者の信頼性     | PPAを作成・管理している人物が信頼できるかどうか？                             | PPA説明ページや Launchpad のプロフィールを見る            |
+| PPAが公式に近いかどうか         | CranやLibreOfficeのような公式PPAと、個人が作成したPPAは信頼性が異なる                       | 公式Webサイトで紹介されているかを確認                      |
+| 利用者数                         | そのPPAを使用しているユーザーの数と評判                                                     | [PPA Stats](https://ubuntu-mate.community/t/ppa-statistics/17087) やLaunchpadコメントなど |
+| メンテナンス・更新頻度          | PPAが最近も更新されているか（古いと依存関係の不整合で危険）                                 | PPAページの「Last updated」や `apt policy` で確認         |
+| 対応Ubuntuバージョン            | 自分のUbuntuバージョンに対応しているか                                                      | PPA内の `dists/` ディレクトリ一覧または `.list` ファイル  |
+| パッケージの品質                | パッケージが正しくビルドされ、他と競合しないか                                              | 導入前に `apt install --simulate` で動作確認               |
+: {tbl-colwidths="[22,39,39]"}
+
+::::
+
+
+## PPAの管理
+
+[追加されたPPAの確認]{.mini-section}
+
+```zsh
+% grep -r ^deb /etc/apt/sources.list.d/ | grep --color ppa
+```
+
+[PPA経由で追加されたpackageの確認]{.mini-section}
+
+```zsh
+# インストール済みのパッケージのうち Origin が ppa のもの
+% aptitude search '?narrow(?installed, ~Oppa)'
+```
+
+:::: {.no-border-top-table}
+
+| 要素                           | 意味                                    |
+| ---------------------------- | ------------------------------------- |
+| `?narrow(A, B)`              | 集合 `A` の中から条件 `B` を満たすものをさらに絞り込む      |
+| `?installed`                 | 現在インストールされているパッケージだけを対象にする            |
+| `~O<value>` | パッケージの「由来（Origin）」にマッチする（APTのリポジトリ情報） |
+| `~Oppa`                      | Origin が `ppa` を含むパッケージ（PPA由来のもの）     |
+: {tbl-colwidths="[25,75]"}
+
+::::
+
+[パッケージの詳細情報取得]{.mini-section}
+
+`apt-cache policy <package-name>` でpakcage 情報の詳細を取得できます． `***` となっているものが現在インストールされているバージョンとなります．
+
+```zsh
+% apt-cache policy r-cran-zip                 
+r-cran-zip:
+  Installed: 2.3.0-1cran1.2204.0
+  Candidate: 2.3.0-1cran1.2204.0
+  Version table:
+ *** 2.3.0-1cran1.2204.0 500
+        500 https://ppa.launchpadcontent.net/c2d4u.team/c2d4u4.0+/ubuntu jammy/main amd64 Packages
+        100 /var/lib/dpkg/status
+     2.2.0-2 500
+        500 http://jp.archive.ubuntu.com/ubuntu jammy/universe amd64 Packages
+```
+
+### PPAの削除
+
+[add-apt-repository --remove]{.mini-section}
+
+```zsh
+## Delete
+% sudo add-apt-repository --remove ppa:PPA_Name/ppa
+
+## Check whether the ppa is actually deleted
+% ls /etc/apt/sources.list.d
+```
+
+- `/etc/apt/sources.list.d` からレポジトリ登録情報を格納した `.list`ファイルが削除されます
+- `/etc/apt/sources.list.d` ディレクトリで直接ファイルを削除するのと実質的に同じ
+- あくまでレポジトリ登録を削除するだけ = 追加されたpackage自体は残る
+
+
+[ppa-purge]{.mini-section}
+
+```zsh
+% sudo ppa-purge ppa:ppa-owner/ppa-name
+```
+
+- `ppa-purge`コマンドはレポジトリ登録の削除と同時に，PPAからインストールしたパッケージを「可能な限り」現在有効なリポジトリにあるパッケージに置き変えてくれるコマンド
+- `sudo apt-get install ppa-purge` が事前に必要
+- あくまで置き換えるコマンドなので削除したい場合は `sudo apt autoremove` コマンドのほうが良いかもしれません
+
+
+
+
+References
+---------
+- [Ryo's Tech Blog > add-apt-repository ppaとはなにか？](https://ryonakagami.github.io/2021/01/16/apt-ppa-repository/#how-to-list-up-packages-from-ppa)
+- [Ask Ubuntu > Are PPAs safe to add to my system and what are some "red flags" to watch out for?](https://askubuntu.com/questions/35629/are-ppas-safe-to-add-to-my-system-and-what-are-some-red-flags-to-watch-out-for/35636#35636)
