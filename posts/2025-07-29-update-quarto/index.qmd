@@ -1,0 +1,246 @@
+---
+title: "Quarto Version更新用スクリプト"
+author: "Ryo Nakagami"
+date: "2025-07-29"
+date-modified: "2025-07-29"
+categories: [quarto]
+listing_category: general-series
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+
+## 📘 Quarto Version Updateスクリプト
+
+- 現在インストールされているQuarto Versionを削除し，GitHubから対応する `.deb` ファイルをダウンロードして，指定したバージョンをインストールします
+- 実行前に，[公式のQuartoダウンロードページ](https://quarto.org/docs/download/)で利用可能なQuarto Versionを確認してください
+- 実行の結果，`/opt/quarto` にQuartoがインストールされます
+
+### 💻 Requirements
+
+- Debian/Ubuntu-based Linux OS
+- `curl`, `dpkg`, `gdebi-core`, `sudo`
+- インターネット接続環境
+- 管理者権限 `27(sudo)`
+
+
+## 🔨 メインスクリプト
+
+```bash
+#!/bin/bash
+# Note: please check https://quarto.org/docs/download/ before running this script
+
+set -euo pipefail
+
+# check for updates
+if ! command -v quarto &> /dev/null; then
+    echo "Quarto is not installed. Please install it first."
+    exit 1
+else
+    echo "Quarto version: $(quarto --version)"
+fi
+
+# prompt for confirmation
+read -p "Do you want to update Quarto? (y/n): " confirm
+if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+    echo "Update cancelled."
+    exit 0
+fi
+
+# Ask user for version
+read -p "Enter the Quarto version you want to install (e.g., 1.7.32): " QUARTO_VERSION
+
+# Confirm version input is non-empty
+if [[ -z "$QUARTO_VERSION" ]]; then
+    echo "No version specified. Aborting."
+    exit 1
+fi
+
+# Define download URL and file name
+DEB_URL="https://github.com/quarto-dev/quarto-cli/releases/download/v${QUARTO_VERSION}/quarto-${QUARTO_VERSION}-linux-amd64.deb"
+DEB_FILE="quarto-${QUARTO_VERSION}-linux-amd64.deb"
+
+# Remove existing version
+if command -v quarto &> /dev/null; then
+    echo "Removing existing Quarto installation..."
+    sudo dpkg -r quarto || echo "Quarto was not fully removed, continuing..."
+fi
+
+# Download and install the specified version
+echo "Downloading Quarto version ${QUARTO_VERSION}..."
+curl -L -o "$DEB_FILE" "$DEB_URL"
+
+echo "Installing Quarto..."
+sudo gdebi "$DEB_FILE" || { echo "Installation failed."; exit 1; }
+
+echo "Quarto updated successfully to version ${QUARTO_VERSION}."
+
+# Verify installation
+if command -v quarto &> /dev/null; then
+    echo "Quarto version: $(quarto --version)"
+    quarto check
+else
+    echo "Quarto installation failed. Please check the logs."
+    exit 1
+fi
+
+
+# Clean up
+rm -f "$DEB_FILE"
+echo "Temporary files cleaned up."
+```
+
+
+::: {#exm- .custom_problem }
+[実行例]{.def-title}
+
+```bash
+$ ./quarto-update.sh
+Quarto version: 1.4.550
+Do you want to update Quarto? (y/n): y
+Enter the Quarto version you want to install (e.g., 1.7.32): 1.7.32
+Removing existing Quarto installation...
+Downloading Quarto version 1.7.32...
+Installing Quarto...
+Quarto updated successfully to version 1.7.32.
+Quarto version: 1.7.32
+```
+
+:::
+***
+
+
+### 🔍 スクリプト解説
+
+[初期設定部分]{.mini-section}
+
+```bash
+set -euo pipefail
+```
+
+:::: {.no-border-top-table}
+
+|option|説明|
+|-----|------------------------------|
+|`-e`|エラーが発生した時点でスクリプトを終了|
+|`-u`|未定義の変数を使用した際にエラーを発生|
+|`-o pipefail`|パイプラインの途中でエラーが発生した場合に検知|
+
+
+::::
+
+[ユーザー確認と入力]{.mini-section}
+
+
+```bash
+read -p "Do you want to update Quarto? (y/n): " confirm
+if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+    echo "Update cancelled."
+    exit 0
+fi
+
+read -p "Enter the Quarto version you want to install (e.g., 1.7.32): " QUARTO_VERSION
+
+if [[ -z "$QUARTO_VERSION" ]]; then
+    echo "No version specified. Aborting."
+    exit 1
+fi
+```
+
+- アップデートの実行確認をユーザーに求める
+- インストールしたいQuartoのバージョンを入力させる
+- バージョン番号が未入力の場合は，`exit 1`
+
+[ダウンロードとインストールの準備]{.mini-section}
+
+
+```bash
+DEB_URL="https://github.com/quarto-dev/quarto-cli/releases/download/v${QUARTO_VERSION}/quarto-${QUARTO_VERSION}-linux-amd64.deb"
+DEB_FILE="quarto-${QUARTO_VERSION}-linux-amd64.deb"
+```
+
+- GitHubからダウンロードするdebパッケージのURLを構築
+- ローカルに保存するファイル名を設定
+
+[既存のQuartoの削除]{.mini-section}
+
+```bash
+if command -v quarto &> /dev/null; then
+    echo "Removing existing Quarto installation..."
+    sudo dpkg -r quarto || echo "Quarto was not fully removed, continuing..."
+fi
+```
+
+- 既存のQuartoインストールを検出して削除
+- 削除に失敗してもスクリプトは継続
+
+
+[新バージョンのインストール]{.mini-section}
+
+```bash
+echo "Downloading Quarto version ${QUARTO_VERSION}..."
+curl -L -o "$DEB_FILE" "$DEB_URL"
+
+echo "Installing Quarto..."
+sudo gdebi "$DEB_FILE" || { echo "Installation failed."; exit 1; }
+```
+
+- `gdebi` コマンドでインストールを実行
+- `dpkg -i`でも良いが，`gdebi`は必要な依存関係を自動で解決してくれます
+
+[インストール確認]{.mini-section}
+
+
+```bash
+if command -v quarto &> /dev/null; then
+    echo "Quarto version: $(quarto --version)"
+    quarto check
+else
+    echo "Quarto installation failed. Please check the logs."
+    exit 1
+fi
+```
+
+- インストールが成功したか確認
+- 新しいバージョンを表示
+- `quarto check`でシステム要件を確認
+
+
+[command -v quarto &> /dev/null コマンド]{.mini-section}
+
+```bash
+command -v <command-name>
+```
+
+シェルの組み込みコマンドで指定されたコマンドのパスを探索してくれます
+
+:::: {.no-border-top-table}
+
+|項目|説明|
+|----|---|
+|`command`|シェルの組み込みコマンドで，指定されたコマンドのパスを探索|
+|`-v`|コマンドのフルパスを表示|
+|`quarto`|ここでは検索対象のコマンド名|
+|`&>`|標準出力(stdout)と標準エラー出力(stderr)の両方をリダイレクト|
+|`/dev/null`|全ての出力を破棄する特殊なデバイスファイル|
+
+::::
+
+`&> /dev/null` を設定することによって，
+
+- コマンドが見つかった場合: パスの出力は`/dev/null`に捨てた上で，`exit 0`（終了コード0）
+- コマンドが見つからない場合: エラーメッセージは`/dev/null`に捨てられるが，`exit 1`（終了コード1） 扱い
+
+
+[不要な .deb ファイルの削除]{.mini-section}
+
+
+```bash
+rm -f "$DEB_FILE"
+echo "Temporary files cleaned up."
+```
+
+- ダウンロードした`.deb`パッケージを削除

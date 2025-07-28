@@ -79,6 +79,72 @@ document.getElementById('searchInput').addEventListener('keyup', debounce(functi
 
 ::::
 
+### Unit of Measurement
+
+:::: {.no-border-top-table #UnitTable}
+
+<input type="text" id="searchInput" placeholder="Search... (regex, space-separated AND)" style="width: 50%;">
+
+
+```{python}
+# | echo: false
+#| tbl-colwidths: [10,10,10,10,60]
+import pandas as pd
+from itables import show, options, init_notebook_mode, JavascriptFunction
+from keyword_dict import UNIT_OF_MEASUREMENT_CONFIG, UnitofMeasurementField
+from IPython.display import HTML, display, Markdown
+
+# fetch colnames
+cols = list(UnitofMeasurementField.model_json_schema()["properties"].keys())
+
+# define dictionary df
+df_si = (
+    pd.DataFrame(UNIT_OF_MEASUREMENT_CONFIG.unit_of_measurement, columns=cols)
+    .map(lambda x: x[1] if x else None)
+)
+
+display(Markdown(df_si.to_markdown(index = False)))
+```
+
+<script>
+// Debounce function to limit how often search is performed
+function debounce(func, wait) {
+  let timeout;
+  return function(...args) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(this, args), wait);
+  };
+}
+
+document.getElementById('searchInput').addEventListener('keyup', debounce(function() {
+  let filter = this.value.trim();
+  let regexes = [];
+
+  // Split search terms by space and create regex for each
+  if (filter) {
+    const terms = filter.split(/\s+/);
+    regexes = terms.map(term => {
+      try {
+        return new RegExp(term, 'i');
+      } catch (e) {
+        console.warn(`Invalid regex: ${term}`);
+        return null;
+      }
+    }).filter(regex => regex !== null);
+  }
+
+  const rows = document.querySelectorAll('#UnitTable tbody tr');
+  rows.forEach(row => {
+    const rowText = row.textContent;
+    const matchesAll = regexes.length === 0 || regexes.every(regex => regex.test(rowText));
+    row.style.display = matchesAll ? '' : 'none';
+  });
+}, 300)); // Wait 300ms after last keypress before searching
+</script>
+
+::::
+
+
 ### 便利コマンド
 
 :::: {.no-border-top-table #CommandTable}
