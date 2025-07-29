@@ -1,0 +1,301 @@
+---
+title: "なぜテキストファイルは改行で終わるべきなのか？"
+author: "Ryo Nakagami"
+date: "2025-07-30"
+date-modified: "2025-07-30"
+categories: [coding]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## POSIX標準の考え方
+
+::: {#def-posix-incompete .custom_problem .blog-custom-border}
+[3.195 Incomplete Line]{.def-title}
+
+- A sequence of one or more non-`<newline>` characters at the end of the file.
+
+:::
+
+::: {#def-posix .custom_problem .blog-custom-border}
+[3.206 Line]{.def-title}
+
+- A sequence of zero or more non-`<newline>` characters plus a terminating `<newline>` character.
+- Lineとは，1つ以上の `<newline>` 文字以外の文字と，行末の `<newline>` 文字によって成り立つ
+
+:::
+
+多くのUNIX系のツールは @def-posix に基づいており，改行文字で終わらない「行」は @def-posix-incompete のように「行」とはみなされません．
+
+[Editorと改行]{.mini-section}
+
+| エディタ             | 末尾の改行の挙動                                 |
+| ---------------- | ---------------------------------------- |
+| **VS Code**      | 設定次第で自動追加 (`files.insertFinalNewline`)   |
+| **Vim**          | デフォルトで改行追加（`:set nofixeol` で抑制可）         |
+| **Emacs**        | デフォルトで改行追加（`require-final-newline` 変数）   |
+
+### `cat`コマンドと結合
+
+`cat` でファイルを結合する場合，改行で終わるファイル (`a.txt` と `c.txt`) と改行で終わらないファイル (`b.txt`) では，結合時の挙動が異なります．
+
+まず，改行ありと改行なしの`.txt`ファイルを生成します
+
+[改行ありファイルの生成]{.mini-section}
+
+::: {.panel-tabset group="language"}
+## Bash
+
+```bash
+#!/bin/bash
+
+words=(foo bar baz)
+files=(a b c)
+
+for i in "${!words[@]}"; do
+  echo "${words[i]}" > "${files[i]}.txt"
+done
+```
+
+## Zsh
+
+```zsh
+#!/bin/zsh
+
+words=(foo bar baz)
+files=(a b c)
+
+for i in {1..${#words[@]}}; do
+  echo "${words[i]}" > "${files[i]}.txt"
+done
+```
+
+:::
+
+[改行なしファイルの生成]{.mini-section}
+
+::: {.panel-tabset group="language"}
+## Bash
+
+```bash
+#!/bin/bash
+
+words=(foo bar baz)
+files=(a b c)
+
+for i in "${!words[@]}"; do
+  printf "%s" "${words[i]}" > "${files[i]}_without_newline.txt"
+done
+```
+
+## Zsh
+
+```zsh
+#!/bin/zsh
+
+words=(foo bar baz)
+files=(a b c)
+
+for i in {1..${#words[@]}}; do
+  printf "%s" "${words[i]}" > "${files[i]}_without_newline.txt"
+done
+```
+
+:::
+
+
+つぎに `cat`コマンドで結合をしてみます．
+
+[cat コマンドで結合]{.mini-section}
+
+::: {.panel-tabset}
+## 改行ありファイル
+
+```zsh
+% cat {a,b,c}.txt
+foo
+bar
+baz
+```
+
+## 改行なしファイル
+
+```zsh
+% cat {a,b,c}_without_newline.txt      
+foobarbaz% 
+```
+
+:::
+
+### `wc` commandと改行
+
+::: {#def- .custom_problem .blog-custom-border}
+[`wc` コマンドマニュアル]{.def-title}
+
+- A line is defined as a string of characters delimited by a `<newline>` character.
+
+:::
+
+`wc`コマンドは `<newline>` の数で行数を数えています．実際に
+
+```bash
+## 改行なし
+$ echo -n "Line not ending in a new line" | wc -l
+0
+
+## 改行あり
+$ echo "Line ending with a new line" | wc -l
+1
+```
+
+::: {#exm- .custom_problem }
+[結合ファイルと`wc`コマンド]{.def-title}
+
+::: {.panel-tabset}
+## 改行ありファイル
+
+```zsh
+% cat {a,b,c}.txt | wc -l
+3
+```
+
+## 改行なしファイル
+
+```zsh
+% cat {a,b,c}_without_newline.txt | wc -l
+0
+```
+
+:::
+
+:::
+***
+
+## git trackingテキストファイルを対象に改行有無判定スクリプト
+
+
+::: {.callout-note}
+## スクリプト全体
+
+以下のシェルスクリプトは，バイナリファイルを除外した上で，ファイル末尾の改行の有無をチェックするスクリプトです
+
+```bash
+git ls-files -z | while IFS= read -r -d '' file; do
+  file --mime "${file}" | grep -q -e "charset=binary" -e "image/svg+xml" ||
+  tail -c1 "${file}" | read -r _ ||
+  echo "Missing newline: ${file}"
+done
+```
+
+
+:::
+
+[アルゴリズム]{.mini-section}
+
+<pre id="git-check-newline">
+\begin{algorithm}
+\caption{Checking Files for Missing Trailing Newlines}
+\begin{algorithmic}
+\State file\_list \(\leftarrow\) Get all Git-tracked files with NUL delimiter
+\ForAll{file in file\_list}
+    \State mime\_info \(\leftarrow\) \texttt{file --mime file}
+    \If{mime\_info contains "charset=binary" OR "image/svg+xml"}
+        \State \textbf{continue (skip binary/SVG files)}
+    \Else
+        \State last\_byte \(\leftarrow\) Get final byte of file
+        \If{last\_byte is not newline character}
+            \State Output "Missing newline: file"
+        \EndIf
+    \EndIf
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+</pre>
+
+<script>
+    pseudocode.renderElement(document.getElementById("git-check-newline"));
+</script>
+
+
+[各コマンド]{.mini-section}
+
+|コマンド|説明|
+|-------|----|
+|`git ls-files -z`| Gitで管理されているファイルを一覧表示<br>`-z`オプションで区切り文字としてNUL文字を使用（ファイル名に特殊文字が含まれる場合の安全な処理のため）|
+|`while IFS= read -r -d '' file`|NUL文字を区切りとしてファイルを順次処理<br>`IFS=`で空白文字の保持<br>`-r`でバックスラッシュの解釈を防止<br>`-d ''：read` でヌル文字区切りに対応|
+|`file --mime "${file}" | grep -q -e "charset=binary" -e "image/svg+xml" ||`|バイナリファイルとSVGファイルをスキップ<br>テキストファイルのみを処理<br>`||`は「このコマンドが失敗した場合に次のコマンドを実行」を意味|
+|`tail -c1 "${file}" | read -r _ ||`|ファイルの最後の1バイトをチェック<br>`read`は改行があれば0，なければ1を返す|
+|`echo "Missing newline: ${file}"`|改行のないファイルを報告|
+: {tbl-colwidths="[43,57]"}
+
+::: {#exm- .custom_problem }
+[カレントディレクトリ以下のファイルに対しての改行判定スクリプト]{.def-title}
+
+```bash
+#!/bin/bash
+find . -maxdepth 1 -type f -print0 | while IFS= read -r -d '' file; do 
+  file --mime "${file}" | grep -q -e "charset=binary" -e "image/svg+xml" ||
+  tail -c1 "${file}" | read -r _ ||
+  echo "Missing newline: ${file}"
+done
+```
+
+- `-print0`: 各ファイル名の末尾に NUL文字 (`\0`) を付けて出力
+
+:::
+***
+
+### 改行なしと判定されたファイルに対して`<newline>`を付与する
+
+::: {.callout-note}
+### シェルスクリプト
+
+```bash
+find . -maxdepth 1 -type f -print0 | while IFS= read -r -d '' file; do
+  # バイナリファイルやSVGはスキップ
+  file --mime "$file" | grep -q -e "charset=binary" -e "image/svg+xml" && continue
+
+  # 最後の1バイトを確認（改行がないなら）
+  if ! tail -c1 "$file" | read -r _; then
+      echo >> "$file"; echo "✓ Newline added to: $file"
+  fi
+done
+```
+:::
+
+- `echo >> "$file"` で`<newline>`を行末に追加
+
+
+## 改行忘れの対策
+
+[VSCodeでの改行設定]{.mini-section}
+
+`settings.json`で以下の項目を追加します
+
+```json
+{
+  // Editor Settings
+  "files.insertFinalNewline": true,
+  "notebook.insertFinalNewline": true
+}
+```
+
+:::: {.no-border-top-table}
+
+| 設定キー                                  | 意味                                                                         |
+| ------------------------------------- | -------------------------------------------------------------------------- |
+| `"files.insertFinalNewline": true`    | ファイル保存時に、末尾に改行を自動で追加します（通常の `.txt`, `.js`, `.py` などすべて対象）                  |
+| `"notebook.insertFinalNewline": true` | Jupyter Notebook（`.ipynb`）などのノートブック形式のファイルにおいて、セル内のソースに末尾改行を追加する設定（拡張機能依存） |
+: {tbl-colwidths="[40,60]"}
+
+::::
+
+
+
+References
+----------
+- [POSIX standard](https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap03.html#tag_03_206)

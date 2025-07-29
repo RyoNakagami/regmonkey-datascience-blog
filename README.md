@@ -1,7 +1,3 @@
-
-
-
-
 ## Listing Configurations
 
 | ID                                | Listing Category                | 説明                                  |
