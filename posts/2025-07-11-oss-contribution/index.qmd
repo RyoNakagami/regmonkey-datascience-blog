@@ -1,0 +1,255 @@
+---
+title: "GitHub OSS Contribution: ForkからPull Request"
+author: "Ryo Nakagami"
+date: "2025-07-11"
+date-modified: "2025-08-02"
+categories: [方法論]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## 🎯 スコープ
+
+- GitHubで ForkからPull Requestを出す手順を紹介します
+- 修正箇所は事前に見つかっている前提とします
+
+## 🔨 OSS contributionまでの手順
+
+```{mermaid}
+sequenceDiagram
+    participant 開発者 as Local repo
+    participant フォークしたリポジトリ as fork repo
+    participant オリジナルのリポジトリ as original repo
+    participant リポジトリの所有者 as repository owner
+
+    オリジナルのリポジトリ->>フォークしたリポジトリ: フォークする
+    フォークしたリポジトリ->>開発者: クローンを作成
+    開発者->>開発者: 機能ブランチを作成
+    開発者->>開発者: コードの変更とテスト
+    開発者->>フォークしたリポジトリ: 変更をpush
+    フォークしたリポジトリ->>オリジナルのリポジトリ: プルリクエストを送信
+    オリジナルのリポジトリ->>リポジトリの所有者: レビュー依頼
+    リポジトリの所有者->>オリジナルのリポジトリ: コメントとフィードバック
+    オリジナルのリポジトリ->>開発者: レビュー内容の共有
+    開発者->>開発者: 修正作業（ローカル）
+    開発者->>フォークしたリポジトリ: 修正をpush
+    フォークしたリポジトリ->>オリジナルのリポジトリ: プルリクエストを更新
+    リポジトリの所有者->>オリジナルのリポジトリ: プルリクエストを承認
+    リポジトリの所有者->>オリジナルのリポジトリ: プルリクエストをマージ
+```
+
+::: {.callout-note}
+## REMARKS
+
+- 通常「repository owner」のみが，original repositoryに対して直接操作
+- 実際の運用では，レビューは複数人で行われることもあるが，上のシークエンス図ではシンプルに一人と仮定
+
+:::
+
+### Step 1: プロジェクトルールの事前確認
+
+開発をスタートする前に，以下のルール文書を必ず確認してください．これらはコードレビューを円滑かつ効率的に進めるための共通認識を定めたもので，遵守することでPRは「内容」に集中した建設的なレビューになり，反復的なスタイル修正や手戻りを最小化できます．
+
+:::: {.no-border-top-table}
+
+| ファイル名                  | 目的・レビュー効率への寄与                                       |
+| ---------------------- | --------------------------------------------------- |
+| `contribution.md`      | PR 作成のフォーマットや粒度，コミットメッセージの書き方が明文化されており，認識のズレを減らせます． |
+| `branch-strategy.md`   | 適切なブランチ運用により，他の開発との競合やマージ事故を防ぎ，レビュー対象を明確にできます．      |
+| `coding-convention.md` | スタイルや命名規則が統一されていることで，コード内容の議論に集中でき，フォーマットの指摘を減らせます． |
+| `.editorconfig`        | インデント幅・改行コード・文字コードなどのエディタ設定が統一され，スタイル差分の混入を防ぎます．    |
+
+::::
+
+[プロジェクトルール確認チェックリスト]{.mini-section}
+
+- [ ] `contribution.md` を読んだ
+- [ ] `branch-strategy.md` に従ってブランチを作成した
+- [ ] `coding-convention.md` に準拠したコードを書いた
+- [ ] `.editorconfig` に準拠したエディタ設定を行っている
+
+
+### Step 2: Issueを作成
+
+PRを出す前に，まず Issue を作成して修正提案を相談します．
+
+::: {#exm- .custom_problem }
+[🐞 Bug Report: caption-number: false is not respected in metadata]{.def-title}
+
+:::{style="font-size: 0.7em;  border: 1px solid #ddd; border-radius: 5px; padding: 10px; margin: 20px 0;"}
+## Description
+
+When setting the following in Quarto YAML front matter:
+
+```yml
+pseudocode:
+  caption-number: false
+```
+
+the pseudocode filter still adds numbers to the captions. The expected behavior is that setting `caption-number: false` should disable caption numbering.
+
+
+## Current Behavior
+
+The false value is ignored, because `false` or `x` always evaluates to `x` in Lua. 
+Therefore, the default is used even when `false` is explicitly specified.
+
+## Proposed Fix
+
+Replace line 268 in `pseudocode.lua`:
+
+```lua
+global_options.caption_number = doc.meta["pseudocode"]["caption-number"] or global_options.caption_number
+```
+
+with: 
+
+```lua
+if doc.meta.pseudocode and doc.meta.pseudocode["caption-number"] ~= nil then
+  global_options.caption_number = doc.meta.pseudocode["caption-number"]
+else
+  global_options.caption_number = global_options.caption_number
+end
+```
+
+----
+Btw, thank you for developing this great extension — I really appreciate your work and love using it in my quarto projects!
+
+:::
+
+
+:::
+***
+
+
+### Step 3: Fork（リポジトリを複製）
+
+1. PRを送りたいリポジトリにアクセス
+2. 右上の `[Fork]` ボタンをクリックして，自分のアカウントに複製
+
+### Step 4: 自分の環境にClone & 開発用ブランチの作成
+
+```bash
+git clone https://github.com/your-username/project-name.git
+cd project-name
+git switch -c my-feature-or-fix
+```
+
+::: {.callout-note}
+
+- branch strategyに則ったブランチ名をつけるようにします
+
+:::
+
+### Step 4: git commit and push
+
+コードを編集し，コミットします
+
+```bash
+# 編集後
+git add .
+git commit -m "Fix: typo in README"
+
+# fork repositoryへpush
+git push origin my-feature-or-fix
+```
+
+::: {.callout-note}
+### commit message方針
+
+`contribution.md` や開発者ガイドに則したコミットメッセージを記載します．基本構造としては．
+
+```makefile
+<タイプ>: <短く要点を伝えるメッセージ（50文字以内）>
+```
+
+[Prefix例]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| Prefix     | 意味・用途                                      | 使用例（タイトル）                                  |
+| ---------- | ------------------------------------------ | ------------------------------------------ |
+| `Fix`      | **バグ修正**          | `Fix: crash when input is null`            |
+|`Implement`|**ロジックや処理を新規実装**|`Implement: user login logic with token generation`|
+| `Enhance`   | **仕様に基づいた変更や改善**．振る舞いを変更するがバグではない場合        | `Enhance: replace polling with websocket`   |
+| `Remove`   | **機能やコードの削除**．不要になった処理を明確に消すとき             | `Remove: deprecated API endpoint`          |
+| `Refactor` | **動作に影響を与えない内部構造の改善**（リネーム，分割，整理など）        | `Refactor: split UserService into modules` |
+| `Docs`     | **ドキュメントの変更**（README，注釈，Wiki連携など）          | `Docs: fix typo in usage example`          |
+| `Test`     | **テストコードの追加・変更**                           | `Test: add edge case test for empty array` |
+| `Style`    | **フォーマット・コードスタイル修正**（意味のある動作変更なし）          | `Style: format code with Prettier`         |
+| `Revert`   | **以前のコミットを取り消す**                           | `Revert: remove async version due to bug`  |
+| `Perf`     | **パフォーマンス改善**                              | `Perf: reduce image loading time by 50%`   |
+| `Build`    | **ビルドシステムや依存関係の変更**（npm, poetry, Dockerなど） | `Build: upgrade TypeScript to v5.3`        |
+
+::::
+
+:::
+
+### Step 5: Pull Request作成
+
+1. GitHub上で，「Compare & pull request」をクリックし，PRを作成します
+2. PR作成後，diff内容に問題がなければ `Create Pull Request` をクリックします．
+
+これらの手続きを実行すると，PR送り先リポジトリの管理者にPRが作成されたことが通知されます．
+
+::: {.callout-note}
+### PR作成チェックリスト
+
+- [ ] Issueを事前に作成している
+- [ ] タイトルと説明が明確
+- [ ] 関連Issueがリンクされている
+
+:::
+
+
+
+::: {#exm- .custom_problem }
+[FIX: respecting caption-number: false in user setting ]{.def-title}
+
+:::{style="font-size: 0.7em;  border: 1px solid #ddd; border-radius: 5px; padding: 10px; margin: 20px 0;"}
+
+## Related Issue
+
+- #8 
+
+## Description
+
+This PR updates the logic assigning `global_options.caption_number` so that
+a user-specified false value in `doc.meta.pseudocode["caption-number"]`
+is not overridden by the default.
+
+### Before
+
+The old logic:
+
+```lua
+  global_options.caption_number = doc.meta["pseudocode"]["caption-number"] or global_options.caption_number
+```
+
+caused issues when caption-number: false was explicitly set in metadata.
+Since false is `false` in Lua, it incorrectly fell back to the default.
+
+### After
+
+This fix ensures that false is respected by explicitly checking for nil:
+
+```lua
+if doc.meta.pseudocode and doc.meta.pseudocode["caption-number"] ~= nil then
+  global_options.caption_number = doc.meta.pseudocode["caption-number"]
+else
+  global_options.caption_number = global_options.caption_number
+end
+```
+
+:::
+
+:::
+***
+
+References
+----------
+- [GitHub Docs > Creating a pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request)
