@@ -1,0 +1,563 @@
+---
+title: "Ubuntu 22.04でのfirewall設定"
+author: "Ryo Nakagami"
+date: "2025-08-01"
+date-modified: "2025-08-14"
+categories: [環境構築, Linux, firewall]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## 🎯 ゴール
+
+- `ufw`を用いてUbuntu 22.04用のファイアウォールルールを設定する
+
+[Prerequisites]{.mini-section}
+
+:::: {.no-border-top-table}
+
+|        条件        |         備考       |
+|-------------------|--------------------|
+|`ufw`インストール済み|`apt-get install ufw`|
+|`ufw`有効化         |`sudo  ufw enable`  | 
+
+::::
+
+## ufwとは？
+
+::: {#def- .custom_problem .blog-custom-border}
+[ufw(Unbcomplicated Firewall)]{.def-title}
+
+- Ubuntu のファイアウォール設定ツール
+- iptablesのフロントエンド
+- 初期状態では無効になっており，ユーザーが手動で有効にする必要がある
+- 設定内容は `/etc/ufw/user.rules` (IPv4) と `/etc/ufw/user6.rules` (IPv6) に保存される
+
+:::
+
+ufwは，netfilter を管理するためのフレームワークと，ファイアウォールを操作するためのCLIを提供してくれるソフトです．
+
+Linuxカーネルには，Netfilterというパケットフィルタリング機能があります．パケットの通過の可否の判断は，基本的に通信経路，IPアドレス，ポート番号，ポリシーの組み合わせで行われます．
+なお，デフォルトでは外部からは必要最低限のネットワーク通信しか受け付けないようにファイアウォールが設定されています．
+
+[通信経路]{.mini-section}
+
+:::: {.no-border-top-table}
+
+|   通信経路      |             説明            |
+|----------------|----------------------------|
+| 入力(Incoming) |外部からLinuxへ入ってくる通信経路|
+| 出力(Outgoing) |Linuxから外部へ出ていく通信経路  |
+| 転送(Routed)|別ホストへ転送する通信経路       |
+
+::::
+
+[IPアドレス]{.mini-section}
+
+- 特定のクライアントのみに接続を許可したい場合のルール
+- 不特定多数に提供するサービスのサーバーでは設定が困難
+
+特定のIPからだけ3000ポートへの入力を許可する場合は
+
+```bash
+sudo ufw allow from 192.168.1.100 to any port 3000
+```
+
+[送信先ポート番号]{.mini-section}
+
+入力方向(IN)の場合，任意の送信元IPからポート3000へのアクセス許可をする場合は
+
+```bash
+sudo ufw allow to any port 3000
+```
+
+[ポリシー]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| ポリシー| 	            説明               |
+|--------|---------------------------------|
+|allow   |ルールにマッチしなかった通信を許可     |
+|deny    | 	通信を破棄                       |
+|reject  | 	通信を拒否してエラーを返す         |
+
+::::
+
+### `ufw default`の設定書式
+
+::: {.custom_problem .blog-custom-border}
+[Syntax]{.def-title-no-before}
+
+```bash
+ufw default allow|deny|reject [incomming|outgoing|routed]
+```
+
+:::
+
+- 通常は内部から外部へのOutgoingのみallowにすることを推奨
+
+
+
+## ufwコマンドを用いたファイヤーウォール設定
+
+:::: {.no-border-top-table}
+
+|ファイル                |説明                                   |
+|----------------------|---------------------------------------|
+|`/etc/ufw/ufw.conf`   |ufwの有効ステータス及びLOGLEVELの設定ファイル|
+|`/etc/ufw/user.rules` |IPv4に関連するufwルールの設定ファイル       |
+|`/etc/ufw/user6.rules`|IPv6に関連するufwルールの設定ファイル       |
+
+- 基本的には以下で解説するコマンド経由の設定で十分
+- きめ細かい設定をする場合を上記のファイルを直接編集
+
+::::
+
+
+[ufw enable/disable]{.mini-section}
+
+```bash
+# ufwを有効にしたい場合
+sudo ufw enable
+
+# ufwを無効にしたい場合
+sudo ufw disable
+```
+
+`ufw disable`しても，設定したルールは残されています．次回有効にしたときに以前設定したファイアウォールルールを再利用することができます．
+
+[ufw status]{.mini-section}
+
+設定と動作状況を確認したい場合は `ufw status` コマンドを実行します．コマンド実行により以下の内容が確認できます
+
+- ファイアウォールの動作状況: `active` or `inactive`
+- 設定されているルール一覧
+
+```bash
+# 設定と動作状況を表示
+% sudo ufw status
+Status: active
+
+To                         Action      From
+--                         ------      ----
+Anywhere on tailscale0     ALLOW       Anywhere                  
+22/tcp                     LIMIT       Anywhere                  
+Anywhere (v6) on tailscale0 ALLOW       Anywhere (v6)             
+22/tcp (v6)                LIMIT       Anywhere (v6)  
+```
+
+ルールを削除挿入する場合はルール番号がわかると便利です．ルール番号を表示させたい場合は
+
+```bash
+# ルール番号を表示する
+% sudo ufw status numbered
+Status: active
+
+     To                         Action      From
+     --                         ------      ----
+[ 1] Anywhere on tailscale0     ALLOW IN    Anywhere                  
+[ 2] 22/tcp                     LIMIT IN    Anywhere                  
+[ 3] Anywhere (v6) on tailscale0 ALLOW IN    Anywhere (v6)             
+[ 4] 22/tcp (v6)                LIMIT IN    Anywhere (v6)   
+```
+
+[ufw status verbose]{.mini-section}
+
+ロギングモードやデフォルトポリシーを表示させる場合は `ufw status verbose` を実行します
+
+```bash
+% sudo ufw status verbose 
+Status: active
+Logging: on (high)
+Default: deny (incoming), allow (outgoing), deny (routed)
+New profiles: skip
+
+To                         Action      From
+--                         ------      ----
+Anywhere on tailscale0     ALLOW IN    Anywhere                  
+22/tcp                     LIMIT IN    Anywhere                  
+Anywhere (v6) on tailscale0 ALLOW IN    Anywhere (v6)             
+22/tcp (v6)                LIMIT IN    Anywhere (v6)    
+```
+
+[ufw logging]{.mini-section}
+
+::: {.custom_problem .blog-custom-border}
+[Syntax]{.def-title-no-before}
+
+```bash
+ufw logging off|low|medium|high|full
+```
+
+- `rsyslog`が設定されているシステムでは，`/var/log/ufw.log` にログが記録される
+- LEVEL(`off|low|medium|high|full`)を指定すると，logging頻度が設定される
+- defaultのlog levelは `low`
+
+:::
+
+:::: {.no-border-top-table}
+
+|パラメーター| 説明                                                                                            |
+|----------|------------------------------------------------------------------------------------------------|
+|`off`     |ログを記録しない                                                                                   |
+|`low`     |定義されたポリシーに一致しないすべてのブロックされたパケット（レート制限付き） + ログルールに一致するパケットを記録|
+|`medium`  |`low`に加え，ポリシーにマッチせず許可された通信，INVALIDなパケット，新規の接続をレート制限付きで記録           |
+|`high`    |`medium` レベルのログ（レート制限なし）に加え，すべてのパケットをレート制限付きでログに記録                   |
+|`full`    |`high` レベルのログ（レート制限なし）をすべて記録                                                      |
+
+::::
+
+
+`medium` より上のログレベルは，たくさんのログ出力を生成し，ディスクを短時間で使い切ってしまう可能性があります．ですので迷ったならば
+
+- サーバー使用: `medium`
+- 個人用デスクトップ: `low`
+
+という設定で十分だと思います．
+
+[ufw allow]{.mini-section}
+
+::: {.custom_problem .blog-custom-border}
+[Synatx]{.def-title-no-before}
+
+```bash
+ufw allow service|port|protocol|IP address
+```
+
+- 特定のポートやサービスへのアクセスを許可するルールを設定する際に使用
+
+:::
+
+```bash
+# SSH を許可
+sudo ufw allow 22/tcp
+
+# HTTP を許可
+sudo ufw allow http
+
+# 192.168.1.0/24の範囲からのアクセスを許可
+sudo ufw allow from 192.168.1.0/24
+
+# 192.168.1.0/24の範囲からport 80へのアクセスを許可
+sudo ufw allow from 192.168.1.0/24 to any port 80
+```
+
+[ufw deny]{.mini-section}
+
+::: {.custom_problem .blog-custom-border}
+[Syntax]{.def-title-no-before}
+
+```bash
+ufw deny service|port|protocol|IP address
+```
+
+- 特定のポートやサービスへのアクセスを拒否するルールを設定する際に使用
+
+:::
+
+```bash
+# Telnet を拒否
+sudo ufw deny 23/tcp
+
+# 10.0.0.5からのアクセスを拒否
+sudo ufw deny from 10.0.0.5
+```
+
+[ufw delete]{.mini-section}
+
+::: {.custom_problem .blog-custom-border}
+[Syntax]{.def-title-no-before}
+
+```bash
+ufw delete NUM|rule
+```
+
+- 既存のルールを削除する際に使用
+- NUM は `ufw status numbered` で確認したルール番号
+:::
+
+```bash
+# 22番ポートの許可を削除
+sudo ufw delete allow 22/tcp
+
+# 23番ポートの拒否を削除
+sudo ufw delete deny 23/tcp
+
+# 23番ポートの制限許可を削除
+sudo ufw delete limit 22/tcp 
+
+# ルール 5~9 を削除(降順にすること)
+for n in 9 8 7 6 5; do ufw delete $n; done 
+```
+
+[ufw insert]{.mini-section}
+
+::: {.custom_problem .blog-custom-border}
+[Syntax]{.def-title-no-before}
+
+```bash
+ufw insert NUM allow|deny service|port|protocol|IP address
+```
+
+- ルールを指定した順番に挿入する際に使用
+- NUM は挿入する位置番号
+
+:::
+
+```bash
+# 80番ポート許可を最初のルールに挿入
+sudo ufw insert 1 allow 80/tcp
+
+# 192.168.1.100からのアクセス拒否ルールを２番に挿入
+sudo ufw insert 2 deny from 192.168.1.100
+```
+
+[ufw limit]{.mini-section}
+
+::: {.custom_problem .blog-custom-border}
+[Syntax]{.def-title-no-before}
+
+```bash
+ufw limit service|port
+```
+
+- 指定したポートやサービスへのアクセスを制限（レート制限）する際に使用
+- DoS 攻撃やブルートフォース攻撃対策に便利
+
+:::
+
+```bash
+# SSH に対して接続レート制限を設定
+sudo ufw limit 22/tcp
+
+# 192.168.1.0/24範囲からポート443への接続をレート制限
+sudo ufw limit from 192.168.1.0/24 to any port 443
+```
+
+### ufw + tailscaleの設定
+
+::: {.callout-note}
+#### ファイアウォール設定方針
+
+- Tailscale以外のすべてのincoming通信を拒絶
+- すべてのOutgoingトラフィックを許可
+
+:::
+
+[Prerequisites]{.mini-section}
+
+- tailscaleがサーバー側でインストール済み
+- ufwがサーバー側でインストール済み
+- tailscale経由でssh接続可能
+
+#### Defaultルールの設定
+
+tailscale sshでサーバーにログインした後に，ufw defaultルールを設定します
+
+```bash
+# incoming rule
+sudo ufw default deny incoming
+
+# outgoing rule
+sudo ufw default allow outgoing
+```
+
+verboseを用いてDefaultルール設定を確認します．`Default`セクションについて，以下のような設定になっていればOKです
+
+```bash
+$ sudo ufw status verbose
+Status: active
+Logging: on (high)
+Default: deny (incoming), allow (outgoing), deny (routed)
+New profiles: skip
+
+To                         Action      From
+--                         ------      ----
+...
+```
+
+次に，`tailscale` のincoming設定をします
+
+```bash
+$ sudo ufw allow in on tailscale0
+```
+
+改めてルール設定を確認します
+
+```bash
+$ sudo ufw status                
+Status: active
+
+To                         Action      From
+--                         ------      ----
+Anywhere on tailscale0     ALLOW       Anywhere                  
+Anywhere (v6) on tailscale0 ALLOW       Anywhere (v6) 
+```
+
+ルール設定後，ufwをリフレッシュして完了です
+
+```bash
+$ sudo ufw reload
+```
+
+:::: {.blog-custom-border}
+[📘 REMARKS]{.def-title-no-before}
+
+- 上記のufwルール設定ではincomingがデフォルトでdeny, tailscale経由のみをincomingアクセスを許可
+- tailscaleを経由しないsshは拒絶されるが，tailscale  + sshは機能するはずです
+
+::::
+
+
+
+## トラブルシューティング
+### `/var/log/ufw.log`が生成されない
+
+::: {.callout-warning}
+### Problem 
+
+`sudo ufw status verbose` でlogging on担っているにも関わらず，`/var/log/ufw.log` が生成されない
+
+:::
+
+[原因調査]{.mini-section}
+
+`ufw.log` は `rsyslog` 経由で書き込まれるはずなので，`rsyslog` 自体のログを確認してみます．
+
+```bash
+sudo cat /var/log/syslog | grep "ufw"
+```
+
+ファイルを見てみると
+
+```log
+rsyslogd: file '/var/log/ufw.log': open error: Permission denied [v8.2312.0 try https://www.rsyslog.com/e/2433 ]
+```
+
+というラインが登場したならば，Permissionの問題であると考えることができます．
+
+[対策]{.mini-section}
+
+`/var/log`のdefault permissonは
+
+:::: {.no-border-top-table}
+
+|項目       |設定値| 
+|----------|------|
+|owner     |`root`|
+|group     |`syslog`|
+|permission|`755`(`drwxr-xr-x`)|
+
+::::
+
+`/var/log` 自体には 書き込み権限を付けないのが推奨及びデフォルトなので，個別ファイル(今回ならば `/var/log/ufw.log`) に権限をつけることが対応策となります．従って，
+
+```zsh
+# 空のlogファイル生成
+sudo touch /var/log/ufw.log
+
+# owner:groupの変更
+sudo chown syslog:adm /var/log/ufw.log
+```
+
+もろもろがめんどくさい場合は `sudo chmod 775 /var/log` を実行します．
+
+## Appendix: IPアドレスとサブネットマスク
+
+::: {#def- .custom_problem .blog-custom-border}
+[IPアドレスの構成]{.def-title}
+
+```ini
+IP address:   192.168.0.1
+Subnet mask:  255.255.255.0
+```
+
+というIPv4アドレスはネットワークパートとホストパートの２つの要素によって構成されています：
+
+- Newwork Identifier: デバイスがどのネットワークに属しているかを示す識別子
+- Host Identifier: 属しているネットワーク上でデバイスに対して付与される識別子
+
+サブネットマスクはIPアドレスの内，どのビットまでがNetwork Identifierなのかを示します．
+
+:::
+
+IPv4アドレスは32-bitで定義されています．`192.168.0.1`はそれを読みやすくしたものであり，binary表記と対応させると
+
+```ini
+192.168.0.1 =
+11000000.10101000.00000000.00000001
+```
+
+サブネットマスクも同様で
+
+```ini
+255.255.255.0 =
+11111111.11111111.11111111.00000000
+```
+
+- `1`: network portion
+- `0`: host portion
+
+解釈すると，`192.168.0` がネットワーク識別子で，`1`がホスト識別子となります．
+
+[IPv4とサブネットマスクの解釈]{.mini-section}
+
+:::: {.no-border-top-table .no-header}
+
+| | | |
+|---|---|---|
+| Network ID | `192.168.0.0` | |
+| Broadcast address | `192.168.0.255` | 同じネットワークに属するすべてのデバイスに一斉にメッセージを届けるための特別なIPアドレスのこと|
+| Valid hosts|`192.168.0.1` ~ `192.168.0.254` |254個のデバイスが同一ネットワークに登録可能|
+
+: {tbl-colwidths="[20,35,45]"}
+
+::::
+
+::: {.callout-note}
+### Broadcast address vs `0.0.0.0`
+
+Broadcast addressは通信の宛先アドレスですが，`0.0.0.0` は宛先ではなく「このマシンが持つ全てのIPv4アドレスで待ち受ける」という意味になります．間隔としては，
+
+- `0.0.0.0`: 自分の家の全てのドアを開けて待っている（誰でも入れる状態にする）
+- `192.168.0.255`: 町内の 全住人にスピーカーで呼びかける
+
+:::: {.no-border-top-table}
+
+| アドレス            | 意味                          | 使い方             |
+| --------------- | --------------------------- | --------------- |
+| `0.0.0.0`       | 「全ての自分のIPアドレスで待ち受ける」        | サーバープログラムのバインド用 |
+| `192.168.0.255` | 「192.168.0.0/24 の全ホストに送信する」 | ブロードキャスト通信の宛先   |
+
+
+::::
+
+:::
+
+### CIDR表記
+
+フルのサブネットマスク（`255.255.255.0`）のように表記する代わりに，ネットワーク部に使うビット数だけを指定する方法をCIDR表記といいます．
+
+- `192.168.1.10/24`: `24` はネットワーク部が 24 ビットという意味（マスクは `255.255.255.0`）
+- `10.0.0.1/8`: `/8` はネットワーク部が 8 ビットという意味（マスクは `255.0.0.0`）
+
+::: {#exm- .custom_problem }
+<br>
+
+`172.18.1.10/12` のネットワークの有効ホスト範囲とブロードキャストアドレスは
+
+- 有効ホスト範囲: `172.16.0.1`～ `172.31.255.254`
+- ブロードキャストアドレス: `172.31.255.255`
+
+:::
+***
+
+
+References
+----------
+- [Ubuntu manuals > ufw](https://manpages.ubuntu.com/manpages/noble/en/man8/ufw.8.html)
+- [Tailscale > Use UFW to lock down an Ubuntu server](https://tailscale.com/kb/1077/secure-server-ubuntu)

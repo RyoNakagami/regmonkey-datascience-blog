@@ -1,0 +1,451 @@
+---
+title: "Ubuntu 24.04.3へのupgrade"
+author: "Ryo Nakagami"
+date: "2025-08-16"
+date-modified: "2025-08-19"
+categories: [環境構築, Linux]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## 22.04 LTSから24.04 LTSへのupgrade備忘録
+
+- [Ubuntu 24.04.3 LTS](https://lists.ubuntu.com/archives/ubuntu-announce/2025-August/000315.html)が2025-08-07にリリースされたので，22.04.4 LTSからアップグレード
+- UbuntuはLTSといっても `xx.xx.2` 以降を待ったほうが，安定性やセキュリティパッチの恩恵を利用開始時から享受することができる
+
+### Ubuntu 22.04 LTSと24.04LTSの変更点
+
+|項目                   |22.04 LTS|24.04 LTS|
+|----------------------|---------|---------|
+|`gnome-shell --versio`|42.x     |46.x     |
+|`python3 --version`   |3.10.x   |3.12.x   |
+|`gcc --version`       |11.x     |13.x     |
+|System monitorバー表示 | -       |System Extensionsで設定可能|
+
+
+
+
+### Ubuntu OS upgradeとトラブルシューティング
+
+::: {.callout-note}
+### Ubuntu OS upgradeの手順
+
+基本的には, 以下の手順で行います
+
+1. `sudo update-manager -c`を実行し，Ubuntu の GUI アップデートマネージャ経由で新しいリリースがあるか確認
+2. 表示内容に応じて「OSアップグレード」を実行
+3. アップグレードが完了したら，指示に従い `reboot`
+
+:::
+
+今回この手順で実行したところエラーが表示されたのでその解決方法を備忘録的に以下にまとめます．
+
+[Step 1: パッケージ情報の更新]{.mini-section}
+
+```zsh
+sudo apt update
+sudo apt upgrade
+```
+
+[Step 2: OS upgradeの実行と問題の発覚]{.mini-section}
+
+```zsh
+% sudo update-manager -c
+...
+Errors were encountered while processing:
+ thunderbird-locale-en
+ thunderbird-locale-en-us
+ thunderbird-locale-ja
+ thunderbird-locale-en-gb
+```
+
+上記のコマンドでOSのupgradeを試したところ，`thunderbird`関連のパッケージが原因でOSアップグレードができないというエラーが発生．
+
+
+[Step 3: 問題パッケージの再確認]{.mini-section}
+
+`apt upgrade` や `apt install` 実行中に失敗したDebianパッケージの一覧に`thunderbird`は出てくるはずです．
+
+```zsh
+sudo dpkg --configure -a
+```
+
+で何も出力されないのが理想ですが，設定途中に失敗したパッケージがあると一覧として出力されます．
+
+
+[Step 4: thunderbirdのpurge]{.mini-section}
+
+thunderbirdはあとでもう一回設定しなおせば良いので，`apt remove --purge`の実行を決断．
+
+```zsh
+sudo apt remove --purge 'thunderbird*'
+sudo apt autoremove
+sudo apt clean
+```
+
+- `apt-get purge` ではなくて `apt remove --purge` を用いた理由は対話式で削除パッケージを確認したかったため
+- `apt autoremove` で不要なパッケージ（メタ情報的に依存関係に組み込まれていないパッケージ）を削除
+- `apt clean`は`/var/cache/apt/archives`以下にキャッシュされた `.deb`形式ファイルを削除するコマンド
+
+::: {.callout-warning}
+### `apt autoremove` の注意点
+
+`apt autoremove` の対象は以下の２つの基準によって抽出されます
+
+1. `manual`ではなく`auto`として`apt-mark`されている(=インストールが手動ではない)
+2. そのパッケージに対して，手動でインストールされたパッケージが依存していない
+
+たまに使っているけれども `auto` でインストールされたパッケージがある場合，`apt autoremove` の候補に上がってきてしまう可能性があるので，事前にどのパッケージが削除されるのか
+ユーザー自身で確認することが重要です．
+
+[自動的にインストールされたパッケージの確認]{.mini-section}
+
+```zsh
+aptitude search '~i !~M'
+```
+
+:::: {.no-border-top-table}
+
+| パターン       | 説明                       |
+| ---------- | ---------------------------- |
+| `!pattern` | `pattern` に一致しないパッケージを選択 |
+| `~M`       | 自動的にインストールされたパッケージを選択|
+| `~i`       | インストールされているパッケージを選択|
+
+::::
+
+:::
+
+[Step 5: OS upgrade]{.mini-section}
+
+OSアップグレード中断の原因となったパッケージを除去した後，再度GUIベースでupdate managerを起動し作業を進めます．
+
+```zsh
+sudo update-manager -c
+```
+
+これで晴れて Ubuntu 24.04.3 LTSへのアップグレードが完了．
+
+## Upgrade後の対応
+### X11の有効化
+
+Ubuntu 22.04 LTSの段階から `/etc/gdm3/custom.conf` にて
+
+```ini
+[daemon]
+# Uncomment the line below to force the login screen to use Xorg
+WaylandEnable=false
+```
+
+と設定していたので，作業は特段発生しません．セッションがX11かどうかを確認する場合は
+
+```zsh
+echo $XDG_SESSION_TYPE
+```
+
+を実行して，`x11` と表示されれば問題ありません．
+
+::: {.callout-note}
+### Waylandを採用しない理由
+
+- スクリーンレコーダーソフト Kazam が未対応のため
+
+:::
+
+### 24.04 HWEのインストール
+
+なぜか `uname -r` で確認するとkernelがまだ `6.8.0-78-generic` であったので，24.04 HWEを改めてインストールする
+
+```zsh
+% sudo apt install --install-recommends linux-generic-hwe-24.04
+
+# 依存関係エラーが発生していたなら
+% sudo apt --fix-broken install
+```
+
+その後, rebootして以下のようになっていれば問題なしです．
+
+```zsh
+% uname -r
+6.14.0-28-generic
+```
+
+[古いkernelとパッケージの削除]{.mini-section}
+
+`dpkg -l`でシステムにインストール済みのパッケージを確認すると
+
+```zsh
+% dpkg -l | grep linux-generic
+ii  linux-generic-hwe-22.04                        6.8.0-65.68~22.04.1                     amd64        Complete Generic Linux kernel and header
+ii  linux-generic-hwe-24.04                        6.14.0-28.28~24.04.1                    amd64        Complete Generic Linux kernel and headers
+```
+
+となっていました．`linux-generic-hwe-22.04`は必要ないので
+
+```zsh
+sudo apt-get purge linux-generic-hwe-22.04
+```
+
+で消し去ります．また合わせて，古いカーネルを `sudo apt autoremove` などで除去しとします．最後にGRUBの設定(`/etc/default/grub`)をupdateしときます
+
+```zsh
+sudo update-grub
+```
+
+::: {.callout-note}
+### GRUB
+
+- GRUB(GRand Unified Bootloader)はLinuxで一般的に使われているブートローダー
+- 複数のOSやカーネルがインストールされている場合は，それらの切り替えを行うことができる
+- 設定ファイルは `/etc/default/grub`
+- 設定を変更する際は[必ずバックアップを取るようにしましょう]{.regmonkey-bold}
+
+:::
+
+### `/etc/apt/sources.list.d/`以下の`.list`ファイルの更新
+
+::: {.callout-note}
+### 再設定方針
+
+- OS upgradeの際に，自動的にjammyからnobleに書き換えてくれますが，ユーザーが設定したパッケージレポジトリ設定は書き換えてくれないので，強引に設定し直します．
+- 基本的には公式インストール手順の内，レポジトリ設定の箇所だけ実行します
+
+:::
+
+[Docker Engine]{.mini-section}
+
+基本的にはgpg keyとかはUbuntuならば共通のものを使っているようだったので，repository updateのみで十分と判断
+
+```zsh
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update
+```
+
+[tailscale]{.mini-section}
+
+```zsh
+curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.noarmor.gpg | sudo tee /usr/share/keyrings/tailscale-archive-keyring.gpg >/dev/null\ncurl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.tailscale-keyring.list | sudo tee /etc/apt/sources.list.d/tailscale.list
+```
+
+[その他]{.mini-section}
+
+```zsh
+grep -r "jammy" /etc/apt/sources.list.d/ | egrep -v "distUpgrade:"
+```
+
+で22.04 LTSベースの`.list`ファイルがないかを確認し，必要に応じて`rm`を実行．
+
+
+### NVIDIA GPU Driverとcuda13.0のupgrade
+
+[section]{.mini-section}
+
+```zsh
+% ubuntu-drivers devices
+udevadm hwdb is deprecated. Use systemd-hwdb instead.
+...
+driver   : nvidia-driver-580-open - third-party non-free recommended
+```
+
+とあったので，
+
+```zsh
+sudo apt install -y nvidia-driver-580-open
+```
+
+[cuda toolkit]{.mini-section}
+
+[公式のインストール手順](https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=24.04&target_type=deb_local)に従い以下を実行
+
+```zsh
+% wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-ubuntu2404.pin
+% sudo mv cuda-ubuntu2404.pin /etc/apt/preferences.d/cuda-repository-pin-600
+% wget https://developer.download.nvidia.com/compute/cuda/13.0.0/local_installers/cuda-repo-ubuntu2404-13-0-local_13.0.0-580.65.06-1_amd64.deb
+% sudo dpkg -i cuda-repo-ubuntu2404-13-0-local_13.0.0-580.65.06-1_amd64.deb
+% sudo cp /var/cuda-repo-ubuntu2404-13-0-local/cuda-*-keyring.gpg /usr/share/keyrings/
+% sudo apt-get update
+% sudo apt-get -y install cuda-toolkit-13-0
+```
+
+[reboot後の確認]{.mini-section}
+
+```zsh
+# GPU driver
+% nvidia-smi
+
+# CUDA compiler version
+nvcc --version
+
+# pathが通っていない場合
+/usr/local/cuda-13.0/bin/nvcc --version
+```
+
+::: {.callout-note}
+### nvidia-smiのcuda version
+
+- `nvidia-smi`で出力される CUDA Versionは実際のCUDA versionではなく，対応可能な最大バージョンを示しています
+- インストールされているCUDA versionを確認する場合は `nvcc --version` を実行する必要があります
+
+```zsh
+% nvidia-smi         
+Wed Aug 20 02:15:15 2025       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 580.65.06              Driver Version: 580.65.06      CUDA Version: 13.0     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA GeForce RTX 4070        On  |   00000000:01:00.0  On |                  N/A |
+|  0%   33C    P5             13W /  215W |    1167MiB /  12282MiB |      4%      Default |
+|                                         |                        |                  N/A |
++-----------------------------------------+------------------------+----------------------+
+```
+
+
+:::
+
+
+
+### `pipx`関係パッケージの再インストール
+
+::: {.callout-note}
+
+- DefaultのPython versisonが変化したので基本的に`pipx`で導入したものは再インストールが必要です
+- `pipx uninstall`はconfigファイルまでは消去しないので，uninstall→installの手順でOKです
+
+:::
+
+[gpustatsの再インストール]{.mini-section}
+
+```zsh
+## uninstall
+% pipx uninstall gpustat
+
+## re-intsall
+% pipx install gpustat
+
+## check command
+% gpustat
+```
+
+[Poetryの再インストール]{.mini-section}
+
+
+```bash
+## uninstall
+% pipx uninstall poetry
+
+## re-intsall
+% pipx install poetry
+
+## check command
+% poetry --versison
+
+## extensionsのre-innstall
+% pipx inject poetry poetry-plugin-shell
+```
+
+
+### Docker Desktopの再インストール
+
+[問題事象]{.mini-section}
+
+- Docker Desktopがうまく起動しない問題が発生
+
+[原因調査]{.mini-section}
+
+Docker自体が死んでいるかどうかをまず調査
+
+```zsh
+% docker run hello-world
+
+
+Hello from Docker!
+This message shows that your installation appears to be working correctly.
+
+To generate this message, Docker took the following steps:
+ 1. The Docker client contacted the Docker daemon.
+ 2. The Docker daemon pulled the "hello-world" image from the Docker Hub.
+    (amd64)
+ 3. The Docker daemon created a new container from that image which runs the
+    executable that produces the output you are currently reading.
+ 4. The Docker daemon streamed that output to the Docker client, which sent it
+    to your terminal.
+
+To try something more ambitious, you can run an Ubuntu container with:
+ $ docker run -it ubuntu bash
+
+Share images, automate workflows, and more with a free Docker ID:
+ https://hub.docker.com/
+
+For more examples and ideas, visit:
+ https://docs.docker.com/get-started/
+
+% docker --version
+Docker version 28.3.3, build 980b856
+```
+
+Docker自体は問題がないと判断し，あくまで`docker-desktop`がうまく起動しないとして問題に対処しました．
+
+[トラブルシューティング]{.mini-section}
+
+`systemctl --failed` や `sudo journalctl -p err | grep "docker" | less` コマンドを実行すると
+
+```
+Failed to start app-gnome-docker
+```
+
+というエラーメッセージが出現していたので，設定ファイルを消さずに再インストールを行います．
+
+```zsh
+sudo apt remove docker-desktop
+```
+
+その後，[Docker公式ページが配布しているDebianパッケージ](https://desktop.docker.com/linux/main/amd64/docker-desktop-amd64.deb?utm_source=docker&utm_medium=webreferral&utm_campaign=docs-driven-download-linux-amd64&_gl=1*1cq0d3i*_gcl_au*MzU3ODA5NTU2LjE3NTUzNDE4NTY.*_ga*OTgyMTc5NDU2LjE3NTUzNDExODM.*_ga_XJWPQMJYHQ*czE3NTU2MTk5NDIkbzQkZzEkdDE3NTU2MTk5NTYkajQ2JGwwJGgw)をダウンロードして，
+
+```zsh
+sudo apt-get install ./docker-desktop-amd64.deb
+```
+
+を実行すれば終了です．
+
+## Appendix: インストール後の `.deb`ファイルの取り扱い
+
+::: {.callout-note}
+### `.deb`ファイルの取り扱い
+
+プログラムのインストールに必要なファイルをまとめたものが`.deb`ファイルなので，インストール後は基本的に削除してしまって問題ありません．
+
+:::
+
+Ubuntuで`apt-get`を使ってインストールする場合，
+
+1. `/var/cache/apt/archives` に `.deb`ファイルをダウンロード
+2. `dpkg`コマンドを用いて，プログラムをインストール
+
+という流れになります．`/var/cache/apt/archives`以下は基本的に再インストールしたい場合などを除いて使いみちがないので削除してしまっても問題ありません．
+`rm` コマンドを用いるよりかは，
+
+```zsh
+## interactiveに結果を確認したい場合
+sudo apt clean
+
+## スクリプトで実行する場合(標準出力が簡素)
+sudo apt-get clean
+```
+
+を実行してクリーンすることが推奨されます．
+
+
+References
+----------
+- [ask Ubuntu > Ubuntu 24.04 Nvidia drivers](https://askubuntu.com/questions/1511919/ubuntu-24-04-nvidia-drivers)
+- [aptitude Search patterns](https://www.debian.org/doc/manuals/aptitude/ch02s04s05.en.html)
