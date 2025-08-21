@@ -1,0 +1,238 @@
+---
+title: "flatpak経由でMeldをインストール"
+author: "Ryo Nakagami"
+date: "2025-08-18"
+date-modified: "2025-08-21"
+categories: [環境構築]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## 今回の方針
+
+::: {.callout-note}
+### Meldの導入
+
+- [Meld]((https://meldmerge.org/))はファイル間やディレクトリ間のdiffをGUIベースで可視化してくれるツール
+- Linux版のWinMergeみたいなツール
+
+:::
+
+Git管理されたディレクトリでは`.gitconfig`で設定したEditorでの`git difftool`で十分かなと考えていますが，
+Git管理されていないファイルをアドホックに差分比較したいときに使うツールとしてMeldの利用を考えています．
+
+GUI差分ツールでの利用のみなので，今回は`apt`ではなく`flatpak`経由でのインストールを実行します．
+
+
+[環境情報]{.mini-section}
+
+```zsh
+% lsb_release -a
+Distributor ID:	Ubuntu
+Description:	Ubuntu 24.04.3 LTS
+Release:	24.04
+Codename:	noble
+```
+
+[flatpakでインストール可能なVersion]{.mini-section}
+
+```zsh
+% flatpak search Meld                                                                                       
+Name       Description                        Application ID       Version       Branch       Remotes
+Meld       Compare and merge your files       org.gnome.meld       3.22.3        stable       flathub
+```
+
+[aptでインストール可能なversion]{.mini-section}
+
+```zsh
+% apt-cache policy meld
+meld:
+  Installed: (none)
+  Candidate: 3.22.2-1
+  Version table:
+     3.22.2-1 500
+        500 http://jp.archive.ubuntu.com/ubuntu noble/universe amd64 Packages
+        500 http://jp.archive.ubuntu.com/ubuntu noble/universe i386 Packages
+```
+
+まとめ時点ではあんまりバージョン変わらない．．．
+
+## flatpak経由でのMeldインストール
+
+::: {#def- .custom_problem .blog-custom-border}
+[ユニバーサルパッケージ]{.def-title}
+
+- Linuxディストリビューションに依存しないパッケージのこと
+- 依存関係は原則存在せず，必要なものはすべてパッケージの中に取り込んだ状態で提供(アプリ用の環境まるごと提供)
+- サンドボックス化によるセキュリティの向上と，ディストリビューションとアプリケーションの分離の推進
+- `snap` や `flatpak` でインストール可能なパッケージがユニバーサルパッケージ
+
+:::
+
+Debianなら`apt`, `dpkg`，RHEL系なら`dnf`, `yum`, `prm` などLinuxディストリビューションに応じてパッケージマネージャを使い分ける必要があります．
+なにかしらのアプリをインストールしたいとき，ユーザーはディストリビューションに応じてコマンドがありますし，アプリの開発者はディストリビューション毎に「依存関係の解決」に対応したパッケージを作る必要があります．
+
+Linuxユーザー，Linux用アプリ開発者が直面したこのような状況への対応作として登場したのが[ユニバーサルパッケージ]{.regmonkey-bold}という概念です．
+基本的に必要なものはすべてパッケージの中に取り込んだ状態で提供するので，Linuxカーネルとパッケージ管理システムが動いているシステムならどこでも利用可能です．
+
+[ユニバーサルパッケージのデメリット]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| 項目            | 内容                                                  |
+| ------------- | --------------------------------------------------- |
+| **ディスク容量**    | ライブラリを同梱するため，同種のライブラリが重複し容量を消費する                    |
+| **起動・性能**     | サンドボックスや抽象化層を経由するため，ネイティブパッケージより起動が遅い場合がある          |
+| **システム統合性**   | テーマやフォント，ファイルシステムとの統合が弱く，見た目や操作感がネイティブより不自然になることがある |
+
+::::
+
+### snap vs flatpak
+
+:::: {.no-border-top-table}
+
+| 観点           | Snap                                            | Flatpak                                             |
+| ------------ | ----------------------------------------------- | --------------------------------------------------- |
+| **依存関係と容量**  | 依存関係を各パッケージに同梱．重複が発生しやすく，容量効率が悪い                | 依存関係を各パッケージに同梱するが，ランタイム共有とデータ重複排除（deduplication）により容量効率が良い            |
+| **セキュリティ**   | サンドボックス化は可能だが必須ではない                             | デフォルトでサンドボックス化され，明示的な権限許可が必要                        |
+| **運営主体**     | Canonical（Ubuntu開発元）が中央管理．バックエンドは事実上プロプライエタリ    | コミュニティ主体．仕様やコードはオープン                                |
+| **システム統合**   | Snapごとにマウントされるため，`lsblk` 出力を汚す（多数のloopデバイスが見える） | そうした副作用はない                                          |
+| **アップデート制御** | 強制的に自動更新され，ユーザーが制御できない                          | ユーザーが更新のタイミングを選べる                                   |
+| **アプリ（バックエンド系）** | CLIツールやバックエンド系アプリなどインフラ関連をCanonicalが公式に提供| 基本はGUIデスクトップアプリ中心|
+
+::::
+
+
+### flatpak Setup and Meld Install
+
+[Step 1: Flatpakのインストール]{.mini-section}
+
+```zsh
+% sudo apt install flatpak
+```
+
+[Step 2: GNOME Software pluginのインストール]{.mini-section}
+
+Flatpak アプリを GNOME Softwareから扱えるようにするためFlatpak用のpluginを導入します．
+
+```zsh
+# プラグイン導入
+% sudo apt install gnome-software-plugin-flatpak
+```
+
+[Step 3: リポジトリ登録]{.mini-section}
+
+初期状態ではどこのリポジトリも登録されていないので，リポジトリ登録します
+
+```zsh
+# Flathub（Flatpak のメインリポジトリ）を追加
+% flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+```
+
+[Step 4: Restart system]{.mini-section}
+
+システムの再起動を行うことで，GNOME Softwareが Flatpak への対応が完了します．
+
+[Step 5: Meldのインストール]{.mini-section}
+
+CLIでインストールする場合は以下のコマンドを実行します
+
+```zsh
+% flatpak install flathub org.gnome.meld
+```
+
+::: {.callout-warning}
+### Publisherの確認のすすめ
+
+{{< reveal_vspace 1em >}}
+
+- FlatpakでGoogle chromeパッケージは提供されていますが，提供元は `verified` されていません．おそらく問題はないですがパッケージインストール時に確認するクセをつけましょう．
+- Firefoxの方は`verified` されたMozillaが提供していることが確認できます
+
+::: {layout-ncol=2}
+
+![chrome not verified](https://github.com/ryonakimageserver/dataserver-for-blog/blob/main/Linux/flatpak/flatpak_not_verified_googlechrome.png?raw=true)
+
+![firefox verified](https://github.com/ryonakimageserver/dataserver-for-blog/blob/main/Linux/flatpak/flatpak_verified_firefox.png?raw=true)
+
+
+:::
+
+:::
+
+### flatpakの使い方
+
+[install syntax]{.mini-section}
+
+```zsh
+flatpak install flathub com.github.tchx84.Flatseal
+```
+
+:::: {.no-border-top-table}
+
+|項目                         |説明                         |
+|----------------------------|----------------------------|
+|`flatpak`                   |faltpak command             |
+|`install`                   |faltpak commandへの指示コマンド|
+|`flathub`                   |ダウンロードパッケージの登録レポジトリ|
+|`com.github.tchx84.Flatseal`|パッケージ名            |
+
+::::
+
+::: {.callout-note}
+### Flatsealパッケージ
+
+- Flatpakパッケージのpermission管理用のツール
+- GUIベースでAppごとにリソースマネジメントが可能
+
+:::
+
+[インストールの種類: User vs System Mode]
+
+デフォルトではFlatpakはアプリをsystem modeでインストールします．ユーザーAがThunderbirdをflatpakでインストールすると，同じシステムの別ユーザーもアプリを利用することができます．
+ユーザー専用でアプリを使用したい場合は
+
+```zsh
+flatpak --user install flathub org.mozilla.Thunderbird
+```
+
+となります．`--user` optionを利用してインストールしたアプリを削除するときは
+
+```zsh
+flatpak --user uninstall org.mozilla.Thunderbird
+```
+
+とする必要があります．`flatpak update` についても同様です．
+
+[flatpak appのconfig格納先]{.mini-section}
+
+homeディレクトリ下の `.var` に以下にconfigファイルを含めた形で格納されています
+
+```zsh
+% ls ~/.var/app
+org.gnome.meld/
+```
+
+[その他コマンド]{.mini-section}
+
+|コマンド                             |説明                       |
+|------------------------------------|---------------------------|
+|` flatpak remotes`                  |登録されたリポジトリリストの確認|
+|`flatpak remote-delete <repository>`|登録されたリポジトリの削除     |
+|`flatpak update`                    |インストール済み Flatpak アプリ・ランタイムを更新する|
+| `flatpak list`                     | インストール済みのすべての Flatpak を一覧表示する   |
+| `flatpak list --app`               | インストール済みのアプリ（アプリケーションのみ）を一覧表示する |
+| `flatpak history`                  | インストール・削除・更新などの操作履歴を確認する        |
+
+
+
+References
+----------
+- [Meld](https://meldmerge.org/)
+- [Flatpak Ubuntu Quick Setup](https://flatpak.org/setup/Ubuntu)
+- [Flatpak documentation > Using Flatpak](https://docs.flatpak.org/en/latest/using-flatpak.html)
+- [Flathub > Meld](https://flathub.org/ja/apps/org.gnome.meld)

@@ -1,0 +1,206 @@
+---
+title: "clam antivirusの導入"
+author: "Ryo Nakagami"
+date: "2025-08-17"
+date-modified: "2025-08-20"
+categories: [環境構築, Linux, security]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## clam antivirusの導入
+
+Linux系でも利用できるウイルス対策ソフトウェアとして ClamAV があります．ウイルス定義データベースに登録してあるパターンに従ってウイルスをすくあんしてくれます．
+ClamAV の利用形態は以下の２つが存在します．
+
+- `clamscam`: ユーザーが実行可能なコマンド，adhoc用途
+- `clamav-daemon.service`: `systemctl`で管理可能なclamscan daemon service, ただし常時動いている関係でメモリを多く消費する
+
+今回は，前者のインストールと設定について紹介します．
+
+::: {.callout-note}
+### False Positive Risk
+
+ClamAVはトロイの木馬やMirai, BASHLITEといったLinuxワームを検出してくれますが，[Slack snap versionのケース](https://forum.snapcraft.io/t/clamav-found-mirai-trojan-in-slack-snap/7194)
+のようにFalse Positive Reportを上げる可能性もあります．
+
+:::
+
+## `clamav`のインストール
+
+```zsh
+% sudo apt install clamav
+
+% clamscan --version
+ClamAV 1.4.3/27737/Tue Aug 19 17:27:27 2025
+```
+
+## `clamav-freshclam`の設定
+
+ClamAVがウイルス検知に利用するウイルス定義データベースの更新方法は
+
+- `freshclam`コマンド
+- systemctl serviceとしての`clamav-freshclam`
+
+の２つの方法があります．基本的には後者の方法で運用しますが，インストール直後に念の為手動で `freshclam` コマンドを実行しておきます．
+
+```zsh
+% sudo freshclam
+ERROR: Failed to lock the log file /var/log/clamav/freshclam.log: Resource temporarily unavailable
+ERROR: Problem with internal logger (UpdateLogFile = /var/log/clamav/freshclam.log).
+ERROR: initialize: libfreshclam init failed.
+ERROR: Initialization error!
+```
+
+インストール直後に実行すると上記のようなエラーが発生します．`clamav-freshclam.service` がenabledだと `sudo freshclam` の手動実行ができなくなってしまうためです．
+なので一時的にstopして更新します．
+
+```zsh
+# service statusの確認
+% sudo systemctl status clamav-freshclam
+● clamav-freshclam.service - ClamAV virus database updater
+     Loaded: loaded (/usr/lib/systemd/system/clamav-freshclam.service; disabled; preset: enabled)
+     Active: active (running) since Wed 2025-08-20 12:05:21 JST; 44s ago
+       Docs: man:freshclam(1)
+             man:freshclam.conf(5)
+             https://docs.clamav.net/
+   Main PID: 43196 (freshclam)
+      Tasks: 1 (limit: 75871)
+     Memory: 235.9M (peak: 849.9M)
+        CPU: 7.825s
+     CGroup: /system.slice/clamav-freshclam.service
+             └─43196 /usr/bin/freshclam -d --foreground=true
+
+# serviceのstop
+% sudo systemctl stop clamav-freshclam.service
+
+# 手動更新
+% sudo freshclam
+ClamAV update process started at Wed Aug 20 12:07:24 2025
+Wed Aug 20 12:07:24 2025 -> daily.cvd database is up-to-date (version: 27737, sigs: 2076445, f-level: 90, builder: raynman)
+Wed Aug 20 12:07:24 2025 -> main.cvd database is up-to-date (version: 62, sigs: 6647427, f-level: 90, builder: sigmgr)
+Wed Aug 20 12:07:24 2025 -> bytecode.cvd database is up-to-date (version: 336, sigs: 83, f-level: 90, builder: nrandolp)
+```
+
+ウイルス情報データベースのディレクトリは，デフォルトなら`/var/lib/clamav`になっているはずです．
+次に，`clamav-freshclam` をenableして，restartしておきます
+
+
+```zsh
+# enable設定
+% sudo systemctl enable clamav-freshclam
+Synchronizing state of clamav-freshclam.service with SysV service script with /usr/lib/systemd/systemd-sysv-install.
+Executing: /usr/lib/systemd/systemd-sysv-install enable clamav-freshclam
+Created symlink /etc/systemd/system/multi-user.target.wants/clamav-freshclam.service → /usr/lib/systemd/system/clamav-freshclam.service.
+
+# restart設定
+% sudo systemctl restart clamav-freshclam
+
+# status確認
+% sudo systemctl status clamav-freshclam
+● clamav-freshclam.service - ClamAV virus database updater
+     Loaded: loaded (/usr/lib/systemd/system/clamav-freshclam.service; enabled; preset: enabled)
+     Active: active (running) since Wed 2025-08-20 12:07:40 JST; 2s ago
+       Docs: man:freshclam(1)
+             man:freshclam.conf(5)
+             https://docs.clamav.net/
+   Main PID: 48177 (freshclam)
+      Tasks: 1 (limit: 75871)
+     Memory: 2.4M (peak: 3.2M)
+        CPU: 6ms
+     CGroup: /system.slice/clamav-freshclam.service
+             └─48177 /usr/bin/freshclam -d --foreground=true
+```
+
+## `freshclam`の設定ファイルの編集
+
+`freshclam`の設定ファイルは`/etc/clamav/freshclam.conf`にあります．
+
+:::: {.no-border-top-table}
+
+|項目                |説明                |
+|-------------------|--------------------|
+|`Checks`           |データベース更新頻度   |
+|`DatabaseOwner`    |データベースファイルの所有者ユーザー|
+|`DatabaseDirectory`|データベースディレクトリ|
+|`UpdateLogFile`    |更新のログの出力先     |
+|`LogTime`          |ログにタイムスタンプを付与|
+|`NotifyClamd`      |clamd デーモンに更新通知を送る|
+|`Foreground`       |デーモンをフォアグラウンドで実行するか|
+
+::::
+
+編集する場合は `vim` とかで直接編集しちゃいます．
+
+```zsh
+sudo vim /etc/clamav/freshclam.conf
+```
+
+設定変更後はサービスの再起動をしときます
+
+```zsh
+% sudo systemctl restart clamav-freshclam
+```
+
+## `clamscan`コマンドの使い方
+
+デーモンを起動していないと，`clamscan`コマンドはシングルスレッド(`--multiscan`オプションが利用できない)の動作となるので，
+基本的にはスキャンするターゲットをしっかり事前に決めて検査することが良いと思います．
+
+[実行例]{.mini-section}
+
+```zsh
+% sudo clamscan -i --max-filesize=100M -r ~/Downloads
+
+----------- SCAN SUMMARY -----------
+Known viruses: 8708210
+Engine version: 1.4.3
+Scanned directories: 1
+Scanned files: 20
+Infected files: 0
+Data scanned: 114.28 MB
+Data read: 32.92 MB (ratio 3.47:1)
+Time: 14.845 sec (0 m 14 s)
+Start Date: 2025:08:20 12:24:37
+End Date:   2025:08:20 12:24:52
+```
+
+[options]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| オプション                   | 説明                    | 推奨 / 補足                              |
+| ----------------------- | --------------------- | ------------------------------------ |
+| `-r`, `--recursive`     | ディレクトリを再帰的にスキャン       | ディレクトリ全体をスキャンする場合は必須                 |
+| `-i`, `--infected`      | 感染ファイルのみ表示            | レポートを簡潔にしたい場合に便利                     |
+| `-l <ファイル>`             | スキャンログを指定ファイルに出力      | 例：`-l /var/log/clamav/scan.log`      |
+| `--bell`                | 感染ファイル検出時にベル音を鳴らす     | ターミナルで確認しやすい                         |
+| `--remove`              | 感染ファイルを自動削除           | False Positive Riskがあるので基本的には使用しない                 |
+| `--max-filesize=<SIZE>` | スキャンする最大ファイルサイズを指定    | 大きなファイルを除外して高速化                      |
+| `--max-scansize=<SIZE>` | スキャンする最大アーカイブサイズを指定   | 大規模アーカイブの処理制限                        |
+|`--quiet`                |通常メッセージを抑制            |感染ファイルのみ出力したい場合        |
+|`--no-summary`           |スキャン終了時のサマリ表示を抑制 | 自動スクリプトでの利用時に便利|
+
+::::
+
+[強引にマルチスレッドでスキャン]{.mini-section}
+
+- ホームディレクトリ直下のファイルを対象に ClamAV で並列スキャン
+- logファイルは実行時間のタイムスタンプ付きファイル
+- `--quiet`で非感染ファイルは表示しない
+- `-i`で感染ファイルのみ表示
+
+```zsh
+find ~/ -mindepth 1 -maxdepth 1 -type f \
+  | xargs -P 8 -I {} bash -c 'sudo clamscan --quiet -i --no-summary {}' >> ~/Documents/clamav_log/clamscam_$(date +%Y%m%d_%H%M%S).log 2>&1
+```
+
+
+References
+----------
+- [ClamAV Documentation](https://docs.clamav.net/)
+- [Slack snap versionのケース](https://forum.snapcraft.io/t/clamav-found-mirai-trojan-in-slack-snap/7194)
