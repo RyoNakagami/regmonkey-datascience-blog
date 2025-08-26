@@ -1,0 +1,399 @@
+---
+title: "シェルスクリプト用のUnit Testingフレームワーク: Bats"
+author: "Ryo Nakagami"
+date: "2025-08-26"
+date-modified: "2025-08-28"
+categories: [環境構築, shell]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## Batsとは？
+
+- Batsとは，TAP準拠のBash用テストフレームワーク
+- Bash 3.2以上をカバー
+
+### Basic Bats command syntax
+
+```bash
+# Run a single test file
+bats test.bats
+
+# Run all tests in a directory
+bats test/
+
+# Run tests recursively
+bats -r test/
+
+# Run tests in parallel (requires GNU parallel)
+bats --jobs 4 test/
+```
+
+
+## Installation via `git submodule add`
+
+::: {.callout-note}
+### Bats Version
+
+2025-08-28時点で下記の方法でインストールすると `Bats 1.12.0` がインストールされます
+
+```zsh
+% bats --version
+Bats 1.12.0
+```
+
+:::
+
+
+Repository Rootで以下のコマンドを実行します
+
+```zsh
+git submodule add https://github.com/bats-core/bats-core.git test/bats
+git submodule add https://github.com/bats-core/bats-support.git test/test_helper/bats-support
+git submodule add https://github.com/bats-core/bats-assert.git test/test_helper/bats-assert
+```
+
+結果として以下のような構成になります
+
+```zsh
+script/
+    bazaar_zen.sh
+    ...
+test/
+    bats/               <- submodule
+    test_helper/
+        bats-support/   <- submodule
+        bats-assert/    <- submodule
+    test.bats
+```
+
+ユニットテスト用のファイルは上記の例では `test.bats` にあります．
+このファイルを編集することでユニットテストケースを設定していきます．
+
+[Optional: パラレル処理]{.mini-section}
+
+Batsはデフォルトではシリアルにテストを実行していきますが，`--jobs` を指定することでパラレル処理も実行可能です．
+ただし，パラレル処理のときはテストの実行順番は保証されないことに注意が必要です．
+
+この処理を実現するためには [GNU parallel](https://www.gnu.org/software/parallel/) が必要です．
+
+```zsh
+sudo apt-get install -y parallel
+```
+
+## Bats Unit Testing
+
+::: {.callout-note}
+### Key Points
+
+- テストファイルのshebangは `#!/usr/bin/env bats` と設定すること
+- テストファイルは `.bats` 拡張子で終わること
+- テストが `return 0` で終了するとそのテストは成功と扱われる．それ以外(`return 1`)は失敗
+- test descriptionは絶対記載すること
+- ヘルパー関数を除いて，基本的には標準的なshell syntaxに従って記述すること
+- テスト用環境の構築と削除に対応する関数 `setup`, `teardown`は活用すること
+- `setup`, `teardown`はテストの前に呼ばれる必要がある
+- `$BATS_TEST_FILENAME`変数はテストファイル名を格納した変数
+
+:::
+
+例として，シェルスクリプトレポジトリに次のような `bazaar_zen.sh` があるとします
+
+
+```bash
+#!/bin/bash
+
+set -euo pipefail
+
+# error if any arguments are passed
+if [ "$#" -ne 0 ]; then
+  echo "Usage: no arguments allowed" >&2
+  exit 1
+fi
+
+cat <<EOF
+1. Every good work of software starts by scratching a developer's personal itch.
+2. Good programmers know what to write. Great ones know what to rewrite (and reuse).
+3. Plan to throw one away; you will, anyhow.
+4. If you have the right attitude, interesting problems will find you.
+5. When you lose interest in a program, your last duty to it is to hand it off to a competent successor.
+6. Treating your users as co-developers is your least-hassle route to rapid code improvement and effective debugging.
+7. Release early. Release often. And listen to your customers.
+8. Given a large enough beta-tester and co-developer base, almost every problem will be characterized quickly and the fix obvious to someone.
+9. Smart data structures and dumb code works a lot better than the other way around.
+10. If you treat your beta-testers as if they're your most valuable resource, they will respond by becoming your most valuable resource.
+11. The next best thing to having good ideas is recognizing good ideas from your users. Sometimes the latter is better.
+12. Often, the most striking and innovative solutions come from realizing that your concept of the problem was wrong.
+13. Perfection (in design) is achieved not when there is nothing more to add, but rather when there is nothing more to take away.
+14. Any tool should be useful in the expected way, but a truly great tool lends itself to uses you never expected.
+15. When writing gateway software of any kind, take pains to disturb the data stream as little as possible and never throw away information unless the recipient forces you to!
+16. When your language is nowhere near Turing-complete, syntactic sugar can be your friend.
+17. A security system is only as secure as its secret. Beware of pseudo-secrets.
+18. To solve an interesting problem, start by finding a problem that is interesting to you.
+19. Provided the development coordinator has a communications medium at least as good as the Internet, and knows how to lead without coercion, many heads are inevitably better than one.
+EOF
+
+```
+
+これは，プログラミング哲学を標準出力するだけのスクリプトです．
+
+[Unit Test方針]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| Test No| 確認観点           | 方法・コマンド例                           | 意図・理由                                    |
+| ------ | ------------------| ---------------------------------- | ---------------------------------------- |
+|   1    | **基本動作の確認**  | `run ./script.sh` → `status -eq 0` | スクリプトが正常終了するか（最低限の「実行可能性」の担保）            |
+|   2    | **行数の検証**     | `wc -l <<< "$output"` → `-eq 19`   | 出力が仕様通りの行数（19行）か確認し，欠落や余分な行がないことを保証      |
+|   3    | **先頭行の確認**   | `head -n 1 <<< "$output"` → 部分一致   | 最初の行が期待通り始まっているかを確認し，仕様崩れを防止             |
+|   4    | **末尾行の確認**   | `tail -n 1 <<< "$output"` → 部分一致   | 最後の行が期待通り終わっているかを確認し，途中での欠落や追加を防止        |
+|   5    | **引数エラーの確認**   | `run ./script.sh unexpected_arg` → `status -ne 0`    | 不正な引数が与えられたときにエラー終了することを確認し，誤用を防止       |
+::::
+
+[Unit Testの実装]{.mini-section}
+
+::: {.callout-note}
+### Key Points
+
+- `setup()` にて，各テストケースに共通の設定を実施．今回は，スクリプトのPATHを通したのみ
+- `@test` グループの記述が個別のテストケースに相当
+
+:::
+
+テストファイル `test_bazaar_zen.bats` の実装場所は以下を想定しています
+
+```ini
+repository root
+├── script
+│   └── bazaar_zen.sh
+└── test
+    ├── bats
+    ├── test_for_script
+    │   └── test_bazaar_zen.bats
+    └── test_helper
+```
+
+この構成の下，テストファイルを以下のように定義します
+
+
+```ini
+#!/usr/bin/env bats
+
+setup() {
+  load '../test_helper/bats-support/load'
+  load '../test_helper/bats-assert/load'
+  # get the containing directory of this file
+  # use $BATS_TEST_FILENAME instead of ${BASH_SOURCE[0]} or $0,
+  # as those will point to the bats executable's location or the preprocessed file respectively
+  DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")" >/dev/null 2>&1 && pwd)"
+  
+  # make executables in script/ visible to PATH
+  OLD_PATH=$PATH
+  PATH="$DIR/../../script:$PATH"
+}
+
+teardown() {
+  # PATHを元に戻す
+  PATH=$OLD_PATH
+}
+
+
+@test "bazaar_zen.sh runs successfully" {
+  run bazaar_zen.sh
+  assert_success
+}
+
+@test "outputs 19 lines" {
+  run bazaar_zen.sh
+  line_count=$(echo "$output" | wc -l)
+  [ "$line_count" -eq 19 ] || { 
+      echo "FAILED: Expected 19 lines but got $line_count" >&2
+      return 1
+  }
+}
+
+@test "first line is correct" {
+  run bazaar_zen.sh
+  assert_line --index 0 --partial "1. Every good work of software starts"
+}
+
+@test "last line is correct" {
+  run bazaar_zen.sh
+  assert_line --index -1 --partial "many heads are inevitably better than one"
+}
+
+@test "rules.sh fails with unexpected args" {
+  run bazaar_zen.sh unexpected_arg
+  assert_failure
+  assert_output --partial "Usage: no arguments allowed"
+}
+
+```
+
+[Unit testの実行]{.mini-section}
+
+```zsh
+% bats test/test_for_script
+test_bazaar_zen.bats
+ ✓ bazaar_zen.sh runs successfully
+ ✓ outputs 19 lines
+ ✓ first line is correct
+ ✓ last line is correct
+```
+
+一つ以上のテストがFAILEDの場合は以下のような出力になります
+
+```zsh
+% bats test/test_for_script
+test_bazaar_zen.bats
+ ✓ bazaar-zen runs successfully
+ ✗ outputs 19 lines
+   (in test file test/test_for_script/test_bazaar-zen.bats, line 33)
+     `return 1' failed
+   FAILED: Expected 19 lines but got 18
+ ✓ first line is correct
+ ✓ last line is correct
+ ✓ rules.sh fails with unexpected args
+
+5 tests, 1 failure
+```
+
+
+
+### `setup` 関数と`teardown`関数
+
+::: {.callout-note icon="false"}
+### 目的
+
+- `assert_success`などのヘルパー関数のload
+- テストしたいシェルスクリプト `bazaar_zen.sh` へのPATHをbatsテスト環境用に定義する
+- テスト終了後に環境用に定義した設定を破棄する
+
+:::
+
+```ini
+setup() {
+  load '../test_helper/bats-support/load'
+  load '../test_helper/bats-assert/load'
+  # get the containing directory of this file
+  # use $BATS_TEST_FILENAME instead of ${BASH_SOURCE[0]} or $0,
+  # as those will point to the bats executable's location or the preprocessed file respectively
+  DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")" >/dev/null 2>&1 && pwd)"
+
+  # make executables in script/ visible to PATH
+  OLD_PATH=$PATH
+  PATH="$DIR/../../script:$PATH"
+}
+
+teardown() {
+  # PATHを元に戻す
+  PATH=$OLD_PATH
+}
+```
+
+すべての関数が終わったタイミングで，その実行ステータスに関わらず`teardown`関数は実行されます．
+
+### 各テストケース
+
+[1: スクリプトが正常終了するか（最低限の「実行可能性」の担保）]{.mini-section}
+
+```ini
+@test "bazaar-zen runs successfully" {
+  run bazaar_zen.sh
+  assert_success
+}
+```
+
+- `@test` 以下の`"bazaar-zen runs successfully"` がtest description
+- `assert_success`は`run`コマンドが成功したときのステータスが`0`かどうかを検証
+
+[2: 出力が仕様通りの行数（19行）か確認し，欠落や余分な行がないことを保証]{.mini-section}
+
+```ini
+@test "outputs 19 lines" {
+  run bazaar_zen.sh_
+  line_count=$(echo "$output" | wc -l)
+  [ "$line_count" -eq 19 ] || { 
+      echo "FAILED: Expected 19 lines but got $line_count" >&2
+      return 1
+  }
+}
+```
+
+- `run command`の実行結果は `$output` 変数に格納されます
+- `$output`に対して，通常のshell操作で露わに変数を作り，その変数をベースにテストを実行することができます
+
+::: {.callout-note}
+### `run` コマンドに生成される変数
+
+:::: {.no-border-top-table}
+
+| 変数名   | 説明                                     | 例・用途                                                    |
+| -------- | ---------------------------------------- | ---------------------------------------------------------- |
+| `$status`| 実行したコマンドの **終了ステータス**（整数） | `assert_success` → `$status -eq 0` の確認に利用              |
+| `$output`| 実行したコマンドの **標準出力＋標準エラー出力**を文字列で保持 | 出力全体を一括で検証するときに使用（例：`assert_output "OK"`）|
+| `$lines` | `$output` を **改行ごとに分割した配列**        | 個別行を確認するときに使用（例：`assert_equal "${lines[0]}" "header"`）|
+
+::::
+
+:::
+
+[3: 先頭行の確認]{.mini-section}
+
+```ini
+@test "first line is correct" {
+  run bazaar_zen.sh
+  assert_line --index 0 --partial "1. Every good work of software starts"
+}
+```
+
+- `assert_line --index 0`で`$output`変数の1行目について，`assert`検証が実行できる
+- `--partial`は部分一致の意味
+
+
+[4: 末尾行の確認]{.mini-section}
+
+```ini
+@test "last line is correct" {
+  run bazaar_zen.sh
+  assert_line --index -1 --partial "many heads are inevitably better than one"
+}
+```
+
+- `assert_line --index -1`で`$output`変数の最終行目について，`assert`検証が実行できる
+
+[5: 引数エラーの確認]{.mini-section}
+
+```ini
+@test "rules.sh fails with unexpected args" {
+  run bazaar_zen.sh unexpected_arg
+  assert_failure
+  assert_output --partial "Usage: no arguments allowed"
+}
+```
+
+- `assert_failure` で`$status`が`0`意外であるかどうかを検証
+- `assert_output`は`$output`変数全体について，`assert`検証
+
+
+
+## 個人用セットアップ
+
+[Aliasの設定]{.mini-section}
+
+基本的に`git submodule`経由で使用することを想定しているので，`.zshrc` に以下のようなAliasを設定します
+
+```zsh
+alias bats='$(git rev-parse --show-toplevel)/test/bats/bin/bats'
+```
+
+
+
+
+References
+----------
+- [bats-core](https://bats-core.readthedocs.io/en/stable/index.html)
