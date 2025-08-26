@@ -389,6 +389,10 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 <span class="menu-text">備忘録</span></a>
   </li>  
   <li class="nav-item">
+    <a class="nav-link" href="../../FAQ/faq.html"> 
+<span class="menu-text">FAQ</span></a>
+  </li>  
+  <li class="nav-item">
     <a class="nav-link" href="../../about.html"> 
 <span class="menu-text">About</span></a>
   </li>  
@@ -456,7 +460,9 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#rerferences" id="toc-rerferences" class="nav-link active" data-scroll-target="#rerferences">Rerferences</a></li>
+  <li><a href="#columnar-storageの特徴" id="toc-columnar-storageの特徴" class="nav-link active" data-scroll-target="#columnar-storageの特徴">Columnar Storageの特徴</a></li>
+  <li><a href="#columnar-storageとlimit句" id="toc-columnar-storageとlimit句" class="nav-link" data-scroll-target="#columnar-storageとlimit句">Columnar storageと<code>LIMIT</code>句</a></li>
+  <li><a href="#rerferences" id="toc-rerferences" class="nav-link" data-scroll-target="#rerferences">Rerferences</a></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
     </div>
@@ -468,11 +474,14 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 
 
 
+<section id="columnar-storageの特徴" class="level2">
+<h2 class="anchored" data-anchor-id="columnar-storageの特徴">Columnar Storageの特徴</h2>
 <div id="def-" class="custom_problem blog-custom-border theorem definition">
 <p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title">Columnar Storage</span></p>
 <ul>
 <li>1つのレコードをcolumn valuesグループ毎に分割し，それぞれを異なるストレージ領域に格納する技術</li>
 <li>従来のデータベースは通常，レコード全体を1つのストレージ領域に格納する</li>
+<li>ファイルフォーマットまで着目すると，column-based formatの例としてParquetがある</li>
 </ul>
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
@@ -564,10 +573,30 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 <p><code>col_a = 'A'</code> の条件によってレコード数を大きく絞り込めたとしても，columnar storageの場合は結局 <code>SELECT *</code> によってすべての列にアクセスする必要があります． <code>col_1</code> がインデックスを持つ場合だと，インデックス探索で <code>col_1 = 'A'</code> の行位置を即座に特定してから必要なストーレージ領域のみ読み込めば良いので，効率的なスキャンが期待できます．</p>
 </div>
 <hr>
+</section>
+<section id="columnar-storageとlimit句" class="level2">
+<h2 class="anchored" data-anchor-id="columnar-storageとlimit句">Columnar storageと<code>LIMIT</code>句</h2>
+<div class="sourceCode" id="cb6"><pre class="sourceCode sql code-with-copy"><code class="sourceCode sql"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> <span class="kw">table</span> <span class="kw">LIMIT</span> <span class="dv">10</span>;</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>と実行するとColumnar storage型のBigQueryでもPostgreSQLでも，返す行は最大 10 行と結果の行数を制限するという意味では同じです． ただし，クエリ実行計画まで着目するとその挙動に差異があります．</p>
+<p><span class="mini-section">BigQueryの場合</span></p>
+<ul>
+<li><code>LIMIT</code>はクエリで返す行数を制限する句</li>
+<li><code>LIMIT</code>は「処理するデータ量」を制限するものではなく，最終的に返す行数を制御するだけ</li>
+<li>そのため，<code>SELECT *</code> に <code>LIMIT</code> を付けても，テーブル全体が読み取られるため課金対象の量を減らすことはできない</li>
+<li>結果件数だけ制御するだけで，処理量や課金は減らない</li>
+</ul>
+<p><span class="mini-section">PostgreSQLの場合</span></p>
+<ul>
+<li>Postgresは，row-basedデータベースで基本的に必要な行だけ返す</li>
+<li><code>LIMIT</code>を付けると，クエリプランナーは「どのくらい行を読むか」を考慮するため，実際の処理コストは下がることが多い</li>
+<li>結果件数だけでなく，実行計画にも効いて実際の処理量削減につながる余地がある</li>
+</ul>
+</section>
 <section id="rerferences" class="level2">
 <h2 class="anchored" data-anchor-id="rerferences">Rerferences</h2>
 <ul>
 <li><a href="http://cs-www.cs.yale.edu/homes/dna/talks/Column_Store_Tutorial_VLDB09.pdf">Column-Oriented Database Systems, Stavros Harizopoulos, Daniel Abadi, Peter Boncz, VLDB 2009 Tutorial</a></li>
+<li><a href="https://cloud.google.com/bigquery/docs/best-practices-performance-compute?hl=ja">BigQuery &gt; Documentation &gt; クエリ計算を最適化する</a></li>
 </ul>
 
 
