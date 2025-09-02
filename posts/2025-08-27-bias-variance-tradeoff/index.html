@@ -7,9 +7,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Ryo Nakagami">
-<meta name="dcterms.date" content="2025-04-01">
+<meta name="dcterms.date" content="2025-08-27">
 
-<title>地図と標準誤差 – regmonkey datascience blog</title>
+<title>Bias-Variance Tradeoff – regmonkey datascience blog</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -21,41 +21,6 @@ ul.task-list li input[type="checkbox"] {
   width: 0.8em;
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
-}
-/* CSS for syntax highlighting */
-html { -webkit-text-size-adjust: 100%; }
-pre > code.sourceCode { white-space: pre; position: relative; }
-pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
-pre > code.sourceCode > span:empty { height: 1.2em; }
-.sourceCode { overflow: visible; }
-code.sourceCode > span { color: inherit; text-decoration: inherit; }
-div.sourceCode { margin: 1em 0; }
-pre.sourceCode { margin: 0; }
-@media screen {
-div.sourceCode { overflow: auto; }
-}
-@media print {
-pre > code.sourceCode { white-space: pre-wrap; }
-pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
-}
-pre.numberSource code
-  { counter-reset: source-line 0; }
-pre.numberSource code > span
-  { position: relative; left: -4em; counter-increment: source-line; }
-pre.numberSource code > span > a:first-child::before
-  { content: counter(source-line);
-    position: relative; left: -1em; text-align: right; vertical-align: baseline;
-    border: none; display: inline-block;
-    -webkit-touch-callout: none; -webkit-user-select: none;
-    -khtml-user-select: none; -moz-user-select: none;
-    -ms-user-select: none; user-select: none;
-    padding: 0 4px; width: 4em;
-  }
-pre.numberSource { margin-left: 3em;  padding-left: 4px; }
-div.sourceCode
-  {   }
-@media screen {
-pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
 </style>
 
@@ -160,14 +125,40 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 <script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml-full.js" integrity="sha256-kbAFUDxdHwlYv01zraGjvjNZayxKtdoiJ38bDTFJtaQ=" crossorigin="anonymous">
 </script>
 
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN") {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
 
 <link rel="stylesheet" href="../../styles.css">
-<meta property="og:title" content="地図と標準誤差 – regmonkey datascience blog">
+<meta property="og:title" content="Bias-Variance Tradeoff – regmonkey datascience blog">
 <meta property="og:description" content="日々の徒然勉強日記">
-<meta property="og:image" content="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-04-01-how-to-read-map/choice.png">
 <meta property="og:site_name" content="regmonkey datascience blog">
-<meta property="og:image:height" content="334">
-<meta property="og:image:width" content="768">
 </head>
 
 <body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
@@ -414,10 +405,9 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 <header id="title-block-header" class="quarto-title-block default page-columns page-full">
   <div class="quarto-title-banner page-columns page-full">
     <div class="quarto-title column-body">
-      <h1 class="title">地図と標準誤差</h1>
+      <h1 class="title">Bias-Variance Tradeoff</h1>
                                 <div class="quarto-categories">
                 <div class="quarto-category">統計</div>
-                <div class="quarto-category">地図</div>
               </div>
                   </div>
   </div>
@@ -435,14 +425,14 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
       <div>
       <div class="quarto-title-meta-heading">Published</div>
       <div class="quarto-title-meta-contents">
-        <p class="date">2025-04-01</p>
+        <p class="date">2025-08-27</p>
       </div>
     </div>
     
       <div>
       <div class="quarto-title-meta-heading">Modified</div>
       <div class="quarto-title-meta-contents">
-        <p class="date-modified">2025-07-23</p>
+        <p class="date-modified">2025-09-02</p>
       </div>
     </div>
       
@@ -457,12 +447,8 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#地図上でのオブジェクトの位置表現" id="toc-地図上でのオブジェクトの位置表現" class="nav-link active" data-scroll-target="#地図上でのオブジェクトの位置表現">地図上でのオブジェクトの位置表現</a></li>
-  <li><a href="#ボーリング調査でトンネル貫通" id="toc-ボーリング調査でトンネル貫通" class="nav-link" data-scroll-target="#ボーリング調査でトンネル貫通">ボーリング調査でトンネル貫通</a>
-  <ul class="collapse">
-  <li><a href="#m-の誤差の程度" id="toc-m-の誤差の程度" class="nav-link" data-scroll-target="#m-の誤差の程度">80m の誤差の程度</a></li>
-  </ul></li>
-  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
+  <li><a href="#統計的推測とbias-variance-tradeoff" id="toc-統計的推測とbias-variance-tradeoff" class="nav-link active" data-scroll-target="#統計的推測とbias-variance-tradeoff">統計的推測とBias-Variance Tradeoff</a></li>
+  <li><a href="#cef-decomposition-property" id="toc-cef-decomposition-property" class="nav-link" data-scroll-target="#cef-decomposition-property">CEF Decomposition Property</a></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
     </div>
@@ -474,170 +460,227 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 
 
 
-<section id="地図上でのオブジェクトの位置表現" class="level2">
-<h2 class="anchored" data-anchor-id="地図上でのオブジェクトの位置表現">地図上でのオブジェクトの位置表現</h2>
-<p>すべての地物は地図上で正しい位置に表現されるのが理想ですが，縮尺化して表される性質上，表現が細かくなりすぎて見えなくなる地物があります． このような場合，以下のような処理がなされる場合があります：</p>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 11%">
-<col style="width: 32%">
-<col style="width: 56%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>処理</th>
-<th>内容</th>
-<th>コメント</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><strong>取捨選択</strong></td>
-<td>描ききれない地物を間引く</td>
-<td>目的の地図に建物を描く必要がなければ取捨選択によって省略される</td>
-</tr>
-<tr class="even">
-<td><strong>総描</strong></td>
-<td>地形の形状を誇張・省略する</td>
-<td>河川や登山道などは曲がっていることを地図上では示していて，どのように曲がっているかは示さない</td>
-</tr>
-<tr class="odd">
-<td><strong>転位</strong></td>
-<td>地物を元の位置からずらして表現する</td>
-<td>一般道の上を走っている高架道路は，そのまま描くと一般道と重なってしまうので転位によって意図的にずらして両方を地図上に表示させる</td>
-</tr>
-</tbody>
-</table>
-</div>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-基本ルール
+<section id="統計的推測とbias-variance-tradeoff" class="level2">
+<h2 class="anchored" data-anchor-id="統計的推測とbias-variance-tradeoff">統計的推測とBias-Variance Tradeoff</h2>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title">MSE</span></p>
+<div class="math-scroll">
+<p><span class="math display">\[
+\begin{align}
+\operatorname{MSE}
+  &amp;= \mathbb E_{\pmb\theta}[(\hat\theta - \theta)^2] \\
+  &amp;= \mathbb E_{\pmb\theta}[(\hat\theta - \mathbb E_{\pmb\theta}[\hat\theta] + \mathbb E_{\pmb\theta}[\hat\theta] - \theta)^2] \\
+  &amp;= \mathbb E_{\pmb\theta}[(\hat\theta - \mathbb E_{\pmb\theta}[\hat\theta])^2] + \mathbb E_{\pmb\theta}[(\mathbb E_{\pmb\theta}[\hat\theta] - \theta)^2] + 2\mathbb E_{\pmb\theta}[(\hat\theta - \mathbb E_{\pmb\theta}[\hat\theta])(\mathbb E_{\pmb\theta}[\hat\theta] - \theta)] \\
+  &amp;= \mathbb E_{\pmb\theta}[(\hat\theta - \mathbb E_{\pmb\theta}[\hat\theta])^2] + (\mathbb E_{\pmb\theta}[\hat\theta] - \theta)^2 \\
+  &amp;= \operatorname{Variance} + \operatorname{Bias}^2
+\end{align}
+\]</span></p>
 </div>
 </div>
-<div class="callout-body-container callout-body">
+<p>上記の定義よりMSEは以下のように分解されます</p>
+<p><span class="math display">\[
+\operatorname{MSE} = \operatorname{Variance} + \operatorname{Bias}^2
+\]</span></p>
+<div id="exm-1" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Example 1</strong></span> <br></p>
+<p><span class="math inline">\(\{X_1, \cdots, X_n\}\)</span> がなにかしらの分布 <span class="math inline">\(D(\mu, \sigma)\)</span> からのi.i.dサンプルだとします．なお，<span class="math inline">\(\mu\neq 0\)</span>, <span class="math inline">\(\mathbb E[X_i^4] &lt; \infty\)</span> とします．</p>
+<p><span class="math inline">\(\sigma^2\)</span> の推定量の候補として</p>
+<p><span class="math display">\[
+\sigma^2 = \mathbb E[X^2] - \mathbb E[X]^2
+\]</span></p>
+<p>であるので，</p>
+<p><span class="math display">\[
+\begin{align}
+\overline{X^2} &amp;= \frac{1}{n}\sum_{i=1}^n X_i^2\\
+\overline{X} &amp;= \frac{1}{n}\sum_{i=1}^n X_i\\
+\hat\sigma^2 &amp;= \overline{X^2} - \overline{X}^2
+\end{align}
+\]</span></p>
+<p>このとき，</p>
+<p><span class="math display">\[
+\begin{align}
+\mathbb E[(\overline{X})^2]
+  &amp;= \operatorname{Var}(\overline{X}) + (\mathbb E[\overline{X}])^2\\
+  &amp;= \frac{1}{n}\sigma^2 + \mu^2
+\end{align}
+\]</span></p>
+<p><span class="math display">\[
+\begin{align}
+\mathbb E[\overline{X^2}]
+  &amp;= \frac{1}{n}\sum_{i=1}^n\mathbb E[X_i^2]\\
+  &amp;= \sigma^2 + \mu^2
+\end{align}
+\]</span></p>
+<p>従って，<span class="math inline">\(\hat\sigma^2\)</span> のBiasは</p>
+<p><span class="math display">\[
+\begin{align}
+\mathbb E[\hat\sigma^2] - \sigma^2
+  &amp;= \mathbb E[\overline{X^2}] - \mathbb E[(\overline{X})^2] - \sigma^2\\
+  &amp;= \sigma^2 + \mu^2 - \frac{1}{n}\sigma^2 - \mu^2 \sigma^2\\
+  &amp;= - \frac{1}{n}\sigma^2
+\end{align}
+\]</span></p>
+<p>一方，<span class="math inline">\(\hat\sigma^2\)</span> のVarianceは，Delta methodを用いた漸近近似により</p>
+<p><span class="math display">\[
+\begin{align}
+\operatorname{Var}(\hat\sigma^2)
+  &amp;= \operatorname{Var}(\overline{X^2}) + \operatorname{Var}(\overline{X}^2)\\
+  &amp;\approx  \frac{1}{n}\operatorname{Var}(X_i^2) + (2\mu)^2\frac{\sigma^2}{n}\\
+  &amp;= \mathcal{O}(n^{-1})
+\end{align}
+\]</span></p>
+<div id="rem-" class="custom_problem blog-custom-border proof remark">
+<p><span class="proof-title"><em>Remark 1</em>. </span><br></p>
+<p>Large Samplesの場合は，</p>
 <ul>
-<li>取捨選択に当たっては，表示対象物は縮尺に応じて適切に取捨選択し，かつ正確に表示する。また，重要度の高い対象物を省略することのないようにする</li>
-<li>総描に当たっては，現地の形状と相似性を保ち，形状の特徴を失わないようにする。必要に応じて形状を多少修飾して現状を理解しやすく総描する</li>
-<li>公共測量において，地図情報レベル2500の数値地形図に表示する地物の水平位置の転位は，原則として行わない</li>
+<li><span class="math inline">\(\operatorname{Variance}\)</span> は <span class="math inline">\(1/n\)</span> の速さで小さくなる</li>
+<li><span class="math inline">\(\operatorname{Bias}^2\)</span> は <span class="math inline">\(1/n^2\)</span> の速さで小さくなる</li>
 </ul>
+<p>以上より <span class="math inline">\(\operatorname{MSE}\)</span> を最小化したい場合はvarianceの方を小さくするのが有効であることがわかる．</p>
 </div>
 </div>
-<div class="quarto-layout-panel" data-layout-ncol="3">
-<div class="quarto-layout-row">
-<div class="quarto-layout-cell" style="flex-basis: 33.3%;justify-content: flex-start;">
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="./choice.png" class="img-fluid figure-img"></p>
-<figcaption>取捨選択</figcaption>
-</figure>
-</div>
-</div>
-<div class="quarto-layout-cell" style="flex-basis: 33.3%;justify-content: flex-start;">
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="./soubyo.png" class="img-fluid figure-img"></p>
-<figcaption>総描</figcaption>
-</figure>
-</div>
-</div>
-<div class="quarto-layout-cell" style="flex-basis: 33.3%;justify-content: flex-start;">
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="./teni.png" class="img-fluid figure-img"></p>
-<figcaption>転位</figcaption>
-</figure>
-</div>
-</div>
-</div>
-</div>
+<hr>
 <div id="exm-" class="custom_problem theorem example">
-<p><span class="theorem-title"><strong>Example 1</strong></span> <span class="def-title">幅1m未満の徒歩道と理由のある嘘</span></p>
-<p>「幅員 1.0m 未満の道路として、道路中心線が取得されている道路」がいわゆる幅1m未満の徒歩道ですが，平成２５年２万５千分１地形図図式（標準基準）では 0.2mmの線幅として表現されます．</p>
-<p>一方，２万５千分１であるので</p>
-<div id="7401dda4" class="cell" data-execution_count="1">
-<details class="code-fold">
-<summary>Code</summary>
-<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"地図上0.2mm相当の実際の幅: </span><span class="sc">{</span><span class="fl">0.2</span> <span class="op">/</span> <span class="dv">1000</span> <span class="op">*</span> <span class="dv">25000</span><span class="sc">}</span><span class="ss"> m"</span>)</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"1mの縮尺幅: </span><span class="sc">{</span><span class="dv">1</span><span class="op">/</span> <span class="dv">25000</span> <span class="op">*</span> <span class="dv">1000</span><span class="sc">}</span><span class="ss"> mm"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
-<div class="cell-output cell-output-stdout">
-<pre><code>地図上0.2mm相当の実際の幅: 5.0 m
-1mの縮尺幅: 0.04 mm</code></pre>
-</div>
-</div>
-<p>となります．0.04 mmとして地図で表現してしまうと，そもそも徒歩道がどこにあるのか地図上での判別が難しくなってしまうので，「徒歩道がこのあたりに存在しますよ」という情報を伝えるのが目的であるならば， 太さを誇張して表記するのも理由があるとわかります．</p>
+<p><span class="theorem-title"><strong>Example 2</strong></span> <span class="def-title">MSEの比較</span></p>
+<p><span class="math display">\[
+\begin{align}
+\{X_1, \cdots, X_n\} \overset{\mathrm{iid}}{\sim} N(\mu, \sigma^2) \label{eq-exm}
+\end{align}
+\]</span></p>
+<p>としたとき，<span class="math inline">\(\sigma^2\)</span> のunbiased estimatorとして</p>
+<p><span class="math display">\[
+S^2 = \frac{1}{n-1}\sum_{i=1}^n (X_i - \overline{X})^2 \label{eq-exm-2}
+\]</span></p>
+<p>が考えられます．このとき，かんたんな計算により <a href="#exm-1" class="quarto-xref">Example&nbsp;1</a> の推定量との関係として</p>
+<p><span class="math display">\[
+S^2 = \frac{n}{n-1}\hat\sigma^2
+\]</span></p>
+<p><span class="math inline">\(\eqref{eq-exm}\)</span> と <span class="math inline">\(\eqref{eq-exm-2}\)</span> より</p>
+<p><span class="math display">\[
+(n-1)\frac{S^2}{\sigma^2} \sim \operatorname{\chi^2}(n-1)
+\]</span></p>
+<p>従って，</p>
+<p><span class="math display">\[
+\operatorname{Var}(S^2)=\frac{2}{n-1}\sigma^4
+\]</span></p>
+<p><span class="math inline">\(\operatorname{MSE}(S^2)\)</span> と <span class="math inline">\(\operatorname{MSE}(\hat\sigma^2)\)</span> を比較すると，</p>
+<p><span class="math display">\[
+\begin{align}
+\operatorname{MSE}(\hat\sigma^2)
+  &amp;= \mathbb E[(\hat\sigma^2 - \sigma^2)^2]\\
+  &amp;= \frac{2(n-1)}{n^2}\sigma^4 + \frac{1}{n^2}\sigma^4\\
+  &amp;= \frac{2n-1}{n^2}\sigma^4\\
+  &amp;&lt; \frac{2}{n-1}\sigma^4\\
+  &amp;= \operatorname{Var}(S^2)\\
+  &amp;= \operatorname{MSE}(S^2)
+\end{align}
+\]</span></p>
 </div>
 <hr>
 </section>
-<section id="ボーリング調査でトンネル貫通" class="level2">
-<h2 class="anchored" data-anchor-id="ボーリング調査でトンネル貫通">ボーリング調査でトンネル貫通</h2>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
+<section id="cef-decomposition-property" class="level2">
+<h2 class="anchored" data-anchor-id="cef-decomposition-property">CEF Decomposition Property</h2>
+<div id="thm-" class="custom_problem blog-custom-border theorem">
+<p><span class="theorem-title"><strong>Theorem 1</strong></span> <span class="def-title">CEF Decomposition Property</span></p>
+<p><span class="math display">\[
+Y_i = \mathbb E[Y_i|X_i] + \epsilon_i
+\]</span></p>
+<div class="roman-list">
+<ul>
+<li><span class="math inline">\(\mathbb E[\epsilon_i | X_i] = 0\)</span>: <span class="math inline">\(\epsilon_i\)</span> is mean independent of <span class="math inline">\(X_i\)</span></li>
+<li><span class="math inline">\(\epsilon_i\)</span> is uncorrelated with any function of <span class="math inline">\(X_i\)</span></li>
+</ul>
+</div>
+</div>
+<div class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-1-contents" aria-controls="callout-1" aria-expanded="true" aria-label="Toggle callout">
 <div class="callout-icon-container">
-<i class="callout-icon"></i>
+<i class="callout-icon no-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-事実
+Proof (i)
 </div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
+<div id="callout-1" class="callout-1-contents callout-collapse collapse show">
 <div class="callout-body-container callout-body">
-<p>2019年7月11日に午前10時25分ごろ，長崎発博多行きの特急「かもめ16号」が，トンネルの天井を貫通した掘削機に接触． 異音を聞いた乗務員が列車を緊急停車させ，先頭車両の前面左側などに損傷があるのを確認した．</p>
+<p><span class="math display">\[
+\begin{align}
+\mathbb E[\epsilon_i | X_i]
+  &amp;= \mathbb E[Y_i - \mathbb E[Y_i|X_i]|X_i]\\[3pt]
+  &amp;= \mathbb E[Y_i|X_i] - \mathbb E[Y_i|X_i]\\[3pt]
+  &amp;= 0
+\end{align}
+\]</span></p>
 </div>
 </div>
-<p>上記の<a href="(./press20190724-1.pdf)">事故原因</a>としてに鉄道・運輸機構から以下のように発表されています</p>
-<ol type="1">
-<li>ボーリング工事発注の際に国土地理院の地図（2万5千分の1地形図）に基づき作成した発注図面において JR 長崎本線長崎トンネルの位置が、実際の位置と異なっていた．</li>
-<li>長崎トンネルとボーリング工事の位置が図面上で約 80ｍ離れていたため，ボーリング工事による長崎トンネルへの影響はないものと判断し，ボーリング工事前に現地で十分な確認を行っていなかった</li>
-</ol>
-<section id="m-の誤差の程度" class="level3">
-<h3 class="anchored" data-anchor-id="m-の誤差の程度">80m の誤差の程度</h3>
-<p>「図面上で約 80ｍ離れていた」とありますが，2万5千分の1地形図だと80mのずれは髪の紙面上で</p>
-<div id="3b5c6573" class="cell" data-execution_count="2">
-<details open="" class="code-fold">
-<summary>Code</summary>
-<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>error_mm <span class="op">=</span> <span class="dv">80</span> <span class="op">/</span> <span class="dv">25000</span> <span class="op">*</span> <span class="dv">1000</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>error_mm<span class="sc">}</span><span class="ss"> mm誤差"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
-<div class="cell-output cell-output-stdout">
-<pre><code>3.2 mm誤差</code></pre>
+</div>
+<div class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-2-contents" aria-controls="callout-2" aria-expanded="true" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Proof (ii)
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-2" class="callout-2-contents callout-collapse collapse show">
+<div class="callout-body-container callout-body">
+<p><span class="math inline">\(b(X_i)\)</span> を <span class="math inline">\(X_i\)</span> についての任意の関数とするとき</p>
+<p><span class="math display">\[
+\begin{align}
+\mathbb E[b(X_i)\epsilon]
+  &amp;= \mathbb E[\mathbb E[b(X_i)\epsilon | X_i]]\\
+  &amp;= \mathbb E[b(X_i)\mathbb E[\epsilon | X_i]]\\
+  &amp;= 0
+\end{align}
+\]</span></p>
+<p>従って，<span class="math inline">\(X_i\)</span> についての任意の関数と <span class="math inline">\(\epsilon_i\)</span> は無相関(uncorrelated, orthogonal)であることがわかる．</p>
 </div>
 </div>
-<p>となります．また，国土地理院の地理院地図では，建物の形状が見える地図の拡大率における水平精度は原則として「17.5m(標準誤差)」となっており，地図が現実世界のすべてを精確に表現している訳ではありません． そのため，</p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 70%">
-<col style="width: 30%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>理由</th>
-<th>コメント</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>ボーリング工事発注の際に国土地理院の地図（2万5千分の1地形図）に基づき作成した発注図面において JR 長崎本線長崎トンネルの位置が、実際の位置と異なっていた．</td>
-<td>実際の位置と異なるのは想定の範囲内であるべき</td>
-</tr>
-<tr class="even">
-<td>長崎トンネルとボーリング工事の位置が図面上で約 80ｍ離れていたため，ボーリング工事による長崎トンネルへの影響はないものと判断し，ボーリング工事前に現地で十分な確認を行っていなかった</td>
-<td>2万5千分の1地形図のような中縮尺地図で，構造物の精確な位置を判断するのが間違っている</td>
-</tr>
-</tbody>
-</table>
-<p>と考えるべきだと思います．</p>
-</section>
-</section>
-<section id="references" class="level2">
-<h2 class="anchored" data-anchor-id="references">References</h2>
-<ul>
-<li><a href="./press20190724-1.pdf">報道発表資料 JR 長崎本線長崎トンネル内で発生させた重大事故（渇水対策を目的とした試掘ボーリングによる走行車両との接触）の原因と対策について</a></li>
-</ul>
+</div>
+<div id="thm-" class="custom_problem blog-custom-border theorem">
+<p><span class="theorem-title"><strong>Theorem 2</strong></span> <span class="def-title">CEFとMSE</span></p>
+<p><span class="math inline">\(m(X_i)\)</span> を <span class="math inline">\(X_i\)</span> の関数とするとき，</p>
+<p><span class="math display">\[
+\mathbb E[Y_i | X_i]
+  = \underset{m(X_i)}{\arg\min}\mathbb E[(Y_i - m(X_i))^2]
+\]</span></p>
+<p>つまり，<span class="math inline">\(\mathbb E[Y_i | X_i]\)</span> は <span class="math inline">\(X_i\)</span> で条件づけた <span class="math inline">\(Y_i\)</span> の予測関数についてのMinimum Mean Squared Error(MMSE) である．</p>
+</div>
+<div class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-3-contents" aria-controls="callout-3" aria-expanded="true" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Proof
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-3" class="callout-3-contents callout-collapse collapse show">
+<div class="callout-body-container callout-body">
+<p><span class="math display">\[
+\begin{align}
+(Y_i - m(X_i))^2
+  &amp;= (Y_i - \mathbb E[Y_i | X_i] + \mathbb E[Y_i | X_i] - m(X_i))^2\\
+  &amp;= (Y_i - \mathbb E[Y_i | X_i])^2 + 2(Y_i - \mathbb E[Y_i | X_i])(\mathbb E[Y_i | X_i] - m(X_i))^2 + (\mathbb E[Y_i | X_i] - m(X_i))^2\\
+  &amp;= \epsilon^2 + 2\epsilon(\mathbb E[Y_i | X_i] - m(X_i)) + (\mathbb E[Y_i | X_i] - m(X_i))^2
+\end{align}
+\]</span></p>
+<p>期待値を取ると</p>
+<p><span class="math display">\[
+\mathbb E[(Y_i - m(X_i))^2] = \mathbb E[\epsilon_i^2] + \mathbb E[(\mathbb E[Y_i | X_i] - m(X_i))^2]
+\]</span></p>
+<p>従って，</p>
+<p><span class="math display">\[
+E[Y_i | X_i] = m(X_i)
+\]</span></p>
+<p>のときMSEの意味で <span class="math inline">\(E[Y_i | X_i]\)</span> が最小化関数であることがわかる．</p>
+</div>
+</div>
+</div>
 
 
 </section>
