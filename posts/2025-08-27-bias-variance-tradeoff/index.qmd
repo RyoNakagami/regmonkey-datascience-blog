@@ -1,0 +1,275 @@
+---
+title: "Bias-Variance Tradeoff"
+author: "Ryo Nakagami"
+date: "2025-08-27"
+date-modified: "2025-09-02"
+categories: [統計]
+listing_category: datascience-preprocess-series
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## 統計的推測とBias-Variance Tradeoff
+
+### Bias, variance, MSE and RMSE
+
+何かしらのパラメータ $\theta$ の推定量の性質を考えるとき，基本的には推定誤差 
+
+$$
+\hat\theta - \theta
+$$ 
+
+の分布についてまず考えます．この評価手法の１例としてRMSEが挙げられます．
+
+$$
+\operatorname{RMSE} = \sqrt{\mathbb E_{\pmb\theta}[(\hat\theta - \theta)^2]}
+$$
+
+RMSEの単位は $\theta$ の単位と同じなので，誤差のスケールを直感的に理解しやすいというメリットがあります．ただし，推定量の性質を考えるときはMSEのほうが取り回しが良いときが多いのでMSEの次に考えます．
+
+
+::: {#def- .custom_problem .blog-custom-border}
+[MSE]{.def-title}
+
+:::{.math-scroll}
+$$
+\begin{align}
+\operatorname{MSE}
+  &= \mathbb E_{\pmb\theta}[(\hat\theta - \theta)^2] \\
+  &= \mathbb E_{\pmb\theta}[(\hat\theta - \mathbb E_{\pmb\theta}[\hat\theta] + \mathbb E_{\pmb\theta}[\hat\theta] - \theta)^2] \\
+  &= \mathbb E_{\pmb\theta}[(\hat\theta - \mathbb E_{\pmb\theta}[\hat\theta])^2] + \mathbb E_{\pmb\theta}[(\mathbb E_{\pmb\theta}[\hat\theta] - \theta)^2] + 2\mathbb E_{\pmb\theta}[(\hat\theta - \mathbb E_{\pmb\theta}[\hat\theta])(\mathbb E_{\pmb\theta}[\hat\theta] - \theta)] \\
+  &= \mathbb E_{\pmb\theta}[(\hat\theta - \mathbb E_{\pmb\theta}[\hat\theta])^2] + (\mathbb E_{\pmb\theta}[\hat\theta] - \theta)^2 \\
+  &= \operatorname{Variance} + \operatorname{Bias}^2
+\end{align}
+$$
+:::
+
+:::
+
+上記の定義よりMSEは以下のように分解されます
+
+$$
+\operatorname{MSE} = \operatorname{Variance} + \operatorname{Bias}^2
+$$
+
+
+::: {#exm-1 .custom_problem }
+<br>
+
+$\{X_1, \cdots, X_n\}$ がなにかしらの分布 $D(\mu, \sigma)$ からのi.i.dサンプルだとします．なお，$\mu\neq 0$, $\mathbb E[X_i^4] < \infty$ とします．
+
+$\sigma^2$ の推定量の候補として
+
+$$
+\sigma^2 = \mathbb E[X^2] - \mathbb E[X]^2
+$$
+
+であるので，
+
+$$
+\begin{align}
+\overline{X^2} &= \frac{1}{n}\sum_{i=1}^n X_i^2\\
+\overline{X} &= \frac{1}{n}\sum_{i=1}^n X_i\\
+\hat\sigma^2 &= \overline{X^2} - \overline{X}^2
+\end{align}
+$$
+
+このとき，
+
+$$
+\begin{align}
+\mathbb E[(\overline{X})^2]
+  &= \operatorname{Var}(\overline{X}) + (\mathbb E[\overline{X}])^2\\
+  &= \frac{1}{n}\sigma^2 + \mu^2
+\end{align}
+$$
+
+$$
+\begin{align}
+\mathbb E[\overline{X^2}]
+  &= \frac{1}{n}\sum_{i=1}^n\mathbb E[X_i^2]\\
+  &= \sigma^2 + \mu^2
+\end{align}
+$$
+
+従って，$\hat\sigma^2$ のBiasは
+
+$$
+\begin{align}
+\mathbb E[\hat\sigma^2] - \sigma^2
+  &= \mathbb E[\overline{X^2}] - \mathbb E[(\overline{X})^2] - \sigma^2\\
+  &= \sigma^2 + \mu^2 - \frac{1}{n}\sigma^2 - \mu^2 \sigma^2\\
+  &= - \frac{1}{n}\sigma^2
+\end{align}
+$$
+
+一方，$\hat\sigma^2$ のVarianceは，Delta methodを用いた漸近近似により
+
+$$
+\begin{align}
+\operatorname{Var}(\hat\sigma^2)
+  &= \operatorname{Var}(\overline{X^2}) + \operatorname{Var}(\overline{X}^2)\\
+  &\approx  \frac{1}{n}\operatorname{Var}(X_i^2) + (2\mu)^2\frac{\sigma^2}{n}\\
+  &= \mathcal{O}(n^{-1})
+\end{align}
+$$
+
+::: {#rem- .custom_problem  .blog-custom-border}
+<br>
+
+Large Samplesの場合は，
+
+- $\operatorname{Variance}$ は $1/n$ の速さで小さくなる
+- $\operatorname{Bias}^2$ は $1/n^2$ の速さで小さくなる
+
+以上より $\operatorname{MSE}$ を最小化したい場合はvarianceの方を小さくするのが有効であることがわかる．
+
+:::
+
+:::
+***
+
+::: {#exm- .custom_problem }
+[MSEの比較]{.def-title}
+
+$$
+\begin{align}
+\{X_1, \cdots, X_n\} \overset{\mathrm{iid}}{\sim} N(\mu, \sigma^2) \label{eq-exm}
+\end{align}
+$$
+
+としたとき，$\sigma^2$ のunbiased estimatorとして
+
+$$
+S^2 = \frac{1}{n-1}\sum_{i=1}^n (X_i - \overline{X})^2 \label{eq-exm-2}
+$$
+
+が考えられます．このとき，かんたんな計算により @exm-1 の推定量との関係として
+
+$$
+S^2 = \frac{n}{n-1}\hat\sigma^2
+$$
+
+\eqref{eq-exm} と \eqref{eq-exm-2} より
+
+$$
+(n-1)\frac{S^2}{\sigma^2} \sim \operatorname{\chi^2}(n-1)
+$$
+
+従って，
+
+$$
+\operatorname{Var}(S^2)=\frac{2}{n-1}\sigma^4
+$$
+
+$\operatorname{MSE}(S^2)$ と $\operatorname{MSE}(\hat\sigma^2)$ を比較すると，
+
+$$
+\begin{align}
+\operatorname{MSE}(\hat\sigma^2)
+  &= \mathbb E[(\hat\sigma^2 - \sigma^2)^2]\\
+  &= \frac{2(n-1)}{n^2}\sigma^4 + \frac{1}{n^2}\sigma^4\\
+  &= \frac{2n-1}{n^2}\sigma^4\\
+  &< \frac{2}{n-1}\sigma^4\\
+  &= \operatorname{Var}(S^2)\\
+  &= \operatorname{MSE}(S^2)
+\end{align}
+$$
+
+:::
+***
+
+## CEF Decomposition Property
+
+::: {#thm- .custom_problem  .blog-custom-border}
+[CEF Decomposition Property]{.def-title}
+
+$$
+Y_i = \mathbb E[Y_i|X_i] + \epsilon_i
+$$
+
+:::{.roman-list}
+
+- $\mathbb E[\epsilon_i | X_i] = 0$: $\epsilon_i$ is mean independent of $X_i$
+- $\epsilon_i$ is uncorrelated with any function of $X_i$
+
+:::
+
+:::
+
+::: {.callout-note collapse="false" icon=false}
+## Proof (i)
+
+$$
+\begin{align}
+\mathbb E[\epsilon_i | X_i]
+  &= \mathbb E[Y_i - \mathbb E[Y_i|X_i]|X_i]\\[3pt]
+  &= \mathbb E[Y_i|X_i] - \mathbb E[Y_i|X_i]\\[3pt]
+  &= 0
+\end{align}
+$$
+
+:::
+
+::: {.callout-note collapse="false" icon=false}
+## Proof (ii)
+
+$b(X_i)$ を $X_i$ についての任意の関数とするとき
+
+$$
+\begin{align}
+\mathbb E[b(X_i)\epsilon]
+  &= \mathbb E[\mathbb E[b(X_i)\epsilon | X_i]]\\
+  &= \mathbb E[b(X_i)\mathbb E[\epsilon | X_i]]\\
+  &= 0
+\end{align}
+$$
+
+従って，$X_i$ についての任意の関数と $\epsilon_i$ は無相関(uncorrelated, orthogonal)であることがわかる．
+
+:::
+
+::: {#thm- .custom_problem  .blog-custom-border}
+[CEFとMSE]{.def-title}
+
+$m(X_i)$ を $X_i$ の関数とするとき，
+
+$$
+\mathbb E[Y_i | X_i]
+  = \underset{m(X_i)}{\arg\min}\mathbb E[(Y_i - m(X_i))^2]
+$$
+
+つまり，$\mathbb E[Y_i | X_i]$ は $X_i$ で条件づけた $Y_i$ の予測関数についてのMinimum Mean Squared Error(MMSE) である．
+
+:::
+
+::: {.callout-note collapse="false" icon=false}
+## Proof
+
+$$
+\begin{align}
+(Y_i - m(X_i))^2
+  &= (Y_i - \mathbb E[Y_i | X_i] + \mathbb E[Y_i | X_i] - m(X_i))^2\\
+  &= (Y_i - \mathbb E[Y_i | X_i])^2 + 2(Y_i - \mathbb E[Y_i | X_i])(\mathbb E[Y_i | X_i] - m(X_i))^2 + (\mathbb E[Y_i | X_i] - m(X_i))^2\\
+  &= \epsilon^2 + 2\epsilon(\mathbb E[Y_i | X_i] - m(X_i)) + (\mathbb E[Y_i | X_i] - m(X_i))^2
+\end{align}
+$$
+
+期待値を取ると
+
+$$
+\mathbb E[(Y_i - m(X_i))^2] = \mathbb E[\epsilon_i^2] + \mathbb E[(\mathbb E[Y_i | X_i] - m(X_i))^2]
+$$
+
+従って，
+
+$$
+E[Y_i | X_i] = m(X_i)
+$$
+
+のときMSEの意味で $E[Y_i | X_i]$ が最小化関数であることがわかる．
+
+:::
