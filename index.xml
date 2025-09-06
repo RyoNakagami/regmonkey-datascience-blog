@@ -10,7 +10,725 @@
 <atom:link href="https://ryonakagami.github.io/regmonkey-datascience-blog/index.xml" rel="self" type="application/rss+xml"/>
 <description>日々の徒然勉強日記</description>
 <generator>quarto-1.7.34</generator>
-<lastBuildDate>Tue, 02 Sep 2025 00:00:00 GMT</lastBuildDate>
+<lastBuildDate>Fri, 05 Sep 2025 00:00:00 GMT</lastBuildDate>
+<item>
+  <title>Sambaの設定とiPad連携</title>
+  <dc:creator>Ryo Nakagami</dc:creator>
+  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-09-05-samba/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+
+<section id="sambaでできること" class="level2">
+<h2 class="anchored" data-anchor-id="sambaでできること">Sambaでできること</h2>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title">Samba</span></p>
+<ul>
+<li>LinuxホストをMicrosoftネットワークに参加できるようにするソフトウェア</li>
+</ul>
+</div>
+<p>Sambaを使うことで，次のような機能が実現できます．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>カテゴリ</th>
+<th>機能</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>ファイル共有</strong></td>
+<td>ディレクトリ共有</td>
+<td>Windows から Linux/Unix のディレクトリにアクセス可能．読み取り専用／書き込み可の権限設定が可能・</td>
+</tr>
+<tr class="even">
+<td></td>
+<td>ファイルアクセス制御</td>
+<td>ユーザー・グループごとのアクセス権を設定可能。</td>
+</tr>
+<tr class="odd">
+<td><strong>プリンタ共有</strong></td>
+<td>プリンタ共有</td>
+<td>Linux/Unix に接続されたプリンタを Windows から利用可能．</td>
+</tr>
+<tr class="even">
+<td></td>
+<td>複数ユーザー対応</td>
+<td>複数ユーザーでの共有プリンタ環境を構築可能．</td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>プリンタドライバーの配布</td>
+<td>Samba サーバに Windows 用プリンタドライバーを置いておくと，クライアント側で共有プリンタに接続するだけで自動インストールできる</td>
+</tr>
+<tr class="even">
+<td><strong>ADメンバーサーバー</strong></td>
+<td>ドメイン参加</td>
+<td>Active Directoryを構成するメンバーサーバーになることが可能</td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>ドメインコントローラ</td>
+<td>Samba を AD 互換ドメインコントローラとして利用可能．ユーザー認証・グループ管理・ポリシー管理が可能．</td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Kerberos 認証対応</td>
+<td>シングルサインオン（SSO）で共有アクセスが可能</td>
+</tr>
+<tr class="odd">
+<td><strong>バックアップ・サーバ</strong></td>
+<td>ファイルサーバ機能</td>
+<td>ネットワーク経由でバックアップやファイル共有が可能．</td>
+</tr>
+<tr class="even">
+<td></td>
+<td>自動バックアップ</td>
+<td>rsync や cron と組み合わせて自動バックアップが可能．</td>
+</tr>
+<tr class="odd">
+<td><strong>ホームディレクトリ提供</strong></td>
+<td>ユーザーごとのホームディレクトリ</td>
+<td>Windows ユーザーごとに自動マウント可能．</td>
+</tr>
+<tr class="even">
+<td><strong>アクセスログ・監査</strong></td>
+<td>ログ取得</td>
+<td>どのユーザーがいつアクセスしたかのログを取得可能。監査やセキュリティ対策に活用可能。</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="sambaのインストール" class="level2">
+<h2 class="anchored" data-anchor-id="sambaのインストール">Sambaのインストール</h2>
+<p>apt経由で <code>samba</code> パッケージをインストールします</p>
+<div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb1-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># install</span></span>
+<span id="cb1-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> sudo apt install <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-y</span> samba</span>
+<span id="cb1-3"></span>
+<span id="cb1-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># version check</span></span>
+<span id="cb1-5"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> samba <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--version</span></span>
+<span id="cb1-6"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Version</span> 4.19.5-Ubuntu</span></code></pre></div>
+<p><code>samba</code> は，ファイルサーバー，プリントサーバー，ユーザー管理を担うsmbdデーモン，名前解決を担うnmbdデーモンから構成されます． ファイヤーウォールを使っている場合は，Sambaを利用できるように次のような設定をします</p>
+<div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb2-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> sudo ufw allow samba</span>
+<span id="cb2-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Rule</span> added</span>
+<span id="cb2-3"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Rule</span> added <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">(v6)</span></span></code></pre></div>
+<p>tailscaleを導入している場合は，tailscaleについてのファイヤーウォールを実施するだけでOKです．</p>
+<div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb3-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> sudo ufw allow in on tailscale0</span></code></pre></div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Samba運用上の注意
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>Samba サーバーは基本的に <span class="regmonkey-bold">LAN 内での運用</span>を前提(=企業や家庭内ネットワークなど，閉じたネットワークでの利用が基本)</li>
+<li><span class="regmonkey-bold">インターネットサーバー上での動作は推奨されない</span></li>
+<li>ADが使えるとはいえ，Windows Serverで実現できるすべての機能が実装されているわけではない</li>
+</ul>
+</div>
+</div>
+<p><span class="mini-section">各デーモンに対応する <code>systemctl</code> サービス</span></p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 29%">
+<col style="width: 46%">
+<col style="width: 23%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>構成要素</th>
+<th>担当機能</th>
+<th>systemctl サービス名</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>smbd</strong></td>
+<td>ファイル共有・プリント共有・ユーザー認証</td>
+<td><code>smbd</code></td>
+</tr>
+<tr class="even">
+<td><strong>nmbd</strong></td>
+<td>名前解決</td>
+<td><code>nmbd</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="sambaの制御" class="level2">
+<h2 class="anchored" data-anchor-id="sambaの制御">Sambaの制御</h2>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 40%">
+<col style="width: 40%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>サービス / デーモン</th>
+<th>役割</th>
+<th>コマンド</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>smbd</code></td>
+<td>ファイル共有・プリンタ共有・ユーザー認証</td>
+<td>起動: <code>sudo systemctl start smbd</code></td>
+</tr>
+<tr class="even">
+<td></td>
+<td></td>
+<td>停止: <code>sudo systemctl stop smbd</code></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td></td>
+<td>再起動: <code>sudo systemctl restart smbd</code></td>
+</tr>
+<tr class="even">
+<td></td>
+<td></td>
+<td>自動起動有効: <code>sudo systemctl enable smbd</code></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td></td>
+<td>自動起動無効: <code>sudo systemctl disable smbd</code></td>
+</tr>
+<tr class="even">
+<td></td>
+<td></td>
+<td>状態確認: <code>sudo systemctl status smbd</code></td>
+</tr>
+<tr class="odd">
+<td><code>nmbd</code></td>
+<td>名前解決</td>
+<td>起動: <code>sudo systemctl start nmbd</code></td>
+</tr>
+<tr class="even">
+<td></td>
+<td></td>
+<td>停止: <code>sudo systemctl stop nmbd</code></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td></td>
+<td>再起動: <code>sudo systemctl restart nmbd</code></td>
+</tr>
+<tr class="even">
+<td></td>
+<td></td>
+<td>自動起動有効: <code>sudo systemctl enable nmbd</code></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td></td>
+<td>自動起動無効: <code>sudo systemctl disable nmbd</code></td>
+</tr>
+<tr class="even">
+<td></td>
+<td></td>
+<td>状態確認: <code>sudo systemctl status nmbd</code></td>
+</tr>
+<tr class="odd">
+<td><code>samba</code></td>
+<td>Samba AD DC サービス（AD ドメインコントローラ運用時）</td>
+<td>起動: <code>sudo systemctl start samba</code></td>
+</tr>
+<tr class="even">
+<td></td>
+<td></td>
+<td>停止: <code>sudo systemctl stop samba</code></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td></td>
+<td>再起動: <code>sudo systemctl restart samba</code></td>
+</tr>
+<tr class="even">
+<td></td>
+<td></td>
+<td>自動起動有効: <code>sudo systemctl enable samba</code></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td></td>
+<td>自動起動無効: <code>sudo systemctl disable samba</code></td>
+</tr>
+<tr class="even">
+<td></td>
+<td></td>
+<td>状態確認: <code>sudo systemctl status samba</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="sambaの設定" class="level2">
+<h2 class="anchored" data-anchor-id="sambaの設定">Sambaの設定</h2>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Samba設定の基本
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>Sambaの主な設定は <code>/etc/samba/smb.conf</code> に記述する</li>
+<li><code>smb.conf</code> は大きく分けて <code>[Global Settings]</code> と <code>[Share Definitions]</code> の２つから構成される</li>
+<li><code>[Global Settings]</code>: Sambaサーバーの全般的な設定をする部分．この部分を変更した場合はSambaサーバーの再起動が必要</li>
+<li><code>[Share Definitions]</code>: ファイル共有やプリンター共有を設定する部分</li>
+</ul>
+</div>
+</div>
+<p><code>/etc/samba/smb.conf</code> を編集するときは <code>sudo cp -a smb.conf smb.conf.default</code> なり <code>.bak</code> 拡張子を用いてバックアップをしておくと安全です．</p>
+<p><span class="mini-section"><code>smb.conf</code> Syntax</span></p>
+<div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb4-1"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">parameter </span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> value</span></span>
+<span id="cb4-2"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># commentout line begins with # or ;</span></span></code></pre></div>
+<p><span class="mini-section"><code>global</code>の設定項目</span></p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 35%">
+<col style="width: 40%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>項目</th>
+<th>説明</th>
+<th>例</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>workgroup</code></td>
+<td>Windows ネットワーク上のワークグループ名を指定</td>
+<td><code>WORKGROUP</code></td>
+</tr>
+<tr class="even">
+<td><code>server string</code></td>
+<td>サーバーの説明文（ネットワークブラウザに表示される）</td>
+<td><code>Samba Server</code></td>
+</tr>
+<tr class="odd">
+<td><code>log file</code></td>
+<td>ログファイルの出力場所</td>
+<td><code>/var/log/samba/log.%m</code></td>
+</tr>
+<tr class="even">
+<td><code>max log size</code></td>
+<td>ログファイルの最大サイズ (KB)</td>
+<td><code>1000</code></td>
+</tr>
+<tr class="odd">
+<td><code>server role</code></td>
+<td>サーバーの役割．ファイルサーバーとして使う場合は<code>standalone server</code></td>
+<td><code>standalone server</code> / <code>member server</code> / <code>active directory domain controller</code></td>
+</tr>
+<tr class="even">
+<td><code>passdb backend</code></td>
+<td>ユーザー認証DBの指定</td>
+<td><code>tdbsam / ldapsam</code></td>
+</tr>
+<tr class="odd">
+<td><code>unix password sync</code></td>
+<td>Sambaユーザーアカウントのpassword変更をLinuxユーザーアカウントのpasswordにも反映</td>
+<td><code>yes</code> / <code>no</code></td>
+</tr>
+<tr class="even">
+<td><code>passwd program</code></td>
+<td>Samba がパスワード変更要求を受けた際に，実行するコマンドを指定する</td>
+<td><code>/usr/bin/passwd %u</code></td>
+</tr>
+<tr class="odd">
+<td><code>passwd chat</code></td>
+<td><code>passwd program</code> とやり取りする際の「対話プロンプトと応答パターン」を定義する</td>
+<td><code>*New*password* %n\n *Retype*new*password* %n\n *password*updated*successfully*</code></td>
+</tr>
+<tr class="even">
+<td><code>pam password change</code></td>
+<td>有効にすると，password変更に<code>passwd program</code> に指定したコマンドではなくPAMを利用する</td>
+<td><code>yes</code> / <code>no</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><span class="mini-section"><code>Share Deinition</code>の設定項目</span></p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 35%">
+<col style="width: 40%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>項目</th>
+<th>説明</th>
+<th>例</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>path</code></td>
+<td>実際に公開するディレクトリの絶対パス</td>
+<td><code>/srv/samba/public</code></td>
+</tr>
+<tr class="even">
+<td><code>comment</code></td>
+<td>ネットワークブラウザに表示される説明文</td>
+<td><code>Public Share</code></td>
+</tr>
+<tr class="odd">
+<td><code>browseable</code></td>
+<td>ネットワークブラウザに表示するか</td>
+<td><code>yes</code> / <code>no</code></td>
+</tr>
+<tr class="even">
+<td><code>read only</code></td>
+<td>読み取り専用にするか</td>
+<td><code>yes</code> / <code>no</code></td>
+</tr>
+<tr class="odd">
+<td><code>writable</code></td>
+<td><code>read only</code> の逆指定（同義語）</td>
+<td><code>yes</code></td>
+</tr>
+<tr class="even">
+<td><code>guest ok</code></td>
+<td>認証なしでアクセスできるか</td>
+<td><code>yes</code> / <code>no</code></td>
+</tr>
+<tr class="odd">
+<td><code>valid users</code></td>
+<td>アクセスを許可するユーザー/グループ</td>
+<td><code>%S</code> とすればhome directoryのユーザーのみが自身のhome directoryにアクセスできる</td>
+</tr>
+<tr class="even">
+<td><code>invalid users</code></td>
+<td>アクセスを拒否するユーザー/グループ</td>
+<td><code>@nogroup user2</code></td>
+</tr>
+<tr class="odd">
+<td><code>create mask</code></td>
+<td>新規ファイル作成時のパーミッションマスク</td>
+<td><code>0644</code></td>
+</tr>
+<tr class="even">
+<td><code>directory mask</code></td>
+<td>新規ディレクトリ作成時のパーミッションマスク</td>
+<td><code>0755</code></td>
+</tr>
+<tr class="odd">
+<td><code>public</code></td>
+<td><code>guest ok</code> の別名</td>
+<td><code>yes</code> / <code>no</code></td>
+</tr>
+<tr class="even">
+<td><code>locking</code></td>
+<td>ファイルロックの使用有無</td>
+<td><code>yes</code></td>
+</tr>
+<tr class="odd">
+<td><code>printable</code></td>
+<td>プリンタ共有として扱うか</td>
+<td><code>no</code>（通常のフォルダ共有なら）</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><span class="mini-section">構文チェック</span></p>
+<p><code>testparm</code> コマンドを用いることでconfigファイルの構文チェックをすることができます</p>
+<div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb5-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> testparm <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-s</span></span>
+<span id="cb5-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Load</span> smb config files from /etc/samba/smb.conf</span>
+<span id="cb5-3"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Loaded</span> services file OK.</span>
+<span id="cb5-4"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">...</span></span></code></pre></div>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 21%">
+<col style="width: 36%">
+<col style="width: 41%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>オプション</th>
+<th>説明</th>
+<th>例 / 補足</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>-s</code></td>
+<td><strong>短い形式で表示</strong>（冗長な情報を省略し、主要な設定のみを出力）</td>
+<td><code>testparm -s</code></td>
+</tr>
+<tr class="even">
+<td><code>-v</code></td>
+<td><strong>詳細表示</strong>（全設定、コメントやデフォルト値も含む）</td>
+<td><code>testparm -v</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="共有の作成" class="level2">
+<h2 class="anchored" data-anchor-id="共有の作成">共有の作成</h2>
+<p>iPadからtailscale経由でアクセス可能な共有ディレクトリを指定したいと思います．</p>
+<div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb6-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">[server-hdd]</span></span>
+<span id="cb6-2"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">comment </span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> 2TB sized hdd</span></span>
+<span id="cb6-3"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">path </span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> /media/kirby/DATA/</span></span>
+<span id="cb6-4"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">browsable </span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">yes</span></span>
+<span id="cb6-5"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">writable </span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">yes</span></span>
+<span id="cb6-6"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">guest ok </span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">no</span></span>
+<span id="cb6-7"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">printable </span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">no</span></span>
+<span id="cb6-8"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">valid users </span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> dedede kirby</span></span></code></pre></div>
+<p>と指定すると <code>server-hdd</code> を共有名として <code>path</code> を公開することができます．設定が完了したら</p>
+<div class="sourceCode" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb7-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> sudo systemctl restart smbd</span></code></pre></div>
+<p>を実施します．</p>
+<p><span class="mini-section">iPadからのアクセス設定</span></p>
+<p>Tailscaleをつないでいるならば自動的に名前解決してくれます．手順は以下です．</p>
+<ol type="1">
+<li>Tailscale管理画面から共有設定したサーバーの名前を調べる(例: <code>dsserver</code>)</li>
+<li><code>ファイル</code> から右上の３点マークの設定を開く</li>
+<li>「サーバーへ接続」を開き以下の書式で入力する</li>
+</ol>
+<div class="sourceCode" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb8-1"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">smb://dsserver/</span></span></code></pre></div>
+<p>その後，Sambaユーザー名とSambaパスワード等が要求されますが，それは <code>smb.conf</code> の設定に合わせて入力してください．</p>
+</section>
+<section id="appendix-microsoftネットワーク" class="level2">
+<h2 class="anchored" data-anchor-id="appendix-microsoftネットワーク">Appendix: Microsoftネットワーク</h2>
+<p>Microsoftネットワークは「ワークグループ」という基本単位でネットワークに参加するPCを論理的にまとめて管理しています． Windowsコンピューターでは，所属するワークグループ名を設定するだけで，そのワークグループへ参加することができます．</p>
+<p><span class="mini-section">ワークグループの管理方式</span></p>
+<p>ワークグループ自体は分散型管理が基本で，ユーザーアカウントやパスワードをそれぞれのコンピューターで管理します．もう一つの方法として， ドメインネットワークを利用したドメインコントローラーというサーバーによる集中管理する方法もあります．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 21%">
+<col style="width: 42%">
+<col style="width: 35%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>項目</th>
+<th>ワークグループ（分散型）</th>
+<th>ドメイン（中央管理）</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>管理方式</td>
+<td>分散型</td>
+<td>集中管理型</td>
+</tr>
+<tr class="even">
+<td>ユーザー管理</td>
+<td>各PCごと</td>
+<td>ドメインコントローラー(DC)で一元管理</td>
+</tr>
+<tr class="odd">
+<td>規模</td>
+<td>小規模</td>
+<td>中～大規模</td>
+</tr>
+<tr class="even">
+<td>必要設備</td>
+<td>PCのみ</td>
+<td>DCサーバー必要</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>ドメインネットワークを利用する場合は以下の手順で認証が行われます</p>
+<ol type="1">
+<li>ユーザーのPCがシステム起動するとき「ドメインログイン」を行い，その認証情報がDCに送られる</li>
+<li>DCがユーザー名とパスワードを照合し，認証を行う</li>
+<li>DCによる認証をパスすると，ドメインネットワークへのアクセスが許可される</li>
+</ol>
+<p>ドメインネットワークでは，一度認証をパスすれば，ドメイン内のサーバーへアクセスする際，個々に認証をする必要はありません．そのため，大規模なネットワークを運用する場合に便利な機能です．</p>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">%%{init: {"theme":"default"}}%%
+architecture-beta
+    group wg(cloud)[Workgroup]
+
+    service pc1(server)[PC1] in wg
+    service pc2(server)[PC2] in wg
+    service pc3(server)[PC3] in wg
+    service pc4(server)[PC4] in wg
+
+    pc1:B -- T:pc2
+    pc2:L -- R:pc3
+    pc1:R -- L:pc3
+    pc3:T -- B:pc4
+    pc4:R -- L:pc1
+    pc4:B -- T:pc2
+
+    group domain(cloud)[Domain]
+
+    service dc(database)[Domain Controller] in domain
+    service dpc1(server)[PC5] in domain
+    service dpc2(server)[PC6] in domain
+    service dpc3(server)[PC7] in domain
+
+    dpc1:B -- T:dc
+    dpc2:L -- R:dc
+    dpc3:T -- B:dc
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+<p><span class="mini-section">アクティブディレクトリ（Active Directory, AD）</span></p>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 2</strong></span> <span class="def-title">アクティブディレクトリ</span></p>
+<ul>
+<li>ユーザーやグループなどのリソースを一元管理するディレクトリサービス</li>
+<li>ディレクトリアクセスプロトコルとしてLDAPを利用</li>
+<li>ホスト名の名前解決にDNSを利用</li>
+<li>認証システムにKerberosを利用</li>
+</ul>
+</div>
+
+
+</section>
+
+ ]]></description>
+  <category>環境構築</category>
+  <category>Linux</category>
+  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-09-05-samba/</guid>
+  <pubDate>Fri, 05 Sep 2025 00:00:00 GMT</pubDate>
+</item>
 <item>
   <title>Thesis Statementの書き方</title>
   <dc:creator>Ryo Nakagami</dc:creator>
@@ -356,9 +1074,13 @@ Proof
 </div>
 <div id="callout-3" class="callout-3-contents callout-collapse collapse show">
 <div class="callout-body-container callout-body">
+<div class="math-scroll">
 <p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign%7D%0A(Y_i%20-%20m(X_i))%5E2%0A%20%20&amp;=%20(Y_i%20-%20%5Cmathbb%20E%5BY_i%20%7C%20X_i%5D%20+%20%5Cmathbb%20E%5BY_i%20%7C%20X_i%5D%20-%20m(X_i))%5E2%5C%5C%0A%20%20&amp;=%20(Y_i%20-%20%5Cmathbb%20E%5BY_i%20%7C%20X_i%5D)%5E2%20+%202(Y_i%20-%20%5Cmathbb%20E%5BY_i%20%7C%20X_i%5D)(%5Cmathbb%20E%5BY_i%20%7C%20X_i%5D%20-%20m(X_i))%5E2%20+%20(%5Cmathbb%20E%5BY_i%20%7C%20X_i%5D%20-%20m(X_i))%5E2%5C%5C%0A%20%20&amp;=%20%5Cepsilon%5E2%20+%202%5Cepsilon(%5Cmathbb%20E%5BY_i%20%7C%20X_i%5D%20-%20m(X_i))%20+%20(%5Cmathbb%20E%5BY_i%20%7C%20X_i%5D%20-%20m(X_i))%5E2%0A%5Cend%7Balign%7D%0A"></p>
+</div>
 <p>期待値を取ると</p>
+<div class="math-scroll">
 <p><img src="https://latex.codecogs.com/png.latex?%0A%5Cmathbb%20E%5B(Y_i%20-%20m(X_i))%5E2%5D%20=%20%5Cmathbb%20E%5B%5Cepsilon_i%5E2%5D%20+%20%5Cmathbb%20E%5B(%5Cmathbb%20E%5BY_i%20%7C%20X_i%5D%20-%20m(X_i))%5E2%5D%0A"></p>
+</div>
 <p>従って，</p>
 <p><img src="https://latex.codecogs.com/png.latex?%0AE%5BY_i%20%7C%20X_i%5D%20=%20m(X_i)%0A"></p>
 <p>のときMSEの意味で <img src="https://latex.codecogs.com/png.latex?E%5BY_i%20%7C%20X_i%5D"> が最小化関数であることがわかる．</p>
@@ -4899,7 +5621,7 @@ font-style: inherit;">  # DefaultはAlgorithm</span></span></code></pre></div>
 \end{algorithm}
 ```
 </pre>
-<div id="alg-quicksort" class="pseudocode-container quarto-float" data-line-number="true" data-comment-delimiter="//" data-pseudocode-number="1" data-line-number-punc=":" data-indent-size="1.2em" data-caption-prefix="Algorithm" data-no-end="false">
+<div id="alg-quicksort" class="pseudocode-container quarto-float" data-indent-size="1.2em" data-line-number-punc=":" data-pseudocode-number="1" data-no-end="false" data-comment-delimiter="//" data-caption-prefix="Algorithm" data-line-number="true">
 <div class="pseudocode">
 \begin{algorithm} \caption{Quicksort} \begin{algorithmic} \Procedure{Quicksort}{$A, p, r$} \If{$p &lt; r$} \State $q = $ \Call{Partition}{$A, p, r$} \State \Call{Quicksort}{$A, p, q - 1$} \State \Call{Quicksort}{$A, q + 1, r$} \EndIf \EndProcedure \Procedure{Partition}{$A, p, r$} \State $x = A[r]$ \State $i = p - 1$ \For{$j = p$ \To $r - 1$} \If{$A[j] &lt; x$} \State $i = i + 1$ \State exchange $A[i]$ with $A[j]$ \EndIf \State exchange $A[i]$ with $A[r]$ \EndFor \EndProcedure \end{algorithmic} \end{algorithm}
 </div>
@@ -5130,1230 +5852,6 @@ font-style: inherit;">;</span></span>
   <category>quarto</category>
   <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-07-31-how-to-write-pseudocode-in-quarto/</guid>
   <pubDate>Thu, 31 Jul 2025 00:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>なぜテキストファイルは改行で終わるべきなのか？</title>
-  <dc:creator>Ryo Nakagami</dc:creator>
-  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-07-30-POSIX-File-end-with-newline/</link>
-  <description><![CDATA[ 
-
-
-
-
-
-
-<section id="posix標準の考え方" class="level2">
-<h2 class="anchored" data-anchor-id="posix標準の考え方">POSIX標準の考え方</h2>
-<div id="def-posix-incompete" class="custom_problem blog-custom-border theorem definition">
-<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title">3.195 Incomplete Line</span></p>
-<ul>
-<li>A sequence of one or more non-<code>&lt;newline&gt;</code> characters at the end of the file.</li>
-</ul>
-</div>
-<div id="def-posix" class="custom_problem blog-custom-border theorem definition">
-<p><span class="theorem-title"><strong>Definition 2</strong></span> <span class="def-title">3.206 Line</span></p>
-<ul>
-<li>A sequence of zero or more non-<code>&lt;newline&gt;</code> characters plus a terminating <code>&lt;newline&gt;</code> character.</li>
-<li>Lineとは，1つ以上の <code>&lt;newline&gt;</code> 文字以外の文字と，行末の <code>&lt;newline&gt;</code> 文字によって成り立つ</li>
-</ul>
-</div>
-<p>多くのUNIX系のツールは Definition&nbsp;2 に基づいており，改行文字で終わらない「行」は Definition&nbsp;1 のように「行」とはみなされません．</p>
-<p><span class="mini-section">Editorと改行</span></p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 28%">
-<col style="width: 71%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>エディタ</th>
-<th>末尾の改行の挙動</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><strong>VS Code</strong></td>
-<td>設定次第で自動追加 (<code>files.insertFinalNewline</code>)</td>
-</tr>
-<tr class="even">
-<td><strong>Vim</strong></td>
-<td>デフォルトで改行追加（<code>:set nofixeol</code> で抑制可）</td>
-</tr>
-<tr class="odd">
-<td><strong>Emacs</strong></td>
-<td>デフォルトで改行追加（<code>require-final-newline</code> 変数）</td>
-</tr>
-</tbody>
-</table>
-<section id="catコマンドと結合" class="level3">
-<h3 class="anchored" data-anchor-id="catコマンドと結合"><code>cat</code>コマンドと結合</h3>
-<p><code>cat</code> でファイルを結合する場合，改行で終わるファイル (<code>a.txt</code> と <code>c.txt</code>) と改行で終わらないファイル (<code>b.txt</code>) では，結合時の挙動が異なります．</p>
-<p>まず，改行ありと改行なしの<code>.txt</code>ファイルを生成します</p>
-<p><span class="mini-section">改行ありファイルの生成</span></p>
-<div class="tabset-margin-container"></div><div class="panel-tabset" data-group="language">
-<ul class="nav nav-tabs"><li class="nav-item"><a class="nav-link active" id="tabset-1-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-1" aria-controls="tabset-1-1" aria-selected="true">Bash</a></li><li class="nav-item"><a class="nav-link" id="tabset-1-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-2" aria-controls="tabset-1-2" aria-selected="false">Zsh</a></li></ul>
-<div class="tab-content" data-group="language">
-<div id="tabset-1-1" class="tab-pane active" aria-labelledby="tabset-1-1-tab">
-<div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">#!/bin/bash</span></span>
-<span id="cb1-2"></span>
-<span id="cb1-3"><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">words</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">(</span>foo bar baz<span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">)</span></span>
-<span id="cb1-4"><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">files</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">(</span>a b c<span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">)</span></span>
-<span id="cb1-5"></span>
-<span id="cb1-6"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> i <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">${</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">!</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">words</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">[@]</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">}</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">;</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">do</span></span>
-<span id="cb1-7">  <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">${words</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">[</span>i<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">]</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">}</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">${files</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">[</span>i<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">]</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">}</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">.txt"</span></span>
-<span id="cb1-8"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">done</span></span></code></pre></div>
-</div>
-<div id="tabset-1-2" class="tab-pane" aria-labelledby="tabset-1-2-tab">
-<div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb2-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">#!/bin/zsh</span></span>
-<span id="cb2-2"></span>
-<span id="cb2-3"><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">words</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">(</span>foo bar baz<span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">)</span></span>
-<span id="cb2-4"><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">files</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">(</span>a b c<span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">)</span></span>
-<span id="cb2-5"></span>
-<span id="cb2-6"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> i <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> {1..<span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">${</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">#</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">words</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">[@]</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">}</span>}<span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">;</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">do</span></span>
-<span id="cb2-7">  <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">${words</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">[</span>i<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">]</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">}</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">${files</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">[</span>i<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">]</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">}</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">.txt"</span></span>
-<span id="cb2-8"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">done</span></span></code></pre></div>
-</div>
-</div>
-</div>
-<p><span class="mini-section">改行なしファイルの生成</span></p>
-<div class="tabset-margin-container"></div><div class="panel-tabset" data-group="language">
-<ul class="nav nav-tabs"><li class="nav-item"><a class="nav-link active" id="tabset-2-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-2-1" aria-controls="tabset-2-1" aria-selected="true">Bash</a></li><li class="nav-item"><a class="nav-link" id="tabset-2-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-2-2" aria-controls="tabset-2-2" aria-selected="false">Zsh</a></li></ul>
-<div class="tab-content" data-group="language">
-<div id="tabset-2-1" class="tab-pane active" aria-labelledby="tabset-2-1-tab">
-<div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">#!/bin/bash</span></span>
-<span id="cb3-2"></span>
-<span id="cb3-3"><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">words</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">(</span>foo bar baz<span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">)</span></span>
-<span id="cb3-4"><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">files</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">(</span>a b c<span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">)</span></span>
-<span id="cb3-5"></span>
-<span id="cb3-6"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> i <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">${</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">!</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">words</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">[@]</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">}</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">;</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">do</span></span>
-<span id="cb3-7">  <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">printf</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"%s"</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">${words</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">[</span>i<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">]</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">}</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">${files</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">[</span>i<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">]</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">}</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">_without_newline.txt"</span></span>
-<span id="cb3-8"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">done</span></span></code></pre></div>
-</div>
-<div id="tabset-2-2" class="tab-pane" aria-labelledby="tabset-2-2-tab">
-<div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb4-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">#!/bin/zsh</span></span>
-<span id="cb4-2"></span>
-<span id="cb4-3"><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">words</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">(</span>foo bar baz<span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">)</span></span>
-<span id="cb4-4"><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">files</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">(</span>a b c<span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">)</span></span>
-<span id="cb4-5"></span>
-<span id="cb4-6"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> i <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> {1..<span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">${</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">#</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">words</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">[@]</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">}</span>}<span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">;</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">do</span></span>
-<span id="cb4-7">  <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">printf</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"%s"</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">${words</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">[</span>i<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">]</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">}</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">${files</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">[</span>i<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">]</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">}</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">_without_newline.txt"</span></span>
-<span id="cb4-8"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">done</span></span></code></pre></div>
-</div>
-</div>
-</div>
-<p>つぎに <code>cat</code>コマンドで結合をしてみます．</p>
-<p><span class="mini-section">cat コマンドで結合</span></p>
-<div class="tabset-margin-container"></div><div class="panel-tabset">
-<ul class="nav nav-tabs"><li class="nav-item"><a class="nav-link active" id="tabset-3-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-3-1" aria-controls="tabset-3-1" aria-selected="true">改行ありファイル</a></li><li class="nav-item"><a class="nav-link" id="tabset-3-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-3-2" aria-controls="tabset-3-2" aria-selected="false">改行なしファイル</a></li></ul>
-<div class="tab-content">
-<div id="tabset-3-1" class="tab-pane active" aria-labelledby="tabset-3-1-tab">
-<div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb5-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> cat <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">{a</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">,</span><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">b</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">,</span><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">c}</span>.txt</span>
-<span id="cb5-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">foo</span></span>
-<span id="cb5-3"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">bar</span></span>
-<span id="cb5-4"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">baz</span></span></code></pre></div>
-</div>
-<div id="tabset-3-2" class="tab-pane" aria-labelledby="tabset-3-2-tab">
-<div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb6-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> cat <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">{a</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">,</span><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">b</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">,</span><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">c}</span>_without_newline.txt      </span>
-<span id="cb6-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">foobarbaz%</span> </span></code></pre></div>
-</div>
-</div>
-</div>
-</section>
-<section id="wc-commandと改行" class="level3">
-<h3 class="anchored" data-anchor-id="wc-commandと改行"><code>wc</code> commandと改行</h3>
-<div id="def-" class="custom_problem blog-custom-border theorem definition">
-<p><span class="theorem-title"><strong>Definition 3</strong></span> <span class="def-title"><code>wc</code> コマンドマニュアル</span></p>
-<ul>
-<li>A line is defined as a string of characters delimited by a <code>&lt;newline&gt;</code> character.</li>
-</ul>
-</div>
-<p><code>wc</code>コマンドは <code>&lt;newline&gt;</code> の数で行数を数えています．実際に</p>
-<div class="sourceCode" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">## 改行なし</span></span>
-<span id="cb7-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">$</span> echo <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-n</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Line not ending in a new line"</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">wc</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-l</span></span>
-<span id="cb7-3"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">0</span></span>
-<span id="cb7-4"></span>
-<span id="cb7-5"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">## 改行あり</span></span>
-<span id="cb7-6"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">$</span> echo <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Line ending with a new line"</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">wc</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-l</span></span>
-<span id="cb7-7"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">1</span></span></code></pre></div>
-<div id="exm-" class="custom_problem theorem example">
-<p><span class="theorem-title"><strong>Example 1</strong></span> <span class="def-title">結合ファイルと<code>wc</code>コマンド</span></p>
-<div class="tabset-margin-container"></div><div class="panel-tabset">
-<ul class="nav nav-tabs"><li class="nav-item"><a class="nav-link active" id="tabset-4-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-4-1" aria-controls="tabset-4-1" aria-selected="true">改行ありファイル</a></li><li class="nav-item"><a class="nav-link" id="tabset-4-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-4-2" aria-controls="tabset-4-2" aria-selected="false">改行なしファイル</a></li></ul>
-<div class="tab-content">
-<div id="tabset-4-1" class="tab-pane active" aria-labelledby="tabset-4-1-tab">
-<div class="sourceCode" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb8-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> cat <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">{a</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">,</span><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">b</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">,</span><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">c}</span>.txt <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">wc</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-l</span></span>
-<span id="cb8-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">3</span></span></code></pre></div>
-</div>
-<div id="tabset-4-2" class="tab-pane" aria-labelledby="tabset-4-2-tab">
-<div class="sourceCode" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb9-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> cat <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">{a</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">,</span><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">b</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">,</span><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">c}</span>_without_newline.txt <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">wc</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-l</span></span>
-<span id="cb9-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">0</span></span></code></pre></div>
-</div>
-</div>
-</div>
-</div>
-<hr>
-</section>
-</section>
-<section id="git-trackingテキストファイルを対象に改行有無判定スクリプト" class="level2">
-<h2 class="anchored" data-anchor-id="git-trackingテキストファイルを対象に改行有無判定スクリプト">git trackingテキストファイルを対象に改行有無判定スクリプト</h2>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-スクリプト全体
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>以下のシェルスクリプトは，バイナリファイルを除外した上で，ファイル末尾の改行の有無をチェックするスクリプトです</p>
-<div class="sourceCode" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">git</span> ls-files <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-z</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">while</span> <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">IFS</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">read</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-r</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-d</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">''</span> <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">file</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">;</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">do</span></span>
-<span id="cb10-2">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">file</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--mime</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">${file}</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">grep</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-q</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-e</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"charset=binary"</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-e</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"image/svg+xml"</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">||</span></span>
-<span id="cb10-3">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">tail</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-c1</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">${file}</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">read</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-r</span> <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">_</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">||</span></span>
-<span id="cb10-4">  <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Missing newline: </span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">${file}</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span></span>
-<span id="cb10-5"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">done</span></span></code></pre></div>
-</div>
-</div>
-<p><span class="mini-section">アルゴリズム</span></p>
-<pre id="git-check-newline">\begin{algorithm}
-\caption{Checking Files for Missing Trailing Newlines}
-\begin{algorithmic}
-\State file\_list \(\leftarrow\) Get all Git-tracked files with NUL delimiter
-\ForAll{file in file\_list}
-    \State mime\_info \(\leftarrow\) \texttt{file --mime file}
-    \If{mime\_info contains "charset=binary" OR "image/svg+xml"}
-        \State \textbf{continue (skip binary/SVG files)}
-    \Else
-        \State last\_byte \(\leftarrow\) Get final byte of file
-        \If{last\_byte is not newline character}
-            \State Output "Missing newline: file"
-        \EndIf
-    \EndIf
-\EndFor
-\end{algorithmic}
-\end{algorithm}
-</pre>
-<script>
-    pseudocode.renderElement(document.getElementById("git-check-newline"));
-</script>
-<p><span class="mini-section">各コマンド</span></p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 43%">
-<col style="width: 56%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>コマンド</th>
-<th>説明</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>git ls-files -z</code></td>
-<td>Gitで管理されているファイルを一覧表示<br><code>-z</code>オプションで区切り文字としてNUL文字を使用（ファイル名に特殊文字が含まれる場合の安全な処理のため）</td>
-</tr>
-<tr class="even">
-<td><code>while IFS= read -r -d '' file</code></td>
-<td>NUL文字を区切りとしてファイルを順次処理<br><code>IFS=</code>で空白文字の保持<br><code>-r</code>でバックスラッシュの解釈を防止<br><code>-d ''：read</code> でヌル文字区切りに対応</td>
-</tr>
-<tr class="odd">
-<td><code>file --mime "${file}" | grep -q -e "charset=binary" -e "image/svg+xml" ||</code></td>
-<td>バイナリファイルとSVGファイルをスキップ<br>テキストファイルのみを処理<br><code>||</code>は「このコマンドが失敗した場合に次のコマンドを実行」を意味</td>
-</tr>
-<tr class="even">
-<td><code>tail -c1 "${file}" | read -r _ ||</code></td>
-<td>ファイルの最後の1バイトをチェック<br><code>read</code>は改行があれば0，なければ1を返す</td>
-</tr>
-<tr class="odd">
-<td><code>echo "Missing newline: ${file}"</code></td>
-<td>改行のないファイルを報告</td>
-</tr>
-</tbody>
-</table>
-<div id="exm-" class="custom_problem theorem example">
-<p><span class="theorem-title"><strong>Example 2</strong></span> <span class="def-title">カレントディレクトリ以下のファイルに対しての改行判定スクリプト</span></p>
-<div class="sourceCode" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">#!/bin/bash</span></span>
-<span id="cb11-2"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">find</span> . <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-maxdepth</span> 1 <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-type</span> f <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-print0</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">while</span> <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">IFS</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">read</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-r</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-d</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">''</span> <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">file</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">;</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">do</span> </span>
-<span id="cb11-3">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">file</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--mime</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">${file}</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">grep</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-q</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-e</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"charset=binary"</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-e</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"image/svg+xml"</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">||</span></span>
-<span id="cb11-4">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">tail</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-c1</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">${file}</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">read</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-r</span> <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">_</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">||</span></span>
-<span id="cb11-5">  <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Missing newline: </span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">${file}</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span></span>
-<span id="cb11-6"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">done</span></span></code></pre></div>
-<ul>
-<li><code>-print0</code>: 各ファイル名の末尾に NUL文字 (<code>\0</code>) を付けて出力</li>
-</ul>
-</div>
-<hr>
-<section id="改行なしと判定されたファイルに対してnewlineを付与する" class="level3">
-<h3 class="anchored" data-anchor-id="改行なしと判定されたファイルに対してnewlineを付与する">改行なしと判定されたファイルに対して<code>&lt;newline&gt;</code>を付与する</h3>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-シェルスクリプト
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<div class="sourceCode" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">find</span> . <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-maxdepth</span> 1 <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-type</span> f <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-print0</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">while</span> <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">IFS</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">read</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-r</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-d</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">''</span> <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">file</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">;</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">do</span></span>
-<span id="cb12-2">  <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># バイナリファイルやSVGはスキップ</span></span>
-<span id="cb12-3">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">file</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--mime</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$file</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">grep</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-q</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-e</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"charset=binary"</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-e</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"image/svg+xml"</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">&amp;&amp;</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">continue</span></span>
-<span id="cb12-4"></span>
-<span id="cb12-5">  <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># 最後の1バイトを確認（改行がないなら）</span></span>
-<span id="cb12-6">  <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">if</span> <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">! </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">tail</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-c1</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$file</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">read</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-r</span> <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">_</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">;</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">then</span></span>
-<span id="cb12-7">      <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">echo</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;&gt;</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$file</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">;</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"✓ Newline added to: </span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$file</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span></span>
-<span id="cb12-8">  <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">fi</span></span>
-<span id="cb12-9"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">done</span></span></code></pre></div>
-</div>
-</div>
-<ul>
-<li><code>echo &gt;&gt; "$file"</code> で<code>&lt;newline&gt;</code>を行末に追加</li>
-</ul>
-</section>
-</section>
-<section id="改行忘れの対策" class="level2">
-<h2 class="anchored" data-anchor-id="改行忘れの対策">改行忘れの対策</h2>
-<section id="editorconfigの用いた改行設定" class="level3">
-<h3 class="anchored" data-anchor-id="editorconfigの用いた改行設定"><code>.editorconfig</code>の用いた改行設定</h3>
-<p><span class="mini-section">EditorConfigとは?</span></p>
-<ul>
-<li>コードスタイル（インデントや改行コードなど）を統一するための設定ファイルの仕組み</li>
-<li>異なるエディタ・OS間でのコードスタイルを統一させたいときに便利なツール</li>
-</ul>
-<p><span class="mini-section">EditorConfigによる改行設定例</span></p>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 30%">
-<col style="width: 31%">
-<col style="width: 38%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>プロパティ名</th>
-<th>内容</th>
-<th>例</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>indent_style</code></td>
-<td>インデントの種類（<code>space</code> または <code>tab</code>）</td>
-<td><code>indent_style = space</code></td>
-</tr>
-<tr class="even">
-<td><code>indent_size</code></td>
-<td>インデントの幅</td>
-<td><code>indent_size = 4</code></td>
-</tr>
-<tr class="odd">
-<td><code>end_of_line</code></td>
-<td>改行コード（<code>lf</code>/<code>crlf</code>/<code>cr</code>）</td>
-<td><code>end_of_line = lf</code></td>
-</tr>
-<tr class="even">
-<td><code>charset</code></td>
-<td>文字コード</td>
-<td><code>charset = utf-8</code></td>
-</tr>
-<tr class="odd">
-<td><code>trim_trailing_whitespace</code></td>
-<td>行末の空白を削除するか</td>
-<td><code>trim_trailing_whitespace = true</code></td>
-</tr>
-<tr class="even">
-<td><code>insert_final_newline</code></td>
-<td>最終行の末尾に改行を追加するか</td>
-<td><code>insert_final_newline = true</code></td>
-</tr>
-</tbody>
-</table>
-</div>
-<div class="sourceCode" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb13-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># .editorconfig</span></span>
-<span id="cb13-2"></span>
-<span id="cb13-3"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># このファイルが設定のルートであることを示す</span></span>
-<span id="cb13-4"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">root</span> = true</span>
-<span id="cb13-5"></span>
-<span id="cb13-6"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># すべてのファイルに適用</span></span>
-<span id="cb13-7"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">[*]</span></span>
-<span id="cb13-8"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">indent_style</span> = space</span>
-<span id="cb13-9"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">indent_size</span> = 4</span>
-<span id="cb13-10"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">end_of_line</span> = lf</span>
-<span id="cb13-11"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">charset</span> = utf-8</span>
-<span id="cb13-12"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">trim_trailing_whitespace</span> = true</span>
-<span id="cb13-13"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">insert_final_newline</span> = true</span></code></pre></div>
-</section>
-<section id="vscodeでの改行設定" class="level3">
-<h3 class="anchored" data-anchor-id="vscodeでの改行設定">VSCodeでの改行設定</h3>
-<p><code>settings.json</code>で以下の項目を追加します</p>
-<div class="sourceCode" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb14-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">{</span></span>
-<span id="cb14-2">  <span class="er" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">//</span> <span class="er" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">Editor</span> <span class="er" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">Settings</span></span>
-<span id="cb14-3">  <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"files.insertFinalNewline"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">true</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">,</span></span>
-<span id="cb14-4">  <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"notebook.insertFinalNewline"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">true</span></span>
-<span id="cb14-5"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">}</span></span></code></pre></div>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 40%">
-<col style="width: 60%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>設定キー</th>
-<th>意味</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>"files.insertFinalNewline": true</code></td>
-<td>ファイル保存時に、末尾に改行を自動で追加します（通常の <code>.txt</code>, <code>.js</code>, <code>.py</code> などすべて対象）</td>
-</tr>
-<tr class="even">
-<td><code>"notebook.insertFinalNewline": true</code></td>
-<td>Jupyter Notebook（<code>.ipynb</code>）などのノートブック形式のファイルにおいて、セル内のソースに末尾改行を追加する設定（拡張機能依存）</td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-</section>
-<section id="appendix-改行コードの種類" class="level2">
-<h2 class="anchored" data-anchor-id="appendix-改行コードの種類">Appendix: 改行コードの種類</h2>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 14%">
-<col style="width: 5%">
-<col style="width: 23%">
-<col style="width: 20%">
-<col style="width: 14%">
-<col style="width: 26%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>改行コード</th>
-<th>記号</th>
-<th>名称</th>
-<th>主なOS</th>
-<th>バイナリ表現</th>
-<th>説明</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>LF</code></td>
-<td><code>\n</code></td>
-<td>Line Feed（行送り）</td>
-<td>Linux / macOS（Unix系）</td>
-<td><code>0x0A</code></td>
-<td>行末で「次の行の先頭」に移動</td>
-</tr>
-<tr class="even">
-<td><code>CRLF</code></td>
-<td><code>\r\n</code></td>
-<td>Carriage Return + Line Feed</td>
-<td>Windows</td>
-<td><code>0x0D 0x0A</code></td>
-<td>行頭に戻りつつ次の行へ（古いタイプライタ由来）</td>
-</tr>
-<tr class="odd">
-<td><code>CR</code></td>
-<td><code>\r</code></td>
-<td>Carriage Return（復帰）</td>
-<td>古いMac OS（〜OS9）</td>
-<td><code>0x0D</code></td>
-<td>行頭に戻るだけ（現在はほぼ使われない）</td>
-</tr>
-</tbody>
-</table>
-</div>
-<p><span class="mini-section">歴史的背景</span></p>
-<p>タイプライターの動きと対応させると改行には３つの考え方がありました</p>
-<ul>
-<li><code>LF</code> は紙を上に移動させ (水平方向の位置は変わらない)</li>
-<li><code>CR</code> は「キャリッジ」を戻して，次の入力文字が紙の左端の同じ行に表示</li>
-<li><code>CR+LF</code> は両方を実行し，新しい行の入力準備</li>
-</ul>
-</section>
-<section id="references" class="level2">
-<h2 class="anchored" data-anchor-id="references">References</h2>
-<ul>
-<li><a href="https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap03.html#tag_03_206">POSIX standard</a></li>
-<li><a href="https://editorconfig.org/">EditorConfig</a></li>
-</ul>
-
-
-</section>
-
- ]]></description>
-  <category>coding</category>
-  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-07-30-POSIX-File-end-with-newline/</guid>
-  <pubDate>Wed, 30 Jul 2025 00:00:00 GMT</pubDate>
 </item>
 </channel>
 </rss>
