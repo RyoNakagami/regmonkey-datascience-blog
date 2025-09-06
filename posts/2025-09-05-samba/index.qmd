@@ -1,0 +1,403 @@
+---
+title: "Sambaの設定とiPad連携"
+author: "Ryo Nakagami"
+date: "2025-09-05"
+date-modified: "2025-09-05"
+categories: [環境構築, Linux]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## Sambaでできること
+
+::: {#def- .custom_problem .blog-custom-border}
+[Samba]{.def-title}
+
+- LinuxホストをMicrosoftネットワークに参加できるようにするソフトウェア
+
+:::
+
+Sambaを使うことで，次のような機能が実現できます．
+
+:::: {.no-border-top-table}
+
+| カテゴリ                  | 機能               | 説明                                                         |
+| -------------------------| ---------------- | ---------------------------------------------------------- |
+| **ファイル共有**          | ディレクトリ共有         | Windows から Linux/Unix のディレクトリにアクセス可能．読み取り専用／書き込み可の権限設定が可能・ |
+|                         | ファイルアクセス制御       | ユーザー・グループごとのアクセス権を設定可能。                                    |
+| **プリンタ共有**          | プリンタ共有           | Linux/Unix に接続されたプリンタを Windows から利用可能．          |
+|                         | 複数ユーザー対応         | 複数ユーザーでの共有プリンタ環境を構築可能．                                     |
+|                         | プリンタドライバーの配布         | Samba サーバに Windows 用プリンタドライバーを置いておくと，クライアント側で共有プリンタに接続するだけで自動インストールできる                                     |
+| **ADメンバーサーバー**     | ドメイン参加           | Active Directoryを構成するメンバーサーバーになることが可能                                         |
+|                          | ドメインコントローラ       | Samba を AD 互換ドメインコントローラとして利用可能．ユーザー認証・グループ管理・ポリシー管理が可能．    |
+|                          |Kerberos 認証対応      |シングルサインオン（SSO）で共有アクセスが可能|
+| **バックアップ・サーバ**  | ファイルサーバ機能        | ネットワーク経由でバックアップやファイル共有が可能．                                 |
+|                        | 自動バックアップ         | rsync や cron と組み合わせて自動バックアップが可能．                           |
+| **ホームディレクトリ提供** | ユーザーごとのホームディレクトリ | Windows ユーザーごとに自動マウント可能．                                   |
+| **アクセスログ・監査**    | ログ取得             | どのユーザーがいつアクセスしたかのログを取得可能。監査やセキュリティ対策に活用可能。                 |
+: {tbl-colwidths="[25,25,50]"}
+
+::::
+
+## Sambaのインストール
+
+apt経由で `samba` パッケージをインストールします
+
+```zsh
+# install
+% sudo apt install -y samba
+
+# version check
+% samba --version
+Version 4.19.5-Ubuntu
+```
+
+`samba` は，ファイルサーバー，プリントサーバー，ユーザー管理を担うsmbdデーモン，名前解決を担うnmbdデーモンから構成されます．
+ファイヤーウォールを使っている場合は，Sambaを利用できるように次のような設定をします
+
+```zsh
+% sudo ufw allow samba
+Rule added
+Rule added (v6)
+```
+
+tailscaleを導入している場合は，tailscaleについてのファイヤーウォールを実施するだけでOKです．
+
+```zsh
+% sudo ufw allow in on tailscale0
+```
+
+::: {.callout-note}
+## Samba運用上の注意
+
+- Samba サーバーは基本的に [LAN 内での運用]{.regmonkey-bold}を前提(=企業や家庭内ネットワークなど，閉じたネットワークでの利用が基本)
+- [インターネットサーバー上での動作は推奨されない]{.regmonkey-bold}
+- ADが使えるとはいえ，Windows Serverで実現できるすべての機能が実装されているわけではない
+
+:::
+
+
+[各デーモンに対応する `systemctl` サービス]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| 構成要素                | 担当機能                           | systemctl サービス名 |
+| ------------------- | ------------------------------ | --------------- |
+| **smbd**            | ファイル共有・プリント共有・ユーザー認証           | `smbd`          |
+| **nmbd**            | 名前解決                        | `nmbd`          |
+
+::::
+
+## Sambaの制御
+
+:::: {.no-border-top-table}
+
+| サービス / デーモン | 役割                                 | コマンド                                   |
+| ----------- | ---------------------------------- | -------------------------------------- |
+| `smbd`      | ファイル共有・プリンタ共有・ユーザー認証               | 起動: `sudo systemctl start smbd`        |
+|             |                                    | 停止: `sudo systemctl stop smbd`         |
+|             |                                    | 再起動: `sudo systemctl restart smbd`     |
+|             |                                    | 自動起動有効: `sudo systemctl enable smbd`   |
+|             |                                    | 自動起動無効: `sudo systemctl disable smbd`  |
+|             |                                    | 状態確認: `sudo systemctl status smbd`     |
+| `nmbd`      | 名前解決                               | 起動: `sudo systemctl start nmbd`        |
+|             |                                    | 停止: `sudo systemctl stop nmbd`         |
+|             |                                    | 再起動: `sudo systemctl restart nmbd`     |
+|             |                                    | 自動起動有効: `sudo systemctl enable nmbd`   |
+|             |                                    | 自動起動無効: `sudo systemctl disable nmbd`  |
+|             |                                    | 状態確認: `sudo systemctl status nmbd`     |
+| `samba`     | Samba AD DC サービス（AD ドメインコントローラ運用時） | 起動: `sudo systemctl start samba`       |
+|             |                                    | 停止: `sudo systemctl stop samba`        |
+|             |                                    | 再起動: `sudo systemctl restart samba`    |
+|             |                                    | 自動起動有効: `sudo systemctl enable samba`  |
+|             |                                    | 自動起動無効: `sudo systemctl disable samba` |
+|             |                                    | 状態確認: `sudo systemctl status samba`    |
+: {tbl-colwidths="[20,40,40]"}
+
+::::
+
+## Sambaの設定
+
+::: {.callout-note}
+### Samba設定の基本
+
+- Sambaの主な設定は `/etc/samba/smb.conf` に記述する
+- `smb.conf` は大きく分けて `[Global Settings]` と `[Share Definitions]` の２つから構成される
+- `[Global Settings]`: Sambaサーバーの全般的な設定をする部分．この部分を変更した場合はSambaサーバーの再起動が必要
+- `[Share Definitions]`: ファイル共有やプリンター共有を設定する部分
+
+:::
+
+`/etc/samba/smb.conf` を編集するときは `sudo cp -a smb.conf smb.conf.default` なり `.bak` 拡張子を用いてバックアップをしておくと安全です．
+
+[`smb.conf` Syntax]{.mini-section}
+
+```ini
+parameter = value
+# commentout line begins with # or ;
+```
+
+[`global`の設定項目]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| 項目                     | 説明                                                        | 例                                                                            |
+| ---------------------- | -------------------------------------------------------------| ---------------------------------------------------------------------------- |
+| `workgroup`            | Windows ネットワーク上のワークグループ名を指定                     | `WORKGROUP`                                                                  |
+| `server string`        | サーバーの説明文（ネットワークブラウザに表示される）                  | `Samba Server`                                                               |
+| `log file`             | ログファイルの出力場所                                           | `/var/log/samba/log.%m`                                                      |
+| `max log size`         | ログファイルの最大サイズ (KB)                                    | `1000`                                                                       |
+| `server role`          | サーバーの役割．ファイルサーバーとして使う場合は`standalone server`  | `standalone server` / `member server` / `active directory domain controller` |
+| `passdb backend`       |ユーザー認証DBの指定                                             | `tdbsam / ldapsam`                                                           |
+| `unix password sync`   |Sambaユーザーアカウントのpassword変更をLinuxユーザーアカウントのpasswordにも反映| `yes` / `no`                                                      |
+| `passwd program`       | Samba がパスワード変更要求を受けた際に，実行するコマンドを指定する           | `/usr/bin/passwd %u`                                                          |
+| `passwd chat`          | `passwd program` とやり取りする際の「対話プロンプトと応答パターン」を定義する| `*New*password* %n\n *Retype*new*password* %n\n *password*updated*successfully*` |
+| `pam password change`  | 有効にすると，password変更に`passwd program` に指定したコマンドではなくPAMを利用する|`yes` / `no`|
+: {tbl-colwidths="[25,35,40]"}
+
+::::
+
+[`Share Deinition`の設定項目]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| 項目               | 説明                      | 例                   |
+| ---------------- | ----------------------- | ------------------- |
+| `path`           | 実際に公開するディレクトリの絶対パス      | `/srv/samba/public` |
+| `comment`        | ネットワークブラウザに表示される説明文     | `Public Share`      |
+| `browseable`     | ネットワークブラウザに表示するか        | `yes` / `no`        |
+| `read only`      | 読み取り専用にするか              | `yes` / `no`        |
+| `writable`       | `read only` の逆指定（同義語）   | `yes`               |
+| `guest ok`       | 認証なしでアクセスできるか           | `yes` / `no`        |
+| `valid users`    | アクセスを許可するユーザー/グループ      | `%S` とすればhome directoryのユーザーのみが自身のhome directoryにアクセスできる     |
+| `invalid users`  | アクセスを拒否するユーザー/グループ      | `@nogroup user2`    |
+| `create mask`    | 新規ファイル作成時のパーミッションマスク    | `0644`              |
+| `directory mask` | 新規ディレクトリ作成時のパーミッションマスク  | `0755`              |
+| `public`         | `guest ok` の別名          | `yes` / `no`        |
+| `locking`        | ファイルロックの使用有無            | `yes`               |
+| `printable`      | プリンタ共有として扱うか            | `no`（通常のフォルダ共有なら）   |
+: {tbl-colwidths="[25,35,40]"}
+
+::::
+
+[構文チェック]{.mini-section}
+
+`testparm` コマンドを用いることでconfigファイルの構文チェックをすることができます
+
+```zsh
+% testparm -s
+Load smb config files from /etc/samba/smb.conf
+Loaded services file OK.
+...
+```
+:::: {.no-border-top-table}
+
+| オプション                | 説明                                 | 例 / 補足                                 |
+| -------------------- | ---------------------------------- | -------------------------------------- |
+| `-s`                 | **短い形式で表示**（冗長な情報を省略し、主要な設定のみを出力）  | `testparm -s`                          |
+| `-v`                 | **詳細表示**（全設定、コメントやデフォルト値も含む）       | `testparm -v`                          |
+
+::::
+
+## 共有の作成
+
+iPadからtailscale経由でアクセス可能な共有ディレクトリを指定したいと思います．
+
+```ini
+[server-hdd]
+comment = 2TB sized hdd
+path = /media/kirby/DATA/
+browsable = yes
+writable = yes
+guest ok = no
+printable = no
+valid users = dedede kirby
+```
+
+と指定すると `server-hdd` を共有名として `path` を公開することができます．設定が完了したら
+
+```zsh
+% sudo systemctl restart smbd
+```
+
+を実施します．
+
+[iPadからのアクセス設定]{.mini-section}
+
+Tailscaleをつないでいるならば自動的に名前解決してくれます．手順は以下です．
+
+1. Tailscale管理画面から共有設定したサーバーの名前を調べる(例: `dsserver`)
+2. `ファイル` から右上の３点マークの設定を開く
+3. 「サーバーへ接続」を開き以下の書式で入力する
+
+```ini
+smb://dsserver/
+```
+
+その後，Sambaユーザー名とSambaパスワード等が要求されますが，それは `smb.conf` の設定に合わせて入力してください．
+
+[only readable errorが出る場合]{.mini-section}
+
+原因としてストーレージのフォーマットにiOSが対応していないことが考えられます．
+iOSの標準ファイルシステムサポートは `APFS` / `HFS+` / `FAT32` / `exFAT` に限られ，`NTFS`は基本的には読み取り専用になってしまいます．
+
+マウントしてもread-onlyの場合は，ファイルシステムのフォーマットを確認してみてください．
+もし，`NTFS`であるならば中身を退避して，サーバー側でフォーマットを以下のコマンドで書き換えてしまいます
+
+```bash
+$ sudo mkfs.exfat -n <任意の名前> /dev/sda1
+```
+
+その後，サーバー側で再度以下のコマンドでmountを実施し，sambaの設定をすればOKです
+
+```bash
+sudo mount -t exfat -o uid=1000,gid=1000,fmask=000,dmask=000 /dev/sda1 <mount-point-path>
+```
+
+::: {.callout-warning}
+### exfatの問題点
+
+- モバイルを含む複数のOSでreadable and writableで使用するなら`exFAT` のほうが取り回しは効きます
+- 一方，ジャーナル機能やファイル圧縮，暗号化への対応はされていないので，セキュリティ面を重視するならば利用は控えたほうが良いです
+
+:::
+
+## NautilusでSamba共有フォルダをmountする
+
+基本的にはiPadでの設定と同じ手順です
+
+[section]{.mini-section}
+
+Tailscaleをつないでいるならば自動的に名前解決してくれます．手順は以下です．
+
+1. Tailscale管理画面から共有設定したサーバーの名前を調べる(例: `dsserver`)
+2. Nautilusを開く
+3. `+ Other Locations` をクリックし，以下の書式でconnection設定を行う
+
+```ini
+smb://dsserver/
+```
+
+その後，Sambaユーザー名とSambaパスワード等が要求されますが，それは `smb.conf` の設定に合わせて入力する．
+
+### VSCodeでフォルダの中身を編集する
+
+一度，Nautilus経由でSamba共有フォルダへのアクセス設定すると，`GVfs` が `/run/user/<userid>/gvfs/` 以下に次のような仮想ディレクトリを作成します：
+
+```ini
+/run/user/1000/gvfs/smb-share:server=<server-name>,share=<share-folder-name>/
+```
+
+これはFUSE(Filesystem in Userspace)経由のマウントなので，GVfsに非対応のコマンドラインツールでは直接編集できない場合があります．
+Samba共有フォルダを対象にCLI操作なり開発をしたい場合は `~/Desktop/` などの通常のマウントポイントにマウントするか **シンボリックリンク（`ln -s`）**
+で操作できるようにするという選択肢があります．
+
+GVfsのマウントはセッションごとに作られるため，シンボリックリンクでは動作が不安定になる可能性がありますが，一時的なそうなの場合は十分です．
+
+[シンボリックリンクの作り方]{.mini-section}
+
+デスクトップの `project` フォルダをクリックすると Samba 共有へ飛ぶようするには以下のスクリプトを実行します：
+
+```bash
+ln -s /run/user/1000/gvfs/smb-share:server=fileserver,share=project ~/Desktop/project
+```
+
+[cifs mountの実施]{.mini-section}
+
+とあるPATH上に credential情報を格納したファイル(例: `.cifs-credentials`)を以下のように設定します
+
+```ini
+username=hoshino-kirby
+password=pupupuland
+```
+
+上記はSambaで設定したユーザー情報です．これを`/etc/.cifs-credentials` に格納した場合，
+以下のコマンドでSamba共有フォルダを通常のマウントポイント(例: `~/Desktop/sandbox/`)にマウントすることができます
+
+```bash
+$ sudo mount -t cifs //<server-global-ip>/<samba foldaname>/<path> ~/Desktop/sandbox/ \
+-o credentials=/etc/.cifs-credentials,iocharset=utf8,uid=<uid>,gid=<gid>,vers=3.0
+```
+
+::: {.callout-note icon="false"}
+### Remarks
+
+- `uid`と`gid`はクライアント側のvalueを入力します．確認したい場合は `id` コマンドを活用してください．
+- `-13` エラーコードを履く場合，`sudo apt install cifs-utils` を実行してから再度試してください
+
+:::
+
+
+## Appendix: Microsoftネットワーク
+
+Microsoftネットワークは「ワークグループ」という基本単位でネットワークに参加するPCを論理的にまとめて管理しています．
+Windowsコンピューターでは，所属するワークグループ名を設定するだけで，そのワークグループへ参加することができます．
+
+[ワークグループの管理方式]{.mini-section}
+
+ワークグループ自体は分散型管理が基本で，ユーザーアカウントやパスワードをそれぞれのコンピューターで管理します．もう一つの方法として，
+ドメインネットワークを利用したドメインコントローラーというサーバーによる集中管理する方法もあります．
+
+:::: {.no-border-top-table}
+
+| 項目     | ワークグループ（分散型） | ドメイン（中央管理） |
+| ------ | ------------ | ---------- |
+| 管理方式   | 分散型          | 集中管理型      |
+| ユーザー管理 | 各PCごと        | ドメインコントローラー(DC)で一元管理    |
+| 規模     | 小規模          | 中～大規模      |
+| 必要設備   | PCのみ         | DCサーバー必要   |
+
+::::
+
+ドメインネットワークを利用する場合は以下の手順で認証が行われます
+
+1. ユーザーのPCがシステム起動するとき「ドメインログイン」を行い，その認証情報がDCに送られる
+2. DCがユーザー名とパスワードを照合し，認証を行う
+3. DCによる認証をパスすると，ドメインネットワークへのアクセスが許可される
+
+ドメインネットワークでは，一度認証をパスすれば，ドメイン内のサーバーへアクセスする際，個々に認証をする必要はありません．そのため，大規模なネットワークを運用する場合に便利な機能です．
+
+```{mermaid}
+%%{init: {"theme":"default"}}%%
+architecture-beta
+    group wg(cloud)[Workgroup]
+
+    service pc1(server)[PC1] in wg
+    service pc2(server)[PC2] in wg
+    service pc3(server)[PC3] in wg
+    service pc4(server)[PC4] in wg
+
+    pc1:B -- T:pc2
+    pc2:L -- R:pc3
+    pc1:R -- L:pc3
+    pc3:T -- B:pc4
+    pc4:R -- L:pc1
+    pc4:B -- T:pc2
+
+    group domain(cloud)[Domain]
+
+    service dc(database)[Domain Controller] in domain
+    service dpc1(server)[PC5] in domain
+    service dpc2(server)[PC6] in domain
+    service dpc3(server)[PC7] in domain
+
+    dpc1:B -- T:dc
+    dpc2:L -- R:dc
+    dpc3:T -- B:dc
+```
+
+[アクティブディレクトリ（Active Directory, AD）]{.mini-section}
+
+::: {#def- .custom_problem .blog-custom-border}
+[アクティブディレクトリ]{.def-title}
+
+- ユーザーやグループなどのリソースを一元管理するディレクトリサービス
+- ディレクトリアクセスプロトコルとしてLDAPを利用
+- ホスト名の名前解決にDNSを利用
+- 認証システムにKerberosを利用
+
+:::
