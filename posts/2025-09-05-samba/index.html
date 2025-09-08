@@ -463,6 +463,10 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
   <li><a href="#sambaの制御" id="toc-sambaの制御" class="nav-link" data-scroll-target="#sambaの制御">Sambaの制御</a></li>
   <li><a href="#sambaの設定" id="toc-sambaの設定" class="nav-link" data-scroll-target="#sambaの設定">Sambaの設定</a></li>
   <li><a href="#共有の作成" id="toc-共有の作成" class="nav-link" data-scroll-target="#共有の作成">共有の作成</a></li>
+  <li><a href="#nautilusでsamba共有フォルダをmountする" id="toc-nautilusでsamba共有フォルダをmountする" class="nav-link" data-scroll-target="#nautilusでsamba共有フォルダをmountする">NautilusでSamba共有フォルダをmountする</a>
+  <ul class="collapse">
+  <li><a href="#vscodeでフォルダの中身を編集する" id="toc-vscodeでフォルダの中身を編集する" class="nav-link" data-scroll-target="#vscodeでフォルダの中身を編集する">VSCodeでフォルダの中身を編集する</a></li>
+  </ul></li>
   <li><a href="#appendix-microsoftネットワーク" id="toc-appendix-microsoftネットワーク" class="nav-link" data-scroll-target="#appendix-microsoftネットワーク">Appendix: Microsoftネットワーク</a></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
@@ -971,6 +975,52 @@ Samba設定の基本
 </ol>
 <div class="sourceCode" id="cb8"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="dt">smb://dsserver/</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>その後，Sambaユーザー名とSambaパスワード等が要求されますが，それは <code>smb.conf</code> の設定に合わせて入力してください．</p>
+</section>
+<section id="nautilusでsamba共有フォルダをmountする" class="level2">
+<h2 class="anchored" data-anchor-id="nautilusでsamba共有フォルダをmountする">NautilusでSamba共有フォルダをmountする</h2>
+<p>基本的にはiPadでの設定と同じ手順です</p>
+<p><span class="mini-section">section</span></p>
+<p>Tailscaleをつないでいるならば自動的に名前解決してくれます．手順は以下です．</p>
+<ol type="1">
+<li>Tailscale管理画面から共有設定したサーバーの名前を調べる(例: <code>dsserver</code>)</li>
+<li>Nautilusを開く</li>
+<li><code>+ Other Locations</code> をクリックし，以下の書式でconnection設定を行う</li>
+</ol>
+<div class="sourceCode" id="cb9"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="dt">smb://dsserver/</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>その後，Sambaユーザー名とSambaパスワード等が要求されますが，それは <code>smb.conf</code> の設定に合わせて入力する．</p>
+<section id="vscodeでフォルダの中身を編集する" class="level3">
+<h3 class="anchored" data-anchor-id="vscodeでフォルダの中身を編集する">VSCodeでフォルダの中身を編集する</h3>
+<p>一度，Nautilus経由でSamba共有フォルダへのアクセス設定すると，<code>GVfs</code> が <code>/run/user/&lt;userid&gt;/gvfs/</code> 以下に次のような仮想ディレクトリを作成します：</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="dt">/run/user/1000/gvfs/smb-share:server</span><span class="ot">=</span><span class="st">&lt;server-name&gt;,share=&lt;share-folder-name&gt;/</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>これはFUSE(Filesystem in Userspace)経由のマウントなので，GVfsに非対応のコマンドラインツールでは直接編集できない場合があります． Samba共有フォルダを対象にCLI操作なり開発をしたい場合は <code>~/Desktop/</code> などの通常のマウントポイントにマウントするか <strong>シンボリックリンク（<code>ln -s</code>）</strong> で操作できるようにするという選択肢があります．</p>
+<p>GVfsのマウントはセッションごとに作られるため，シンボリックリンクでは動作が不安定になる可能性がありますが，一時的なそうなの場合は十分です．</p>
+<p><span class="mini-section">シンボリックリンクの作り方</span></p>
+<p>デスクトップの <code>project</code> フォルダをクリックすると Samba 共有へ飛ぶようするには以下のスクリプトを実行します：</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ln</span> <span class="at">-s</span> /run/user/1000/gvfs/smb-share:server=fileserver,share=project ~/Desktop/project</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p><span class="mini-section">cifs mountの実施</span></p>
+<p>とあるPATH上に credential情報を格納したファイル(例: <code>.cifs-credentials</code>)を以下のように設定します</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="dt">username</span><span class="ot">=</span><span class="st">hoshino-kirby</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="dt">password</span><span class="ot">=</span><span class="st">pupupuland</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>上記はSambaで設定したユーザー情報です．これを<code>/etc/.cifs-credentials</code> に格納した場合， 以下のコマンドでSamba共有フォルダを通常のマウントポイント(例: <code>~/Desktop/sandbox/</code>)にマウントすることができます</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> sudo mount <span class="at">-t</span> cifs //<span class="op">&lt;</span>server-global-ip<span class="op">&gt;</span>/<span class="op">&lt;</span>samba foldaname<span class="op">&gt;</span>/<span class="op">&lt;</span>path<span class="op">&gt;</span> ~/Desktop/sandbox/ <span class="dt">\</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>-o credentials=/etc/.cifs-credentials,iocharset=utf8,uid=<span class="op">&lt;</span>uid<span class="op">&gt;</span>,gid=<span class="op">&lt;</span>gid<span class="op">&gt;</span>,vers=3.0</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Remarks
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li><code>uid</code>と<code>gid</code>はクライアント側のvalueを入力します．確認したい場合は <code>id</code> コマンドを活用してください．</li>
+<li><code>-13</code> エラーコードを履く場合，<code>sudo apt install cifs-utils</code> を実行してから再度試してください</li>
+</ul>
+</div>
+</div>
+</section>
 </section>
 <section id="appendix-microsoftネットワーク" class="level2">
 <h2 class="anchored" data-anchor-id="appendix-microsoftネットワーク">Appendix: Microsoftネットワーク</h2>
