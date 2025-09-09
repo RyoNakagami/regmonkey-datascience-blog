@@ -975,6 +975,28 @@ Samba設定の基本
 </ol>
 <div class="sourceCode" id="cb8"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="dt">smb://dsserver/</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>その後，Sambaユーザー名とSambaパスワード等が要求されますが，それは <code>smb.conf</code> の設定に合わせて入力してください．</p>
+<p><span class="mini-section">only readable errorが出る場合</span></p>
+<p>原因としてストーレージのフォーマットにiOSが対応していないことが考えられます． iOSの標準ファイルシステムサポートは <code>APFS</code> / <code>HFS+</code> / <code>FAT32</code> / <code>exFAT</code> に限られ，<code>NTFS</code>は基本的には読み取り専用になってしまいます．</p>
+<p>マウントしてもread-onlyの場合は，ファイルシステムのフォーマットを確認してみてください． もし，<code>NTFS</code>であるならば中身を退避して，サーバー側でフォーマットを以下のコマンドで書き換えてしまいます</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> sudo mkfs.exfat <span class="at">-n</span> <span class="op">&lt;</span>任意の名前<span class="op">&gt;</span> /dev/sda1</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>その後，サーバー側で再度以下のコマンドでmountを実施し，sambaの設定をすればOKです</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> mount <span class="at">-t</span> exfat <span class="at">-o</span> uid=1000,gid=1000,fmask=000,dmask=000 /dev/sda1 <span class="op">&lt;</span>mount-point-path<span class="op">&gt;</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="callout callout-style-default callout-warning callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+exfatの問題点
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>モバイルを含む複数のOSでreadable and writableで使用するなら<code>exFAT</code> のほうが取り回しは効きます</li>
+<li>一方，ジャーナル機能やファイル圧縮，暗号化への対応はされていないので，セキュリティ面を重視するならば利用は控えたほうが良いです</li>
+</ul>
+</div>
+</div>
 </section>
 <section id="nautilusでsamba共有フォルダをmountする" class="level2">
 <h2 class="anchored" data-anchor-id="nautilusでsamba共有フォルダをmountする">NautilusでSamba共有フォルダをmountする</h2>
@@ -986,24 +1008,24 @@ Samba設定の基本
 <li>Nautilusを開く</li>
 <li><code>+ Other Locations</code> をクリックし，以下の書式でconnection設定を行う</li>
 </ol>
-<div class="sourceCode" id="cb9"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="dt">smb://dsserver/</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb11"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="dt">smb://dsserver/</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>その後，Sambaユーザー名とSambaパスワード等が要求されますが，それは <code>smb.conf</code> の設定に合わせて入力する．</p>
 <section id="vscodeでフォルダの中身を編集する" class="level3">
 <h3 class="anchored" data-anchor-id="vscodeでフォルダの中身を編集する">VSCodeでフォルダの中身を編集する</h3>
 <p>一度，Nautilus経由でSamba共有フォルダへのアクセス設定すると，<code>GVfs</code> が <code>/run/user/&lt;userid&gt;/gvfs/</code> 以下に次のような仮想ディレクトリを作成します：</p>
-<div class="sourceCode" id="cb10"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="dt">/run/user/1000/gvfs/smb-share:server</span><span class="ot">=</span><span class="st">&lt;server-name&gt;,share=&lt;share-folder-name&gt;/</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb12"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="dt">/run/user/1000/gvfs/smb-share:server</span><span class="ot">=</span><span class="st">&lt;server-name&gt;,share=&lt;share-folder-name&gt;/</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>これはFUSE(Filesystem in Userspace)経由のマウントなので，GVfsに非対応のコマンドラインツールでは直接編集できない場合があります． Samba共有フォルダを対象にCLI操作なり開発をしたい場合は <code>~/Desktop/</code> などの通常のマウントポイントにマウントするか <strong>シンボリックリンク（<code>ln -s</code>）</strong> で操作できるようにするという選択肢があります．</p>
 <p>GVfsのマウントはセッションごとに作られるため，シンボリックリンクでは動作が不安定になる可能性がありますが，一時的なそうなの場合は十分です．</p>
 <p><span class="mini-section">シンボリックリンクの作り方</span></p>
 <p>デスクトップの <code>project</code> フォルダをクリックすると Samba 共有へ飛ぶようするには以下のスクリプトを実行します：</p>
-<div class="sourceCode" id="cb11"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ln</span> <span class="at">-s</span> /run/user/1000/gvfs/smb-share:server=fileserver,share=project ~/Desktop/project</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb13"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ln</span> <span class="at">-s</span> /run/user/1000/gvfs/smb-share:server=fileserver,share=project ~/Desktop/project</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p><span class="mini-section">cifs mountの実施</span></p>
 <p>とあるPATH上に credential情報を格納したファイル(例: <code>.cifs-credentials</code>)を以下のように設定します</p>
-<div class="sourceCode" id="cb12"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="dt">username</span><span class="ot">=</span><span class="st">hoshino-kirby</span></span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="dt">password</span><span class="ot">=</span><span class="st">pupupuland</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb14"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="dt">username</span><span class="ot">=</span><span class="st">hoshino-kirby</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="dt">password</span><span class="ot">=</span><span class="st">pupupuland</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>上記はSambaで設定したユーザー情報です．これを<code>/etc/.cifs-credentials</code> に格納した場合， 以下のコマンドでSamba共有フォルダを通常のマウントポイント(例: <code>~/Desktop/sandbox/</code>)にマウントすることができます</p>
-<div class="sourceCode" id="cb13"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> sudo mount <span class="at">-t</span> cifs //<span class="op">&lt;</span>server-global-ip<span class="op">&gt;</span>/<span class="op">&lt;</span>samba foldaname<span class="op">&gt;</span>/<span class="op">&lt;</span>path<span class="op">&gt;</span> ~/Desktop/sandbox/ <span class="dt">\</span></span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>-o credentials=/etc/.cifs-credentials,iocharset=utf8,uid=<span class="op">&lt;</span>uid<span class="op">&gt;</span>,gid=<span class="op">&lt;</span>gid<span class="op">&gt;</span>,vers=3.0</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb15"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> sudo mount <span class="at">-t</span> cifs //<span class="op">&lt;</span>server-global-ip<span class="op">&gt;</span>/<span class="op">&lt;</span>samba foldaname<span class="op">&gt;</span>/<span class="op">&lt;</span>path<span class="op">&gt;</span> ~/Desktop/sandbox/ <span class="dt">\</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>-o credentials=/etc/.cifs-credentials,iocharset=utf8,uid=<span class="op">&lt;</span>uid<span class="op">&gt;</span>,gid=<span class="op">&lt;</span>gid<span class="op">&gt;</span>,vers=3.0</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="callout callout-style-default callout-note no-icon callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
