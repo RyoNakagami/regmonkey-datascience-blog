@@ -82,7 +82,7 @@ local function render_pseudocode_block_html(global_options)
 
   local filter = {
     CodeBlock = function(el)
-      if not el.attr.classes:includes("pseudocode") then
+      if not el.classes:find("pseudocode") then
         return el
       end
 
@@ -106,8 +106,10 @@ local function render_pseudocode_block_html(global_options)
       local data_options = {}
       for k, v in pairs(options) do
         if string.match(k, "^html-") then
-          data_k = string.gsub(k, "^html", "data")
-          data_options[data_k] = v
+          local data_k = string.gsub(k, "^html", "data")
+          if data_k and #data_k > 0 then
+            data_options[data_k] = v
+          end
         end
       end
 
@@ -172,7 +174,7 @@ local function render_pseudocode_block_latex(global_options)
           "\\label{" .. options["label"] .. "}\n\\begin{algorithmic}")
       end
 
-      return pandoc.RawInline("latex", source_code)
+      return pandoc.RawBlock("latex", source_code)
     end
   }
 
@@ -269,9 +271,9 @@ function Pandoc(doc)
 
   if doc.meta["pseudocode"] then
     global_options.caption_prefix = pandoc.utils.stringify(doc.meta["pseudocode"]["caption-prefix"]) or
-    global_options.caption_prefix
+        global_options.caption_prefix
     global_options.reference_prefix = pandoc.utils.stringify(doc.meta["pseudocode"]["reference-prefix"]) or
-    global_options.reference_prefix
+        global_options.reference_prefix
     if doc.meta.pseudocode and doc.meta.pseudocode["caption-number"] ~= nil then
       global_options.caption_number = doc.meta.pseudocode["caption-number"]
     end
