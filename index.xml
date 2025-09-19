@@ -10,7 +10,1489 @@
 <atom:link href="https://ryonakagami.github.io/regmonkey-datascience-blog/index.xml" rel="self" type="application/rss+xml"/>
 <description>日々の徒然勉強日記</description>
 <generator>quarto-1.8.24</generator>
-<lastBuildDate>Wed, 17 Sep 2025 00:00:00 GMT</lastBuildDate>
+<lastBuildDate>Thu, 18 Sep 2025 00:00:00 GMT</lastBuildDate>
+<item>
+  <title>Sony WH-1000XM4をUbuntu 24.04 LTSで使う</title>
+  <dc:creator>Ryo Nakagami</dc:creator>
+  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-09-18-wh1000xm4-setup/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+
+<section id="goals" class="level2">
+<h2 class="anchored" data-anchor-id="goals">🎯 Goals</h2>
+<ul>
+<li>Ubuntu 24.04 LTSに対するLDAC利用可能な状態でのWH-1000XM4接続設定</li>
+<li>EasyEffectsを用いたWH-1000XM4用Equalizerの設定</li>
+</ul>
+<p><span class="mini-section">Package Requirements</span></p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>カテゴリ</th>
+<th>パッケージ</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Bluetooth LDAC</strong></td>
+<td><code>libldacbt-abr-dev</code></td>
+<td>LDAC の ABR (Adaptive Bitrate) ライブラリ（開発用）</td>
+</tr>
+<tr class="even">
+<td></td>
+<td><code>libldacbt-enc-dev</code></td>
+<td>LDAC エンコーダライブラリ（開発用）</td>
+</tr>
+<tr class="odd">
+<td><strong>Bluetooth 管理</strong></td>
+<td><code>blueman</code></td>
+<td>Bluetooth デバイス管理用 GUI</td>
+</tr>
+<tr class="even">
+<td><strong>オーディオ基盤</strong></td>
+<td><code>pipewire</code></td>
+<td>オーディオサーバ（PulseAudio 互換）</td>
+</tr>
+<tr class="odd">
+<td></td>
+<td><code>pipewire-pulse</code></td>
+<td>PulseAudio アプリ互換サーバ</td>
+</tr>
+<tr class="even">
+<td></td>
+<td><code>wireplumber</code></td>
+<td>PipeWire のsession / policy manager</td>
+</tr>
+<tr class="odd">
+<td><strong>音質補正</strong></td>
+<td><code>easyeffects</code></td>
+<td>音響補正ツール(Equalizerなど)</td>
+</tr>
+</tbody>
+</table>
+<p>今回はPipewire環境での接続設定となります．</p>
+</section>
+<section id="実行環境" class="level2">
+<h2 class="anchored" data-anchor-id="実行環境">💻 実行環境</h2>
+<section id="ubuntu" class="level3">
+<h3 class="anchored" data-anchor-id="ubuntu">Ubuntu</h3>
+<p><span class="mini-section">Distribution</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> lsb_release <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-a</span></span>
+<span id="cb1-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">No</span> LSB modules are available.</span>
+<span id="cb1-3"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Distributor</span> ID: Ubuntu</span>
+<span id="cb1-4"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Description:</span>    Ubuntu 24.04.3 LTS</span>
+<span id="cb1-5"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Release:</span>    24.04</span>
+<span id="cb1-6"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Codename:</span>   noble</span></code></pre></div></div>
+<p><span class="mini-section">Linux kernel</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> uname <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-srpo</span></span>
+<span id="cb2-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Linux</span> 6.14.0-29-generic x86_64 GNU/Linux</span></code></pre></div></div>
+</section>
+<section id="sony-wh-1000xm4のスペック" class="level3">
+<h3 class="anchored" data-anchor-id="sony-wh-1000xm4のスペック">🎧 Sony WH-1000XM4のスペック</h3>
+<p><span class="mini-section">ワイヤレス機能</span></p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 30%">
+<col style="width: 69%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>項目</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Bluetoothバージョン</td>
+<td>Ver.5.0 / Class 1</td>
+</tr>
+<tr class="even">
+<td>連続再生時間</td>
+<td>最大30時間（NC ON時） / 最大38時間（NC OFF時）</td>
+</tr>
+<tr class="odd">
+<td>充電時間</td>
+<td>約3時間</td>
+</tr>
+<tr class="even">
+<td>対応コーデック</td>
+<td>SBC / AAC / LDAC</td>
+</tr>
+<tr class="odd">
+<td>NFC</td>
+<td>○</td>
+</tr>
+<tr class="even">
+<td>TWS Plus対応</td>
+<td>☓</td>
+</tr>
+<tr class="odd">
+<td>マルチペアリング対応</td>
+<td>○</td>
+</tr>
+<tr class="even">
+<td>マルチポイント対応</td>
+<td>○</td>
+</tr>
+</tbody>
+</table>
+<p><span class="mini-section">機能</span></p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>項目</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>重量</td>
+<td>254g</td>
+</tr>
+<tr class="even">
+<td>ノイズキャンセリング</td>
+<td>○</td>
+</tr>
+<tr class="odd">
+<td>ハイレゾ</td>
+<td>○</td>
+</tr>
+<tr class="even">
+<td>マイク</td>
+<td>○</td>
+</tr>
+<tr class="odd">
+<td>外音取り込み</td>
+<td>○</td>
+</tr>
+<tr class="even">
+<td>音質調整</td>
+<td>○</td>
+</tr>
+<tr class="odd">
+<td>防水・防塵性能</td>
+<td>☓</td>
+</tr>
+<tr class="even">
+<td>リモコン操作</td>
+<td>○</td>
+</tr>
+<tr class="odd">
+<td>折りたたみ</td>
+<td>○</td>
+</tr>
+<tr class="even">
+<td>サラウンド</td>
+<td>☓</td>
+</tr>
+<tr class="odd">
+<td>AIアシスタント搭載</td>
+<td>Google アシスタント / Amazon Alexa</td>
+</tr>
+<tr class="even">
+<td>AIアシスタント呼び出し機能</td>
+<td>○</td>
+</tr>
+</tbody>
+</table>
+<div class="callout callout-style-default callout-caution callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Caution</span>マルチポイント接続の注意点
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>WH-1000XM4ではマルチポイント接続設定OnにするとLDACが使用できなくなります</li>
+<li>WH-1000XM5以降ではこの点は改善されています</li>
+</ul>
+</div>
+</div>
+<p><span class="mini-section">LDACとは？</span></p>
+<p>LDACとはSony が開発した Bluetoothオーディオコーデックです．Bluetoothのコーデックとは，スマホや音楽再生プレイヤーなどのデバイスからワイヤレスイヤホンやヘッドホンなどに無線で音楽のデータを送る際の符号化の規格です． 圧縮の規格でもあるので元の音楽データを圧縮エンコードしBluetoothで飛ばし，受信デバイスのイヤホンなどでデコードすることで音楽の再生をしています．そのため，コーデックの違いにより，音質や遅延に違いが出ます．</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 14%">
+<col style="width: 85%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>特性項目</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>コーデック名</td>
+<td><strong>LDAC</strong></td>
+</tr>
+<tr class="even">
+<td>特徴</td>
+<td>ハイレゾ対応の最高音質 Bluetooth コーデック（Sony 開発）</td>
+</tr>
+<tr class="odd">
+<td>主な採用機器</td>
+<td>ハイレゾ対応 Android / iOS / Windows / Mac / Linux (PipeWire)</td>
+</tr>
+<tr class="even">
+<td>サンプリング周波数</td>
+<td>最大 <strong>96 kHz</strong></td>
+</tr>
+<tr class="odd">
+<td>量子化ビット数</td>
+<td>最大 <strong>24 bit</strong></td>
+</tr>
+<tr class="even">
+<td>ビットレートモード</td>
+<td><strong>330 kbps / 660 kbps / 990 kbps</strong> の 3 段階（ABRで自動調整可）</td>
+</tr>
+<tr class="odd">
+<td>遅延</td>
+<td>SBC / AAC より大きめ（高音質優先のため）</td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="wh-1000xm4接続設定" class="level2">
+<h2 class="anchored" data-anchor-id="wh-1000xm4接続設定">🔨 WH-1000XM4接続設定</h2>
+<p><span class="mini-section">Bluetooth Managerのインストール</span></p>
+<p>まずBluetooth デバイス管理ツール Blueman をインストールします． Ubuntu 24.04 LTSにはデフォルトでBluetooth Managerが入っているので「接続して音を出す」だけならばインストール不要です．</p>
+<p>一方，接続プロファイルやcodecの選択といった制御がしやすいので今回導入します．</p>
+<pre class="{bash}"><code>sudo apt install blueman</code></pre>
+<p><span class="mini-section">LDAC codecの設定</span></p>
+<p>Ubuntu 24.04 のデフォルトの Bluetooth ManagerだとLDACは使用できないので，以下のパッケージをインストールします</p>
+<ul>
+<li><code>libldacbt-enc-dev</code>: LDACエンコーディング処理用パッケージ</li>
+<li><code>libldacbt-abr-dev</code>: Adaptive Bit Rateに対応するための開発ライブラリ</li>
+</ul>
+<p><code>-dev</code> suffixが無いものでも良いような気がしますが，今後ビルドとかするかもなので大は小を兼ねるとして開発用ライブラリをインストール． インストールコマンドは以下</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sudo</span> apt install libldacbt-abr-dev libldacbt-enc-dev</span></code></pre></div></div>
+<p><span class="mini-section">Bluetooth接続確認</span></p>
+<p>Bluetooth Managerを起動して，WH-1000XM4をペアリング接続します．このとき，LDAC codecを指定するのを忘れずに</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-09-18-wh1000xm4-setup/connection.png" class="img-fluid figure-img"></p>
+<figcaption>Bluetooth初期接続</figcaption>
+</figure>
+</div>
+<p>次に <code>pactl list sinks</code> コマンドを用いて接続状態を確認してみます．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 74%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>構成要素</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>pactl</strong></td>
+<td>PulseAudio の制御ツール．サウンドデバイスの状態取得や操作のコマンド．</td>
+</tr>
+<tr class="even">
+<td><strong>list sinks</strong></td>
+<td>出力デバイス（<code>sink</code>＝スピーカーやBluetoothイヤホンなど）の一覧を表示するサブコマンド</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Bluetoothデバイスは <code>Name: bluez</code> というsink名になります．これらを踏まえて状態を確認してみます</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb5-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> pactl list sinks <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">grep</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-A</span> 20 <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'Name: bluez'</span></span>
+<span id="cb5-2">    <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Name:</span> bluez_output.xx_xx_xx_xx_xx_xx.1</span>
+<span id="cb5-3">    <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Description:</span> WH-1000XM4</span>
+<span id="cb5-4">    <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Driver:</span> PipeWire</span>
+<span id="cb5-5">    <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Sample</span> Specification: float32le 2ch 48000Hz</span>
+<span id="cb5-6">    <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Channel</span> Map: front-left,front-right</span>
+<span id="cb5-7">    <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Owner</span> Module: 4294967295</span>
+<span id="cb5-8">    <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Mute:</span> no</span>
+<span id="cb5-9">    <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Volume:</span> front-left: 28382 /  43% / <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-21.81</span> dB,   front-right: 28382 /  43% / <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-21.81</span> dB</span>
+<span id="cb5-10">            <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">balance</span> 0.00</span>
+<span id="cb5-11">    <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Base</span> Volume: 65536 / 100% / 0.00 dB</span>
+<span id="cb5-12">    <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Monitor</span> Source: bluez_output.xx_xx_xx_xx_xx_xx.1.monitor</span>
+<span id="cb5-13">    <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Latency:</span> 0 usec, configured 0 usec</span>
+<span id="cb5-14">    <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Flags:</span> HARDWARE HW_VOLUME_CTRL DECIBEL_VOLUME LATENCY </span>
+<span id="cb5-15">    <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Properties:</span></span>
+<span id="cb5-16">        <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">api.bluez5.address</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"xx:xx:xx:xx:xx:xx"</span></span>
+<span id="cb5-17">        <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">api.bluez5.codec</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"ldac"</span></span>
+<span id="cb5-18">        <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">api.bluez5.profile</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"a2dp-sink"</span></span>
+<span id="cb5-19">        <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">api.bluez5.transport</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">""</span></span>
+<span id="cb5-20">        <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">card.profile.device</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"1"</span></span>
+<span id="cb5-21">        <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">device.id</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"179"</span></span>
+<span id="cb5-22">        <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">device.routes</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"1"</span></span></code></pre></div></div>
+<p>ここから，Bluetooth コーデックとサンプリングレートの確認ができます．</p>
+<p>以下のようにcodecは問題なくLDACの認識となってます</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb6-1"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">  api.bluez5.codec </span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> "ldac"</span></span>
+<span id="cb6-2"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">  api.bluez5.profile </span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> "a2dp-sink"</span></span></code></pre></div></div>
+<p>一方，samplking frequencyが</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb7-1"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">    Sample Specification: float32le 2ch 48000Hz</span></span></code></pre></div></div>
+<p>となっています．LDACは最大96kHz対応できるはずなので，PipeWire のサンプリング周波数を設定します．</p>
+<p><span class="mini-section">sampling frequencyの設定</span></p>
+<p><code>/usr/share/pipewire/pipewire.conf</code> に設定ファイルがあるのでこれを修正します．</p>
+<ul>
+<li><code>default.clock.rate</code>: フォルトのサンプリング周波数(Hz)</li>
+<li><code>default.clock.allowed-rates</code>: PipeWire が切り替えを許可するサンプルレートのリスト</li>
+</ul>
+<p>以上2つの項目を修正します．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb8-1"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">default.clock.rate          </span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> </span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">96000</span></span>
+<span id="cb8-2"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">default.clock.allowed-rates </span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> [ 48000, 96000 ]</span></span></code></pre></div></div>
+<p>という形に変更します．<code>/usr/share/pipewire/pipewire.conf</code> は <code>root</code> ownerのファイルなので，修正するときは</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sudo</span> vim /usr/share/pipewire/pipewire.conf</span></code></pre></div></div>
+<p>で編集します．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb10-1"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">...</span></span>
+<span id="cb10-2"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">context.properties </span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> {</span></span>
+<span id="cb10-3"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">    </span><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">## Configure properties in the system.</span></span>
+<span id="cb10-4"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">    </span><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#library.name.system                   = support/libspa-support</span></span>
+<span id="cb10-5"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">    </span><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#context.data-loop.library.name.system = support/libspa-support</span></span>
+<span id="cb10-6"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">    </span><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#support.dbus                          = true</span></span>
+<span id="cb10-7"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">    </span><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#link.max-buffers                      = 64</span></span>
+<span id="cb10-8"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">    link.max-buffers                       </span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> 16                       # version &lt; 3 clients can't handle more</span></span>
+<span id="cb10-9"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">    </span><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#mem.warn-mlock                        = false</span></span>
+<span id="cb10-10"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">    </span><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#mem.allow-mlock                       = true</span></span>
+<span id="cb10-11"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">    </span><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#mem.mlock-all                         = false</span></span>
+<span id="cb10-12"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">    </span><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#clock.power-of-two-quantum            = true</span></span>
+<span id="cb10-13"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">    </span><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#log.level                             = 2</span></span>
+<span id="cb10-14"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">    </span><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#cpu.zero.denormals                    = false</span></span>
+<span id="cb10-15"></span>
+<span id="cb10-16"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">    core.daemon </span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> true              # listening for socket connections</span></span>
+<span id="cb10-17"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">    core.name   </span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> pipewire-0        # core name and socket name</span></span>
+<span id="cb10-18"></span>
+<span id="cb10-19"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">    </span><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">## Properties for the DSP configuration.</span></span>
+<span id="cb10-20"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">    default.clock.rate          </span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> </span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">96000</span></span>
+<span id="cb10-21"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">    default.clock.allowed-rates </span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> [ 48000, 96000 ]</span></span>
+<span id="cb10-22"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">    default.clock.quantum       </span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> </span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1024</span></span>
+<span id="cb10-23"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">    default.clock.min-quantum   </span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> </span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">32</span></span>
+<span id="cb10-24"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">    default.clock.max-quantum   </span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> </span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2048</span></span>
+<span id="cb10-25"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">    default.clock.quantum-limit </span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> </span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">8192</span></span>
+<span id="cb10-26"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">    default.clock.quantum-floor </span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> </span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span></span>
+<span id="cb10-27"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">    </span><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#default.video.width         = 640</span></span>
+<span id="cb10-28"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">    </span><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#default.video.height        = 480</span></span>
+<span id="cb10-29"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">    </span><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#default.video.rate.num      = 25</span></span>
+<span id="cb10-30"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">    </span><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#default.video.rate.denom    = 1</span></span>
+<span id="cb10-31"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">    </span><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#</span></span>
+<span id="cb10-32"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">    </span><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#settings.check-quantum      = false</span></span>
+<span id="cb10-33"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">    </span><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#settings.check-rate         = false</span></span>
+<span id="cb10-34"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">    </span><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#</span></span>
+<span id="cb10-35"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">    </span><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># These overrides are only applied when running in a vm.</span></span>
+<span id="cb10-36"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">    vm.overrides </span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> {</span></span>
+<span id="cb10-37"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">        default.clock.min-quantum </span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> </span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1024</span></span>
+<span id="cb10-38"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">    }</span></span>
+<span id="cb10-39"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">...</span></span></code></pre></div></div>
+<p>編集後にサービスを再起動して設定を読み込ませます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">systemctl</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--user</span> restart pipewire pipewire-pulse wireplumber</span></code></pre></div></div>
+<p>もし接続が安定していればsampling frequencyを確認すると96kHzになっているはずです</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb12-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> pactl list sinks <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">grep</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-A</span> 20 <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'Name: bluez'</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">grep</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Sample Specification:"</span></span>
+<span id="cb12-2">    <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Sample</span> Specification: float32le 2ch 96000Hz</span></code></pre></div></div>
+<p>ただし，かならず96kHzとはなりません．あくまで最大96kHzであって，接続状態に応じて 48kHz になったります．</p>
+<p><span class="mini-section">LDAC encoding qualityの設定</span></p>
+<p>Bit rateは，動画の1秒あたりのデータ量を示す値です． bps（bits per second）と表記され，1Mbpsに設定されている場合，1秒あたりデータ量が0.125MB（1byte＝8bit）の動画ということになります． ビットレートが高い動画ほど，データ量が多く高画質です．</p>
+<p>LDACのbit rateを高品質モードで安定させたい場合は，WirePlumber の Bluetooth 設定ファイル <code>/usr/share/wireplumber/bluetooth.lua.d/50-bluez-config.lua</code> を編集します． <code>bluez5.a2dp.ldac.quality</code> というフィールドがLDAC のエンコード品質を設定するオプションです．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 10%">
+<col style="width: 63%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>値</th>
+<th>説明</th>
+<th>ビットレート</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>auto</code></td>
+<td>適応ビットレート（Adaptive Bitrate），デフォルト</td>
+<td>変動</td>
+</tr>
+<tr class="even">
+<td><code>hq</code></td>
+<td>高品質モード</td>
+<td>990 / 909 kbps</td>
+</tr>
+<tr class="odd">
+<td><code>sq</code></td>
+<td>標準品質モード</td>
+<td>660 / 606 kbps</td>
+</tr>
+<tr class="even">
+<td><code>mq</code></td>
+<td>モバイル用低ビットレートモード</td>
+<td>330 / 303 kbps</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code>hq</code> を設定すれば，理論上は最大 96 kHz のサンプルレートをフル品質で利用できるはずです．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode lua code-with-copy"><code class="sourceCode lua"><span id="cb13-1"><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">matches</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span></span>
+<span id="cb13-2">      <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span></span>
+<span id="cb13-3">        <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-- Matches all sources.</span></span>
+<span id="cb13-4">        <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"node.name"</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">,</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"matches"</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">,</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"bluez_input.*"</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">},</span></span>
+<span id="cb13-5">      <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">},</span></span>
+<span id="cb13-6">      <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span></span>
+<span id="cb13-7">        <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-- Matches all sinks.</span></span>
+<span id="cb13-8">        <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"node.name"</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">,</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"matches"</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">,</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"bluez_output.*"</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">},</span></span>
+<span id="cb13-9">      <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">},</span></span>
+<span id="cb13-10">    <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">},</span></span></code></pre></div></div>
+<p>上記のセクションで <code>["bluez5.a2dp.ldac.quality"] = "hq",  -- LDAC HQ モード</code> という設定をします．このセクションは</p>
+<ul>
+<li><code>"bluez_input.*"</code>: すべての Bluetooth 入力ノード（マイクなど）</li>
+<li><code>"bluez_output.*"</code>: すべての Bluetooth 出力ノード（ヘッドホンなど）</li>
+</ul>
+<p>正規表現で上記にマッチするすべてのノードに <code>apply_properties</code> を適用するという内容になります．従って，以下のような設定になります</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode lua code-with-copy"><code class="sourceCode lua"><span id="cb14-1"><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">...</span></span>
+<span id="cb14-2">  <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span></span>
+<span id="cb14-3">    <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">matches</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span></span>
+<span id="cb14-4">      <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span></span>
+<span id="cb14-5">        <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-- Matches all sources.</span></span>
+<span id="cb14-6">        <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"node.name"</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">,</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"matches"</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">,</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"bluez_input.*"</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">},</span></span>
+<span id="cb14-7">      <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">},</span></span>
+<span id="cb14-8">      <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span></span>
+<span id="cb14-9">        <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-- Matches all sinks.</span></span>
+<span id="cb14-10">        <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"node.name"</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">,</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"matches"</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">,</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"bluez_output.*"</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">},</span></span>
+<span id="cb14-11">      <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">},</span></span>
+<span id="cb14-12">    <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">},</span></span>
+<span id="cb14-13">    <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">apply_properties</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span></span>
+<span id="cb14-14">      <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">--["node.nick"] = "My Node",</span></span>
+<span id="cb14-15">      <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">--["priority.driver"] = 100,</span></span>
+<span id="cb14-16">      <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">--["priority.session"] = 100,</span></span>
+<span id="cb14-17">      <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">--["node.pause-on-idle"] = false,</span></span>
+<span id="cb14-18">      <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">--["resample.quality"] = 4,</span></span>
+<span id="cb14-19">      <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">--["channelmix.normalize"] = false,</span></span>
+<span id="cb14-20">      <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">--["channelmix.mix-lfe"] = false,</span></span>
+<span id="cb14-21">      <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">--["session.suspend-timeout-seconds"] = 5,  -- 0 disables suspend</span></span>
+<span id="cb14-22">      <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">--["monitor.channel-volumes"] = false,</span></span>
+<span id="cb14-23"></span>
+<span id="cb14-24">      <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-- Media source role, "input" or "playback"</span></span>
+<span id="cb14-25">      <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-- Defaults to "playback", playing stream to speakers</span></span>
+<span id="cb14-26">      <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-- Set to "input" to use as an input for apps</span></span>
+<span id="cb14-27">      <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">--["bluez5.media-source-role"] = "input",</span></span>
+<span id="cb14-28">      <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">[</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"bluez5.a2dp.ldac.quality"</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">]</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"hq"</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">,</span>  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-- LDAC HQ モード</span></span>
+<span id="cb14-29">    <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">},</span></span>
+<span id="cb14-30">  <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">},</span></span>
+<span id="cb14-31"><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">...</span></span></code></pre></div></div>
+<p>上記実行後再びサービスを再起動しときます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb15-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">systemctl</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--user</span> restart pipewire pipewire-pulse wireplumber</span></code></pre></div></div>
+<p>すると以下のような接続状態になるはずです</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb16-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> pactl list sinks <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">grep</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-A</span> 20 <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'Name: bluez'</span>                             </span>
+<span id="cb16-2">    <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Name:</span> bluez_output.xx_xx_xx_xx_xx_xx.1</span>
+<span id="cb16-3">    <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Description:</span> WH-1000XM4</span>
+<span id="cb16-4">    <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Driver:</span> PipeWire</span>
+<span id="cb16-5">    <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Sample</span> Specification: float32le 2ch 96000Hz</span>
+<span id="cb16-6">    <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Channel</span> Map: front-left,front-right</span>
+<span id="cb16-7">    <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Owner</span> Module: 4294967295</span>
+<span id="cb16-8">    <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Mute:</span> no</span>
+<span id="cb16-9">    <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Volume:</span> front-left: 19609 /  30% / <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-31.44</span> dB,   front-right: 19609 /  30% / <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-31.44</span> dB</span>
+<span id="cb16-10">            <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">balance</span> 0.00</span>
+<span id="cb16-11">    <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Base</span> Volume: 65536 / 100% / 0.00 dB</span>
+<span id="cb16-12">    <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Monitor</span> Source: bluez_output.xx_xx_xx_xx_xx_xx.1.monitor</span>
+<span id="cb16-13">    <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Latency:</span> 0 usec, configured 0 usec</span>
+<span id="cb16-14">    <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Flags:</span> HARDWARE HW_VOLUME_CTRL DECIBEL_VOLUME LATENCY </span>
+<span id="cb16-15">    <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Properties:</span></span>
+<span id="cb16-16">        <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">allowed-rates</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"table: 0xxxxxxxxxxxxx"</span></span>
+<span id="cb16-17">        <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">api.bluez5.address</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"xx:xx:xx:xx:xx:xx"</span></span>
+<span id="cb16-18">        <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">api.bluez5.codec</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"ldac"</span></span>
+<span id="cb16-19">        <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">api.bluez5.profile</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"a2dp-sink"</span></span>
+<span id="cb16-20">        <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">api.bluez5.transport</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">""</span></span>
+<span id="cb16-21">        <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">bluez5.a2dp.ldac.quality</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"hq"</span></span>
+<span id="cb16-22">        <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">card.profile.device</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"1"</span></span></code></pre></div></div>
+<p>以上で設定は完了です．</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>周波数は96kHzの方が本当に良いのか？
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>48kHzに比べ96kHzは転送可能データ量は倍増しますが，その分Bluetooth 帯域の負荷が高くなります．そのため，音途切れが出やすくなります． 家や障害物の少ない環境なら良いとは思いますが，外出のときに使う場合は96kHzにこだわる必要はないと思います．また，そもそも論としてあくまでLDACは音楽を聞くためのcodecであって，通話とかのときは使えません．</p>
+</div>
+</div>
+<section id="その他フィールドについて" class="level3">
+<h3 class="anchored" data-anchor-id="その他フィールドについて">その他フィールドについて</h3>
+<p><span class="mini-section">Owner Module</span></p>
+<p><code>Owner Module</code>は，音源（Sink）や音声ノードを 所有している PipeWire モジュール の IDをしめすフィールドです．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb17-1"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">Owner Module: 4294967295</span></span></code></pre></div></div>
+<p>となってますが</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A4,294,967,295%20=%202%5E%7B32%7D%20-%201%0A"></p>
+<p>であることから特別な意味がありそうなことが推察できます．実際に，PipeWire / PulseAudio では 「所有者なし」 を表すフラグ的な値として扱われてます．</p>
+<p><span class="mini-section">PulseAudio / PipeWire における音量の内部表現</span></p>
+<p><code>Base Volume: 65536 / 100% / 0.00 dB</code> という行があります．</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A65,536%20=%202%5E%7B16%7D%0A"></p>
+<p>で音量の最大値を示しています．<a href="https://gitlab.freedesktop.org/pipewire/pipewire/-/blob/master/spa/plugins/alsa/acp/volume.h">PipeWire/pipewire Repository &gt; volume.h source</a>の実装を確認してみると</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18" style="background: #f1f3f5;"><pre class="sourceCode c code-with-copy"><code class="sourceCode c"><span id="cb18-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">typedef</span> <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">uint32_t</span> pa_volume_t<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">;</span></span>
+<span id="cb18-2"></span>
+<span id="cb18-3"><span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">#define PA_VOLUME_MUTED </span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">((</span><span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">pa_volume_t</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">)</span><span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;"> </span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">U</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">)</span></span>
+<span id="cb18-4"><span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">#define PA_VOLUME_NORM </span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">((</span><span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">pa_volume_t</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">)</span><span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;"> </span><span class="bn" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0x10000</span><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">U</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">)</span></span>
+<span id="cb18-5"><span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">#define PA_VOLUME_MAX </span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">((</span><span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">pa_volume_t</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">)</span><span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;"> </span>UINT32_MAX<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">)</span></span></code></pre></div></div>
+<p>となっており，音量は 32bit unsigned intとして扱われてますが，<code>#define PA_VOLUME_MAX ((pa_volume_t) UINT32_MAX/2)</code> ということから音量最大値であることがわかります．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19" style="background: #f1f3f5;"><pre class="sourceCode c code-with-copy"><code class="sourceCode c"><span id="cb19-1"><span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">#define PA_VOLUME_NORM </span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">((</span><span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">pa_volume_t</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">)</span><span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;"> </span><span class="bn" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0x10000</span><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">U</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">)</span></span></code></pre></div></div>
+<p>で16bit 正規化 (<code>0x10000</code>) が基準となっていることも読み取れます．</p>
+</section>
+</section>
+<section id="easyeffectsの導入" class="level2">
+<h2 class="anchored" data-anchor-id="easyeffectsの導入">EasyEffectsの導入</h2>
+<p>ヘッドホンは各製品ごとに個性が強く，同じ音源でも聞こえかたが異なります． 具体的には，ヘッドホンはその再生周波数特性が各製品ごとに異なり，その特性に応じて「ドンシャリ傾向」「かまぼこ傾向」「フラット傾向」の再生音となります．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 12%">
+<col style="width: 53%">
+<col style="width: 34%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>音傾向</th>
+<th>特徴</th>
+<th>向いている音楽ジャンル・用途</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>ドンシャリ</strong></td>
+<td>低音と高音が強調される．低音が「ドンドン」，高音が「シャリシャリ」する派手な音．</td>
+<td>ロック，EDM</td>
+</tr>
+<tr class="even">
+<td><strong>かまぼこ</strong></td>
+<td>中音域が際立ち，低音・高音は抑えめ．ボーカルやメロディが前に出やすい．</td>
+<td>アコースティック，ボーカル重視の楽曲，バラード</td>
+</tr>
+<tr class="odd">
+<td><strong>フラット</strong></td>
+<td>周波数特性が均一に近く，原音忠実性が高い．録音やモニタリング用途に理想的．</td>
+<td>クラシック，ジャズ，音源分析</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-09-18-wh1000xm4-setup/frequency.png" class="img-fluid figure-img"></p>
+<figcaption>source: audio-technica &gt; ヘッドホン・イヤホンを識る</figcaption>
+</figure>
+</div>
+<p>無理に調整する必要はないですが，Linux環境でEqualizer調整したい場合はPipewire環境でも動作する<span class="regmonkey-bold">EasyEffects</span>がおすすめです．</p>
+<p><span class="mini-section">Equalizerとは？</span></p>
+<p>イコライザーは音質傾向をリケーブルのように物理的にではなく，ソフトウェアで間接的に音質を変える手法です．</p>
+<ul>
+<li>音楽リスニングで好みの音質に調整</li>
+<li>ヘッドホンでバーチャルサラウンド化</li>
+</ul>
+<p>という目的のために諒されます．Equalizer を使うと，各周波数帯（低音領域・中音領域・高温領域）の音量を個別に増減できます．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-09-18-wh1000xm4-setup/easyeffects.png" class="img-fluid figure-img"></p>
+<figcaption>Equalizer by EasyEffects</figcaption>
+</figure>
+</div>
+<p><span class="mini-section">Easy Effectsのインストール</span></p>
+<p>apt packageで入れる場合は以下のコマンドでインストールします</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb20-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># apt package</span></span>
+<span id="cb20-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sudo</span> apt install easyeffects</span></code></pre></div></div>
+<p><span class="mini-section">Equalizer設定</span></p>
+<p>基本的には自分が理想とする音質に合わせて周波数ごとのゲインを調整します． 自分は<a href="https://autoeq.app/">AutoEQ</a>の周波数補正プリセットをベースラインとして少し自分好みに変更しました．</p>
+<p>select headphonesのところに，<code>Sony WH-1000XM4 (ANC Off)</code>を入力すると以下のようなグラフがでてきます</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-09-18-wh1000xm4-setup/autoeq.png" class="img-fluid figure-img"></p>
+<figcaption>AutoEq</figcaption>
+</figure>
+</div>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 80%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>用語</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>RAW</td>
+<td>元のヘッドホン・スピーカーの周波数特性（補正前）</td>
+</tr>
+<tr class="even">
+<td>TARGET</td>
+<td>理想の周波数特性（目標カーブ）</td>
+</tr>
+<tr class="odd">
+<td>EQUALIZED</td>
+<td>EQ 補正を適用した後の特性（RAW → TARGET に近づけた状態）</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>31-band Graphic Eqをコピペして，ちょっと自分好みに編集します．その後以下の形式でtxtファイルを保存します．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21" style="background: #f1f3f5;"><pre class="sourceCode txt code-with-copy"><code class="sourceCode default"><span id="cb21-1">Preamp: 0db</span>
+<span id="cb21-2">Filter 1: ON PK Fc 20 Hz Gain 0 dB Q 4.36</span>
+<span id="cb21-3">Filter 2: ON PK Fc 25 Hz Gain 0 dB Q 4.36</span>
+<span id="cb21-4">Filter 3: ON PK Fc 32 Hz Gain 0 dB Q 4.36</span>
+<span id="cb21-5">Filter 4: ON PK Fc 40 Hz Gain 0 dB Q 4.36</span>
+<span id="cb21-6">Filter 5: ON PK Fc 50 Hz Gain 0 dB Q 4.36</span>
+<span id="cb21-7">Filter 6: ON PK Fc 63 Hz Gain 0 dB Q 4.36</span>
+<span id="cb21-8">Filter 7: ON PK Fc 80 Hz Gain -0.2 dB Q 4.36</span>
+<span id="cb21-9">Filter 8: ON PK Fc 101 Hz Gain 1.1 dB Q 4.36</span>
+<span id="cb21-10">Filter 9: ON PK Fc 127 Hz Gain 0 dB Q 4.36</span>
+<span id="cb21-11">Filter 10: ON PK Fc 160 Hz Gain 0 dB Q 4.36</span>
+<span id="cb21-12">Filter 11: ON PK Fc 202 Hz Gain 0 dB Q 4.36</span>
+<span id="cb21-13">Filter 12: ON PK Fc 254 Hz Gain -0.9 dB Q 4.36</span>
+<span id="cb21-14">Filter 13: ON PK Fc 320 Hz Gain 0.7 dB Q 4.36</span>
+<span id="cb21-15">Filter 14: ON PK Fc 403 Hz Gain 2.2 dB Q 4.36</span>
+<span id="cb21-16">Filter 15: ON PK Fc 508 Hz Gain 0.3 dB Q 4.36</span>
+<span id="cb21-17">Filter 16: ON PK Fc 640 Hz Gain 3 dB Q 4.36</span>
+<span id="cb21-18">Filter 17: ON PK Fc 806 Hz Gain 2.3 dB Q 4.36</span>
+<span id="cb21-19">Filter 18: ON PK Fc 1016 Hz Gain 0.8 dB Q 4.36</span>
+<span id="cb21-20">Filter 19: ON PK Fc 1280 Hz Gain 1 dB Q 4.36</span>
+<span id="cb21-21">Filter 20: ON PK Fc 1613 Hz Gain -1.1 dB Q 4.36</span>
+<span id="cb21-22">Filter 21: ON PK Fc 2032 Hz Gain 0.5 dB Q 4.36</span>
+<span id="cb21-23">Filter 22: ON PK Fc 2560 Hz Gain -1.1 dB Q 4.36</span>
+<span id="cb21-24">Filter 23: ON PK Fc 3225 Hz Gain -0.7 dB Q 4.36</span>
+<span id="cb21-25">Filter 24: ON PK Fc 4064 Hz Gain 2.2 dB Q 4.36</span>
+<span id="cb21-26">Filter 25: ON PK Fc 5120 Hz Gain 1.7 dB Q 4.36</span>
+<span id="cb21-27">Filter 26: ON PK Fc 6451 Hz Gain 0.2 dB Q 4.36</span>
+<span id="cb21-28">Filter 27: ON PK Fc 8127 Hz Gain -3 dB Q 4.36</span>
+<span id="cb21-29">Filter 28: ON PK Fc 10240 Hz Gain -0.4 dB Q 4.36</span>
+<span id="cb21-30">Filter 29: ON PK Fc 12902 Hz Gain 2 dB Q 4.36</span>
+<span id="cb21-31">Filter 30: ON PK Fc 16255 Hz Gain 4.7 dB Q 4.36</span>
+<span id="cb21-32">Filter 31: ON PK Fc 20480 Hz Gain 10.7 dB Q 4.36</span></code></pre></div></div>
+<p>それをImport PresetのAPOから読み込ませれば完了です．気に入らなければtoggleでon/offできるのもEasyEffectsの良いところです．</p>
+<p><span class="mini-section">利用してるときにトラブルが発生した場合</span></p>
+<p>EasyEffectsを利用しているとき，たまに音声出力やEQ処理でフリーズしたりします． 自分が直面したケースだとPipeWire や Bluetooth 接続自体の問題ではなく，EasyEffects の GUI やプラグインが原因だったので， 実行中の EasyEffects プロセスを強制終了する形で対処しています．コマンドは以下</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb22" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb22-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">killall</span> easyeffects</span></code></pre></div></div>
+</section>
+<section id="appendix" class="level2">
+<h2 class="anchored" data-anchor-id="appendix">Appendix</h2>
+<section id="bluetooth-class" class="level3">
+<h3 class="anchored" data-anchor-id="bluetooth-class">Bluetooth Class</h3>
+<p>Bluetoothのクラスとは，電波の最大出力や到達距離を規定した名称です．最大通信距離によって「クラス1」，「クラス2」，「クラス3」の3つの種類に分けられています．</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>クラスの種類</th>
+<th>最大出力</th>
+<th>通信最大距離</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>クラス1</td>
+<td>100mW</td>
+<td>約100m</td>
+</tr>
+<tr class="even">
+<td>クラス2</td>
+<td>2.5mW</td>
+<td>約10m</td>
+</tr>
+<tr class="odd">
+<td>クラス3</td>
+<td>1mW</td>
+<td>約1m</td>
+</tr>
+</tbody>
+</table>
+<p>なお日本国内では「クラス1」といえど10mWが限界のため最大値の1/10が最大出力です．</p>
+</section>
+<section id="x10000u-のprefixとsuffix" class="level3">
+<h3 class="anchored" data-anchor-id="x10000u-のprefixとsuffix"><code>0x10000U</code> のprefixとsuffix</h3>
+<p><code>0x10000U</code> には <code>0x</code> というprefixと <code>U</code> というsuffixが付いてます．</p>
+<ul>
+<li><code>0x</code>: 続くdigitsが16進数(hexadecimal number)であることを表す</li>
+<li><code>U</code>: <code>unsigned</code>を表す．つまり今回は unsigned integer</li>
+</ul>
+<p>従って，<code>0x10000U</code> は</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A65,536%20=%201%20%5Ctimes%2016%5E4%20+%200%20%5Ctimes%2016%5E3%20+%200%20%5Ctimes%2016%5E2%20+%200%20%5Ctimes%2016%5E1%20%20+%200%20%5Ctimes%2016%5E0%0A"></p>
+<p>となります．</p>
+<p><span class="mini-section">C, C++で使用されるsuffix例</span></p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 15%">
+<col style="width: 11%">
+<col style="width: 72%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>value</th>
+<th>suffix</th>
+<th>meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>123</code></td>
+<td></td>
+<td>デフォルトの整数型（通常 <code>int</code>）</td>
+</tr>
+<tr class="even">
+<td><code>123u</code></td>
+<td><code>u</code></td>
+<td><code>unsigned int</code>（符号なし整数）</td>
+</tr>
+<tr class="odd">
+<td><code>123l</code></td>
+<td><code>l</code></td>
+<td><code>long</code>（符号付き長整数，環境依存で32bit）</td>
+</tr>
+<tr class="even">
+<td><code>123L</code></td>
+<td><code>L</code></td>
+<td><code>long</code>（符号付き長整数）</td>
+</tr>
+<tr class="odd">
+<td><code>123uL</code></td>
+<td><code>uL</code></td>
+<td><code>unsigned long</code>（符号なし長整数）</td>
+</tr>
+<tr class="even">
+<td><code>123LL</code></td>
+<td><code>LL</code></td>
+<td><code>long long</code>（符号付き64bit整数）</td>
+</tr>
+<tr class="odd">
+<td><code>123uLL</code></td>
+<td><code>uLL</code></td>
+<td><code>unsigned long long</code>（符号なし64bit整数）</td>
+</tr>
+</tbody>
+</table>
+</div>
+<pre class="{zsh}"><code>% gcc check_numeric_type.c -o test &amp;&amp; ./test
+Type                 Bytes  Min                    Max                   
+int                  4      -2147483648            2147483647            
+short                2      -32768                 32767                 
+long                 8      -9223372036854775808   9223372036854775807   
+unsigned short       2      0                      65535                 
+unsigned long        8      0                      18446744073709551615  
+long long            8      -9223372036854775808   9223372036854775807   
+unsigned long long   8      0                      18446744073709551615  
+float                4      -3.402823e+38          3.402823e+38          
+double               8      -1.797693e+308         1.797693e+308         
+long double          16     -1.189731e+4932        1.189731e+4932 </code></pre>
+<p>つまり，<code>long long</code> は 8 bytes(=64 bits)であることがわかります．</p>
+</section>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<ul>
+<li><a href="https://autoeq.app/">AutoEQ</a></li>
+<li><a href="https://www.audio-technica.co.jp/headphone/navi/whatis/06.php">audio-technica &gt; ヘッドホン・イヤホンを識る</a></li>
+<li><a href="https://pipewire.pages.freedesktop.org/wireplumber/daemon/configuration/bluetooth.html">WirePlumber setting</a></li>
+<li><a href="https://gitlab.freedesktop.org/pipewire/pipewire/-/blob/master/spa/plugins/alsa/acp/volume.h">PipeWire/pipewire Repository &gt; volume.h source</a></li>
+<li><a href="https://ryonakagami.github.io/2021/04/23/ubuntu-sony-bluetooth-setting/">Ryo’s Tech Blog &gt; Sony WF-1000XM3 Bluetoothの設定</a></li>
+</ul>
+
+
+</section>
+
+ ]]></description>
+  <category>bluetooth</category>
+  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-09-18-wh1000xm4-setup/</guid>
+  <pubDate>Thu, 18 Sep 2025 00:00:00 GMT</pubDate>
+</item>
 <item>
   <title>VDIとは？</title>
   <dc:creator>Ryo Nakagami</dc:creator>
@@ -403,7 +1885,7 @@ Figure&nbsp;5: アプリケーション仮想化環境
 <p>カーネル密度関数推定量を</p>
 <p><img src="https://latex.codecogs.com/png.latex?%0A%5Chat%20f(x)%20=%20%5Cfrac%7B1%7D%7Bnh%7D%5Csum_%7Bi=1%7D%5En%20k%5Cleft(%5Cfrac%7BX_i%20-%20x%7D%7Bh%7D%5Cright)%0A"></p>
 <p>として，それぞれのカーネル関数を用いた推定結果を以下可視化します．</p>
-<div id="d3cda32d" class="cell" data-execution_count="1">
+<div id="4b54506d" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><span class="im" style="color: #00769E;
@@ -4383,935 +5865,6 @@ font-style: inherit;">1</span></span></code></pre></div></div>
   <category>security</category>
   <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-08-17-clam-antivirus/</guid>
   <pubDate>Sun, 17 Aug 2025 00:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>Ubuntu 24.04.3へのupgrade</title>
-  <dc:creator>Ryo Nakagami</dc:creator>
-  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-08-16-ubuntu-upgrade/</link>
-  <description><![CDATA[ 
-
-
-
-
-
-
-<section id="ltsから24.04-ltsへのupgrade備忘録" class="level2">
-<h2 class="anchored" data-anchor-id="ltsから24.04-ltsへのupgrade備忘録">22.04 LTSから24.04 LTSへのupgrade備忘録</h2>
-<ul>
-<li><a href="https://lists.ubuntu.com/archives/ubuntu-announce/2025-August/000315.html">Ubuntu 24.04.3 LTS</a>が2025-08-07にリリースされたので，22.04.4 LTSからアップグレード</li>
-<li>UbuntuはLTSといっても <code>xx.xx.2</code> 以降を待ったほうが，安定性やセキュリティパッチの恩恵を利用開始時から享受することができる</li>
-</ul>
-<section id="ubuntu-22.04-ltsと24.04ltsの変更点" class="level3">
-<h3 class="anchored" data-anchor-id="ubuntu-22.04-ltsと24.04ltsの変更点">Ubuntu 22.04 LTSと24.04LTSの変更点</h3>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>項目</th>
-<th>22.04 LTS</th>
-<th>24.04 LTS</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>gnome-shell --versio</code></td>
-<td>42.x</td>
-<td>46.x</td>
-</tr>
-<tr class="even">
-<td><code>python3 --version</code></td>
-<td>3.10.x</td>
-<td>3.12.x</td>
-</tr>
-<tr class="odd">
-<td><code>gcc --version</code></td>
-<td>11.x</td>
-<td>13.x</td>
-</tr>
-<tr class="even">
-<td>System monitorバー表示</td>
-<td>-</td>
-<td>System Extensionsで設定可能</td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="ubuntu-os-upgradeとトラブルシューティング" class="level3">
-<h3 class="anchored" data-anchor-id="ubuntu-os-upgradeとトラブルシューティング">Ubuntu OS upgradeとトラブルシューティング</h3>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>Ubuntu OS upgradeの手順
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>基本的には, 以下の手順で行います</p>
-<ol type="1">
-<li><code>sudo update-manager -c</code>を実行し，Ubuntu の GUI アップデートマネージャ経由で新しいリリースがあるか確認</li>
-<li>表示内容に応じて「OSアップグレード」を実行</li>
-<li>アップグレードが完了したら，指示に従い <code>reboot</code></li>
-</ol>
-</div>
-</div>
-<p>今回この手順で実行したところエラーが表示されたのでその解決方法を備忘録的に以下にまとめます．</p>
-<p><span class="mini-section">Step 1: パッケージ情報の更新</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb1-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> apt update</span>
-<span id="cb1-2"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> apt upgrade</span></code></pre></div></div>
-<p><span class="mini-section">Step 2: OS upgradeの実行と問題の発覚</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb2-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> sudo update-manager <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-c</span></span>
-<span id="cb2-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">...</span></span>
-<span id="cb2-3"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">Errors</span> were encountered while processing:</span>
-<span id="cb2-4"> <span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">thunderbird-locale-en</span></span>
-<span id="cb2-5"> <span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">thunderbird-locale-en-us</span></span>
-<span id="cb2-6"> <span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">thunderbird-locale-ja</span></span>
-<span id="cb2-7"> <span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">thunderbird-locale-en-gb</span></span></code></pre></div></div>
-<p>上記のコマンドでOSのupgradeを試したところ，<code>thunderbird</code>関連のパッケージが原因でOSアップグレードができないというエラーが発生．</p>
-<p><span class="mini-section">Step 3: 問題パッケージの再確認</span></p>
-<p><code>apt upgrade</code> や <code>apt install</code> 実行中に失敗したDebianパッケージの一覧に<code>thunderbird</code>は出てくるはずです．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb3-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> dpkg <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--configure</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-a</span></span></code></pre></div></div>
-<p>で何も出力されないのが理想ですが，設定途中に失敗したパッケージがあると一覧として出力されます．</p>
-<p><span class="mini-section">Step 4: thunderbirdのpurge</span></p>
-<p>thunderbirdはあとでもう一回設定しなおせば良いので，<code>apt remove --purge</code>の実行を決断．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb4-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> apt remove <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--purge</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">'thunderbird*'</span></span>
-<span id="cb4-2"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> apt autoremove</span>
-<span id="cb4-3"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> apt clean</span></code></pre></div></div>
-<ul>
-<li><code>apt-get purge</code> ではなくて <code>apt remove --purge</code> を用いた理由は対話式で削除パッケージを確認したかったため</li>
-<li><code>apt autoremove</code> で不要なパッケージ（メタ情報的に依存関係に組み込まれていないパッケージ）を削除</li>
-<li><code>apt clean</code>は<code>/var/cache/apt/archives</code>以下にキャッシュされた <code>.deb</code>形式ファイルを削除するコマンド</li>
-</ul>
-<div class="callout callout-style-default callout-warning callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Warning</span><code>apt autoremove</code> の注意点
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p><code>apt autoremove</code> の対象は以下の２つの基準によって抽出されます</p>
-<ol type="1">
-<li><code>manual</code>ではなく<code>auto</code>として<code>apt-mark</code>されている(=インストールが手動ではない)</li>
-<li>そのパッケージに対して，手動でインストールされたパッケージが依存していない</li>
-</ol>
-<p>たまに使っているけれども <code>auto</code> でインストールされたパッケージがある場合，<code>apt autoremove</code> の候補に上がってきてしまう可能性があるので，事前にどのパッケージが削除されるのか ユーザー自身で確認することが重要です．</p>
-<p><span class="mini-section">自動的にインストールされたパッケージの確認</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb5-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">aptitude</span> search <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">'~i !~M'</span></span></code></pre></div></div>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>パターン</th>
-<th>説明</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>!pattern</code></td>
-<td><code>pattern</code> に一致しないパッケージを選択</td>
-</tr>
-<tr class="even">
-<td><code>~M</code></td>
-<td>自動的にインストールされたパッケージを選択</td>
-</tr>
-<tr class="odd">
-<td><code>~i</code></td>
-<td>インストールされているパッケージを選択</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-</div>
-<p><span class="mini-section">Step 5: OS upgrade</span></p>
-<p>OSアップグレード中断の原因となったパッケージを除去した後，再度GUIベースでupdate managerを起動し作業を進めます．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb6-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> update-manager <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-c</span></span></code></pre></div></div>
-<p>これで晴れて Ubuntu 24.04.3 LTSへのアップグレードが完了．</p>
-</section>
-</section>
-<section id="upgrade後の対応" class="level2">
-<h2 class="anchored" data-anchor-id="upgrade後の対応">Upgrade後の対応</h2>
-<section id="x11の有効化" class="level3">
-<h3 class="anchored" data-anchor-id="x11の有効化">X11の有効化</h3>
-<p>Ubuntu 22.04 LTSの段階から <code>/etc/gdm3/custom.conf</code> にて</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb7-1"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">[daemon]</span></span>
-<span id="cb7-2"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Uncomment the line below to force the login screen to use Xorg</span></span>
-<span id="cb7-3"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">WaylandEnable</span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">false</span></span></code></pre></div></div>
-<p>と設定していたので，作業は特段発生しません．セッションがX11かどうかを確認する場合は</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb8-1"><span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">echo</span> <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$XDG_SESSION_TYPE</span></span></code></pre></div></div>
-<p>を実行して，<code>x11</code> と表示されれば問題ありません．</p>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>Waylandを採用しない理由
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>スクリーンレコーダーソフト Kazam が未対応のため</li>
-</ul>
-</div>
-</div>
-</section>
-<section id="hweのインストール" class="level3">
-<h3 class="anchored" data-anchor-id="hweのインストール">24.04 HWEのインストール</h3>
-<p>なぜか <code>uname -r</code> で確認するとkernelがまだ <code>6.8.0-78-generic</code> であったので，24.04 HWEを改めてインストールする</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb9-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> sudo apt install <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--install-recommends</span> linux-generic-hwe-24.04</span>
-<span id="cb9-2"></span>
-<span id="cb9-3"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># 依存関係エラーが発生していたなら</span></span>
-<span id="cb9-4"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> sudo apt <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--fix-broken</span> install</span></code></pre></div></div>
-<p>その後, rebootして以下のようになっていれば問題なしです．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb10-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> uname <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-r</span></span>
-<span id="cb10-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">6.14.0-28-generic</span></span></code></pre></div></div>
-<p><span class="mini-section">古いkernelとパッケージの削除</span></p>
-<p><code>dpkg -l</code>でシステムにインストール済みのパッケージを確認すると</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb11-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> dpkg <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-l</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">grep</span> linux-generic</span>
-<span id="cb11-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">ii</span>  linux-generic-hwe-22.04                        6.8.0-65.68<span class="pp" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">~</span>22.04.1                     amd64        Complete Generic Linux kernel and header</span>
-<span id="cb11-3"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">ii</span>  linux-generic-hwe-24.04                        6.14.0-28.28<span class="pp" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">~</span>24.04.1                    amd64        Complete Generic Linux kernel and headers</span></code></pre></div></div>
-<p>となっていました．<code>linux-generic-hwe-22.04</code>は必要ないので</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb12-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> apt-get purge linux-generic-hwe-22.04</span></code></pre></div></div>
-<p>で消し去ります．また合わせて，古いカーネルを <code>sudo apt autoremove</code> などで除去しとします．最後にGRUBの設定(<code>/etc/default/grub</code>)をupdateしときます</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb13-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> update-grub</span></code></pre></div></div>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>GRUB
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>GRUB(GRand Unified Bootloader)はLinuxで一般的に使われているブートローダー</li>
-<li>複数のOSやカーネルがインストールされている場合は，それらの切り替えを行うことができる</li>
-<li>設定ファイルは <code>/etc/default/grub</code></li>
-<li>設定を変更する際は<span class="regmonkey-bold">必ずバックアップを取るようにしましょう</span></li>
-</ul>
-</div>
-</div>
-</section>
-<section id="etcaptsources.list.d以下の.listファイルの更新" class="level3">
-<h3 class="anchored" data-anchor-id="etcaptsources.list.d以下の.listファイルの更新"><code>/etc/apt/sources.list.d/</code>以下の<code>.list</code>ファイルの更新</h3>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>再設定方針
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>OS upgradeの際に，自動的にjammyからnobleに書き換えてくれますが，ユーザーが設定したパッケージレポジトリ設定は書き換えてくれないので，強引に設定し直します．</li>
-<li>基本的には公式インストール手順の内，レポジトリ設定の箇所だけ実行します</li>
-</ul>
-</div>
-</div>
-<p><span class="mini-section">Docker Engine</span></p>
-<p>基本的にはgpg keyとかはUbuntuならば共通のものを使っているようだったので，repository updateのみで十分と判断</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb14-1"><span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">echo</span> <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">\</span></span>
-<span id="cb14-2">  <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"deb [arch=</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$(</span><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">dpkg</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--print-architecture</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">)</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;"> signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu </span><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">\</span></span>
-<span id="cb14-3"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">  </span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$(</span><span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">.</span> /etc/os-release <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">&amp;&amp;</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">${UBUNTU_CODENAME</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:-</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$VERSION_CODENAME}</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">)</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;"> stable"</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">\</span></span>
-<span id="cb14-4">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> tee /etc/apt/sources.list.d/docker.list <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;</span> /dev/null</span>
-<span id="cb14-5"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> apt-get update</span></code></pre></div></div>
-<p><span class="mini-section">tailscale</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb15-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">curl</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-fsSL</span> https://pkgs.tailscale.com/stable/ubuntu/noble.noarmor.gpg <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> tee /usr/share/keyrings/tailscale-archive-keyring.gpg <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;</span>/dev/null<span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">\n</span>curl <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-fsSL</span> https://pkgs.tailscale.com/stable/ubuntu/noble.tailscale-keyring.list <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> tee /etc/apt/sources.list.d/tailscale.list</span></code></pre></div></div>
-<p><span class="mini-section">その他</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb16-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">grep</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-r</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"jammy"</span> /etc/apt/sources.list.d/ <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">egrep</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-v</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"distUpgrade:"</span></span></code></pre></div></div>
-<p>で22.04 LTSベースの<code>.list</code>ファイルがないかを確認し，必要に応じて<code>rm</code>を実行．</p>
-</section>
-<section id="nvidia-gpu-driverとcuda13.0のupgrade" class="level3">
-<h3 class="anchored" data-anchor-id="nvidia-gpu-driverとcuda13.0のupgrade">NVIDIA GPU Driverとcuda13.0のupgrade</h3>
-<p><span class="mini-section">section</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb17-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> ubuntu-drivers devices</span>
-<span id="cb17-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">udevadm</span> hwdb is deprecated. Use systemd-hwdb instead.</span>
-<span id="cb17-3"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">...</span></span>
-<span id="cb17-4"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">driver</span>   : nvidia-driver-580-open <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-</span> third-party non-free recommended</span></code></pre></div></div>
-<p>とあったので，</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb18-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> apt install <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-y</span> nvidia-driver-580-open</span></code></pre></div></div>
-<p><span class="mini-section">cuda toolkit</span></p>
-<p><a href="https://developer.nvidia.com/cuda-downloads?target_os=Linux&amp;target_arch=x86_64&amp;Distribution=Ubuntu&amp;target_version=24.04&amp;target_type=deb_local">公式のインストール手順</a>に従い以下を実行</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb19-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-ubuntu2404.pin</span>
-<span id="cb19-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> sudo mv cuda-ubuntu2404.pin /etc/apt/preferences.d/cuda-repository-pin-600</span>
-<span id="cb19-3"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> wget https://developer.download.nvidia.com/compute/cuda/13.0.0/local_installers/cuda-repo-ubuntu2404-13-0-local_13.0.0-580.65.06-1_amd64.deb</span>
-<span id="cb19-4"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> sudo dpkg <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-i</span> cuda-repo-ubuntu2404-13-0-local_13.0.0-580.65.06-1_amd64.deb</span>
-<span id="cb19-5"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> sudo cp /var/cuda-repo-ubuntu2404-13-0-local/cuda-<span class="pp" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">*</span>-keyring.gpg /usr/share/keyrings/</span>
-<span id="cb19-6"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> sudo apt-get update</span>
-<span id="cb19-7"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> sudo apt-get <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-y</span> install cuda-toolkit-13-0</span></code></pre></div></div>
-<p><span class="mini-section">reboot後の確認</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb20-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># GPU driver</span></span>
-<span id="cb20-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> nvidia-smi</span>
-<span id="cb20-3"></span>
-<span id="cb20-4"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># CUDA compiler version</span></span>
-<span id="cb20-5"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">nvcc</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--version</span></span>
-<span id="cb20-6"></span>
-<span id="cb20-7"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># pathが通っていない場合</span></span>
-<span id="cb20-8"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">/usr/local/cuda-13.0/bin/nvcc</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--version</span></span></code></pre></div></div>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>nvidia-smiのcuda version
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li><code>nvidia-smi</code>で出力される CUDA Versionは実際のCUDA versionではなく，対応可能な最大バージョンを示しています</li>
-<li>インストールされているCUDA versionを確認する場合は <code>nvcc --version</code> を実行する必要があります</li>
-</ul>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb21-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> nvidia-smi         </span>
-<span id="cb21-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">Wed</span> Aug 20 02:15:15 2025       </span>
-<span id="cb21-3"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">+-----------------------------------------------------------------------------------------+</span></span>
-<span id="cb21-4"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">NVIDIA-SMI</span> 580.65.06              Driver Version: 580.65.06      CUDA Version: 13.0     <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span></span>
-<span id="cb21-5"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">+-----------------------------------------+------------------------+----------------------+</span></span>
-<span id="cb21-6"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">GPU</span>  Name                 Persistence-M <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">Bus-Id</span>          Disp.A <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">Volatile</span> Uncorr. ECC <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span></span>
-<span id="cb21-7"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">Fan</span>  Temp   Perf          Pwr:Usage/Cap <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span>           <span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">Memory-Usage</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">GPU-Util</span>  Compute M. <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span></span>
-<span id="cb21-8"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span>                                         <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span>                        <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span>               <span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">MIG</span> M. <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span></span>
-<span id="cb21-9"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">=========================================+========================+======================</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span></span>
-<span id="cb21-10"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span>   <span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">0</span>  NVIDIA GeForce RTX 4070        On  <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span>   <span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">00000000:01:00.0</span>  On <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span>                  <span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">N/A</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span></span>
-<span id="cb21-11"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span>  <span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">0%</span>   33C    P5             13W /  215W <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span>    <span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">1167MiB</span> /  12282MiB <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span>      <span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">4%</span>      Default <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span></span>
-<span id="cb21-12"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span>                                         <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span>                        <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span>                  <span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">N/A</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span></span>
-<span id="cb21-13"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">+-----------------------------------------+------------------------+----------------------+</span></span></code></pre></div></div>
-</div>
-</div>
-</section>
-<section id="pipx関係パッケージの再インストール" class="level3">
-<h3 class="anchored" data-anchor-id="pipx関係パッケージの再インストール"><code>pipx</code>関係パッケージの再インストール</h3>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-Note
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>DefaultのPython versisonが変化したので基本的に<code>pipx</code>で導入したものは再インストールが必要です</li>
-<li><code>pipx uninstall</code>はconfigファイルまでは消去しないので，uninstall→installの手順でOKです</li>
-</ul>
-</div>
-</div>
-<p><span class="mini-section">gpustatsの再インストール</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb22" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb22-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">## uninstall</span></span>
-<span id="cb22-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> pipx uninstall gpustat</span>
-<span id="cb22-3"></span>
-<span id="cb22-4"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">## re-intsall</span></span>
-<span id="cb22-5"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> pipx install gpustat</span>
-<span id="cb22-6"></span>
-<span id="cb22-7"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">## check command</span></span>
-<span id="cb22-8"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> gpustat</span></code></pre></div></div>
-<p><span class="mini-section">Poetryの再インストール</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb23" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb23-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">## uninstall</span></span>
-<span id="cb23-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> pipx uninstall poetry</span>
-<span id="cb23-3"></span>
-<span id="cb23-4"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">## re-intsall</span></span>
-<span id="cb23-5"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> pipx install poetry</span>
-<span id="cb23-6"></span>
-<span id="cb23-7"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">## check command</span></span>
-<span id="cb23-8"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> poetry <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--versison</span></span>
-<span id="cb23-9"></span>
-<span id="cb23-10"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">## extensionsのre-innstall</span></span>
-<span id="cb23-11"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> pipx inject poetry poetry-plugin-shell</span></code></pre></div></div>
-</section>
-<section id="docker-desktopの再インストール" class="level3">
-<h3 class="anchored" data-anchor-id="docker-desktopの再インストール">Docker Desktopの再インストール</h3>
-<p><span class="mini-section">問題事象</span></p>
-<ul>
-<li>Docker Desktopがうまく起動しない問題が発生</li>
-</ul>
-<p><span class="mini-section">原因調査</span></p>
-<p>Docker自体が死んでいるかどうかをまず調査</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb24" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb24-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> docker run hello-world</span>
-<span id="cb24-2"></span>
-<span id="cb24-3"></span>
-<span id="cb24-4"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">Hello</span> from Docker!</span>
-<span id="cb24-5"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">This</span> message shows that your installation appears to be working correctly.</span>
-<span id="cb24-6"></span>
-<span id="cb24-7"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">To</span> generate this message, Docker took the following steps:</span>
-<span id="cb24-8"> <span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">1.</span> The Docker client contacted the Docker daemon.</span>
-<span id="cb24-9"> <span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">2.</span> The Docker daemon pulled the <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"hello-world"</span> image from the Docker Hub.</span>
-<span id="cb24-10">    <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">(</span><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">amd64</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">)</span></span>
-<span id="cb24-11"> <span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">3.</span> The Docker daemon created a new container from that image which runs the</span>
-<span id="cb24-12">    <span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">executable</span> that produces the output you are currently reading.</span>
-<span id="cb24-13"> <span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">4.</span> The Docker daemon streamed that output to the Docker client, which sent it</span>
-<span id="cb24-14">    <span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">to</span> your terminal.</span>
-<span id="cb24-15"></span>
-<span id="cb24-16"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">To</span> try something more ambitious, you can run an Ubuntu container with:</span>
-<span id="cb24-17"> <span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">$</span> docker run <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-it</span> ubuntu bash</span>
-<span id="cb24-18"></span>
-<span id="cb24-19"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">Share</span> images, automate workflows, and more with a free Docker ID:</span>
-<span id="cb24-20"> <span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">https://hub.docker.com/</span></span>
-<span id="cb24-21"></span>
-<span id="cb24-22"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">For</span> more examples and ideas, visit:</span>
-<span id="cb24-23"> <span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">https://docs.docker.com/get-started/</span></span>
-<span id="cb24-24"></span>
-<span id="cb24-25"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> docker <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--version</span></span>
-<span id="cb24-26"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">Docker</span> version 28.3.3, build 980b856</span></code></pre></div></div>
-<p>Docker自体は問題がないと判断し，あくまで<code>docker-desktop</code>がうまく起動しないとして問題に対処しました．</p>
-<p><span class="mini-section">トラブルシューティング</span></p>
-<p><code>systemctl --failed</code> や <code>sudo journalctl -p err | grep "docker" | less</code> コマンドを実行すると</p>
-<pre><code>Failed to start app-gnome-docker</code></pre>
-<p>というエラーメッセージが出現していたので，設定ファイルを消さずに再インストールを行います．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb26" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb26-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> apt remove docker-desktop</span></code></pre></div></div>
-<p>その後，<a href="https://desktop.docker.com/linux/main/amd64/docker-desktop-amd64.deb?utm_source=docker&amp;utm_medium=webreferral&amp;utm_campaign=docs-driven-download-linux-amd64&amp;_gl=1*1cq0d3i*_gcl_au*MzU3ODA5NTU2LjE3NTUzNDE4NTY.*_ga*OTgyMTc5NDU2LjE3NTUzNDExODM.*_ga_XJWPQMJYHQ*czE3NTU2MTk5NDIkbzQkZzEkdDE3NTU2MTk5NTYkajQ2JGwwJGgw">Docker公式ページが配布しているDebianパッケージ</a>をダウンロードして，</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb27" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb27-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> apt-get install ./docker-desktop-amd64.deb</span></code></pre></div></div>
-<p>を実行すれば終了です．</p>
-</section>
-<section id="cups-browsed-serviceの無効化" class="level3">
-<h3 class="anchored" data-anchor-id="cups-browsed-serviceの無効化"><code>cups-browsed</code> serviceの無効化</h3>
-<p><span class="mini-section">cups-browsedサービス</span></p>
-<ul>
-<li>DNS-SD を使ってネットワーク上のプリンタや USB 接続の IPP プリンタ，プリンタアプリ，リモート CUPS キューなどの印刷サービスを自動で見つけてくれるサービス</li>
-<li>プリンターは特に使わないのでdisableしておく</li>
-</ul>
-<p><span class="mini-section">手順</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb28" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb28-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># サービスのstop</span></span>
-<span id="cb28-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> sudo systemctl stop cups-browsed</span>
-<span id="cb28-3"></span>
-<span id="cb28-4"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># サービスの無効化</span></span>
-<span id="cb28-5"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> systemctl disable cups-browsed</span>
-<span id="cb28-6"></span>
-<span id="cb28-7"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># status確認</span></span>
-<span id="cb28-8"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> systemctl status cups-browsed   </span>
-<span id="cb28-9"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">○</span> cups-browsed.service <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-</span> Make remote CUPS printers available locally</span>
-<span id="cb28-10">     <span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">Loaded:</span> loaded <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">(/us</span>r/lib/<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">systemd/system/cup</span>s-browsed.service; disabled; <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">pres</span>et: enabled)</span>
-<span id="cb28-11">     Active: inactive (dead)</span></code></pre></div></div>
-</section>
-</section>
-<section id="appendix-インストール後の-.debファイルの取り扱い" class="level2">
-<h2 class="anchored" data-anchor-id="appendix-インストール後の-.debファイルの取り扱い">Appendix: インストール後の <code>.deb</code>ファイルの取り扱い</h2>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span><code>.deb</code>ファイルの取り扱い
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>プログラムのインストールに必要なファイルをまとめたものが<code>.deb</code>ファイルなので，インストール後は基本的に削除してしまって問題ありません．</p>
-</div>
-</div>
-<p>Ubuntuで<code>apt-get</code>を使ってインストールする場合，</p>
-<ol type="1">
-<li><code>/var/cache/apt/archives</code> に <code>.deb</code>ファイルをダウンロード</li>
-<li><code>dpkg</code>コマンドを用いて，プログラムをインストール</li>
-</ol>
-<p>という流れになります．<code>/var/cache/apt/archives</code>以下は基本的に再インストールしたい場合などを除いて使いみちがないので削除してしまっても問題ありません． <code>rm</code> コマンドを用いるよりかは，</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb29" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb29-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">## interactiveに結果を確認したい場合</span></span>
-<span id="cb29-2"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> apt clean</span>
-<span id="cb29-3"></span>
-<span id="cb29-4"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">## スクリプトで実行する場合(標準出力が簡素)</span></span>
-<span id="cb29-5"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> apt-get clean</span></code></pre></div></div>
-<p>を実行してクリーンすることが推奨されます．</p>
-</section>
-<section id="references" class="level2">
-<h2 class="anchored" data-anchor-id="references">References</h2>
-<ul>
-<li><a href="https://askubuntu.com/questions/1511919/ubuntu-24-04-nvidia-drivers">ask Ubuntu &gt; Ubuntu 24.04 Nvidia drivers</a></li>
-<li><a href="https://www.debian.org/doc/manuals/aptitude/ch02s04s05.en.html">aptitude Search patterns</a></li>
-<li><a href="https://github.com/OpenPrinting/cups-browsed">cups-browsed</a></li>
-</ul>
-
-
-</section>
-
- ]]></description>
-  <category>環境構築</category>
-  <category>Linux</category>
-  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-08-16-ubuntu-upgrade/</guid>
-  <pubDate>Sat, 16 Aug 2025 00:00:00 GMT</pubDate>
 </item>
 </channel>
 </rss>
