@@ -1,0 +1,139 @@
+---
+title: "QuartoコンテンツをTailnetで公開する"
+author: "Ryo Nakagami"
+date: "2025-09-23"
+date-modified: "2025-09-23"
+categories: [quarto]
+listing_category: general
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+::: {.callout-note icon="false" style="font-size:1.1em"}
+
+## 📘 解説内容
+
+- `quarto preview` をバックグラウンドプロセスとして実行する方法
+- `quarto preview` の内容をtailnet内で公開する方法
+
+:::
+
+
+## Quarto Preview as background process
+
+バックグラウンドで`quarto preview`を実行する場合は以下のコマンドとなります
+
+```bash
+nohup quarto preview > ~/.var/quarto.log  2>&1 &
+```
+
+:::: {.no-border-top-table}
+
+| 要素                                  | 意味                        | 
+| ------------------------------------ | ------------------------- | 
+| `nohup`                              | ターミナルを閉じてもプロセスを終了させない     |
+| `quarto preview`                     | Quarto プロジェクトをプレビューするコマンド | 
+| `>`                                  | 標準出力 (stdout) のリダイレクト     |
+| `~/.var/quarto.log`                  | ログ出力先ファイル                   | 
+| `2>&1`                               | 標準エラー (stderr) を標準出力に結合(=stdout と stderr を同じファイルにまとめる)   | 
+| `&`                                  | コマンドをバックグラウンドで実行          | 
+: {tbl-colwidths="[25,75]"}
+
+::::
+
+### バックグラウンドプロセスをkillする
+
+{{< reveal_vspace 0.5em >}}
+
+[① 起動シェルと同じシェルでkillする場合]{.mini-section}
+
+バックグラウンドジョブを起動したシェルと同じシェルでジョブをkillしたい場合は `jobs` コマンドで該当ジョブを検索することができます
+
+```bash
+$ jobs
+[1]  + running    nohup quarto preview > ~/.var/quarto.log 2>&1
+```
+
+このプロセスをkillする場合は
+
+```bash
+$ kill %1
+```
+
+{{< reveal_vspace 1em >}}
+
+[② 別のシェルでkillする場合]{.mini-section}
+
+`ps aux`で該当プロセスを検索して，`kill`という手順になりjます．実行すると
+
+```bash
+$ ps aux | grep "quarto"
+kirby+ 1710278  0.0  0.0   9940  3608 pts/8    SN   19:57   0:00 bash /usr/local/bin/quarto preview
+kirby+ 1710301 14.3  0.5 46064208 164504 pts/8 SNl  19:57   0:02 /opt/quarto/bin/tools/x86_64/deno run --unstable-ffi --unstable-kv --no-config --no-lock --cached-only --allow-all --no-check --v8-flags=--enable-experimental-regexp-engine,--max-old-space-size=8192,--max-heap-size=8192 /opt/quarto/bin/quarto.js preview
+```
+
+となりますが，このとき `kill` するのは後者となります．つまり，
+
+```bash
+$ kill 1710301
+```
+
+`nohup quarto preview > ~/.var/quarto.log  2>&1 &` を実施すると 
+
+```bash
+[1] 1710278
+```
+
+のようにジョブ番号に対応したPIDが表示されますが，この番号は `quarto preview` ラッパーのPIDであって，実際に止めるべきは `/opt/quarto/bin/tools/x86_64/deno` の方となります．
+
+
+## Tailscale Serve を使ったローカルサービス公開
+
+`tailscale serve` を用いることでlocalhostで動いているサービスを自分の Tailnet内（Tailscale VPN 内）のみでアクセスできるように公開できます．
+Tailscale アカウントで認証した端末だけアクセス可能なので，セキュアなサービス公開となります．
+
+<strong > &#9654;&nbsp; 実行例</strong>
+
+```bash
+# ポート4200のサービスを公開
+$ sudo tailscale serve 4200
+Available within your tailnet:
+
+https://xxxxxx.tailxxxxx.ts.net/
+|-- proxy http://127.0.0.1:4200
+
+Press Ctrl+C to exit.
+```
+
+:::: {.no-border-top-table}
+
+| 項目                                         | 意味                                                              |
+| -------------------------------------------| --------------------------------------------------------------- |
+| `tailscale serve 4200`                     | ローカルマシンの `127.0.0.1:4200` で動いているサービスを Tailscale 経由で公開するコマンド．    |
+| `https://xxxxxx.tailxxxxx.ts.net/`         | Tailscale が自動で割り当てた対象端末専用のサブドメイン．Tailnet 内の認証済みデバイスからのみアクセス可能． |
+: {tbl-colwidths="[35,65]"}
+
+::::
+
+
+
+### Serving in Background
+
+backgroundプロセスでserviceをtailnet内で公開したい場合は `--bg` フラグを付与して`tailscale serve`を実行します．
+
+```bash
+# 現在の公開状況を確認
+sudo tailscale serve status
+
+# ポート4200のサービスを公開
+sudo tailscale serve --bg 4200
+```
+
+公開を停止したい場合は
+
+```bash
+sudo tailscale serve off
+```
