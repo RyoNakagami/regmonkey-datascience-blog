@@ -3,7 +3,7 @@ title: "Ubuntu 22.04でのfirewall設定"
 author: "Ryo Nakagami"
 date: "2025-08-01"
 date-modified: "2025-08-14"
-categories: [環境構築, Linux, firewall]
+categories: [環境構築, Linux, firewall, network]
 listing_category: development
 comments:
   utterances:
@@ -36,6 +36,7 @@ comments:
 - iptablesのフロントエンド
 - 初期状態では無効になっており，ユーザーが手動で有効にする必要がある
 - 設定内容は `/etc/ufw/user.rules` (IPv4) と `/etc/ufw/user6.rules` (IPv6) に保存される
+- [ファイル形式のようなアプリケーション層のコンテンツ制御は直接はできない]{.regmonkey-bold}
 
 :::
 
@@ -466,7 +467,70 @@ sudo chown syslog:adm /var/log/ufw.log
 
 もろもろがめんどくさい場合は `sudo chmod 775 /var/log` を実行します．
 
-## Appendix: IPアドレスとサブネットマスク
+## Appendix 1: ファイアウォール
+
+::: {#def- .custom_problem .blog-custom-border}
+[ファイアウォール]{.def-title}
+
+- パケットを制御する仕組みのこと
+- 内部ネットワークと外部ネットワークの通信を監視・制御する  
+- セキュリティポリシーに従ってアクセスを許可／拒否する
+
+:::
+
+基本的には（TCP/IPモデル）階層ごとにヘッダの内容に応じたチェック項目を設け，それらをクリアしたデータだけを上の階層に渡すという仕組みで通信を制御します．
+
+::: {#exm- .custom_problem }
+<br>
+
+```{mermaid}
+block-beta
+columns 1
+  block:RULE1
+    A["ネットワーク層"]
+    B["許可されたIPアドレスからのパケット以外は受け取らない"]
+  end
+  space
+  block:RULE2
+    C["トランスポート層"]
+    D["決められたポート宛のパケット以外はReject"]
+  end
+  space
+  block:RULE3
+    E["アプリケーション層"]
+    F["決められた形式以外のファイルはReject"]
+  end
+  blockArrowId6<["&nbsp;&nbsp;&nbsp;"]>(down)
+  G["通信の受取"]
+  RULE1 --> RULE2
+  RULE2 --> RULE3
+
+  style B fill:#428CE6,stroke:#428CE6,color:#FFFFFF,stroke-width:2px
+  style D fill:#428CE6,stroke:#428CE6,color:#FFFFFF,stroke-width:2px
+  style F fill:#428CE6,stroke:#428CE6,color:#FFFFFF,stroke-width:2px
+```
+
+:::
+***
+
+
+
+[UFW が扱える階層]{.mini-section}
+
+:::: {.no-border-top-table}
+
+
+| OSI階層            | TCP/IP階層 | UFWで可能なこと                               |
+| ---------------- | -------- | --------------------------------------- |
+| **L3: ネットワーク層**  | インターネット層 | - IPアドレスの許可/拒否<br>- サブネット単位でのアクセス制御     |
+| **L4: トランスポート層** | トランスポート層 | - ポート番号指定の許可/拒否<br>- TCP/UDP プロトコルごとの制御 |
+: {tbl-colwidths="[25,25,50]"}
+
+::::
+
+
+
+## Appendix 2: IPアドレスとサブネットマスク
 
 ::: {#def- .custom_problem .blog-custom-border}
 [IPアドレスの構成]{.def-title}

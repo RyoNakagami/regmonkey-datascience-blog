@@ -1,0 +1,426 @@
+---
+title: "ネットワークトラブルの切り分け"
+author: "Ryo Nakagami"
+date: "2025-09-26"
+date-modified: "2025-09-29"
+categories: [network]
+listing_category: general
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## ⚠️ トラブル
+
+- Ubuntu 24.04 LTSにて，S3 storage `s3.amazonaws.com` にある日突然接続できなくなった
+
+## 🔍 トラブルシューティングフローチャート
+
+```{mermaid}
+---
+config:
+  layout: elk
+---
+flowchart LR
+    A["ネットワークに問題発生"] --> B["ping ホスト名を実行"]
+    B --> C{"応答あり？"}
+    C -- YES --> D["名前解決 &amp; 通信OK"]
+    C -- NO --> E["ping IPアドレスを実行"]
+    E --> F{"応答あり？"}
+    F -- YES --> G["名前解決の問題<br>DNS設定確認"]
+    F -- NO --> H["ネットワーク未接続<br>ケーブル/ルータ確認"]
+
+    %% フォントサイズをノードごとに指定
+    style A font-size:1.2em
+    style B font-size:1.2em
+    style C font-size:1.2em
+    style D font-size:1.2em
+    style E font-size:1.2em
+    style F font-size:1.2em
+    style G font-size:1.2em
+    style H font-size:1.1em
+```
+
+今回のトラブルでは，掃除のタイミングでケーブルを抜いており，物理的にケーブルが刺さっていませんでした．．．
+
+
+### pingコマンド
+
+::: {#def- .custom_problem .blog-custom-border}
+[pingコマンド]{.def-title}
+
+- pingコマンドは指定したホストとの間でネットワークが疎通しているかどうかを調べるコマンド
+- `ping ホスト名`を実行すると，サイズの小さなパケットを相手に送信して，その応答を調べる
+- `ping6` は `/usr/bin/ping6 -> ping*` とシンボリックリンクになっている
+
+```bash
+ping [option] destination
+```
+
+:::
+
+
+`ping`コマンドは相手のコンピューターに対してICMPメッセージ(ネットワーク層のプロトコル)を送信し，その応答で通信状況を判断します．以下の例ではグローバルIPアドレスに対してですが，
+プライベートIPアドレスに対して送信することも可能です．
+
+::: {#fig-plot-ping .center}
+
+```{mermaid}
+sequenceDiagram
+    participant PC as ユーザー端末
+    participant Router as ルーター
+    participant Target as 宛先サーバー (例: google.com)
+
+    %% ICMP Echo Request
+    PC ->> Router: ICMP Echo Request
+    Router ->> Target: ICMP Echo Request
+
+    %% ICMP Echo Reply
+    Target -->> Router: ICMP Echo Reply
+    Router -->> PC: ICMP Echo Reply
+
+    %% Note
+    Note over PC,Target: PCは応答を受け取ってRTT（Round-Trip Time，往復時間）を計測
+```
+
+
+:::
+
+::: {#exm- .custom_problem }
+**ping出力**
+<br>
+
+```zsh
+% ping 8.8.8.8 -c 3
+PING 8.8.8.8 (8.8.8.8) 56(84) bytes of data.
+64 bytes from 8.8.8.8: icmp_seq=1 ttl=117 time=7.46 ms
+64 bytes from 8.8.8.8: icmp_seq=2 ttl=117 time=17.9 ms
+64 bytes from 8.8.8.8: icmp_seq=3 ttl=117 time=14.1 ms
+
+--- 8.8.8.8 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2003ms
+rtt min/avg/max/mdev = 7.463/13.149/17.850/4.297 ms
+```
+
+- `8.8.8.8`: Google Public DNS
+- `ttl`: time to live, パケットがネットワーク上を通過できる最大ホップ数を指定する値
+
+
+:::
+---
+
+
+
+
+[Options]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| オプション | 意味                            |
+| ----- | ----------------------------- |
+| `-4`    | IPv4を使用する（pingコマンドのデフォルト）     |
+| `-6`    | IPv6を使用する（ping6コマンドのデフォルト）    |
+| `-c 回数` | パケットを送る回数                     |
+| `-i 秒数` | 個々の送信の後に待つ秒数（デフォルトは1秒）        |
+| `-w 秒数` | 状況を問わず、pingコマンドの実行を指定した秒数で終了  |
+| `-n`    | 数値出力のみを行う（IPアドレスからホスト名を検索しない） |
+| `-q`    | 開始と終了時の要約のみで他は表示しない（quiet）    |
+| `-v`    | 詳細な出力を行う（verbose）             |
+| `-p パターン`    | 送出するパケットを埋める値をパターンで指定（例: `-p ff` で全て 1 で埋めたパケット） |
+| `-s サイズ`     | 送出するパケットのサイズを指定（デフォルト 56バイト＋ICMPヘッダ8バイト＝合計64バイト） |
+| `-R`         | 経路を記録する                                          |
+| `-r`         | 通常のルーティングを無視して接続する                               |
+| `-I インタフェース` | 指定したインタフェースからマルチキャストパケットを送る                      |
+| `-L`         | マルチキャストパケットのループバックを抑制する                          |
+| `-t TTL値`    | Time To Liveを設定する              |
+: {tbl-colwidths="[30,70]"}
+::::
+
+{{< reveal_vspace 1em >}}
+
+[pingコマンドを用いた問題の切り分け]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| テスト内容              | コマンド例                          | 結果     | 考えられる原因 / 対策                                   |
+| ------------------ | ------------------------------ | ------ | ---------------------------------------------- |
+| IPv4 外部接続          | `ping 8.8.8.8`                 | ✅ 応答あり | IPv4経路は正常                                      |
+| IPv4 外部接続          | `ping 8.8.8.8`                 | ❌ 応答なし | IPv4経路問題（ルーティング・ファイアウォール等）                     |
+| IPv6 外部接続          | `ping -6 2001:4860:4860::8888` | ✅ 応答あり | IPv6経路は正常                                      |
+| IPv6 外部接続          | `ping -6 2001:4860:4860::8888` | ❌ 応答なし | IPv6経路問題（ルーティング・ICMPv6制限・ISP未対応）               |
+| 特定インターフェース経由       | `ping -I eno1 8.8.8.8`         | ✅ / ❌  | インターフェース選択による疎通確認、VPN/物理NIC切替の検証               |
+: {tbl-colwidths="[20,20,15,45]"}
+
+::::
+
+
+### ネットワークインターフェース一覧の確認
+
+インターフェース一覧のみを出力する場合は
+
+```bash
+ip link show
+```
+
+を実行します．実行結果例として
+
+```ini
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 ...
+2: eno1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 ...
+3: docker0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 ...
+4: tailscale0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 ...
+```
+
+または
+
+```bash
+$ ls /sys/class/net/
+docker0@  eno1@  lo@  tailscale0@
+```
+
+でも確認することができます．
+
+::: {#exm- .custom_problem }
+**ネットワークインターフェース例**
+<br>
+
+:::: {.no-border-top-table}
+
+| インターフェース名         | 種類              | 説明                                          |
+| ----------------- | --------------- | ------------------------------------------- |
+| `lo`              | ループバック          | ローカル内部通信専用．自分自身との通信に使用される（`127.0.0.1 / ::1`）． |
+| `eno1`            | 有線LAN（Ethernet） | 物理 NIC．Onboard NIC．マザーボード直付けのポート 1                    |
+| `enp6s0`          | 有線LAN（Ethernet） | 物理 NIC．複数NIC構成の場合の追加ポート．                    |
+| `wlp13s0`         | 無線LAN（Wi-Fi）    | Wi-Fi接続用の物理 NIC．無線ネットワークに接続される．             |
+| `docker0`         | 仮想ブリッジ          | Docker が作成する仮想ネットワーク．コンテナ間通信やホスト通信に使用．      |
+| `br-xxxxxxxxxxx`  | 仮想ブリッジ          | Docker などが作成するカスタムブリッジ．コンテナ専用ネットワーク用．       |
+| `tailscale0`      | VPN仮想NIC        | Tailscale VPN用の仮想インターフェース．VPN経由の通信に使用．      |
+
+::::
+
+基本的には
+
+- `wl`から始まる: ワイヤレス
+- `en`から始まる: 有線LAN
+
+という命名規則になっています．また`p6`や`s0`といった数値はPCIバス番号とスロット番号に対応しています
+
+:::: {.no-border-top-table}
+
+| 部分    | 意味                            |
+| ----- | ----------------------------- |
+| `wl`  | ワイヤレス（Wireless LAN）デバイス       |
+| `p13` | PCI バス番号（このデバイスが接続されているバスの位置） |
+| `s0`  | スロット番号（同じバス内でのスロット位置）         |
+
+::::
+:::
+---
+
+## Appendix: ICMP
+
+IPはUDP(トランスポート層プロトコル)と同じコネクションレス型の通信を行うため，データが相手に届いたかどうかについては感知しません．
+IPデータグラムの通信状況を確認するためのネットワーク層プロトコルとして，ICMP(Internet Control Message Protocol)という仕組みが考案されました．
+
+主に`ping`コマンドや`traceroute`コマンドで使用されます．
+
+::: {.callout-note}
+### ICMPはあくまでIPの補助
+
+- ICMPメッセージは単独で送られることはなく，IPのヘッダが付与されて送られる
+- あくまでも「IPを助けるプロトコル」
+- IPデータグラムは，IPヘッダがついたデータ（トランスポート層でのセグメントに対応）のこと．
+
+:::
+
+
+
+[ICMPヘッダ]{.mini-section}
+
+```{mermaid}
+block-beta
+  columns 3
+  A["<strong>タイプ(8bit)</strong><br>メッセージの種類を表す"]:1
+  B["<strong>コード(8bit)</strong><br>エラー原因などを示す"]:1
+  C["<strong>チェックサム(16 bit)</strong><br>データが無事かどうかを確認"]:2
+  
+  style A fill:#fff,stroke:#000,stroke-width:2px,font-size:1.5em
+  style B fill:#fff,stroke:#000,stroke-width:2px,font-size:1.5em
+  style C fill:#fff,stroke:#000,stroke-width:2px,font-size:1.5em
+```
+
+[主なタイプ一覧]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| ICMP Type | NICMPv6 Type| 種類                     |説明                |
+| --------- | ----------- | ------------------------|----------------- |
+| 0         |   129       | Echo Reply              | メッセージが無事に届きました     |
+| 3         |   1         | Destination Unreachable | 宛先に到達できませんでした           |
+| 5         |   137       | Redirect                | ルーティング経路の変更通知     |
+| 8         |   128       | Echo Request            | このメッセージが届いたら，返事をください        |
+| 11        |   3         | Time Exceeded           | TTLやフラグメント再構築時間超過 |
+: {tbl-colwidths="[15,15,25,45]"}
+
+::::
+
+```{mermaid}
+sequenceDiagram
+    participant PC as 自端末 (Type 8)
+    participant Router as ルーター
+    participant Target as 宛先ホスト (Type 0)
+
+    %% ICMP Echo Request
+    PC ->> Router: ICMP Echo Request (Type 8)
+    Router ->> Target: ICMP Echo Request (Type 8)
+
+    %% ICMP Echo Reply
+    Target -->> Router: ICMP Echo Reply (Type 0)
+    Router -->> PC: ICMP Echo Reply (Type 0)
+
+```
+
+
+## Appendix: PPPoE方式
+
+IPv4ではPPPoE接続方式が使用されています．一方，IPv6ではPPPoE接続方式に加えて，IPoE方式が利用できます．ここでは従来のPPPoE方式を解説します．
+
+::: {#def- .custom_problem .blog-custom-border}
+[Point-to-Point Protocol(PPP)]{.def-title}
+
+- 2点間で1対1の通信を行ためのデータリンク層プロトコル
+- データをPPPフレームにカプセル化して伝送
+- 1対1の通信なのでMACアドレスは基本的には使わない
+
+:::
+
+::: {#fig-plot .center}
+
+```{mermaid}
+sequenceDiagram
+    participant A as Computer A
+    participant B as Computer B
+
+    A ->> B: 通信をしたいときは，<br>通信要求を相手に送信
+    B ->> A: 接続する資格を持ったユーザーか確認<br>(ユーザー認証)
+    B ->> A: 通信条件について，相談
+    B ->> A: 通信を開始
+
+    %% 接続
+    Note over A,B: 接続が確立した状態
+```
+
+:::
+
+[PPPフレーム]{.mini-section}
+
+```{mermaid}
+block-beta
+  columns 2
+  A["<strong>開始符号(8bit)</strong><br>01111110が入る"]:1
+  B["<strong>アドレス(8bit)</strong><br>固定値(11111111)が入る"]:1
+  C["<strong>制御部(8 bit)</strong><br>伝送を制御するための情報"]:1
+  D["<strong>プロトコル部(8 bit)</strong><br>上位層のプロトコルを指定"]:1
+  E["<strong>データ</strong><br>カプセル化されたIPヘッダ/TCPヘッダ/アプリケーションヘッダ/データが入る"]:2
+  F["<strong>FCS(Frane Check Sequence) (32bit)</strong><br>フレームが壊れていないかどうかを調べる値"]:2
+  G["<strong>終了符号(8bit)</strong><br>01111110が入る"]:2
+
+  style A fill:#fff,stroke:#000,stroke-width:2px,font-size:1.5em
+  style B fill:#fff,stroke:#000,stroke-width:2px,font-size:1.5em
+  style C fill:#fff,stroke:#000,stroke-width:2px,font-size:1.5em
+  style D fill:#fff,stroke:#000,stroke-width:2px,font-size:1.5em
+  style E fill:#fff,stroke:#000,stroke-width:2px,font-size:1.5em
+  style F fill:#fff,stroke:#000,stroke-width:2px,font-size:1.5em
+  style G fill:#fff,stroke:#000,stroke-width:2px,font-size:1.5em
+```
+
+::: {#def- .custom_problem .blog-custom-border}
+[PPPoE]{.def-title}
+
+- イーサネットフレーム上にPPPフレームをカプセル化するための通信プロトコル
+- PPPoEを用いることで，イーサネット上にある2台のコンピューター間で認証を行える
+- 光回線を使ってアクセスサーバー経由でインターネットに接続するときに使う
+
+:::
+
+PPPoEは，PPPの昨日をEthernet上で利用するためのプロトコルです．PPPoEはLAN上においてもユーザ認証が可能で，IPアドレスの割当も可能という特徴があります．
+
+[PPPoEフレーム]{.mini-section}
+
+PPPoEフレームは，Ethernetフレームに包まれて運ばれていきます．PPPoEフレームの構成は以下
+
+```{mermaid}
+block-beta
+  columns 4
+  A["version(4 bit)<br>PPPoEのバージョン情報"]:1
+  B["タイプ(4 bit)<br>PPPoEのタイプ情報"]:1
+  C["コードビット(8 bit)<br>PPPoEのパケットの種類"]:2
+  D["Session ID(16 bit)<br>PPPoEを使った通信を行うための固有値"]:4
+  E["データ長(16 bit)<br>最大64KB"]:4
+  F["データ<br>PPPヘッダが入る"]:4
+```
+
+
+
+[IP通信確立までのステップ]{.mini-section}
+
+PPPoE接続を行ってIP通信ができるようになるまでには，DiscoveryステージとPPPセッションステージの2つのステップを踏む必要があります．
+
+:::: {.no-border-top-table}
+
+| ステージ               | 説明                                                          |
+|-----------------------|--------------------------------------------------------------|
+|**Discoveryステージ**   | 最初にPPPoEセッションをはるまで(=PPPoEセッションIDの割り当てを行うまで)|
+|**PPPセッションステージ** | PPP通信による認証実施ステージ(IPアドレス割当まで)|
+
+::::
+
+PPPoE接続が上手くいかない場合，一般的には「PPPセッションステージ」での認証トラブルが多いです．
+
+::: {#fig-plot-ppp .center}
+
+```{mermaid}
+sequenceDiagram
+    participant C as PPPoEクライアント (PC)
+    participant S as PPPoEサーバー (ISP AC)
+    participant R as RADIUSサーバー
+    participant G as 接続先 (google.com)
+
+    %% --- Discovery Stage ---
+    C ->> S: PADI (接続要求ブロードキャスト)
+    S ->> C: PADO (サービス提供応答)
+    C ->> S: PADR (AC選択 → 接続要求)
+    S ->> C: PADS (セッション確立・Session ID付与)
+
+    Note over C,S: PPPoE セッション確立
+
+    %% --- PPP Session Stage (LCP + 認証) ---
+    C ->> S: LCPネゴシエーション
+    S ->> C: 認証要求 (PAP/CHAP)
+    C ->> S: 認証応答
+
+    %% --- 認証処理 (RADIUS連携) ---
+    S ->> R: Access-Request (ユーザー名/パスワード)
+    R ->> S: Access-Accept (認証成功, 属性情報[IP割当等])
+
+    S ->> C: 認証成功通知 + IPアドレス割当
+
+    Note over C,S: PPP セッション確立 (グローバルIP付与)
+
+    %% --- IP通信 Stage ---
+    C ->> G: HTTPリクエスト (例: https://google.com)
+    G ->> C: HTTPレスポンス (Googleページ返却)
+
+```
+
+:::
+
+
+
+References
+----------
+- [【 ping 】コマンド／【 ping6 】コマンド――通信相手にパケットを送って応答を調べる](https://atmarkit.itmedia.co.jp/ait/articles/1709/14/news018.html)
+- [StackExchange > what is the difference between eth1 and eno1?](https://superuser.com/questions/1053003/what-is-the-difference-between-eth1-and-eno1)
+- [ip6.me](https://ip6.me/)
