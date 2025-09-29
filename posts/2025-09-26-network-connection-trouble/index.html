@@ -7,9 +7,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Ryo Nakagami">
-<meta name="dcterms.date" content="2025-01-10">
+<meta name="dcterms.date" content="2025-09-26">
 
-<title>Linuxシステム上のユーザー一覧を条件に応じて表示する – regmonkey datascience blog</title>
+<title>ネットワークトラブルの切り分け – regmonkey datascience blog</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -85,6 +85,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../../site_libs/bootstrap/bootstrap-c0e475af79fbf9c16b8f3b53f98210ea.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script src="../../site_libs/quarto-contrib/pseudocode-2.4.1/pseudocode.min.js"></script>
 <link href="../../site_libs/quarto-contrib/pseudocode-2.4.1/pseudocode.min.css" rel="stylesheet">
+<link href="../../site_libs/quarto-contrib/reveal_vspace-1.0.0/reveal_vspace.css" rel="stylesheet">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -160,10 +161,14 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 </script>
 <script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml-full.js" integrity="sha256-kbAFUDxdHwlYv01zraGjvjNZayxKtdoiJ38bDTFJtaQ=" crossorigin="anonymous">
 </script>
+<meta name="mermaid-theme" content="neutral">
+<script src="../../site_libs/quarto-diagram/mermaid.min.js"></script>
+<script src="../../site_libs/quarto-diagram/mermaid-init.js"></script>
+<link href="../../site_libs/quarto-diagram/mermaid.css" rel="stylesheet">
 
 
 <link rel="stylesheet" href="../../styles.css">
-<meta property="og:title" content="Linuxシステム上のユーザー一覧を条件に応じて表示する – regmonkey datascience blog">
+<meta property="og:title" content="ネットワークトラブルの切り分け – regmonkey datascience blog">
 <meta property="og:description" content="日々の徒然勉強日記">
 <meta property="og:site_name" content="regmonkey datascience blog">
 </head>
@@ -414,10 +419,9 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 <header id="title-block-header" class="quarto-title-block default page-columns page-full">
   <div class="quarto-title-banner page-columns page-full">
     <div class="quarto-title column-body">
-      <h1 class="title">Linuxシステム上のユーザー一覧を条件に応じて表示する</h1>
+      <h1 class="title">ネットワークトラブルの切り分け</h1>
                                 <div class="quarto-categories">
-                <div class="quarto-category">shell</div>
-                <div class="quarto-category">Linux</div>
+                <div class="quarto-category">network</div>
               </div>
                   </div>
   </div>
@@ -435,14 +439,14 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
       <div>
       <div class="quarto-title-meta-heading">Published</div>
       <div class="quarto-title-meta-contents">
-        <p class="date">2025-01-10</p>
+        <p class="date">2025-09-26</p>
       </div>
     </div>
     
       <div>
       <div class="quarto-title-meta-heading">Modified</div>
       <div class="quarto-title-meta-contents">
-        <p class="date-modified">2025-07-24</p>
+        <p class="date-modified">2025-09-29</p>
       </div>
     </div>
       
@@ -457,13 +461,15 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#シェルスクリプト-ls-users" id="toc-シェルスクリプト-ls-users" class="nav-link active" data-scroll-target="#シェルスクリプト-ls-users">シェルスクリプト <code>ls-users</code></a>
+  <li><a href="#トラブル" id="toc-トラブル" class="nav-link active" data-scroll-target="#トラブル">⚠️ トラブル</a></li>
+  <li><a href="#トラブルシューティングフローチャート" id="toc-トラブルシューティングフローチャート" class="nav-link" data-scroll-target="#トラブルシューティングフローチャート">🔍 トラブルシューティングフローチャート</a>
   <ul class="collapse">
-  <li><a href="#シェルスクリプト本体" id="toc-シェルスクリプト本体" class="nav-link" data-scroll-target="#シェルスクリプト本体">シェルスクリプト本体</a></li>
-  <li><a href="#スクリプト解説" id="toc-スクリプト解説" class="nav-link" data-scroll-target="#スクリプト解説">スクリプト解説</a></li>
+  <li><a href="#pingコマンド" id="toc-pingコマンド" class="nav-link" data-scroll-target="#pingコマンド">pingコマンド</a></li>
+  <li><a href="#ネットワークインターフェース一覧の確認" id="toc-ネットワークインターフェース一覧の確認" class="nav-link" data-scroll-target="#ネットワークインターフェース一覧の確認">ネットワークインターフェース一覧の確認</a></li>
   </ul></li>
-  <li><a href="#etcpasswdファイル" id="toc-etcpasswdファイル" class="nav-link" data-scroll-target="#etcpasswdファイル"><code>/etc/passwd</code>ファイル</a></li>
-  <li><a href="#linuxにおけるuserとgroup" id="toc-linuxにおけるuserとgroup" class="nav-link" data-scroll-target="#linuxにおけるuserとgroup">LinuxにおけるUserとGroup</a></li>
+  <li><a href="#appendix-icmp" id="toc-appendix-icmp" class="nav-link" data-scroll-target="#appendix-icmp">Appendix: ICMP</a></li>
+  <li><a href="#appendix-pppoe方式" id="toc-appendix-pppoe方式" class="nav-link" data-scroll-target="#appendix-pppoe方式">Appendix: PPPoE方式</a></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
     </div>
@@ -475,254 +481,649 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 
 
 
-<section id="シェルスクリプト-ls-users" class="level2">
-<h2 class="anchored" data-anchor-id="シェルスクリプト-ls-users">シェルスクリプト <code>ls-users</code></h2>
-<div class="custom_problem blog-custom-border">
-<p><span class="def-title-no-before">🎯 スクリプトの目的</span></p>
-<p><code>/etc/passwd</code> ファイルを読み取り，以下のユーザーを表示する:</p>
+<section id="トラブル" class="level2">
+<h2 class="anchored" data-anchor-id="トラブル">⚠️ トラブル</h2>
 <ul>
-<li>すべてのユーザー</li>
-<li>システムユーザー（UID &lt; 1000）</li>
-<li>humanユーザー（UID &gt;= 1000）</li>
+<li>Ubuntu 24.04 LTSにて，S3 storage <code>s3.amazonaws.com</code> にある日突然接続できなくなった</li>
 </ul>
-<p>デフォルトでは <code>humanユーザー</code> を表示させる．</p>
-</div>
-<section id="シェルスクリプト本体" class="level3">
-<h3 class="anchored" data-anchor-id="シェルスクリプト本体">シェルスクリプト本体</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/bin/bash</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">print_help()</span> <span class="kw">{</span></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="bu">echo</span> <span class="st">"Usage: </span><span class="va">$0</span><span class="st"> [-a|-s|-h]"</span></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    <span class="bu">echo</span> <span class="st">"Options:"</span></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    <span class="bu">echo</span> <span class="st">"  -a    Show all users"</span></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    <span class="bu">echo</span> <span class="st">"  -s    Show only system users"</span></span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    <span class="bu">echo</span> <span class="st">"  -h    Show only human users"</span></span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    <span class="bu">echo</span> <span class="st">"  -?    Show this help message"</span></span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>    <span class="bu">exit</span> 1</span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="kw">}</span></span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Default to human users if no option is provided</span></span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="va">MODE</span><span class="op">=</span><span class="st">"human"</span></span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="cf">while</span> <span class="bu">getopts</span> <span class="st">"ash?"</span> <span class="va">opt</span><span class="kw">;</span> <span class="cf">do</span></span>
-<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>    <span class="cf">case</span> <span class="va">$opt</span> <span class="kw">in</span></span>
-<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>        <span class="ss">a</span><span class="kw">)</span> <span class="va">MODE</span><span class="op">=</span><span class="st">"all"</span><span class="cf">;;</span></span>
-<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>        <span class="ss">s</span><span class="kw">)</span> <span class="va">MODE</span><span class="op">=</span><span class="st">"system"</span><span class="cf">;;</span></span>
-<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>        <span class="ss">h</span><span class="kw">)</span> <span class="va">MODE</span><span class="op">=</span><span class="st">"human"</span><span class="cf">;;</span></span>
-<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>        <span class="pp">?</span><span class="kw">)</span> <span class="ex">print_help</span><span class="cf">;;</span></span>
-<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>    <span class="cf">esac</span></span>
-<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a><span class="cf">done</span></span>
-<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a><span class="co"># Print header</span></span>
-<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a><span class="bu">printf</span> <span class="st">"%-20s %-6s %-6s\n"</span> <span class="st">"Username"</span> <span class="st">"UID"</span> <span class="st">"GID"</span></span>
-<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a><span class="cf">case</span> <span class="va">$MODE</span> <span class="kw">in</span></span>
-<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>    <span class="st">"all"</span><span class="kw">)</span></span>
-<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>        <span class="fu">awk</span> <span class="at">-F:</span> <span class="st">'{ printf "%-20s %-6s %-6s\n", $1, $3, $4 }'</span> /etc/passwd</span>
-<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>        <span class="cf">;;</span></span>
-<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>    <span class="st">"system"</span><span class="kw">)</span></span>
-<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>        <span class="fu">awk</span> <span class="at">-F:</span> <span class="st">'$3 &lt; 1000 { printf "%-20s %-6s %-6s\n", $1, $3, $4 }'</span> /etc/passwd</span>
-<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>        <span class="cf">;;</span></span>
-<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>    <span class="st">"human"</span><span class="kw">)</span></span>
-<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>        <span class="fu">awk</span> <span class="at">-F:</span> <span class="st">'$3 &gt;= 1000 &amp;&amp; $3 &lt; 65534 { printf "%-20s %-6s %-6s\n", $1, $3, $4 }'</span> /etc/passwd</span>
-<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a>        <span class="cf">;;</span></span>
-<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a><span class="cf">esac</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
-<section id="スクリプト解説" class="level3">
-<h3 class="anchored" data-anchor-id="スクリプト解説">スクリプト解説</h3>
-<p><span class="mini-section">オプションの処理</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="cf">while</span> <span class="bu">getopts</span> <span class="st">"ash?"</span> <span class="va">opt</span><span class="kw">;</span> <span class="cf">do</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">case</span> <span class="va">$opt</span> <span class="kw">in</span></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>        <span class="ss">a</span><span class="kw">)</span> <span class="va">MODE</span><span class="op">=</span><span class="st">"all"</span><span class="cf">;;</span></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>        <span class="ss">s</span><span class="kw">)</span> <span class="va">MODE</span><span class="op">=</span><span class="st">"system"</span><span class="cf">;;</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>        <span class="ss">h</span><span class="kw">)</span> <span class="va">MODE</span><span class="op">=</span><span class="st">"human"</span><span class="cf">;;</span></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>        <span class="pp">?</span><span class="kw">)</span> <span class="ex">print_help</span><span class="cf">;;</span></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">esac</span></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="cf">done</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="トラブルシューティングフローチャート" class="level2">
+<h2 class="anchored" data-anchor-id="トラブルシューティングフローチャート">🔍 トラブルシューティングフローチャート</h2>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">---
+config:
+  layout: elk
+---
+flowchart LR
+    A["ネットワークに問題発生"] --&gt; B["ping ホスト名を実行"]
+    B --&gt; C{"応答あり？"}
+    C -- YES --&gt; D["名前解決 &amp;amp; 通信OK"]
+    C -- NO --&gt; E["ping IPアドレスを実行"]
+    E --&gt; F{"応答あり？"}
+    F -- YES --&gt; G["名前解決の問題&lt;br&gt;DNS設定確認"]
+    F -- NO --&gt; H["ネットワーク未接続&lt;br&gt;ケーブル/ルータ確認"]
+
+    %% フォントサイズをノードごとに指定
+    style A font-size:1.2em
+    style B font-size:1.2em
+    style C font-size:1.2em
+    style D font-size:1.2em
+    style E font-size:1.2em
+    style F font-size:1.2em
+    style G font-size:1.2em
+    style H font-size:1.1em
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+<p>今回のトラブルでは，掃除のタイミングでケーブルを抜いており，物理的にケーブルが刺さっていませんでした．．．</p>
+<section id="pingコマンド" class="level3">
+<h3 class="anchored" data-anchor-id="pingコマンド">pingコマンド</h3>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title">pingコマンド</span></p>
 <ul>
-<li><code>getopts</code> を使って、コマンドラインオプションに応じて処理分岐</li>
-<li><code>MODE</code> という変数に条件を記録し，optionに応じた処理は後段で実装</li>
+<li>pingコマンドは指定したホストとの間でネットワークが疎通しているかどうかを調べるコマンド</li>
+<li><code>ping ホスト名</code>を実行すると，サイズの小さなパケットを相手に送信して，その応答を調べる</li>
+<li><code>ping6</code> は <code>/usr/bin/ping6 -&gt; ping*</code> とシンボリックリンクになっている</li>
 </ul>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>option</th>
-<th>処理内容</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>-a</code></td>
-<td>全ユーザー表示</td>
-</tr>
-<tr class="even">
-<td><code>-s</code></td>
-<td>システムユーザーのみ表示（UID &lt; 1000）</td>
-</tr>
-<tr class="odd">
-<td><code>-h</code></td>
-<td>humanユーザーのみ表示</td>
-</tr>
-<tr class="even">
-<td><code>-?</code></td>
-<td>ヘルプを表示，status codeは <code>exit 1</code></td>
-</tr>
-</tbody>
-</table>
-<p><span class="mini-section">ヘッダー出力</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="bu">printf</span> <span class="st">"%-20s %-6s %-6s\n"</span> <span class="st">"Username"</span> <span class="st">"UID"</span> <span class="st">"GID"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ping</span> <span class="pp">[</span><span class="ss">option</span><span class="pp">]</span> destination</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p><code>ping</code>コマンドは相手のコンピューターに対してICMPメッセージ(ネットワーク層のプロトコル)を送信し，その応答で通信状況を判断します．以下の例ではグローバルIPアドレスに対してですが， プライベートIPアドレスに対して送信することも可能です．</p>
+<div id="fig-plot-ping" class="center quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-plot-ping-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">sequenceDiagram
+    participant PC as ユーザー端末
+    participant Router as ルーター
+    participant Target as 宛先サーバー (例: google.com)
+
+    %% ICMP Echo Request
+    PC -&gt;&gt; Router: ICMP Echo Request
+    Router -&gt;&gt; Target: ICMP Echo Request
+
+    %% ICMP Echo Reply
+    Target --&gt;&gt; Router: ICMP Echo Reply
+    Router --&gt;&gt; PC: ICMP Echo Reply
+
+    %% Note
+    Note over PC,Target: PCは応答を受け取ってRTT（Round-Trip Time，往復時間）を計測
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-plot-ping-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1
+</figcaption>
+</figure>
+</div>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Example 1</strong></span> <strong>ping出力</strong> <br></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> ping 8.8.8.8 <span class="at">-c</span> 3</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">PING</span> 8.8.8.8 <span class="op">(8.8.8.8)</span> 56<span class="op">(84)</span> bytes of data.</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="ex">64</span> bytes from 8.8.8.8: icmp_seq=1 ttl=117 time=7.46 ms</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="ex">64</span> bytes from 8.8.8.8: icmp_seq=2 ttl=117 time=17.9 ms</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="ex">64</span> bytes from 8.8.8.8: icmp_seq=3 ttl=117 time=14.1 ms</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="ex">---</span> 8.8.8.8 ping statistics <span class="at">---</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="ex">3</span> packets transmitted, 3 received, 0% packet loss, time 2003ms</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="ex">rtt</span> min/avg/max/mdev <span class="kw">=</span> 7.463/13.149/17.850/4.297 ms</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <ul>
-<li>整形されたカラム見出しを出力</li>
-<li><code>%-20s</code>は文字列(<code>s</code>)を左寄せで20文字分の幅で表示</li>
+<li><code>8.8.8.8</code>: Google Public DNS</li>
+<li><code>ttl</code>: time to live, パケットがネットワーク上を通過できる最大ホップ数を指定する値</li>
 </ul>
+</div>
+<hr>
+<p><span class="mini-section">Options</span></p>
 <div class="no-border-top-table">
 <table class="caption-top table">
+<colgroup>
+<col style="width: 30%">
+<col style="width: 70%">
+</colgroup>
 <thead>
 <tr class="header">
-<th>書式指定子</th>
+<th>オプション</th>
 <th>意味</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>%-20s</code></td>
-<td>左寄せで20文字幅の文字列（Username列）</td>
+<td><code>-4</code></td>
+<td>IPv4を使用する（pingコマンドのデフォルト）</td>
 </tr>
 <tr class="even">
-<td><code>%-6s</code></td>
-<td>左寄せで6文字幅の文字列（UID列）</td>
+<td><code>-6</code></td>
+<td>IPv6を使用する（ping6コマンドのデフォルト）</td>
 </tr>
 <tr class="odd">
-<td><code>%-6s</code></td>
-<td>左寄せで6文字幅の文字列（GID列）</td>
+<td><code>-c 回数</code></td>
+<td>パケットを送る回数</td>
+</tr>
+<tr class="even">
+<td><code>-i 秒数</code></td>
+<td>個々の送信の後に待つ秒数（デフォルトは1秒）</td>
+</tr>
+<tr class="odd">
+<td><code>-w 秒数</code></td>
+<td>状況を問わず、pingコマンドの実行を指定した秒数で終了</td>
+</tr>
+<tr class="even">
+<td><code>-n</code></td>
+<td>数値出力のみを行う（IPアドレスからホスト名を検索しない）</td>
+</tr>
+<tr class="odd">
+<td><code>-q</code></td>
+<td>開始と終了時の要約のみで他は表示しない（quiet）</td>
+</tr>
+<tr class="even">
+<td><code>-v</code></td>
+<td>詳細な出力を行う（verbose）</td>
+</tr>
+<tr class="odd">
+<td><code>-p パターン</code></td>
+<td>送出するパケットを埋める値をパターンで指定（例: <code>-p ff</code> で全て 1 で埋めたパケット）</td>
+</tr>
+<tr class="even">
+<td><code>-s サイズ</code></td>
+<td>送出するパケットのサイズを指定（デフォルト 56バイト＋ICMPヘッダ8バイト＝合計64バイト）</td>
+</tr>
+<tr class="odd">
+<td><code>-R</code></td>
+<td>経路を記録する</td>
+</tr>
+<tr class="even">
+<td><code>-r</code></td>
+<td>通常のルーティングを無視して接続する</td>
+</tr>
+<tr class="odd">
+<td><code>-I インタフェース</code></td>
+<td>指定したインタフェースからマルチキャストパケットを送る</td>
+</tr>
+<tr class="even">
+<td><code>-L</code></td>
+<td>マルチキャストパケットのループバックを抑制する</td>
+</tr>
+<tr class="odd">
+<td><code>-t TTL値</code></td>
+<td>Time To Liveを設定する</td>
 </tr>
 </tbody>
 </table>
 </div>
-<p><span class="mini-section">ユーサー一覧の取得</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="cf">case</span> <span class="va">$MODE</span> <span class="kw">in</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">"all"</span><span class="kw">)</span></span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>        <span class="fu">awk</span> <span class="at">-F:</span> <span class="st">'{ printf "%-20s %-6s %-6s\n", $1, $3, $4 }'</span> /etc/passwd</span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>        <span class="cf">;;</span></span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"system"</span><span class="kw">)</span></span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>        <span class="fu">awk</span> <span class="at">-F:</span> <span class="st">'$3 &lt; 1000 { printf "%-20s %-6s %-6s\n", $1, $3, $4 }'</span> /etc/passwd</span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>        <span class="cf">;;</span></span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">"human"</span><span class="kw">)</span></span>
-<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>        <span class="fu">awk</span> <span class="at">-F:</span> <span class="st">'$3 &gt;= 1000 &amp;&amp; $3 &lt; 65534 { printf "%-20s %-6s %-6s\n", $1, $3, $4 }'</span> /etc/passwd</span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>        <span class="cf">;;</span></span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="cf">esac</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="reveal_vspace" style="--vspace-height: 1em;"></div>
+<p><span class="mini-section">pingコマンドを用いた問題の切り分け</span></p>
 <div class="no-border-top-table">
 <table class="caption-top table">
 <colgroup>
-<col style="width: 25%">
-<col style="width: 75%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 15%">
+<col style="width: 45%">
 </colgroup>
 <thead>
 <tr class="header">
-<th>command</th>
-<th>動作説明</th>
+<th>テスト内容</th>
+<th>コマンド例</th>
+<th>結果</th>
+<th>考えられる原因 / 対策</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>awk -F:</code></td>
-<td><code>:</code>区切りで /etc/passwd を分割</td>
+<td>IPv4 外部接続</td>
+<td><code>ping 8.8.8.8</code></td>
+<td>✅ 応答あり</td>
+<td>IPv4経路は正常</td>
 </tr>
 <tr class="even">
-<td><code>'$3 &gt;= 1000 &amp;&amp; $3 &lt; 65534 { printf ...}'</code></td>
-<td>UID が 1000以上65534未満を対象にフィルター</td>
+<td>IPv4 外部接続</td>
+<td><code>ping 8.8.8.8</code></td>
+<td>❌ 応答なし</td>
+<td>IPv4経路問題（ルーティング・ファイアウォール等）</td>
 </tr>
 <tr class="odd">
-<td><code>$1</code></td>
-<td><code>/etc/passwd</code>におけるusernameカラム</td>
+<td>IPv6 外部接続</td>
+<td><code>ping -6 2001:4860:4860::8888</code></td>
+<td>✅ 応答あり</td>
+<td>IPv6経路は正常</td>
 </tr>
 <tr class="even">
-<td><code>$3</code></td>
-<td><code>/etc/passwd</code>におけるUIDカラム</td>
+<td>IPv6 外部接続</td>
+<td><code>ping -6 2001:4860:4860::8888</code></td>
+<td>❌ 応答なし</td>
+<td>IPv6経路問題（ルーティング・ICMPv6制限・ISP未対応）</td>
 </tr>
 <tr class="odd">
-<td><code>$4</code></td>
-<td><code>/etc/passwd</code>におけるGIDカラム</td>
+<td>特定インターフェース経由</td>
+<td><code>ping -I eno1 8.8.8.8</code></td>
+<td>✅ / ❌</td>
+<td>インターフェース選択による疎通確認、VPN/物理NIC切替の検証</td>
 </tr>
 </tbody>
 </table>
 </div>
 </section>
-</section>
-<section id="etcpasswdファイル" class="level2">
-<h2 class="anchored" data-anchor-id="etcpasswdファイル"><code>/etc/passwd</code>ファイル</h2>
-<div id="def-" class="custom_problem blog-custom-border theorem definition">
-<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title"><code>/etc/passwd</code>ファイル</span></p>
-<ul>
-<li>Linux においてユーザーアカウント情報を管理するためのテキストファイル</li>
-</ul>
-</div>
-<p><span class="mini-section">基本フォーマット</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">ユーザー名:パスワード:UID:GID:コメント:ホームディレクトリ:ログインシェル</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>実際に確認してみると</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> cat /etc/passwd</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="ex">kirby:x:1001:1001:Hoshino</span> Kirby:/home/kirby:/bin/bash</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>第２フィールドは多くの場合 <code>x</code> という表記になっています．実際のハッシュは <code>/etc/shadow</code> に保存されています．</p>
-</section>
-<section id="linuxにおけるuserとgroup" class="level2">
-<h2 class="anchored" data-anchor-id="linuxにおけるuserとgroup">LinuxにおけるUserとGroup</h2>
-<p><span class="mini-section">Linuxにおけるuser区分</span></p>
+<section id="ネットワークインターフェース一覧の確認" class="level3">
+<h3 class="anchored" data-anchor-id="ネットワークインターフェース一覧の確認">ネットワークインターフェース一覧の確認</h3>
+<p>インターフェース一覧のみを出力する場合は</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">ip</span> link show</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>を実行します．実行結果例として</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="dt">1: lo: &lt;LOOPBACK,UP,LOWER_UP&gt; mtu 65536 ...</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="dt">2: eno1: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 ...</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="dt">3: docker0: &lt;NO-CARRIER,BROADCAST,MULTICAST,UP&gt; mtu 1500 ...</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="dt">4: tailscale0: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 ...</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>または</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> ls /sys/class/net/</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="ex">docker0@</span>  eno1@  lo@  tailscale0@</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>でも確認することができます．</p>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Example 2</strong></span> <strong>ネットワークインターフェース例</strong> <br></p>
 <div class="no-border-top-table">
 <table class="caption-top table">
 <colgroup>
-<col style="width: 25%">
-<col style="width: 75%">
+<col style="width: 22%">
+<col style="width: 20%">
+<col style="width: 57%">
 </colgroup>
 <thead>
 <tr class="header">
-<th>ユーザー区分</th>
+<th>インターフェース名</th>
+<th>種類</th>
 <th>説明</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td>スーパーユーザー</td>
-<td>システム唯一の特権ユーザー，すべてのアクセス制御を無視することができる． <code>ユーザー名:root, UID:0</code> と決まっている</td>
+<td><code>lo</code></td>
+<td>ループバック</td>
+<td>ローカル内部通信専用．自分自身との通信に使用される（<code>127.0.0.1 / ::1</code>）．</td>
 </tr>
 <tr class="even">
-<td>システムユーザー</td>
-<td>各種サーバープログラムやシステムプログラムの実行に利用されるユーザー． UIDは主に<code>1~99</code>の範囲で割り当てられる</td>
+<td><code>eno1</code></td>
+<td>有線LAN（Ethernet）</td>
+<td>物理 NIC．Onboard NIC．マザーボード直付けのポート 1</td>
 </tr>
 <tr class="odd">
-<td>一般ユーザー</td>
-<td>システムの一般利用者 ユーザーIDは1000以降が割り当てられる（初めてのユーザーなら1000）</td>
+<td><code>enp6s0</code></td>
+<td>有線LAN（Ethernet）</td>
+<td>物理 NIC．複数NIC構成の場合の追加ポート．</td>
+</tr>
+<tr class="even">
+<td><code>wlp13s0</code></td>
+<td>無線LAN（Wi-Fi）</td>
+<td>Wi-Fi接続用の物理 NIC．無線ネットワークに接続される．</td>
+</tr>
+<tr class="odd">
+<td><code>docker0</code></td>
+<td>仮想ブリッジ</td>
+<td>Docker が作成する仮想ネットワーク．コンテナ間通信やホスト通信に使用．</td>
+</tr>
+<tr class="even">
+<td><code>br-xxxxxxxxxxx</code></td>
+<td>仮想ブリッジ</td>
+<td>Docker などが作成するカスタムブリッジ．コンテナ専用ネットワーク用．</td>
+</tr>
+<tr class="odd">
+<td><code>tailscale0</code></td>
+<td>VPN仮想NIC</td>
+<td>Tailscale VPN用の仮想インターフェース．VPN経由の通信に使用．</td>
 </tr>
 </tbody>
 </table>
 </div>
+<p>基本的には</p>
+<ul>
+<li><code>wl</code>から始まる: ワイヤレス</li>
+<li><code>en</code>から始まる: 有線LAN</li>
+</ul>
+<p>という命名規則になっています．また<code>p6</code>や<code>s0</code>といった数値はPCIバス番号とスロット番号に対応しています</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>部分</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>wl</code></td>
+<td>ワイヤレス（Wireless LAN）デバイス</td>
+</tr>
+<tr class="even">
+<td><code>p13</code></td>
+<td>PCI バス番号（このデバイスが接続されているバスの位置）</td>
+</tr>
+<tr class="odd">
+<td><code>s0</code></td>
+<td>スロット番号（同じバス内でのスロット位置）</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<hr>
+</section>
+</section>
+<section id="appendix-icmp" class="level2">
+<h2 class="anchored" data-anchor-id="appendix-icmp">Appendix: ICMP</h2>
+<p>IPはUDP(トランスポート層プロトコル)と同じコネクションレス型の通信を行うため，データが相手に届いたかどうかについては感知しません． IPデータグラムの通信状況を確認するためのネットワーク層プロトコルとして，ICMP(Internet Control Message Protocol)という仕組みが考案されました．</p>
+<p>主に<code>ping</code>コマンドや<code>traceroute</code>コマンドで使用されます．</p>
 <div class="callout callout-style-default callout-note callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-Note
+<span class="screen-reader-only">Note</span>ICMPはあくまでIPの補助
 </div>
 </div>
 <div class="callout-body-container callout-body">
 <ul>
-<li>root以外のuid1000未満のアカウントはデーモンやディレクトリの所有者として利用するシステムアカウントとして用意されている</li>
-<li>100未満のUIDについてシステムによって静的に割り当てられるべきであり，アプリケーションによって作成されるべきではない範囲</li>
-<li>100 から 499 は，システム管理者やインストール後のスクリプトが <code>useradd</code> を使用して動的に割り当てるために予約された領域</li>
+<li>ICMPメッセージは単独で送られることはなく，IPのヘッダが付与されて送られる</li>
+<li>あくまでも「IPを助けるプロトコル」</li>
+<li>IPデータグラムは，IPヘッダがついたデータ（トランスポート層でのセグメントに対応）のこと．</li>
 </ul>
 </div>
 </div>
-<p><span class="mini-section">nobodyとは誰か？</span></p>
+<p><span class="mini-section">ICMPヘッダ</span></p>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">block-beta
+  columns 3
+  A["&lt;strong&gt;タイプ(8bit)&lt;/strong&gt;&lt;br&gt;メッセージの種類を表す"]:1
+  B["&lt;strong&gt;コード(8bit)&lt;/strong&gt;&lt;br&gt;エラー原因などを示す"]:1
+  C["&lt;strong&gt;チェックサム(16 bit)&lt;/strong&gt;&lt;br&gt;データが無事かどうかを確認"]:2
+  
+  style A fill:#fff,stroke:#000,stroke-width:2px,font-size:1.5em
+  style B fill:#fff,stroke:#000,stroke-width:2px,font-size:1.5em
+  style C fill:#fff,stroke:#000,stroke-width:2px,font-size:1.5em
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+<p><span class="mini-section">主なタイプ一覧</span></p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 15%">
+<col style="width: 15%">
+<col style="width: 25%">
+<col style="width: 45%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>ICMP Type</th>
+<th>NICMPv6 Type</th>
+<th>種類</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>0</td>
+<td>129</td>
+<td>Echo Reply</td>
+<td>メッセージが無事に届きました</td>
+</tr>
+<tr class="even">
+<td>3</td>
+<td>1</td>
+<td>Destination Unreachable</td>
+<td>宛先に到達できませんでした</td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td>137</td>
+<td>Redirect</td>
+<td>ルーティング経路の変更通知</td>
+</tr>
+<tr class="even">
+<td>8</td>
+<td>128</td>
+<td>Echo Request</td>
+<td>このメッセージが届いたら，返事をください</td>
+</tr>
+<tr class="odd">
+<td>11</td>
+<td>3</td>
+<td>Time Exceeded</td>
+<td>TTLやフラグメント再構築時間超過</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">sequenceDiagram
+    participant PC as 自端末 (Type 8)
+    participant Router as ルーター
+    participant Target as 宛先ホスト (Type 0)
+
+    %% ICMP Echo Request
+    PC -&gt;&gt; Router: ICMP Echo Request (Type 8)
+    Router -&gt;&gt; Target: ICMP Echo Request (Type 8)
+
+    %% ICMP Echo Reply
+    Target --&gt;&gt; Router: ICMP Echo Reply (Type 0)
+    Router --&gt;&gt; PC: ICMP Echo Reply (Type 0)
+
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+</section>
+<section id="appendix-pppoe方式" class="level2">
+<h2 class="anchored" data-anchor-id="appendix-pppoe方式">Appendix: PPPoE方式</h2>
+<p>IPv4ではPPPoE接続方式が使用されています．一方，IPv6ではPPPoE接続方式に加えて，IPoE方式が利用できます．ここでは従来のPPPoE方式を解説します．</p>
 <div id="def-" class="custom_problem blog-custom-border theorem definition">
-<p><span class="theorem-title"><strong>Definition 2</strong></span> <span class="def-title">nobodyユーザー</span></p>
+<p><span class="theorem-title"><strong>Definition 2</strong></span> <span class="def-title">Point-to-Point Protocol(PPP)</span></p>
 <ul>
-<li>nobodyに対して，一般的にはUID 65534が割り当てられている</li>
-<li>65535は16bit符号なし整数で表すことのできる一番大きな数字(<code>FFFFFF</code>)</li>
-<li>NFS(Network File System)サーバーがクライアントから提供されたUIDやGIDを信頼できない場合，またはroot-squashオプションが使用されている場合に使用される</li>
-<li>基本的にはNFS用に用意されたユーザー</li>
+<li>2点間で1対1の通信を行ためのデータリンク層プロトコル</li>
+<li>データをPPPフレームにカプセル化して伝送</li>
+<li>1対1の通信なのでMACアドレスは基本的には使わない</li>
 </ul>
 </div>
-<p>注意点として，ネットワークを通じてコンピューター間でファイルを共有するNFS用のユーザーであってその他の目的で使用されることは想定されていません．「nobodyを信頼できないプログラムの実行や信頼できないデータの処理に使用すること」は推奨されません．「あくまで，サービスには専用のユーザーアカウントを持たせるべき」というルールを忘れないようにしましょう．</p>
+<div id="fig-plot" class="center quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-plot-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">sequenceDiagram
+    participant A as Computer A
+    participant B as Computer B
+
+    A -&gt;&gt; B: 通信をしたいときは，&lt;br&gt;通信要求を相手に送信
+    B -&gt;&gt; A: 接続する資格を持ったユーザーか確認&lt;br&gt;(ユーザー認証)
+    B -&gt;&gt; A: 通信条件について，相談
+    B -&gt;&gt; A: 通信を開始
+
+    %% 接続
+    Note over A,B: 接続が確立した状態
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-plot-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;2
+</figcaption>
+</figure>
+</div>
+<p><span class="mini-section">PPPフレーム</span></p>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">block-beta
+  columns 2
+  A["&lt;strong&gt;開始符号(8bit)&lt;/strong&gt;&lt;br&gt;01111110が入る"]:1
+  B["&lt;strong&gt;アドレス(8bit)&lt;/strong&gt;&lt;br&gt;固定値(11111111)が入る"]:1
+  C["&lt;strong&gt;制御部(8 bit)&lt;/strong&gt;&lt;br&gt;伝送を制御するための情報"]:1
+  D["&lt;strong&gt;プロトコル部(8 bit)&lt;/strong&gt;&lt;br&gt;上位層のプロトコルを指定"]:1
+  E["&lt;strong&gt;データ&lt;/strong&gt;&lt;br&gt;カプセル化されたIPヘッダ/TCPヘッダ/アプリケーションヘッダ/データが入る"]:2
+  F["&lt;strong&gt;FCS(Frane Check Sequence) (32bit)&lt;/strong&gt;&lt;br&gt;フレームが壊れていないかどうかを調べる値"]:2
+  G["&lt;strong&gt;終了符号(8bit)&lt;/strong&gt;&lt;br&gt;01111110が入る"]:2
+
+  style A fill:#fff,stroke:#000,stroke-width:2px,font-size:1.5em
+  style B fill:#fff,stroke:#000,stroke-width:2px,font-size:1.5em
+  style C fill:#fff,stroke:#000,stroke-width:2px,font-size:1.5em
+  style D fill:#fff,stroke:#000,stroke-width:2px,font-size:1.5em
+  style E fill:#fff,stroke:#000,stroke-width:2px,font-size:1.5em
+  style F fill:#fff,stroke:#000,stroke-width:2px,font-size:1.5em
+  style G fill:#fff,stroke:#000,stroke-width:2px,font-size:1.5em
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 3</strong></span> <span class="def-title">PPPoE</span></p>
+<ul>
+<li>イーサネットフレーム上にPPPフレームをカプセル化するための通信プロトコル</li>
+<li>PPPoEを用いることで，イーサネット上にある2台のコンピューター間で認証を行える</li>
+<li>光回線を使ってアクセスサーバー経由でインターネットに接続するときに使う</li>
+</ul>
+</div>
+<p>PPPoEは，PPPの昨日をEthernet上で利用するためのプロトコルです．PPPoEはLAN上においてもユーザ認証が可能で，IPアドレスの割当も可能という特徴があります．</p>
+<p><span class="mini-section">PPPoEフレーム</span></p>
+<p>PPPoEフレームは，Ethernetフレームに包まれて運ばれていきます．PPPoEフレームの構成は以下</p>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">block-beta
+  columns 4
+  A["version(4 bit)&lt;br&gt;PPPoEのバージョン情報"]:1
+  B["タイプ(4 bit)&lt;br&gt;PPPoEのタイプ情報"]:1
+  C["コードビット(8 bit)&lt;br&gt;PPPoEのパケットの種類"]:2
+  D["Session ID(16 bit)&lt;br&gt;PPPoEを使った通信を行うための固有値"]:4
+  E["データ長(16 bit)&lt;br&gt;最大64KB"]:4
+  F["データ&lt;br&gt;PPPヘッダが入る"]:4
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+<p><span class="mini-section">IP通信確立までのステップ</span></p>
+<p>PPPoE接続を行ってIP通信ができるようになるまでには，DiscoveryステージとPPPセッションステージの2つのステップを踏む必要があります．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 27%">
+<col style="width: 72%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>ステージ</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Discoveryステージ</strong></td>
+<td>最初にPPPoEセッションをはるまで(=PPPoEセッションIDの割り当てを行うまで)</td>
+</tr>
+<tr class="even">
+<td><strong>PPPセッションステージ</strong></td>
+<td>PPP通信による認証実施ステージ(IPアドレス割当まで)</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>PPPoE接続が上手くいかない場合，一般的には「PPPセッションステージ」での認証トラブルが多いです．</p>
+<div id="fig-plot-ppp" class="center quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-plot-ppp-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">sequenceDiagram
+    participant C as PPPoEクライアント (PC)
+    participant S as PPPoEサーバー (ISP AC)
+    participant R as RADIUSサーバー
+    participant G as 接続先 (google.com)
+
+    %% --- Discovery Stage ---
+    C -&gt;&gt; S: PADI (接続要求ブロードキャスト)
+    S -&gt;&gt; C: PADO (サービス提供応答)
+    C -&gt;&gt; S: PADR (AC選択 → 接続要求)
+    S -&gt;&gt; C: PADS (セッション確立・Session ID付与)
+
+    Note over C,S: PPPoE セッション確立
+
+    %% --- PPP Session Stage (LCP + 認証) ---
+    C -&gt;&gt; S: LCPネゴシエーション
+    S -&gt;&gt; C: 認証要求 (PAP/CHAP)
+    C -&gt;&gt; S: 認証応答
+
+    %% --- 認証処理 (RADIUS連携) ---
+    S -&gt;&gt; R: Access-Request (ユーザー名/パスワード)
+    R -&gt;&gt; S: Access-Accept (認証成功, 属性情報[IP割当等])
+
+    S -&gt;&gt; C: 認証成功通知 + IPアドレス割当
+
+    Note over C,S: PPP セッション確立 (グローバルIP付与)
+
+    %% --- IP通信 Stage ---
+    C -&gt;&gt; G: HTTPリクエスト (例: https://google.com)
+    G -&gt;&gt; C: HTTPレスポンス (Googleページ返却)
+
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-plot-ppp-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;3
+</figcaption>
+</figure>
+</div>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<ul>
+<li><a href="https://atmarkit.itmedia.co.jp/ait/articles/1709/14/news018.html">【 ping 】コマンド／【 ping6 】コマンド――通信相手にパケットを送って応答を調べる</a></li>
+<li><a href="https://superuser.com/questions/1053003/what-is-the-difference-between-eth1-and-eno1">StackExchange &gt; what is the difference between eth1 and eno1?</a></li>
+<li><a href="https://ip6.me/">ip6.me</a></li>
+</ul>
 
 
 </section>

@@ -10,7 +10,719 @@
 <atom:link href="https://ryonakagami.github.io/regmonkey-datascience-blog/index.xml" rel="self" type="application/rss+xml"/>
 <description>日々の徒然勉強日記</description>
 <generator>quarto-1.8.24</generator>
-<lastBuildDate>Tue, 23 Sep 2025 00:00:00 GMT</lastBuildDate>
+<lastBuildDate>Fri, 26 Sep 2025 00:00:00 GMT</lastBuildDate>
+<item>
+  <title>ネットワークトラブルの切り分け</title>
+  <dc:creator>Ryo Nakagami</dc:creator>
+  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-09-26-network-connection-trouble/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+
+<section id="トラブル" class="level2">
+<h2 class="anchored" data-anchor-id="トラブル">⚠️ トラブル</h2>
+<ul>
+<li>Ubuntu 24.04 LTSにて，S3 storage <code>s3.amazonaws.com</code> にある日突然接続できなくなった</li>
+</ul>
+</section>
+<section id="トラブルシューティングフローチャート" class="level2">
+<h2 class="anchored" data-anchor-id="トラブルシューティングフローチャート">🔍 トラブルシューティングフローチャート</h2>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">---
+config:
+  layout: elk
+---
+flowchart LR
+    A["ネットワークに問題発生"] --&gt; B["ping ホスト名を実行"]
+    B --&gt; C{"応答あり？"}
+    C -- YES --&gt; D["名前解決 &amp;amp; 通信OK"]
+    C -- NO --&gt; E["ping IPアドレスを実行"]
+    E --&gt; F{"応答あり？"}
+    F -- YES --&gt; G["名前解決の問題&lt;br&gt;DNS設定確認"]
+    F -- NO --&gt; H["ネットワーク未接続&lt;br&gt;ケーブル/ルータ確認"]
+
+    %% フォントサイズをノードごとに指定
+    style A font-size:1.2em
+    style B font-size:1.2em
+    style C font-size:1.2em
+    style D font-size:1.2em
+    style E font-size:1.2em
+    style F font-size:1.2em
+    style G font-size:1.2em
+    style H font-size:1.1em
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+<p>今回のトラブルでは，掃除のタイミングでケーブルを抜いており，物理的にケーブルが刺さっていませんでした．．．</p>
+<section id="pingコマンド" class="level3">
+<h3 class="anchored" data-anchor-id="pingコマンド">pingコマンド</h3>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title">pingコマンド</span></p>
+<ul>
+<li>pingコマンドは指定したホストとの間でネットワークが疎通しているかどうかを調べるコマンド</li>
+<li><code>ping ホスト名</code>を実行すると，サイズの小さなパケットを相手に送信して，その応答を調べる</li>
+<li><code>ping6</code> は <code>/usr/bin/ping6 -&gt; ping*</code> とシンボリックリンクになっている</li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ping</span> <span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">[</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">option</span><span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">]</span> destination</span></code></pre></div></div>
+</div>
+<p><code>ping</code>コマンドは相手のコンピューターに対してICMPメッセージ(ネットワーク層のプロトコル)を送信し，その応答で通信状況を判断します．以下の例ではグローバルIPアドレスに対してですが， プライベートIPアドレスに対して送信することも可能です．</p>
+<div id="fig-plot-ping" class="center quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-plot-ping-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">sequenceDiagram
+    participant PC as ユーザー端末
+    participant Router as ルーター
+    participant Target as 宛先サーバー (例: google.com)
+
+    %% ICMP Echo Request
+    PC -&gt;&gt; Router: ICMP Echo Request
+    Router -&gt;&gt; Target: ICMP Echo Request
+
+    %% ICMP Echo Reply
+    Target --&gt;&gt; Router: ICMP Echo Reply
+    Router --&gt;&gt; PC: ICMP Echo Reply
+
+    %% Note
+    Note over PC,Target: PCは応答を受け取ってRTT（Round-Trip Time，往復時間）を計測
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-plot-ping-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1
+</figcaption>
+</figure>
+</div>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Example 1</strong></span> <strong>ping出力</strong> <br></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb2-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> ping 8.8.8.8 <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-c</span> 3</span>
+<span id="cb2-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">PING</span> 8.8.8.8 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">(8.8.8.8)</span> 56<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">(84)</span> bytes of data.</span>
+<span id="cb2-3"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">64</span> bytes from 8.8.8.8: icmp_seq=1 ttl=117 time=7.46 ms</span>
+<span id="cb2-4"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">64</span> bytes from 8.8.8.8: icmp_seq=2 ttl=117 time=17.9 ms</span>
+<span id="cb2-5"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">64</span> bytes from 8.8.8.8: icmp_seq=3 ttl=117 time=14.1 ms</span>
+<span id="cb2-6"></span>
+<span id="cb2-7"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">---</span> 8.8.8.8 ping statistics <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">---</span></span>
+<span id="cb2-8"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">3</span> packets transmitted, 3 received, 0% packet loss, time 2003ms</span>
+<span id="cb2-9"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">rtt</span> min/avg/max/mdev <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">=</span> 7.463/13.149/17.850/4.297 ms</span></code></pre></div></div>
+<ul>
+<li><code>8.8.8.8</code>: Google Public DNS</li>
+<li><code>ttl</code>: time to live, パケットがネットワーク上を通過できる最大ホップ数を指定する値</li>
+</ul>
+</div>
+<hr>
+<p><span class="mini-section">Options</span></p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 30%">
+<col style="width: 70%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>オプション</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>-4</code></td>
+<td>IPv4を使用する（pingコマンドのデフォルト）</td>
+</tr>
+<tr class="even">
+<td><code>-6</code></td>
+<td>IPv6を使用する（ping6コマンドのデフォルト）</td>
+</tr>
+<tr class="odd">
+<td><code>-c 回数</code></td>
+<td>パケットを送る回数</td>
+</tr>
+<tr class="even">
+<td><code>-i 秒数</code></td>
+<td>個々の送信の後に待つ秒数（デフォルトは1秒）</td>
+</tr>
+<tr class="odd">
+<td><code>-w 秒数</code></td>
+<td>状況を問わず、pingコマンドの実行を指定した秒数で終了</td>
+</tr>
+<tr class="even">
+<td><code>-n</code></td>
+<td>数値出力のみを行う（IPアドレスからホスト名を検索しない）</td>
+</tr>
+<tr class="odd">
+<td><code>-q</code></td>
+<td>開始と終了時の要約のみで他は表示しない（quiet）</td>
+</tr>
+<tr class="even">
+<td><code>-v</code></td>
+<td>詳細な出力を行う（verbose）</td>
+</tr>
+<tr class="odd">
+<td><code>-p パターン</code></td>
+<td>送出するパケットを埋める値をパターンで指定（例: <code>-p ff</code> で全て 1 で埋めたパケット）</td>
+</tr>
+<tr class="even">
+<td><code>-s サイズ</code></td>
+<td>送出するパケットのサイズを指定（デフォルト 56バイト＋ICMPヘッダ8バイト＝合計64バイト）</td>
+</tr>
+<tr class="odd">
+<td><code>-R</code></td>
+<td>経路を記録する</td>
+</tr>
+<tr class="even">
+<td><code>-r</code></td>
+<td>通常のルーティングを無視して接続する</td>
+</tr>
+<tr class="odd">
+<td><code>-I インタフェース</code></td>
+<td>指定したインタフェースからマルチキャストパケットを送る</td>
+</tr>
+<tr class="even">
+<td><code>-L</code></td>
+<td>マルチキャストパケットのループバックを抑制する</td>
+</tr>
+<tr class="odd">
+<td><code>-t TTL値</code></td>
+<td>Time To Liveを設定する</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="reveal_vspace" style="--vspace-height: 1em;"></div>
+<p><span class="mini-section">pingコマンドを用いた問題の切り分け</span></p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 15%">
+<col style="width: 45%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>テスト内容</th>
+<th>コマンド例</th>
+<th>結果</th>
+<th>考えられる原因 / 対策</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>IPv4 外部接続</td>
+<td><code>ping 8.8.8.8</code></td>
+<td>✅ 応答あり</td>
+<td>IPv4経路は正常</td>
+</tr>
+<tr class="even">
+<td>IPv4 外部接続</td>
+<td><code>ping 8.8.8.8</code></td>
+<td>❌ 応答なし</td>
+<td>IPv4経路問題（ルーティング・ファイアウォール等）</td>
+</tr>
+<tr class="odd">
+<td>IPv6 外部接続</td>
+<td><code>ping -6 2001:4860:4860::8888</code></td>
+<td>✅ 応答あり</td>
+<td>IPv6経路は正常</td>
+</tr>
+<tr class="even">
+<td>IPv6 外部接続</td>
+<td><code>ping -6 2001:4860:4860::8888</code></td>
+<td>❌ 応答なし</td>
+<td>IPv6経路問題（ルーティング・ICMPv6制限・ISP未対応）</td>
+</tr>
+<tr class="odd">
+<td>特定インターフェース経由</td>
+<td><code>ping -I eno1 8.8.8.8</code></td>
+<td>✅ / ❌</td>
+<td>インターフェース選択による疎通確認、VPN/物理NIC切替の検証</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="ネットワークインターフェース一覧の確認" class="level3">
+<h3 class="anchored" data-anchor-id="ネットワークインターフェース一覧の確認">ネットワークインターフェース一覧の確認</h3>
+<p>インターフェース一覧のみを出力する場合は</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">ip</span> link show</span></code></pre></div></div>
+<p>を実行します．実行結果例として</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb4-1"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1: lo: &lt;LOOPBACK,UP,LOWER_UP&gt; mtu 65536 ...</span></span>
+<span id="cb4-2"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2: eno1: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 ...</span></span>
+<span id="cb4-3"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3: docker0: &lt;NO-CARRIER,BROADCAST,MULTICAST,UP&gt; mtu 1500 ...</span></span>
+<span id="cb4-4"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4: tailscale0: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 ...</span></span></code></pre></div></div>
+<p>または</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">$</span> ls /sys/class/net/</span>
+<span id="cb5-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">docker0@</span>  eno1@  lo@  tailscale0@</span></code></pre></div></div>
+<p>でも確認することができます．</p>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Example 2</strong></span> <strong>ネットワークインターフェース例</strong> <br></p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 22%">
+<col style="width: 20%">
+<col style="width: 57%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>インターフェース名</th>
+<th>種類</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>lo</code></td>
+<td>ループバック</td>
+<td>ローカル内部通信専用．自分自身との通信に使用される（<code>127.0.0.1 / ::1</code>）．</td>
+</tr>
+<tr class="even">
+<td><code>eno1</code></td>
+<td>有線LAN（Ethernet）</td>
+<td>物理 NIC．Onboard NIC．マザーボード直付けのポート 1</td>
+</tr>
+<tr class="odd">
+<td><code>enp6s0</code></td>
+<td>有線LAN（Ethernet）</td>
+<td>物理 NIC．複数NIC構成の場合の追加ポート．</td>
+</tr>
+<tr class="even">
+<td><code>wlp13s0</code></td>
+<td>無線LAN（Wi-Fi）</td>
+<td>Wi-Fi接続用の物理 NIC．無線ネットワークに接続される．</td>
+</tr>
+<tr class="odd">
+<td><code>docker0</code></td>
+<td>仮想ブリッジ</td>
+<td>Docker が作成する仮想ネットワーク．コンテナ間通信やホスト通信に使用．</td>
+</tr>
+<tr class="even">
+<td><code>br-xxxxxxxxxxx</code></td>
+<td>仮想ブリッジ</td>
+<td>Docker などが作成するカスタムブリッジ．コンテナ専用ネットワーク用．</td>
+</tr>
+<tr class="odd">
+<td><code>tailscale0</code></td>
+<td>VPN仮想NIC</td>
+<td>Tailscale VPN用の仮想インターフェース．VPN経由の通信に使用．</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>基本的には</p>
+<ul>
+<li><code>wl</code>から始まる: ワイヤレス</li>
+<li><code>en</code>から始まる: 有線LAN</li>
+</ul>
+<p>という命名規則になっています．また<code>p6</code>や<code>s0</code>といった数値はPCIバス番号とスロット番号に対応しています</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>部分</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>wl</code></td>
+<td>ワイヤレス（Wireless LAN）デバイス</td>
+</tr>
+<tr class="even">
+<td><code>p13</code></td>
+<td>PCI バス番号（このデバイスが接続されているバスの位置）</td>
+</tr>
+<tr class="odd">
+<td><code>s0</code></td>
+<td>スロット番号（同じバス内でのスロット位置）</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<hr>
+</section>
+</section>
+<section id="appendix-icmp" class="level2">
+<h2 class="anchored" data-anchor-id="appendix-icmp">Appendix: ICMP</h2>
+<p>IPはUDP(トランスポート層プロトコル)と同じコネクションレス型の通信を行うため，データが相手に届いたかどうかについては感知しません． IPデータグラムの通信状況を確認するためのネットワーク層プロトコルとして，ICMP(Internet Control Message Protocol)という仕組みが考案されました．</p>
+<p>主に<code>ping</code>コマンドや<code>traceroute</code>コマンドで使用されます．</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>ICMPはあくまでIPの補助
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>ICMPメッセージは単独で送られることはなく，IPのヘッダが付与されて送られる</li>
+<li>あくまでも「IPを助けるプロトコル」</li>
+<li>IPデータグラムは，IPヘッダがついたデータ（トランスポート層でのセグメントに対応）のこと．</li>
+</ul>
+</div>
+</div>
+<p><span class="mini-section">ICMPヘッダ</span></p>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">block-beta
+  columns 3
+  A["&lt;strong&gt;タイプ(8bit)&lt;/strong&gt;&lt;br&gt;メッセージの種類を表す"]:1
+  B["&lt;strong&gt;コード(8bit)&lt;/strong&gt;&lt;br&gt;エラー原因などを示す"]:1
+  C["&lt;strong&gt;チェックサム(16 bit)&lt;/strong&gt;&lt;br&gt;データが無事かどうかを確認"]:2
+  
+  style A fill:#fff,stroke:#000,stroke-width:2px,font-size:1.5em
+  style B fill:#fff,stroke:#000,stroke-width:2px,font-size:1.5em
+  style C fill:#fff,stroke:#000,stroke-width:2px,font-size:1.5em
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+<p><span class="mini-section">主なタイプ一覧</span></p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 15%">
+<col style="width: 15%">
+<col style="width: 25%">
+<col style="width: 45%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>ICMP Type</th>
+<th>NICMPv6 Type</th>
+<th>種類</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>0</td>
+<td>129</td>
+<td>Echo Reply</td>
+<td>メッセージが無事に届きました</td>
+</tr>
+<tr class="even">
+<td>3</td>
+<td>1</td>
+<td>Destination Unreachable</td>
+<td>宛先に到達できませんでした</td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td>137</td>
+<td>Redirect</td>
+<td>ルーティング経路の変更通知</td>
+</tr>
+<tr class="even">
+<td>8</td>
+<td>128</td>
+<td>Echo Request</td>
+<td>このメッセージが届いたら，返事をください</td>
+</tr>
+<tr class="odd">
+<td>11</td>
+<td>3</td>
+<td>Time Exceeded</td>
+<td>TTLやフラグメント再構築時間超過</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">sequenceDiagram
+    participant PC as 自端末 (Type 8)
+    participant Router as ルーター
+    participant Target as 宛先ホスト (Type 0)
+
+    %% ICMP Echo Request
+    PC -&gt;&gt; Router: ICMP Echo Request (Type 8)
+    Router -&gt;&gt; Target: ICMP Echo Request (Type 8)
+
+    %% ICMP Echo Reply
+    Target --&gt;&gt; Router: ICMP Echo Reply (Type 0)
+    Router --&gt;&gt; PC: ICMP Echo Reply (Type 0)
+
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+</section>
+<section id="appendix-pppoe方式" class="level2">
+<h2 class="anchored" data-anchor-id="appendix-pppoe方式">Appendix: PPPoE方式</h2>
+<p>IPv4ではPPPoE接続方式が使用されています．一方，IPv6ではPPPoE接続方式に加えて，IPoE方式が利用できます．ここでは従来のPPPoE方式を解説します．</p>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 2</strong></span> <span class="def-title">Point-to-Point Protocol(PPP)</span></p>
+<ul>
+<li>2点間で1対1の通信を行ためのデータリンク層プロトコル</li>
+<li>データをPPPフレームにカプセル化して伝送</li>
+<li>1対1の通信なのでMACアドレスは基本的には使わない</li>
+</ul>
+</div>
+<div id="fig-plot" class="center quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-plot-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">sequenceDiagram
+    participant A as Computer A
+    participant B as Computer B
+
+    A -&gt;&gt; B: 通信をしたいときは，&lt;br&gt;通信要求を相手に送信
+    B -&gt;&gt; A: 接続する資格を持ったユーザーか確認&lt;br&gt;(ユーザー認証)
+    B -&gt;&gt; A: 通信条件について，相談
+    B -&gt;&gt; A: 通信を開始
+
+    %% 接続
+    Note over A,B: 接続が確立した状態
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-plot-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;2
+</figcaption>
+</figure>
+</div>
+<p><span class="mini-section">PPPフレーム</span></p>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">block-beta
+  columns 2
+  A["&lt;strong&gt;開始符号(8bit)&lt;/strong&gt;&lt;br&gt;01111110が入る"]:1
+  B["&lt;strong&gt;アドレス(8bit)&lt;/strong&gt;&lt;br&gt;固定値(11111111)が入る"]:1
+  C["&lt;strong&gt;制御部(8 bit)&lt;/strong&gt;&lt;br&gt;伝送を制御するための情報"]:1
+  D["&lt;strong&gt;プロトコル部(8 bit)&lt;/strong&gt;&lt;br&gt;上位層のプロトコルを指定"]:1
+  E["&lt;strong&gt;データ&lt;/strong&gt;&lt;br&gt;カプセル化されたIPヘッダ/TCPヘッダ/アプリケーションヘッダ/データが入る"]:2
+  F["&lt;strong&gt;FCS(Frane Check Sequence) (32bit)&lt;/strong&gt;&lt;br&gt;フレームが壊れていないかどうかを調べる値"]:2
+  G["&lt;strong&gt;終了符号(8bit)&lt;/strong&gt;&lt;br&gt;01111110が入る"]:2
+
+  style A fill:#fff,stroke:#000,stroke-width:2px,font-size:1.5em
+  style B fill:#fff,stroke:#000,stroke-width:2px,font-size:1.5em
+  style C fill:#fff,stroke:#000,stroke-width:2px,font-size:1.5em
+  style D fill:#fff,stroke:#000,stroke-width:2px,font-size:1.5em
+  style E fill:#fff,stroke:#000,stroke-width:2px,font-size:1.5em
+  style F fill:#fff,stroke:#000,stroke-width:2px,font-size:1.5em
+  style G fill:#fff,stroke:#000,stroke-width:2px,font-size:1.5em
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 3</strong></span> <span class="def-title">PPPoE</span></p>
+<ul>
+<li>イーサネットフレーム上にPPPフレームをカプセル化するための通信プロトコル</li>
+<li>PPPoEを用いることで，イーサネット上にある2台のコンピューター間で認証を行える</li>
+<li>光回線を使ってアクセスサーバー経由でインターネットに接続するときに使う</li>
+</ul>
+</div>
+<p>PPPoEは，PPPの昨日をEthernet上で利用するためのプロトコルです．PPPoEはLAN上においてもユーザ認証が可能で，IPアドレスの割当も可能という特徴があります．</p>
+<p><span class="mini-section">PPPoEフレーム</span></p>
+<p>PPPoEフレームは，Ethernetフレームに包まれて運ばれていきます．PPPoEフレームの構成は以下</p>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">block-beta
+  columns 4
+  A["version(4 bit)&lt;br&gt;PPPoEのバージョン情報"]:1
+  B["タイプ(4 bit)&lt;br&gt;PPPoEのタイプ情報"]:1
+  C["コードビット(8 bit)&lt;br&gt;PPPoEのパケットの種類"]:2
+  D["Session ID(16 bit)&lt;br&gt;PPPoEを使った通信を行うための固有値"]:4
+  E["データ長(16 bit)&lt;br&gt;最大64KB"]:4
+  F["データ&lt;br&gt;PPPヘッダが入る"]:4
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+<p><span class="mini-section">IP通信確立までのステップ</span></p>
+<p>PPPoE接続を行ってIP通信ができるようになるまでには，DiscoveryステージとPPPセッションステージの2つのステップを踏む必要があります．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 27%">
+<col style="width: 72%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>ステージ</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Discoveryステージ</strong></td>
+<td>最初にPPPoEセッションをはるまで(=PPPoEセッションIDの割り当てを行うまで)</td>
+</tr>
+<tr class="even">
+<td><strong>PPPセッションステージ</strong></td>
+<td>PPP通信による認証実施ステージ(IPアドレス割当まで)</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>PPPoE接続が上手くいかない場合，一般的には「PPPセッションステージ」での認証トラブルが多いです．</p>
+<div id="fig-plot-ppp" class="center quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-plot-ppp-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">sequenceDiagram
+    participant C as PPPoEクライアント (PC)
+    participant S as PPPoEサーバー (ISP AC)
+    participant R as RADIUSサーバー
+    participant G as 接続先 (google.com)
+
+    %% --- Discovery Stage ---
+    C -&gt;&gt; S: PADI (接続要求ブロードキャスト)
+    S -&gt;&gt; C: PADO (サービス提供応答)
+    C -&gt;&gt; S: PADR (AC選択 → 接続要求)
+    S -&gt;&gt; C: PADS (セッション確立・Session ID付与)
+
+    Note over C,S: PPPoE セッション確立
+
+    %% --- PPP Session Stage (LCP + 認証) ---
+    C -&gt;&gt; S: LCPネゴシエーション
+    S -&gt;&gt; C: 認証要求 (PAP/CHAP)
+    C -&gt;&gt; S: 認証応答
+
+    %% --- 認証処理 (RADIUS連携) ---
+    S -&gt;&gt; R: Access-Request (ユーザー名/パスワード)
+    R -&gt;&gt; S: Access-Accept (認証成功, 属性情報[IP割当等])
+
+    S -&gt;&gt; C: 認証成功通知 + IPアドレス割当
+
+    Note over C,S: PPP セッション確立 (グローバルIP付与)
+
+    %% --- IP通信 Stage ---
+    C -&gt;&gt; G: HTTPリクエスト (例: https://google.com)
+    G -&gt;&gt; C: HTTPレスポンス (Googleページ返却)
+
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-plot-ppp-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;3
+</figcaption>
+</figure>
+</div>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<ul>
+<li><a href="https://atmarkit.itmedia.co.jp/ait/articles/1709/14/news018.html">【 ping 】コマンド／【 ping6 】コマンド――通信相手にパケットを送って応答を調べる</a></li>
+<li><a href="https://superuser.com/questions/1053003/what-is-the-difference-between-eth1-and-eno1">StackExchange &gt; what is the difference between eth1 and eno1?</a></li>
+<li><a href="https://ip6.me/">ip6.me</a></li>
+</ul>
+
+
+</section>
+
+ ]]></description>
+  <category>network</category>
+  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-09-26-network-connection-trouble/</guid>
+  <pubDate>Fri, 26 Sep 2025 00:00:00 GMT</pubDate>
+</item>
 <item>
   <title>QuartoコンテンツをTailnetで公開する</title>
   <dc:creator>Ryo Nakagami</dc:creator>
@@ -1670,11 +2382,53 @@ font-style: inherit;">sudo</span> apt install easyeffects</span></code></pre></d
 background-color: null;
 font-style: inherit;">killall</span> easyeffects</span></code></pre></div></div>
 </section>
-<section id="appendix" class="level2">
-<h2 class="anchored" data-anchor-id="appendix">Appendix</h2>
-<section id="bluetooth-class" class="level3">
-<h3 class="anchored" data-anchor-id="bluetooth-class">Bluetooth Class</h3>
-<p>Bluetoothのクラスとは，電波の最大出力や到達距離を規定した名称です．最大通信距離によって「クラス1」，「クラス2」，「クラス3」の3つの種類に分けられています．</p>
+<section id="appendix-1-bluetooth" class="level2">
+<h2 class="anchored" data-anchor-id="appendix-1-bluetooth">Appendix 1: Bluetooth</h2>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title">Bluetooth</span></p>
+<ul>
+<li>2.54GHz帯の電波を使って通信する無線通信規格</li>
+<li>赤外線(IrDA)と異なり，インファーフェース部分を大勝利きに向ける必要はない</li>
+<li>Wi-Fiのように高速通信ではないが，消費電力が少なく小型の機器に向いている</li>
+</ul>
+</div>
+<p>Bluetooth製品の規格で重要なのが「Version」「Class」「Profile」の三点．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 75%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>項目</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Version</td>
+<td>通信方式や通信速度を規定したもの</td>
+</tr>
+<tr class="even">
+<td>Class</td>
+<td>電波強度と最大通信距離を表す</td>
+</tr>
+<tr class="odd">
+<td>Profile</td>
+<td>Bluetoothでやり取りするために通信ルール．音声ステレオ通信ならば「A2DP」，マウスやキーボードなどの入力装置ならば「HID」</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 2</strong></span> <span class="def-title">Bluetooth Class</span></p>
+<ul>
+<li>Bluetoothのクラスとは，電波の最大出力や到達距離を規定した名称</li>
+<li>最大通信距離によって「クラス1」，「クラス2」，「クラス3」の3つの種類に分けられています．</li>
+</ul>
+</div>
+<div class="no-border-top-table">
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -1701,10 +2455,11 @@ font-style: inherit;">killall</span> easyeffects</span></code></pre></div></div>
 </tr>
 </tbody>
 </table>
+</div>
 <p>なお日本国内では「クラス1」といえど10mWが限界のため最大値の1/10が最大出力です．</p>
 </section>
-<section id="x10000u-のprefixとsuffix" class="level3">
-<h3 class="anchored" data-anchor-id="x10000u-のprefixとsuffix"><code>0x10000U</code> のprefixとsuffix</h3>
+<section id="appendix-2-0x10000u-のprefixとsuffix" class="level2">
+<h2 class="anchored" data-anchor-id="appendix-2-0x10000u-のprefixとsuffix">Appendix 2: <code>0x10000U</code> のprefixとsuffix</h2>
 <p><code>0x10000U</code> には <code>0x</code> というprefixと <code>U</code> というsuffixが付いてます．</p>
 <ul>
 <li><code>0x</code>: 続くdigitsが16進数(hexadecimal number)であることを表す</li>
@@ -1780,7 +2535,6 @@ float                4      -3.402823e+38          3.402823e+38
 double               8      -1.797693e+308         1.797693e+308         
 long double          16     -1.189731e+4932        1.189731e+4932 </code></pre>
 <p>つまり，<code>long long</code> は 8 bytes(=64 bits)であることがわかります．</p>
-</section>
 </section>
 <section id="references" class="level2">
 <h2 class="anchored" data-anchor-id="references">References</h2>
@@ -2192,7 +2946,7 @@ Figure&nbsp;5: アプリケーション仮想化環境
 <p>カーネル密度関数推定量を</p>
 <p><img src="https://latex.codecogs.com/png.latex?%0A%5Chat%20f(x)%20=%20%5Cfrac%7B1%7D%7Bnh%7D%5Csum_%7Bi=1%7D%5En%20k%5Cleft(%5Cfrac%7BX_i%20-%20x%7D%7Bh%7D%5Cright)%0A"></p>
 <p>として，それぞれのカーネル関数を用いた推定結果を以下可視化します．</p>
-<div id="0ae4ef48" class="cell" data-execution_count="1">
+<div id="07ddc746" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><span class="im" style="color: #00769E;
@@ -5295,387 +6049,6 @@ font-style: inherit;">10</span>;</span></code></pre></div></div>
   <category>SQL</category>
   <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-08-25-columnar-storage/</guid>
   <pubDate>Mon, 25 Aug 2025 00:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>flatpak経由でMeldをインストール</title>
-  <dc:creator>Ryo Nakagami</dc:creator>
-  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-08-18-install-meld-via-flatpak/</link>
-  <description><![CDATA[ 
-
-
-
-
-
-
-<section id="今回の方針" class="level2">
-<h2 class="anchored" data-anchor-id="今回の方針">今回の方針</h2>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>Meldの導入
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li><a href="(https://meldmerge.org/)">Meld</a>はファイル間やディレクトリ間のdiffをGUIベースで可視化してくれるツール</li>
-<li>Linux版のWinMergeみたいなツール</li>
-</ul>
-</div>
-</div>
-<p>Git管理されたディレクトリでは<code>.gitconfig</code>で設定したEditorでの<code>git difftool</code>で十分かなと考えていますが， Git管理されていないファイルをアドホックに差分比較したいときに使うツールとしてMeldの利用を考えています．</p>
-<p>GUI差分ツールでの利用のみなので，今回は<code>apt</code>ではなく<code>flatpak</code>経由でのインストールを実行します．</p>
-<p><span class="mini-section">環境情報</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb1-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> lsb_release <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-a</span></span>
-<span id="cb1-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">Distributor</span> ID: Ubuntu</span>
-<span id="cb1-3"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">Description:</span>    Ubuntu 24.04.3 LTS</span>
-<span id="cb1-4"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">Release:</span>    24.04</span>
-<span id="cb1-5"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">Codename:</span>   noble</span></code></pre></div></div>
-<p><span class="mini-section">flatpakでインストール可能なVersion</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb2-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> flatpak search Meld                                                                                       </span>
-<span id="cb2-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">Name</span>       Description                        Application ID       Version       Branch       Remotes</span>
-<span id="cb2-3"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">Meld</span>       Compare and merge your files       org.gnome.meld       3.22.3        stable       flathub</span></code></pre></div></div>
-<p><span class="mini-section">aptでインストール可能なversion</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb3-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> apt-cache policy meld</span>
-<span id="cb3-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">meld:</span></span>
-<span id="cb3-3">  <span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">Installed:</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">(no</span>n<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">e)</span></span>
-<span id="cb3-4">  Candidate: 3.22.2-1</span>
-<span id="cb3-5">  Version table:</span>
-<span id="cb3-6">     3.22.2-1 500</span>
-<span id="cb3-7">        500 http://jp.archive.ubuntu.com/ubuntu noble/universe amd64 Packages</span>
-<span id="cb3-8">        500 http://jp.archive.ubuntu.com/ubuntu noble/universe i386 Packages</span></code></pre></div></div>
-<p>まとめ時点ではあんまりバージョン変わらない．．．</p>
-</section>
-<section id="flatpak経由でのmeldインストール" class="level2">
-<h2 class="anchored" data-anchor-id="flatpak経由でのmeldインストール">flatpak経由でのMeldインストール</h2>
-<div id="def-" class="custom_problem blog-custom-border theorem definition">
-<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title">ユニバーサルパッケージ</span></p>
-<ul>
-<li>Linuxディストリビューションに依存しないパッケージのこと</li>
-<li>依存関係は原則存在せず，必要なものはすべてパッケージの中に取り込んだ状態で提供(アプリ用の環境まるごと提供)</li>
-<li>サンドボックス化によるセキュリティの向上と，ディストリビューションとアプリケーションの分離の推進</li>
-<li><code>snap</code> や <code>flatpak</code> でインストール可能なパッケージがユニバーサルパッケージ</li>
-</ul>
-</div>
-<p>Debianなら<code>apt</code>, <code>dpkg</code>，RHEL系なら<code>dnf</code>, <code>yum</code>, <code>prm</code> などLinuxディストリビューションに応じてパッケージマネージャを使い分ける必要があります． なにかしらのアプリをインストールしたいとき，ユーザーはディストリビューションに応じてコマンドがありますし，アプリの開発者はディストリビューション毎に「依存関係の解決」に対応したパッケージを作る必要があります．</p>
-<p>Linuxユーザー，Linux用アプリ開発者が直面したこのような状況への対応作として登場したのが<span class="regmonkey-bold">ユニバーサルパッケージ</span>という概念です． 基本的に必要なものはすべてパッケージの中に取り込んだ状態で提供するので，Linuxカーネルとパッケージ管理システムが動いているシステムならどこでも利用可能です．</p>
-<p><span class="mini-section">ユニバーサルパッケージのデメリット</span></p>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 20%">
-<col style="width: 79%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>項目</th>
-<th>内容</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><strong>ディスク容量</strong></td>
-<td>ライブラリを同梱するため，同種のライブラリが重複し容量を消費する</td>
-</tr>
-<tr class="even">
-<td><strong>起動・性能</strong></td>
-<td>サンドボックスや抽象化層を経由するため，ネイティブパッケージより起動が遅い場合がある</td>
-</tr>
-<tr class="odd">
-<td><strong>システム統合性</strong></td>
-<td>テーマやフォント，ファイルシステムとの統合が弱く，見た目や操作感がネイティブより不自然になることがある</td>
-</tr>
-</tbody>
-</table>
-</div>
-<section id="snap-vs-flatpak" class="level3">
-<h3 class="anchored" data-anchor-id="snap-vs-flatpak">snap vs flatpak</h3>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 10%">
-<col style="width: 42%">
-<col style="width: 46%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>観点</th>
-<th>Snap</th>
-<th>Flatpak</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><strong>依存関係と容量</strong></td>
-<td>依存関係を各パッケージに同梱．重複が発生しやすく，容量効率が悪い</td>
-<td>依存関係を各パッケージに同梱するが，ランタイム共有とデータ重複排除（deduplication）により容量効率が良い</td>
-</tr>
-<tr class="even">
-<td><strong>セキュリティ</strong></td>
-<td>サンドボックス化は可能だが必須ではない</td>
-<td>デフォルトでサンドボックス化され，明示的な権限許可が必要</td>
-</tr>
-<tr class="odd">
-<td><strong>運営主体</strong></td>
-<td>Canonical（Ubuntu開発元）が中央管理．バックエンドは事実上プロプライエタリ</td>
-<td>コミュニティ主体．仕様やコードはオープン</td>
-</tr>
-<tr class="even">
-<td><strong>システム統合</strong></td>
-<td>Snapごとにマウントされるため，<code>lsblk</code> 出力を汚す（多数のloopデバイスが見える）</td>
-<td>そうした副作用はない</td>
-</tr>
-<tr class="odd">
-<td><strong>アップデート制御</strong></td>
-<td>強制的に自動更新され，ユーザーが制御できない</td>
-<td>ユーザーが更新のタイミングを選べる</td>
-</tr>
-<tr class="even">
-<td><strong>アプリ（バックエンド系）</strong></td>
-<td>CLIツールやバックエンド系アプリなどインフラ関連をCanonicalが公式に提供</td>
-<td>基本はGUIデスクトップアプリ中心</td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-<section id="flatpak-setup-and-meld-install" class="level3">
-<h3 class="anchored" data-anchor-id="flatpak-setup-and-meld-install">flatpak Setup and Meld Install</h3>
-<p><span class="mini-section">Step 1: Flatpakのインストール</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb4-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> sudo apt install flatpak</span></code></pre></div></div>
-<p><span class="mini-section">Step 2: GNOME Software pluginのインストール</span></p>
-<p>Flatpak アプリを GNOME Softwareから扱えるようにするためFlatpak用のpluginを導入します．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb5-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># プラグイン導入</span></span>
-<span id="cb5-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> sudo apt install gnome-software-plugin-flatpak</span></code></pre></div></div>
-<p><span class="mini-section">Step 3: リポジトリ登録</span></p>
-<p>初期状態ではどこのリポジトリも登録されていないので，リポジトリ登録します</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb6-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Flathub（Flatpak のメインリポジトリ）を追加</span></span>
-<span id="cb6-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> flatpak remote-add <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--if-not-exists</span> flathub https://flathub.org/repo/flathub.flatpakrepo</span></code></pre></div></div>
-<p><span class="mini-section">Step 4: Restart system</span></p>
-<p>システムの再起動を行うことで，GNOME Softwareが Flatpak への対応が完了します．</p>
-<p><span class="mini-section">Step 5: Meldのインストール</span></p>
-<p>CLIでインストールする場合は以下のコマンドを実行します</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb7-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> flatpak install flathub org.gnome.meld</span></code></pre></div></div>
-<div class="callout callout-style-default callout-warning callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Warning</span>Publisherの確認のすすめ
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<div class="reveal_vspace" style="--vspace-height: 1em;"></div>
-<ul>
-<li>FlatpakでGoogle chromeパッケージは提供されていますが，提供元は <code>verified</code> されていません．おそらく問題はないですがパッケージインストール時に確認するクセをつけましょう．</li>
-<li>Firefoxの方は<code>verified</code> されたMozillaが提供していることが確認できます</li>
-</ul>
-<div class="quarto-layout-panel" data-layout-ncol="2">
-<div class="quarto-layout-row">
-<div class="quarto-layout-cell" style="flex-basis: 50.0%;justify-content: flex-start;">
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https://github.com/ryonakimageserver/dataserver-for-blog/blob/main/Linux/flatpak/flatpak_not_verified_googlechrome.png?raw=true" class="img-fluid figure-img"></p>
-<figcaption>chrome not verified</figcaption>
-</figure>
-</div>
-</div>
-<div class="quarto-layout-cell" style="flex-basis: 50.0%;justify-content: flex-start;">
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https://github.com/ryonakimageserver/dataserver-for-blog/blob/main/Linux/flatpak/flatpak_verified_firefox.png?raw=true" class="img-fluid figure-img"></p>
-<figcaption>firefox verified</figcaption>
-</figure>
-</div>
-</div>
-</div>
-</div>
-</div>
-</div>
-</section>
-<section id="flatpakの使い方" class="level3">
-<h3 class="anchored" data-anchor-id="flatpakの使い方">flatpakの使い方</h3>
-<p><span class="mini-section">install syntax</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb8-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">flatpak</span> install flathub com.github.tchx84.Flatseal</span></code></pre></div></div>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>項目</th>
-<th>説明</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>flatpak</code></td>
-<td>faltpak command</td>
-</tr>
-<tr class="even">
-<td><code>install</code></td>
-<td>faltpak commandへの指示コマンド</td>
-</tr>
-<tr class="odd">
-<td><code>flathub</code></td>
-<td>ダウンロードパッケージの登録レポジトリ</td>
-</tr>
-<tr class="even">
-<td><code>com.github.tchx84.Flatseal</code></td>
-<td>パッケージ名</td>
-</tr>
-</tbody>
-</table>
-</div>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>Flatsealパッケージ
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>Flatpakパッケージのpermission管理用のツール</li>
-<li>GUIベースでAppごとにリソースマネジメントが可能</li>
-</ul>
-</div>
-</div>
-<p>[インストールの種類: User vs System Mode]</p>
-<p>デフォルトではFlatpakはアプリをsystem modeでインストールします．ユーザーAがThunderbirdをflatpakでインストールすると，同じシステムの別ユーザーもアプリを利用することができます． ユーザー専用でアプリを使用したい場合は</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb9-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">flatpak</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--user</span> install flathub org.mozilla.Thunderbird</span></code></pre></div></div>
-<p>となります．<code>--user</code> optionを利用してインストールしたアプリを削除するときは</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb10-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">flatpak</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--user</span> uninstall org.mozilla.Thunderbird</span></code></pre></div></div>
-<p>とする必要があります．<code>flatpak update</code> についても同様です．</p>
-<p><span class="mini-section">flatpak appのconfig格納先</span></p>
-<p>homeディレクトリ下の <code>.var</code> に以下にconfigファイルを含めた形で格納されています</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb11-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> ls ~/.var/app</span>
-<span id="cb11-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">org.gnome.meld/</span></span></code></pre></div></div>
-<p><span class="mini-section">その他コマンド</span></p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 61%">
-<col style="width: 38%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>コマンド</th>
-<th>説明</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>flatpak remotes</code></td>
-<td>登録されたリポジトリリストの確認</td>
-</tr>
-<tr class="even">
-<td><code>flatpak remote-delete &lt;repository&gt;</code></td>
-<td>登録されたリポジトリの削除</td>
-</tr>
-<tr class="odd">
-<td><code>flatpak update</code></td>
-<td>インストール済み Flatpak アプリ・ランタイムを更新する</td>
-</tr>
-<tr class="even">
-<td><code>flatpak list</code></td>
-<td>インストール済みのすべての Flatpak を一覧表示する</td>
-</tr>
-<tr class="odd">
-<td><code>flatpak list --app</code></td>
-<td>インストール済みのアプリ（アプリケーションのみ）を一覧表示する</td>
-</tr>
-<tr class="even">
-<td><code>flatpak history</code></td>
-<td>インストール・削除・更新などの操作履歴を確認する</td>
-</tr>
-<tr class="odd">
-<td><code>flatpak uninstall &lt;app-id&gt;</code></td>
-<td>flatpak appの削除．ただし，<code>~/.var/app/&lt;app-id&gt;</code> のデータは残る</td>
-</tr>
-<tr class="even">
-<td><code>flatpak uninstall --delete-data &lt;app-id&gt;</code></td>
-<td><code>~/.var/app/&lt;app-id&gt;</code> のデータとともにアプリを削除</td>
-</tr>
-</tbody>
-</table>
-</section>
-</section>
-<section id="references" class="level2">
-<h2 class="anchored" data-anchor-id="references">References</h2>
-<ul>
-<li><a href="https://meldmerge.org/">Meld</a></li>
-<li><a href="https://flatpak.org/setup/Ubuntu">Flatpak Ubuntu Quick Setup</a></li>
-<li><a href="https://docs.flatpak.org/en/latest/using-flatpak.html">Flatpak documentation &gt; Using Flatpak</a></li>
-<li><a href="https://docs.flathub.org/docs/for-users/uninstallation">Flatpak Uninstallation</a></li>
-<li><a href="https://flathub.org/ja/apps/org.gnome.meld">Flathub &gt; Meld</a></li>
-</ul>
-
-
-</section>
-
- ]]></description>
-  <category>環境構築</category>
-  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-08-18-install-meld-via-flatpak/</guid>
-  <pubDate>Mon, 18 Aug 2025 00:00:00 GMT</pubDate>
 </item>
 </channel>
 </rss>
