@@ -95,6 +95,8 @@ $ kill 1710301
 `tailscale serve` を用いることでlocalhostで動いているサービスを自分の Tailnet内（Tailscale VPN 内）のみでアクセスできるように公開できます．
 Tailscale アカウントで認証した端末だけアクセス可能なので，セキュアなサービス公開となります．
 
+TCPフォワーディングを用いて，外部からのアクセスをlocalの8998 Portへ転送しています．クライアントとサーバーが直接 TCP で通信する形になり，セキュリティや暗号化はサービス側に任すことになります．
+
 <strong > &#9654;&nbsp; 実行例</strong>
 
 ```bash
@@ -118,8 +120,6 @@ Press Ctrl+C to exit.
 
 ::::
 
-
-
 ### Serving in Background
 
 backgroundプロセスでserviceをtailnet内で公開したい場合は `--bg` フラグを付与して`tailscale serve`を実行します．
@@ -137,3 +137,27 @@ sudo tailscale serve --bg 4200
 ```bash
 sudo tailscale serve off
 ```
+
+### HTTPS リバースプロキシ経由公開する
+
+```bash
+sudo tailscale serve --bg --https=4200 4200
+```
+
+とすると，外部から `https://<マシン名>.<tailnet>.ts.net:4200` にアクセスするとローカルの `http://127.0.0.1:4200` に転送されます．
+
+- HTTPS (TLS) が自動で有効
+- 複数のサービスをポートを分けて同時に公開することができる
+
+というメリットがあります．Killしたい場合は
+
+```bash
+sudo tailscale serve --https=4200 off
+```
+
+で完了です．
+
+
+References
+----------
+- [Funnel serve multiple ports? ](https://www.reddit.com/r/Tailscale/comments/14gccua/funnel_serve_multiple_ports/)
