@@ -10,7 +10,752 @@
 <atom:link href="https://ryonakagami.github.io/regmonkey-datascience-blog/index.xml" rel="self" type="application/rss+xml"/>
 <description>日々の徒然勉強日記</description>
 <generator>quarto-1.8.25</generator>
-<lastBuildDate>Fri, 10 Oct 2025 00:00:00 GMT</lastBuildDate>
+<lastBuildDate>Thu, 30 Oct 2025 00:00:00 GMT</lastBuildDate>
+<item>
+  <title>Git Flow–based branch strategy</title>
+  <dc:creator>Ryo Nakagami</dc:creator>
+  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-10-30-branch-strategy/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+
+<section id="branch-strategy" class="level2">
+<h2 class="anchored" data-anchor-id="branch-strategy">1. Branch Strategy</h2>
+<ul>
+<li>Git Flow をベースにしたブランチ戦略を採用</li>
+<li>リリース系列ブランチ，<code>develop</code>を統合ブランチとするが，Issue規模・リリース運用の実態に合わせて，Issue用の統合ブランチを活用</li>
+</ul>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">%%{ init: {
+    'theme': 'default',
+    'themeVariables': {
+        'fontFamily': 'Meiryo'
+    },
+    'gitGraph': {
+        'orientation': 'LR',
+        'nodeSpacing': 150,
+        'mainBranchName': 'main'
+    }
+} }%%
+
+gitGraph
+   commit id: "" tag: "v1.0.0"
+
+   branch hotfix
+   checkout hotfix
+   commit id: "BUGFIX"
+
+   checkout main
+   branch develop
+   checkout develop
+   commit id: "開発開始"
+
+   branch feature/0001/login
+   checkout feature/0001/login
+   commit id: ""
+
+   checkout main
+   merge hotfix tag: "v1.0.1"
+
+   checkout develop
+   merge hotfix
+   commit id: "incorporate hotfix"
+
+   checkout develop
+   merge feature/0001/login
+   commit id: "ログイン機能実装"
+
+   branch release/1.1.x
+   checkout release/1.1.x
+   commit id: "リリース準備"
+   commit id: "bugfix"
+
+   checkout develop
+   merge release/1.1.x
+
+   checkout main
+   merge release/1.1.x  tag: "v1.1.0"
+
+   checkout develop
+   commit id: "FEATURE"
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+</section>
+<section id="ブランチの種類" class="level2">
+<h2 class="anchored" data-anchor-id="ブランチの種類">2. ブランチの種類</h2>
+<section id="basic-syntax" class="level3">
+<h3 class="anchored" data-anchor-id="basic-syntax">Basic Syntax</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb1-1"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">&lt;branch-type&gt;/&lt;issue-number&gt;/&lt;task-description&gt;</span></span></code></pre></div></div>
+<p>release 系列ブランチや hotfix ブランチなど，Issue番号を含まない場合もあります．その場合は</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb2-1"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">release/&lt;major&gt;.&lt;minor&gt;.&lt;patch&gt;</span></span>
+<span id="cb2-2"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">hotfix/&lt;task-description&gt;</span></span></code></pre></div></div>
+</section>
+<section id="命名規則" class="level3">
+<h3 class="anchored" data-anchor-id="命名規則">命名規則</h3>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 40%">
+<col style="width: 40%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>ブランチ種別</th>
+<th>命名規則</th>
+<th>目的</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>本番用</strong></td>
+<td><code>main</code></td>
+<td>本番デプロイ可能な安定版コード．常にリリース済みの状態を保持</td>
+</tr>
+<tr class="even">
+<td><strong>開発用</strong></td>
+<td><code>develop</code></td>
+<td>全機能・修正の統合先（メイン開発ブランチ）</td>
+</tr>
+<tr class="odd">
+<td><strong>機能追加</strong></td>
+<td><code>feature/&lt;issue番号&gt;/&lt;タスク&gt;</code></td>
+<td>新機能開発や改善タスク．小規模IssueはこのままdevelopへPR</td>
+</tr>
+<tr class="even">
+<td><strong>機能改善</strong></td>
+<td><code>enhancement/&lt;issue番号&gt;/&lt;タスク&gt;</code></td>
+<td>既存機能の改善タスク．UX改善・処理最適化など</td>
+</tr>
+<tr class="odd">
+<td><strong>バグ修正</strong></td>
+<td><code>bugfix/&lt;issue番号&gt;/&lt;タスク&gt;</code></td>
+<td>不具合修正用ブランチ．テスト後developへ統合</td>
+</tr>
+<tr class="even">
+<td><strong>Issue統合</strong></td>
+<td><code>issue/&lt;issue番号&gt;</code></td>
+<td><strong>中〜大規模Issueの場合のみ</strong>作成．複数サブタスクを統合するための統合ブランチ</td>
+</tr>
+<tr class="odd">
+<td><strong>リリース系列</strong></td>
+<td><code>release/&lt;major&gt;.&lt;minor&gt;.x</code></td>
+<td>特定マイナー系列（例: 1.1.x）の安定維持・軽微修正対応用（長寿命）</td>
+</tr>
+<tr class="even">
+<td><strong>リリース準備</strong></td>
+<td><code>release/&lt;version&gt;/create-release-note</code></td>
+<td>リリースノート作成・バージョン確定・タグ準備用（短命）</td>
+</tr>
+<tr class="odd">
+<td><strong>緊急修正</strong></td>
+<td><code>hotfix/&lt;issue番号&gt;</code></td>
+<td>本番環境向けの即時修正．修正後 main / develop 両方に反映</td>
+</tr>
+<tr class="even">
+<td><strong>テスト検証用</strong></td>
+<td><code>test/&lt;issue番号&gt;/&lt;タスク&gt;</code></td>
+<td>一時的なテストコード・検証用ブランチ．検証完了後削除</td>
+</tr>
+<tr class="odd">
+<td><strong>ドキュメント整備</strong></td>
+<td><code>docs/&lt;issue番号&gt;/&lt;タスク&gt;</code></td>
+<td>ドキュメント・ガイド・README更新などのためのブランチ</td>
+</tr>
+<tr class="even">
+<td><strong>リファクタリング</strong></td>
+<td><code>refactor/&lt;issue番号&gt;/&lt;タスク&gt;</code></td>
+<td>挙動を変えずに内部構造を改善するためのブランチ</td>
+</tr>
+<tr class="odd">
+<td><strong>検証・試作用</strong></td>
+<td><code>sandbox/&lt;タスク&gt;</code></td>
+<td>新しいアイデアやPoCを試すための実験的ブランチ（非公式）．安定版にマージしない前提</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="命名例" class="level3">
+<h3 class="anchored" data-anchor-id="命名例">命名例</h3>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 40%">
+<col style="width: 60%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>ブランチ名</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>feature/0123-add-login</code></td>
+<td>新機能</td>
+</tr>
+<tr class="even">
+<td><code>bugfix/0123-fix-login-error</code></td>
+<td>修正</td>
+</tr>
+<tr class="odd">
+<td><code>issue/0123</code></td>
+<td>複数サブタスクを含むIssue統合</td>
+</tr>
+<tr class="even">
+<td><code>release/1.1.x</code></td>
+<td>1.1 系列のリリース維持</td>
+</tr>
+<tr class="odd">
+<td><code>release/1.1.1/create-release-note</code></td>
+<td>1.1.1 リリース準備</td>
+</tr>
+<tr class="even">
+<td><code>hotfix/0145-critical-fix</code></td>
+<td>緊急対応</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</section>
+<section id="開発フロー" class="level2">
+<h2 class="anchored" data-anchor-id="開発フロー">3. 開発フロー</h2>
+<section id="step-1.-サブタスク開発" class="level3">
+<h3 class="anchored" data-anchor-id="step-1.-サブタスク開発">Step 1. サブタスク開発</h3>
+<p>各Issueに対して、必要なサブタスクごとにブランチを切ります．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">git</span> switch develop</span>
+<span id="cb3-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">git</span> switch <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-c</span> feature/0123/add-login</span>
+<span id="cb3-3"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">git</span> switch <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-c</span> bugfix/0123/fix-login-error</span></code></pre></div></div>
+<ul>
+<li>小規模Issueなら、このまま develop に直接PR(Step3へ)</li>
+<li>中〜大規模Issueなら，Issue統合ブランチを作成し，サブタスクをまとめる (Step 2へ)</li>
+</ul>
+</section>
+<section id="step-2.-中大規模issueの統合ブランチ任意" class="level3">
+<h3 class="anchored" data-anchor-id="step-2.-中大規模issueの統合ブランチ任意">Step 2. 中〜大規模Issueの統合ブランチ（任意）</h3>
+<p>複数のサブタスクをまとめてレビューしたい場合にのみ作成します．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">git</span> switch develop</span>
+<span id="cb4-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">git</span> switch <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-c</span> issue/0123</span>
+<span id="cb4-3"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">git</span> merge feature/0123/add-login</span>
+<span id="cb4-4"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">git</span> merge bugfix/0123/fix-login-error</span>
+<span id="cb4-5"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">git</span> push <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-u</span> origin issue/0123</span></code></pre></div></div>
+<ul>
+<li>統合PRを作成：<code>issue/0123</code> → <code>develop</code></li>
+<li>チーム単位でまとめてレビュー／テストを実施</li>
+</ul>
+</section>
+<section id="step-3.-developへの統合" class="level3">
+<h3 class="anchored" data-anchor-id="step-3.-developへの統合">Step 3. developへの統合</h3>
+<ul>
+<li>Issue単位またはサブタスク単位で <code>develop</code> にPR作成</li>
+<li>ローカルで実行する場合は <code>git merge --no-ff</code> で対応</li>
+</ul>
+</section>
+<section id="step-4.-リリース系列ブランチ作成" class="level3">
+<h3 class="anchored" data-anchor-id="step-4.-リリース系列ブランチ作成">Step 4. リリース系列ブランチ作成</h3>
+<ul>
+<li>開発が安定したタイミングでマイナー系列ブランチを作成</li>
+<li>ブランチ作成は開発規模に応じて，<code>git switch -c</code> または GitHub Actionsで実施</li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">git</span> switch develop</span>
+<span id="cb5-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">git</span> switch <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-c</span> release/1.1.x</span>
+<span id="cb5-3"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">git</span> push <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-u</span> origin release/1.1.x</span></code></pre></div></div>
+</section>
+<section id="step-5.-リリース準備ブランチ" class="level3">
+<h3 class="anchored" data-anchor-id="step-5.-リリース準備ブランチ">Step 5. リリース準備ブランチ</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">git</span> switch release/1.1.x</span>
+<span id="cb6-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">git</span> switch <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-c</span> release/1.1.1/0130/create-release-note</span></code></pre></div></div>
+<ul>
+<li>作業内容例:
+<ul>
+<li>リリースノート更新</li>
+<li>バージョン番号更新 (<code>__version__.py</code> など)</li>
+<li>最終テスト、修正</li>
+</ul></li>
+<li>PR作成：<code>release/1.1.1/create-release-note</code> → <code>release/1.1.x</code></li>
+</ul>
+</section>
+<section id="step-6.-リリース確定" class="level3">
+<h3 class="anchored" data-anchor-id="step-6.-リリース確定">Step 6. リリース確定</h3>
+<ul>
+<li>GitHub Release ページに正式リリースノートを公開</li>
+<li>git タグを付与し，<code>main</code> ブランチにマージ</li>
+</ul>
+</section>
+<section id="step-7.-main-develop-への反映" class="level3">
+<h3 class="anchored" data-anchor-id="step-7.-main-develop-への反映">Step 7. main / develop への反映</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 本番用</span></span>
+<span id="cb7-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">git</span> switch main</span>
+<span id="cb7-3"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">git</span> merge <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--ff</span> release/1.1.x</span>
+<span id="cb7-4"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">git</span> push origin main</span>
+<span id="cb7-5"></span>
+<span id="cb7-6"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 開発用</span></span>
+<span id="cb7-7"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">git</span> switch develop</span>
+<span id="cb7-8"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">git</span> merge <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--ff</span> release/1.1.x</span>
+<span id="cb7-9"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">git</span> push origin develop</span></code></pre></div></div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>運用ポイント
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 18%">
+<col style="width: 24%">
+<col style="width: 24%">
+<col style="width: 24%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>対象</th>
+<th>ブランチ命名規則</th>
+<th>用途・対象範囲</th>
+<th>運用方針</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>小規模 Issue</strong></td>
+<td><code>feature/&lt;issue番号&gt;-&lt;タスク&gt;</code></td>
+<td>小規模な新機能・修正 <br> <code>develop</code> に直接 PR</td>
+<td>単一タスク・軽微修正に適用</td>
+</tr>
+<tr class="even">
+<td><strong>中〜大規模 Issue</strong></td>
+<td><code>issue/&lt;issue番号&gt;</code></td>
+<td>複数サブタスクを統合</td>
+<td>サブタスクを統合して <code>develop</code> に PR <br> <code>feature</code> / <code>bugfix</code> をまとめてレビュー</td>
+</tr>
+<tr class="odd">
+<td><strong>リリース系列ブランチ</strong></td>
+<td><code>release/&lt;major&gt;.&lt;minor&gt;.x</code></td>
+<td>特定マイナー系列（例: 1.1.x）</td>
+<td>安定版維持・軽微修正対応 <br> 長寿命ブランチ．保守・検証に利用</td>
+</tr>
+<tr class="even">
+<td><strong>リリース準備ブランチ</strong></td>
+<td><code>release/&lt;version&gt;/&lt;subtask&gt;</code></td>
+<td>各パッチリリース（例: 1.1.1）</td>
+<td>リリースノート作成・バージョン確定・PR作成など <br> 短命ブランチ．完了後削除</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="ブランチ削除ポリシー" class="level2">
+<h2 class="anchored" data-anchor-id="ブランチ削除ポリシー">4. ブランチ削除ポリシー</h2>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 30%">
+<col style="width: 35%">
+<col style="width: 35%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>ブランチ種別</th>
+<th>削除タイミング</th>
+<th>備考</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>feature</code> / <code>bugfix</code> / <code>issue</code></td>
+<td>develop マージ後</td>
+<td>即削除（必要ならタグで履歴追跡）</td>
+</tr>
+<tr class="even">
+<td><code>release/&lt;version&gt;/&lt;subtask&gt;</code></td>
+<td>main・develop 反映後</td>
+<td>削除</td>
+</tr>
+<tr class="odd">
+<td><code>release/&lt;series&gt;.x</code></td>
+<td>次マイナー系列発足時</td>
+<td>継続保守中は残す</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="注意事項" class="level2">
+<h2 class="anchored" data-anchor-id="注意事項">5. 注意事項</h2>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Important</span>Rule 1: 小文字とハイフンを使用する
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>ブランチ名は常に小文字で記述</li>
+<li>大文字を含めると，ファイルシステムが大文字・小文字を区別する環境がある</li>
+<li>単語の区切りにはハイフン（<code>-</code>）を使用</li>
+</ul>
+</div>
+</div>
+<p><strong>📘 Example</strong></p>
+<ul>
+<li>✅ Good: <code>feature/user-login</code></li>
+<li>❌ Avoid: <code>Feature_UserLogin</code>, <code>FeatUserLogin</code></li>
+</ul>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Important</span>Rule 2: 明確なトークンからブランチ名を開始する
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>各ブランチ名は、目的を示すカテゴリトークンから始めます。</li>
+<li>トークンの例：
+<ul>
+<li><code>feature</code>（新機能開発）</li>
+<li><code>bugfix</code>（バグ修正）</li>
+<li><code>docs</code>（ドキュメント更新）</li>
+</ul></li>
+<li>トークンと説明文はスラッシュ（<code>/</code>）で区切る</li>
+</ul>
+</div>
+</div>
+<p><strong>📘 Example</strong></p>
+<ul>
+<li>✅ Example: <code>bugfix/payment-timeout</code></li>
+<li>❌ Avoid: <code>payment-timeout</code> (purpose unclear)</li>
+</ul>
+<p><strong>活用例</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Listing branches by token</span></span>
+<span id="cb8-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">$</span> git branch <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--list</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"feature/*"</span></span>
+<span id="cb8-3"></span>
+<span id="cb8-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Pushing or mapping branches with tokens</span></span>
+<span id="cb8-5"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">$</span> git push origin <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'refs/heads/feature/*'</span></span>
+<span id="cb8-6"></span>
+<span id="cb8-7"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Deleting multiple branches by token</span></span>
+<span id="cb8-8"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">$</span> git branch <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-D</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$(</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">git</span> branch <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--list</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"feature/*"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">)</span></span></code></pre></div></div>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Important</span>Rule 3: ブランチ名は簡潔・明確に
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>意図を説明できる範囲で，長すぎる名前は避ける</li>
+<li>長すぎるブランチ名は，ログ表示の一行に収まらず，可視性が下がるため</li>
+</ul>
+</div>
+</div>
+<p><strong>📘 Example</strong></p>
+<ul>
+<li>✅ 良い例: <code>refactor/api-headers</code></li>
+<li>❌ 悪い例: <code>refactor/update-the-way-we-handle-request-headers-in-api</code></li>
+</ul>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Important</span>Rule 4: 衝突を生む可能性のあるブランチは作らない
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li><code>git switch -c feature</code> のように意図が不明瞭な名前や既存ブランチと衝突する可能性のある名前は避ける</li>
+<li>Gitは内部的に ブランチ名をパス（ディレクトリ構造）として管理しているため，<code>feature</code> が作成されていると <code>feature/login-v2</code> が名前衝突して作成できなくなってしまう
+<ul>
+<li>同じ階層にファイルとディレクトリを同時に作れないため</li>
+</ul></li>
+</ul>
+</div>
+</div>
+<p><strong>📘 Example</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">$</span> git switch <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-c</span> bugfix/0123/fix-login-error</span>
+<span id="cb9-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Switched</span> to a new branch <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'bugfix/0123/fix-login-error'</span></span>
+<span id="cb9-3"></span>
+<span id="cb9-4"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">$</span> ls .git/refs/heads/bugfix/0123</span>
+<span id="cb9-5"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">fix-login-error</span></span></code></pre></div></div>
+</section>
+<section id="appendix-なぜbranchは名前衝突するのか" class="level2">
+<h2 class="anchored" data-anchor-id="appendix-なぜbranchは名前衝突するのか">Appendix: なぜbranchは名前衝突するのか？</h2>
+<p><span class="mini-section">Commit Object</span></p>
+<p>Gitのコアの部分はシンプルなキー・バリュー型データストアです．Gitで追跡されているファイル(blob)はディレクトリの状態（ツリー）と合わせて圧縮された <code>.git/objects</code> にオブジェクトファイルとして保存されます． <code>git commit</code> を実行すると，commit時点でのその状態をスナップショットとして</p>
+<ul>
+<li>誰が(<code>user.name</code>, <code>user.email</code>)</li>
+<li>いつ(現在のタイムスタンプ)</li>
+<li>どんなメッセージを残して</li>
+<li>どのcommitのあとに（=親コミット情報）</li>
+<li>コミットが作成された時点のスナップショットのトップレベルのツリー</li>
+</ul>
+<p>を記録します．これが<span class="regmonkey-bold">コミットオブジェクト</span>です．このコミットオブジェクトをvalueとすると，それに対応するSHA-1ハッシュ値がキーとなります．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb10-1"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">.git/HEAD</span></span>
+<span id="cb10-2"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">    │</span></span>
+<span id="cb10-3"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">    └─ ref: refs/heads/main</span></span>
+<span id="cb10-4"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">           │</span></span>
+<span id="cb10-5"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">           └─ SHA-1 commit object (latest commit)</span></span>
+<span id="cb10-6"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">                  │</span></span>
+<span id="cb10-7"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">                  ├─ tree object</span></span>
+<span id="cb10-8"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">                  │     ├─ blob (file1)</span></span>
+<span id="cb10-9"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">                  │     └─ blob (file2)</span></span>
+<span id="cb10-10"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">                  └─ parent commit(s)</span></span></code></pre></div></div>
+<p><span class="mini-section">ブランチはポインター</span></p>
+<p>各ブランチはブランチ自体が実体を持っているのではなく，どのcommit objectを参照しているか？で状態が管理されています．ここで登場するのが <code>refs/heads/&lt;branch-name&gt;</code> です． <code>main</code> ブランチが参照するCommit Objectは <code>.git/refs/heads/main</code> に記録されており</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb11-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> cat .git/refs/heads/main</span>
+<span id="cb11-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">35f61422e59fb8b34bf3a85f82a71669c1eeec30</span></span></code></pre></div></div>
+<p><code>git add</code> &amp; <code>git commit</code> を実行すると，この値が新たなCommit Objectへの参照へと書き換わります．</p>
+<p><span class="mini-section">なぜブランチは名前衝突するのか？</span></p>
+<p>上記のようにブランチの情報は <code>.git/refs/heads/&lt;branch-name&gt;</code> で管理されています．<code>git switch -c develop</code> とすると</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb12-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> git switch <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-c</span> develop</span>
+<span id="cb12-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Switched</span> to a new branch <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'develop'</span></span>
+<span id="cb12-3"></span>
+<span id="cb12-4"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> cat .git/refs/heads/develop</span>
+<span id="cb12-5"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">35f61422e59fb8b34bf3a85f82a71669c1eeec30</span></span></code></pre></div></div>
+<p>とファイルが生成されます．しかし，ブランチ名に <code>/</code> を含む場合だと</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb13-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> git switch <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-c</span> bugfix/0001/test</span>
+<span id="cb13-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Switched</span> to a new branch <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'bugfix/0001/test'</span></span>
+<span id="cb13-3"></span>
+<span id="cb13-4"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> tree .git/refs/heads/</span>
+<span id="cb13-5"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">.git/refs/heads/</span></span>
+<span id="cb13-6"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">├──</span> bugfix</span>
+<span id="cb13-7"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">│</span>   └── 0001</span>
+<span id="cb13-8"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">│</span>       └── test</span>
+<span id="cb13-9"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">├──</span> develop</span>
+<span id="cb13-10"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">└──</span> main</span></code></pre></div></div>
+<p>と <code>bugfix/0001/test</code> の<code>/</code>(スラッシュ)がディレクトリ区切りと解釈されてしまします．<code>develop</code>ブランチがある状態で <code>develop/test</code> を作成しようとすると， <code>.git/refs/heads/develop/</code> ディレクトリを作成してから，その下に <code>test</code> ファイルを作成しようとしますが，すでに<code>develop</code> ファイルが存在する = 同姓同名のディレクトリを同じ層では作成できないという状態が発生します</p>
+<p>そのため，</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb14-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> git switch <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-c</span> develop/test</span>
+<span id="cb14-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">fatal:</span> cannot lock ref <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'refs/heads/develop/test'</span>: <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'refs/heads/develop'</span> exists<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">;</span> <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">cannot</span> create <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'refs/heads/develop/test'</span></span></code></pre></div></div>
+<p>というエラーが発生します．</p>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<ul>
+<li><a href="https://git-scm.com/book/ja/v2/Git%E3%81%AE%E5%86%85%E5%81%B4-Git%E3%82%AA%E3%83%96%E3%82%B8%E3%82%A7%E3%82%AF%E3%83%88">10.2 Gitの内側 - Gitオブジェクト</a></li>
+</ul>
+
+
+</section>
+
+ ]]></description>
+  <category>環境構築</category>
+  <category>git</category>
+  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-10-30-branch-strategy/</guid>
+  <pubDate>Thu, 30 Oct 2025 00:00:00 GMT</pubDate>
+</item>
 <item>
   <title>Zshインタラクティブモードでコメントアウトを使用する</title>
   <dc:creator>Ryo Nakagami</dc:creator>
@@ -3793,7 +4538,7 @@ Figure&nbsp;5: アプリケーション仮想化環境
 <p>カーネル密度関数推定量を</p>
 <p><img src="https://latex.codecogs.com/png.latex?%0A%5Chat%20f(x)%20=%20%5Cfrac%7B1%7D%7Bnh%7D%5Csum_%7Bi=1%7D%5En%20k%5Cleft(%5Cfrac%7BX_i%20-%20x%7D%7Bh%7D%5Cright)%0A"></p>
 <p>として，それぞれのカーネル関数を用いた推定結果を以下可視化します．</p>
-<div id="9ec5776e" class="cell" data-execution_count="1">
+<div id="57688c59" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><span class="im" style="color: #00769E;
@@ -4587,860 +5332,6 @@ font-style: inherit;">14</span>)</span>
   <category>統計</category>
   <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-09-12-kernel-function/</guid>
   <pubDate>Fri, 12 Sep 2025 00:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>Sambaの設定とiPad連携</title>
-  <dc:creator>Ryo Nakagami</dc:creator>
-  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-09-05-samba/</link>
-  <description><![CDATA[ 
-
-
-
-
-
-
-<section id="sambaでできること" class="level2">
-<h2 class="anchored" data-anchor-id="sambaでできること">Sambaでできること</h2>
-<div id="def-" class="custom_problem blog-custom-border theorem definition">
-<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title">Samba</span></p>
-<ul>
-<li>LinuxホストをMicrosoftネットワークに参加できるようにするソフトウェア</li>
-</ul>
-</div>
-<p>Sambaを使うことで，次のような機能が実現できます．</p>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 25%">
-<col style="width: 25%">
-<col style="width: 50%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>カテゴリ</th>
-<th>機能</th>
-<th>説明</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><strong>ファイル共有</strong></td>
-<td>ディレクトリ共有</td>
-<td>Windows から Linux/Unix のディレクトリにアクセス可能．読み取り専用／書き込み可の権限設定が可能・</td>
-</tr>
-<tr class="even">
-<td></td>
-<td>ファイルアクセス制御</td>
-<td>ユーザー・グループごとのアクセス権を設定可能。</td>
-</tr>
-<tr class="odd">
-<td><strong>プリンタ共有</strong></td>
-<td>プリンタ共有</td>
-<td>Linux/Unix に接続されたプリンタを Windows から利用可能．</td>
-</tr>
-<tr class="even">
-<td></td>
-<td>複数ユーザー対応</td>
-<td>複数ユーザーでの共有プリンタ環境を構築可能．</td>
-</tr>
-<tr class="odd">
-<td></td>
-<td>プリンタドライバーの配布</td>
-<td>Samba サーバに Windows 用プリンタドライバーを置いておくと，クライアント側で共有プリンタに接続するだけで自動インストールできる</td>
-</tr>
-<tr class="even">
-<td><strong>ADメンバーサーバー</strong></td>
-<td>ドメイン参加</td>
-<td>Active Directoryを構成するメンバーサーバーになることが可能</td>
-</tr>
-<tr class="odd">
-<td></td>
-<td>ドメインコントローラ</td>
-<td>Samba を AD 互換ドメインコントローラとして利用可能．ユーザー認証・グループ管理・ポリシー管理が可能．</td>
-</tr>
-<tr class="even">
-<td></td>
-<td>Kerberos 認証対応</td>
-<td>シングルサインオン（SSO）で共有アクセスが可能</td>
-</tr>
-<tr class="odd">
-<td><strong>バックアップ・サーバ</strong></td>
-<td>ファイルサーバ機能</td>
-<td>ネットワーク経由でバックアップやファイル共有が可能．</td>
-</tr>
-<tr class="even">
-<td></td>
-<td>自動バックアップ</td>
-<td>rsync や cron と組み合わせて自動バックアップが可能．</td>
-</tr>
-<tr class="odd">
-<td><strong>ホームディレクトリ提供</strong></td>
-<td>ユーザーごとのホームディレクトリ</td>
-<td>Windows ユーザーごとに自動マウント可能．</td>
-</tr>
-<tr class="even">
-<td><strong>アクセスログ・監査</strong></td>
-<td>ログ取得</td>
-<td>どのユーザーがいつアクセスしたかのログを取得可能。監査やセキュリティ対策に活用可能。</td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-<section id="sambaのインストール" class="level2">
-<h2 class="anchored" data-anchor-id="sambaのインストール">Sambaのインストール</h2>
-<p>apt経由で <code>samba</code> パッケージをインストールします</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb1-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># install</span></span>
-<span id="cb1-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> sudo apt install <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-y</span> samba</span>
-<span id="cb1-3"></span>
-<span id="cb1-4"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># version check</span></span>
-<span id="cb1-5"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> samba <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--version</span></span>
-<span id="cb1-6"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">Version</span> 4.19.5-Ubuntu</span></code></pre></div></div>
-<p><code>samba</code> は，ファイルサーバー，プリントサーバー，ユーザー管理を担うsmbdデーモン，名前解決を担うnmbdデーモンから構成されます． ファイヤーウォールを使っている場合は，Sambaを利用できるように次のような設定をします</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb2-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> sudo ufw allow samba</span>
-<span id="cb2-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">Rule</span> added</span>
-<span id="cb2-3"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">Rule</span> added <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">(v6)</span></span></code></pre></div></div>
-<p>tailscaleを導入している場合は，tailscaleについてのファイヤーウォールを実施するだけでOKです．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb3-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> sudo ufw allow in on tailscale0</span></code></pre></div></div>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>Samba運用上の注意
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>Samba サーバーは基本的に <span class="regmonkey-bold">LAN 内での運用</span>を前提(=企業や家庭内ネットワークなど，閉じたネットワークでの利用が基本)</li>
-<li><span class="regmonkey-bold">インターネットサーバー上での動作は推奨されない</span></li>
-<li>ADが使えるとはいえ，Windows Serverで実現できるすべての機能が実装されているわけではない</li>
-</ul>
-</div>
-</div>
-<p><span class="mini-section">各デーモンに対応する <code>systemctl</code> サービス</span></p>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 29%">
-<col style="width: 46%">
-<col style="width: 23%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>構成要素</th>
-<th>担当機能</th>
-<th>systemctl サービス名</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><strong>smbd</strong></td>
-<td>ファイル共有・プリント共有・ユーザー認証</td>
-<td><code>smbd</code></td>
-</tr>
-<tr class="even">
-<td><strong>nmbd</strong></td>
-<td>名前解決</td>
-<td><code>nmbd</code></td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-<section id="sambaの制御" class="level2">
-<h2 class="anchored" data-anchor-id="sambaの制御">Sambaの制御</h2>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 20%">
-<col style="width: 40%">
-<col style="width: 40%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>サービス / デーモン</th>
-<th>役割</th>
-<th>コマンド</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>smbd</code></td>
-<td>ファイル共有・プリンタ共有・ユーザー認証</td>
-<td>起動: <code>sudo systemctl start smbd</code></td>
-</tr>
-<tr class="even">
-<td></td>
-<td></td>
-<td>停止: <code>sudo systemctl stop smbd</code></td>
-</tr>
-<tr class="odd">
-<td></td>
-<td></td>
-<td>再起動: <code>sudo systemctl restart smbd</code></td>
-</tr>
-<tr class="even">
-<td></td>
-<td></td>
-<td>自動起動有効: <code>sudo systemctl enable smbd</code></td>
-</tr>
-<tr class="odd">
-<td></td>
-<td></td>
-<td>自動起動無効: <code>sudo systemctl disable smbd</code></td>
-</tr>
-<tr class="even">
-<td></td>
-<td></td>
-<td>状態確認: <code>sudo systemctl status smbd</code></td>
-</tr>
-<tr class="odd">
-<td><code>nmbd</code></td>
-<td>名前解決</td>
-<td>起動: <code>sudo systemctl start nmbd</code></td>
-</tr>
-<tr class="even">
-<td></td>
-<td></td>
-<td>停止: <code>sudo systemctl stop nmbd</code></td>
-</tr>
-<tr class="odd">
-<td></td>
-<td></td>
-<td>再起動: <code>sudo systemctl restart nmbd</code></td>
-</tr>
-<tr class="even">
-<td></td>
-<td></td>
-<td>自動起動有効: <code>sudo systemctl enable nmbd</code></td>
-</tr>
-<tr class="odd">
-<td></td>
-<td></td>
-<td>自動起動無効: <code>sudo systemctl disable nmbd</code></td>
-</tr>
-<tr class="even">
-<td></td>
-<td></td>
-<td>状態確認: <code>sudo systemctl status nmbd</code></td>
-</tr>
-<tr class="odd">
-<td><code>samba</code></td>
-<td>Samba AD DC サービス（AD ドメインコントローラ運用時）</td>
-<td>起動: <code>sudo systemctl start samba</code></td>
-</tr>
-<tr class="even">
-<td></td>
-<td></td>
-<td>停止: <code>sudo systemctl stop samba</code></td>
-</tr>
-<tr class="odd">
-<td></td>
-<td></td>
-<td>再起動: <code>sudo systemctl restart samba</code></td>
-</tr>
-<tr class="even">
-<td></td>
-<td></td>
-<td>自動起動有効: <code>sudo systemctl enable samba</code></td>
-</tr>
-<tr class="odd">
-<td></td>
-<td></td>
-<td>自動起動無効: <code>sudo systemctl disable samba</code></td>
-</tr>
-<tr class="even">
-<td></td>
-<td></td>
-<td>状態確認: <code>sudo systemctl status samba</code></td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-<section id="sambaの設定" class="level2">
-<h2 class="anchored" data-anchor-id="sambaの設定">Sambaの設定</h2>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>Samba設定の基本
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>Sambaの主な設定は <code>/etc/samba/smb.conf</code> に記述する</li>
-<li><code>smb.conf</code> は大きく分けて <code>[Global Settings]</code> と <code>[Share Definitions]</code> の２つから構成される</li>
-<li><code>[Global Settings]</code>: Sambaサーバーの全般的な設定をする部分．この部分を変更した場合はSambaサーバーの再起動が必要</li>
-<li><code>[Share Definitions]</code>: ファイル共有やプリンター共有を設定する部分</li>
-</ul>
-</div>
-</div>
-<p><code>/etc/samba/smb.conf</code> を編集するときは <code>sudo cp -a smb.conf smb.conf.default</code> なり <code>.bak</code> 拡張子を用いてバックアップをしておくと安全です．</p>
-<p><span class="mini-section"><code>smb.conf</code> Syntax</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb4-1"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">parameter </span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;"> value</span></span>
-<span id="cb4-2"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># commentout line begins with # or ;</span></span></code></pre></div></div>
-<p><span class="mini-section"><code>global</code>の設定項目</span></p>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 25%">
-<col style="width: 35%">
-<col style="width: 40%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>項目</th>
-<th>説明</th>
-<th>例</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>workgroup</code></td>
-<td>Windows ネットワーク上のワークグループ名を指定</td>
-<td><code>WORKGROUP</code></td>
-</tr>
-<tr class="even">
-<td><code>server string</code></td>
-<td>サーバーの説明文（ネットワークブラウザに表示される）</td>
-<td><code>Samba Server</code></td>
-</tr>
-<tr class="odd">
-<td><code>log file</code></td>
-<td>ログファイルの出力場所</td>
-<td><code>/var/log/samba/log.%m</code></td>
-</tr>
-<tr class="even">
-<td><code>max log size</code></td>
-<td>ログファイルの最大サイズ (KB)</td>
-<td><code>1000</code></td>
-</tr>
-<tr class="odd">
-<td><code>server role</code></td>
-<td>サーバーの役割．ファイルサーバーとして使う場合は<code>standalone server</code></td>
-<td><code>standalone server</code> / <code>member server</code> / <code>active directory domain controller</code></td>
-</tr>
-<tr class="even">
-<td><code>passdb backend</code></td>
-<td>ユーザー認証DBの指定</td>
-<td><code>tdbsam / ldapsam</code></td>
-</tr>
-<tr class="odd">
-<td><code>unix password sync</code></td>
-<td>Sambaユーザーアカウントのpassword変更をLinuxユーザーアカウントのpasswordにも反映</td>
-<td><code>yes</code> / <code>no</code></td>
-</tr>
-<tr class="even">
-<td><code>passwd program</code></td>
-<td>Samba がパスワード変更要求を受けた際に，実行するコマンドを指定する</td>
-<td><code>/usr/bin/passwd %u</code></td>
-</tr>
-<tr class="odd">
-<td><code>passwd chat</code></td>
-<td><code>passwd program</code> とやり取りする際の「対話プロンプトと応答パターン」を定義する</td>
-<td><code>*New*password* %n\n *Retype*new*password* %n\n *password*updated*successfully*</code></td>
-</tr>
-<tr class="even">
-<td><code>pam password change</code></td>
-<td>有効にすると，password変更に<code>passwd program</code> に指定したコマンドではなくPAMを利用する</td>
-<td><code>yes</code> / <code>no</code></td>
-</tr>
-</tbody>
-</table>
-</div>
-<p><span class="mini-section"><code>Share Deinition</code>の設定項目</span></p>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 25%">
-<col style="width: 35%">
-<col style="width: 40%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>項目</th>
-<th>説明</th>
-<th>例</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>path</code></td>
-<td>実際に公開するディレクトリの絶対パス</td>
-<td><code>/srv/samba/public</code></td>
-</tr>
-<tr class="even">
-<td><code>comment</code></td>
-<td>ネットワークブラウザに表示される説明文</td>
-<td><code>Public Share</code></td>
-</tr>
-<tr class="odd">
-<td><code>browseable</code></td>
-<td>ネットワークブラウザに表示するか</td>
-<td><code>yes</code> / <code>no</code></td>
-</tr>
-<tr class="even">
-<td><code>read only</code></td>
-<td>読み取り専用にするか</td>
-<td><code>yes</code> / <code>no</code></td>
-</tr>
-<tr class="odd">
-<td><code>writable</code></td>
-<td><code>read only</code> の逆指定（同義語）</td>
-<td><code>yes</code></td>
-</tr>
-<tr class="even">
-<td><code>guest ok</code></td>
-<td>認証なしでアクセスできるか</td>
-<td><code>yes</code> / <code>no</code></td>
-</tr>
-<tr class="odd">
-<td><code>valid users</code></td>
-<td>アクセスを許可するユーザー/グループ</td>
-<td><code>%S</code> とすればhome directoryのユーザーのみが自身のhome directoryにアクセスできる</td>
-</tr>
-<tr class="even">
-<td><code>invalid users</code></td>
-<td>アクセスを拒否するユーザー/グループ</td>
-<td><code>@nogroup user2</code></td>
-</tr>
-<tr class="odd">
-<td><code>create mask</code></td>
-<td>新規ファイル作成時のパーミッションマスク</td>
-<td><code>0644</code></td>
-</tr>
-<tr class="even">
-<td><code>directory mask</code></td>
-<td>新規ディレクトリ作成時のパーミッションマスク</td>
-<td><code>0755</code></td>
-</tr>
-<tr class="odd">
-<td><code>public</code></td>
-<td><code>guest ok</code> の別名</td>
-<td><code>yes</code> / <code>no</code></td>
-</tr>
-<tr class="even">
-<td><code>locking</code></td>
-<td>ファイルロックの使用有無</td>
-<td><code>yes</code></td>
-</tr>
-<tr class="odd">
-<td><code>printable</code></td>
-<td>プリンタ共有として扱うか</td>
-<td><code>no</code>（通常のフォルダ共有なら）</td>
-</tr>
-</tbody>
-</table>
-</div>
-<p><span class="mini-section">構文チェック</span></p>
-<p><code>testparm</code> コマンドを用いることでconfigファイルの構文チェックをすることができます</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb5-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> testparm <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-s</span></span>
-<span id="cb5-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">Load</span> smb config files from /etc/samba/smb.conf</span>
-<span id="cb5-3"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">Loaded</span> services file OK.</span>
-<span id="cb5-4"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">...</span></span></code></pre></div></div>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 21%">
-<col style="width: 36%">
-<col style="width: 41%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>オプション</th>
-<th>説明</th>
-<th>例 / 補足</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>-s</code></td>
-<td><strong>短い形式で表示</strong>（冗長な情報を省略し、主要な設定のみを出力）</td>
-<td><code>testparm -s</code></td>
-</tr>
-<tr class="even">
-<td><code>-v</code></td>
-<td><strong>詳細表示</strong>（全設定、コメントやデフォルト値も含む）</td>
-<td><code>testparm -v</code></td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-<section id="共有の作成" class="level2">
-<h2 class="anchored" data-anchor-id="共有の作成">共有の作成</h2>
-<p>iPadからtailscale経由でアクセス可能な共有ディレクトリを指定したいと思います．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb6-1"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">[server-hdd]</span></span>
-<span id="cb6-2"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">comment </span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;"> 2TB sized hdd</span></span>
-<span id="cb6-3"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">path </span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;"> /media/kirby/DATA/</span></span>
-<span id="cb6-4"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">browsable </span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;"> </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">yes</span></span>
-<span id="cb6-5"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">writable </span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;"> </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">yes</span></span>
-<span id="cb6-6"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">guest ok </span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;"> </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">no</span></span>
-<span id="cb6-7"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">printable </span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;"> </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">no</span></span>
-<span id="cb6-8"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">valid users </span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;"> dedede kirby</span></span></code></pre></div></div>
-<p>と指定すると <code>server-hdd</code> を共有名として <code>path</code> を公開することができます．設定が完了したら</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb7-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> sudo systemctl restart smbd</span></code></pre></div></div>
-<p>を実施します．</p>
-<p><span class="mini-section">iPadからのアクセス設定</span></p>
-<p>Tailscaleをつないでいるならば自動的に名前解決してくれます．手順は以下です．</p>
-<ol type="1">
-<li>Tailscale管理画面から共有設定したサーバーの名前を調べる(例: <code>dsserver</code>)</li>
-<li><code>ファイル</code> から右上の３点マークの設定を開く</li>
-<li>「サーバーへ接続」を開き以下の書式で入力する</li>
-</ol>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb8-1"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">smb://dsserver/</span></span></code></pre></div></div>
-<p>その後，Sambaユーザー名とSambaパスワード等が要求されますが，それは <code>smb.conf</code> の設定に合わせて入力してください．</p>
-<p><span class="mini-section">only readable errorが出る場合</span></p>
-<p>原因としてストーレージのフォーマットにiOSが対応していないことが考えられます． iOSの標準ファイルシステムサポートは <code>APFS</code> / <code>HFS+</code> / <code>FAT32</code> / <code>exFAT</code> に限られ，<code>NTFS</code>は基本的には読み取り専用になってしまいます．</p>
-<p>マウントしてもread-onlyの場合は，ファイルシステムのフォーマットを確認してみてください． もし，<code>NTFS</code>であるならば中身を退避して，サーバー側でフォーマットを以下のコマンドで書き換えてしまいます</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">$</span> sudo mkfs.exfat <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-n</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&lt;</span>任意の名前<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;</span> /dev/sda1</span></code></pre></div></div>
-<p>その後，サーバー側で再度以下のコマンドでmountを実施し，sambaの設定をすればOKです</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> mount <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-t</span> exfat <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-o</span> uid=1000,gid=1000,fmask=000,dmask=000 /dev/sda1 <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&lt;</span>mount-point-path<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;</span></span></code></pre></div></div>
-<div class="callout callout-style-default callout-warning callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Warning</span>exfatの問題点
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>モバイルを含む複数のOSでreadable and writableで使用するなら<code>exFAT</code> のほうが取り回しは効きます</li>
-<li>一方，ジャーナル機能やファイル圧縮，暗号化への対応はされていないので，セキュリティ面を重視するならば利用は控えたほうが良いです</li>
-</ul>
-</div>
-</div>
-</section>
-<section id="nautilusでsamba共有フォルダをmountする" class="level2">
-<h2 class="anchored" data-anchor-id="nautilusでsamba共有フォルダをmountする">NautilusでSamba共有フォルダをmountする</h2>
-<p>基本的にはiPadでの設定と同じ手順です</p>
-<p><span class="mini-section">section</span></p>
-<p>Tailscaleをつないでいるならば自動的に名前解決してくれます．手順は以下です．</p>
-<ol type="1">
-<li>Tailscale管理画面から共有設定したサーバーの名前を調べる(例: <code>dsserver</code>)</li>
-<li>Nautilusを開く</li>
-<li><code>+ Other Locations</code> をクリックし，以下の書式でconnection設定を行う</li>
-</ol>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb11-1"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">smb://dsserver/</span></span></code></pre></div></div>
-<p>その後，Sambaユーザー名とSambaパスワード等が要求されますが，それは <code>smb.conf</code> の設定に合わせて入力する．</p>
-<section id="vscodeでフォルダの中身を編集する" class="level3">
-<h3 class="anchored" data-anchor-id="vscodeでフォルダの中身を編集する">VSCodeでフォルダの中身を編集する</h3>
-<p>一度，Nautilus経由でSamba共有フォルダへのアクセス設定すると，<code>GVfs</code> が <code>/run/user/&lt;userid&gt;/gvfs/</code> 以下に次のような仮想ディレクトリを作成します：</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb12-1"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">/run/user/1000/gvfs/smb-share:server</span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">&lt;server-name&gt;,share=&lt;share-folder-name&gt;/</span></span></code></pre></div></div>
-<p>これはFUSE(Filesystem in Userspace)経由のマウントなので，GVfsに非対応のコマンドラインツールでは直接編集できない場合があります． Samba共有フォルダを対象にCLI操作なり開発をしたい場合は <code>~/Desktop/</code> などの通常のマウントポイントにマウントするか <strong>シンボリックリンク（<code>ln -s</code>）</strong> で操作できるようにするという選択肢があります．</p>
-<p>GVfsのマウントはセッションごとに作られるため，シンボリックリンクでは動作が不安定になる可能性がありますが，一時的なそうなの場合は十分です．</p>
-<p><span class="mini-section">シンボリックリンクの作り方</span></p>
-<p>デスクトップの <code>project</code> フォルダをクリックすると Samba 共有へ飛ぶようするには以下のスクリプトを実行します：</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb13-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ln</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-s</span> /run/user/1000/gvfs/smb-share:server=fileserver,share=project ~/Desktop/project</span></code></pre></div></div>
-<p><span class="mini-section">cifs mountの実施</span></p>
-<p>とあるPATH上に credential情報を格納したファイル(例: <code>.cifs-credentials</code>)を以下のように設定します</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb14-1"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">username</span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">hoshino-kirby</span></span>
-<span id="cb14-2"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">password</span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">pupupuland</span></span></code></pre></div></div>
-<p>上記はSambaで設定したユーザー情報です．これを<code>/etc/.cifs-credentials</code> に格納した場合， 以下のコマンドでSamba共有フォルダを通常のマウントポイント(例: <code>~/Desktop/sandbox/</code>)にマウントすることができます</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb15-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">$</span> sudo mount <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-t</span> cifs //<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&lt;</span>server-global-ip<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;</span>/<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&lt;</span>samba foldaname<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;</span>/<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&lt;</span>path<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;</span> ~/Desktop/sandbox/ <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">\</span></span>
-<span id="cb15-2">-o credentials=/etc/.cifs-credentials,iocharset=utf8,uid=<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&lt;</span>uid<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;</span>,gid=<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&lt;</span>gid<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;</span>,vers=3.0</span></code></pre></div></div>
-<div class="callout callout-style-default callout-note no-icon callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon no-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>Remarks
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li><code>uid</code>と<code>gid</code>はクライアント側のvalueを入力します．確認したい場合は <code>id</code> コマンドを活用してください．</li>
-<li><code>-13</code> エラーコードを履く場合，<code>sudo apt install cifs-utils</code> を実行してから再度試してください</li>
-</ul>
-</div>
-</div>
-</section>
-</section>
-<section id="appendix-microsoftネットワーク" class="level2">
-<h2 class="anchored" data-anchor-id="appendix-microsoftネットワーク">Appendix: Microsoftネットワーク</h2>
-<p>Microsoftネットワークは「ワークグループ」という基本単位でネットワークに参加するPCを論理的にまとめて管理しています． Windowsコンピューターでは，所属するワークグループ名を設定するだけで，そのワークグループへ参加することができます．</p>
-<p><span class="mini-section">ワークグループの管理方式</span></p>
-<p>ワークグループ自体は分散型管理が基本で，ユーザーアカウントやパスワードをそれぞれのコンピューターで管理します．もう一つの方法として， ドメインネットワークを利用したドメインコントローラーというサーバーによる集中管理する方法もあります．</p>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 21%">
-<col style="width: 42%">
-<col style="width: 35%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>項目</th>
-<th>ワークグループ（分散型）</th>
-<th>ドメイン（中央管理）</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>管理方式</td>
-<td>分散型</td>
-<td>集中管理型</td>
-</tr>
-<tr class="even">
-<td>ユーザー管理</td>
-<td>各PCごと</td>
-<td>ドメインコントローラー(DC)で一元管理</td>
-</tr>
-<tr class="odd">
-<td>規模</td>
-<td>小規模</td>
-<td>中～大規模</td>
-</tr>
-<tr class="even">
-<td>必要設備</td>
-<td>PCのみ</td>
-<td>DCサーバー必要</td>
-</tr>
-</tbody>
-</table>
-</div>
-<p>ドメインネットワークを利用する場合は以下の手順で認証が行われます</p>
-<ol type="1">
-<li>ユーザーのPCがシステム起動するとき「ドメインログイン」を行い，その認証情報がDCに送られる</li>
-<li>DCがユーザー名とパスワードを照合し，認証を行う</li>
-<li>DCによる認証をパスすると，ドメインネットワークへのアクセスが許可される</li>
-</ol>
-<p>ドメインネットワークでは，一度認証をパスすれば，ドメイン内のサーバーへアクセスする際，個々に認証をする必要はありません．そのため，大規模なネットワークを運用する場合に便利な機能です．</p>
-<div class="cell" data-layout-align="default">
-<div class="cell-output-display">
-<div>
-<p></p><figure class="figure"><p></p>
-<div>
-<pre class="mermaid mermaid-js">%%{init: {"theme":"default"}}%%
-architecture-beta
-    group wg(cloud)[Workgroup]
-
-    service pc1(server)[PC1] in wg
-    service pc2(server)[PC2] in wg
-    service pc3(server)[PC3] in wg
-    service pc4(server)[PC4] in wg
-
-    pc1:B -- T:pc2
-    pc2:L -- R:pc3
-    pc1:R -- L:pc3
-    pc3:T -- B:pc4
-    pc4:R -- L:pc1
-    pc4:B -- T:pc2
-
-    group domain(cloud)[Domain]
-
-    service dc(database)[Domain Controller] in domain
-    service dpc1(server)[PC5] in domain
-    service dpc2(server)[PC6] in domain
-    service dpc3(server)[PC7] in domain
-
-    dpc1:B -- T:dc
-    dpc2:L -- R:dc
-    dpc3:T -- B:dc
-</pre>
-</div>
-<p></p></figure><p></p>
-</div>
-</div>
-</div>
-<p><span class="mini-section">アクティブディレクトリ（Active Directory, AD）</span></p>
-<div id="def-" class="custom_problem blog-custom-border theorem definition">
-<p><span class="theorem-title"><strong>Definition 2</strong></span> <span class="def-title">アクティブディレクトリ</span></p>
-<ul>
-<li>ユーザーやグループなどのリソースを一元管理するディレクトリサービス</li>
-<li>ディレクトリアクセスプロトコルとしてLDAPを利用</li>
-<li>ホスト名の名前解決にDNSを利用</li>
-<li>認証システムにKerberosを利用</li>
-</ul>
-</div>
-
-
-</section>
-
- ]]></description>
-  <category>環境構築</category>
-  <category>Linux</category>
-  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-09-05-samba/</guid>
-  <pubDate>Fri, 05 Sep 2025 00:00:00 GMT</pubDate>
 </item>
 </channel>
 </rss>
