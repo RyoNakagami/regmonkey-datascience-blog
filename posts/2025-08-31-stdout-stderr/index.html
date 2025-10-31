@@ -7,9 +7,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Ryo Nakagami">
-<meta name="dcterms.date" content="2025-07-31">
+<meta name="dcterms.date" content="2025-08-31">
 
-<title>Quarto Projectへのpseudocode extensions導入 – regmonkey datascience blog</title>
+<title>シェルスクリプトにおける標準出力・標準エラー出力 – regmonkey datascience blog</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -163,9 +163,12 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 
 
 <link rel="stylesheet" href="../../styles.css">
-<meta property="og:title" content="Quarto Projectへのpseudocode extensions導入 – regmonkey datascience blog">
+<meta property="og:title" content="シェルスクリプトにおける標準出力・標準エラー出力 – regmonkey datascience blog">
 <meta property="og:description" content="日々の徒然勉強日記">
+<meta property="og:image" content="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-08-31-stdout-stderr/stdstream.png">
 <meta property="og:site_name" content="regmonkey datascience blog">
+<meta property="og:image:height" content="1139">
+<meta property="og:image:width" content="1920">
 </head>
 
 <body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
@@ -414,10 +417,9 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 <header id="title-block-header" class="quarto-title-block default page-columns page-full">
   <div class="quarto-title-banner page-columns page-full">
     <div class="quarto-title column-body">
-      <h1 class="title">Quarto Projectへのpseudocode extensions導入</h1>
+      <h1 class="title">シェルスクリプトにおける標準出力・標準エラー出力</h1>
                                 <div class="quarto-categories">
-                <div class="quarto-category">pseudocode</div>
-                <div class="quarto-category">quarto</div>
+                <div class="quarto-category">shell</div>
               </div>
                   </div>
   </div>
@@ -435,14 +437,14 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
       <div>
       <div class="quarto-title-meta-heading">Published</div>
       <div class="quarto-title-meta-contents">
-        <p class="date">2025-07-31</p>
+        <p class="date">2025-08-31</p>
       </div>
     </div>
     
       <div>
       <div class="quarto-title-meta-heading">Modified</div>
       <div class="quarto-title-meta-contents">
-        <p class="date-modified">2025-08-01</p>
+        <p class="date-modified">2025-10-31</p>
       </div>
     </div>
       
@@ -457,19 +459,18 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#ゴール" id="toc-ゴール" class="nav-link active" data-scroll-target="#ゴール">🎯 ゴール</a>
+  <li><a href="#標準ストリーム" id="toc-標準ストリーム" class="nav-link active" data-scroll-target="#標準ストリーム">標準ストリーム</a>
   <ul class="collapse">
-  <li><a href="#requirements" id="toc-requirements" class="nav-link" data-scroll-target="#requirements">💻 Requirements</a></li>
+  <li><a href="#stdourstderrのストリームが別れていることのメリット" id="toc-stdourstderrのストリームが別れていることのメリット" class="nav-link" data-scroll-target="#stdourstderrのストリームが別れていることのメリット">stdour，stderrのストリームが別れていることのメリット</a></li>
+  <li><a href="#リダイレクト" id="toc-リダイレクト" class="nav-link" data-scroll-target="#リダイレクト">リダイレクト</a></li>
+  <li><a href="#パイプ" id="toc-パイプ" class="nav-link" data-scroll-target="#パイプ">パイプ</a></li>
   </ul></li>
-  <li><a href="#拡張機能のインストール" id="toc-拡張機能のインストール" class="nav-link" data-scroll-target="#拡張機能のインストール">✅ 拡張機能のインストール</a></li>
-  <li><a href="#拡張機能利用のための設定" id="toc-拡張機能利用のための設定" class="nav-link" data-scroll-target="#拡張機能利用のための設定">🔨 拡張機能利用のための設定</a>
+  <li><a href="#標準データストリームリダイレクトパイプの実践" id="toc-標準データストリームリダイレクトパイプの実践" class="nav-link" data-scroll-target="#標準データストリームリダイレクトパイプの実践">標準データストリーム，リダイレクト，パイプの実践</a>
   <ul class="collapse">
-  <li><a href="#math-setup" id="toc-math-setup" class="nav-link" data-scroll-target="#math-setup">Math Setup</a></li>
-  <li><a href="#algorithm表記設定" id="toc-algorithm表記設定" class="nav-link" data-scroll-target="#algorithm表記設定">Algorithm表記設定</a></li>
+  <li><a href="#case-1-fileaの内容を並び替えてその結果を別のファイルfilebに保存する" id="toc-case-1-fileaの内容を並び替えてその結果を別のファイルfilebに保存する" class="nav-link" data-scroll-target="#case-1-fileaの内容を並び替えてその結果を別のファイルfilebに保存する">CASE 1: FileAの内容を並び替えて，その結果を別のファイルFileBに保存する</a></li>
+  <li><a href="#case-2-エラーメッセージのみ出力させる" id="toc-case-2-エラーメッセージのみ出力させる" class="nav-link" data-scroll-target="#case-2-エラーメッセージのみ出力させる">CASE 2: エラーメッセージのみ出力させる</a></li>
+  <li><a href="#case-3-ファイルへの書き込みと標準出力を同時に行う" id="toc-case-3-ファイルへの書き込みと標準出力を同時に行う" class="nav-link" data-scroll-target="#case-3-ファイルへの書き込みと標準出力を同時に行う">CASE 3: ファイルへの書き込みと標準出力を同時に行う</a></li>
   </ul></li>
-  <li><a href="#pseudocode-blockの記述方法" id="toc-pseudocode-blockの記述方法" class="nav-link" data-scroll-target="#pseudocode-blockの記述方法">📘 Pseudocode Blockの記述方法</a></li>
-  <li><a href="#quarto-pseudocode-の仕様" id="toc-quarto-pseudocode-の仕様" class="nav-link" data-scroll-target="#quarto-pseudocode-の仕様"><code>quarto-pseudocode</code> の仕様</a></li>
-  <li><a href="#appendix-uppercamelcase" id="toc-appendix-uppercamelcase" class="nav-link" data-scroll-target="#appendix-uppercamelcase">Appendix: UpperCamelCase</a></li>
   <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
@@ -482,403 +483,326 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 
 
 
-<section id="ゴール" class="level2">
-<h2 class="anchored" data-anchor-id="ゴール">🎯 ゴール</h2>
+<section id="標準ストリーム" class="level2">
+<h2 class="anchored" data-anchor-id="標準ストリーム">標準ストリーム</h2>
+<p>標準ストリーム（standard streams）とは，Unix系OS において，プログラムの活動実体であるプロセスとその実行環境の間でやり取りされる データの通り道（入出力チャネル） のことです．特に，キーボードからの入力を標準入力，ディスプレイへの出力を標準出力と呼びます.</p>
+<p>多くのコマンドは，何も指定しなくても実行結果をディスプレイに表示しますが，これは標準出力としてディスプレイを使うことが デフォルトとして設定されているためです.</p>
+<div class="columns">
+<div class="column" style="width:60%;">
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 21%">
+<col style="width: 24%">
+<col style="width: 10%">
+<col style="width: 35%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>名称</th>
+<th>ファイル記述子</th>
+<th>方向</th>
+<th>主な用途</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>標準入力<br>(stdin)</td>
+<td><code>0</code></td>
+<td>入力</td>
+<td>キーボードや他プログラムの出力からデータを受け取る</td>
+</tr>
+<tr class="even">
+<td>標準出力<br>(stdout)</td>
+<td><code>1</code></td>
+<td>出力</td>
+<td>通常の結果やメッセージを出力する</td>
+</tr>
+<tr class="odd">
+<td>標準エラー出力<br>(stderr)</td>
+<td><code>2</code></td>
+<td>出力</td>
+<td>エラーメッセージなどを出力する</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div><div class="column" style="width:40%;">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="./stdstream.png" class="img-fluid figure-img"></p>
+<figcaption>標準ストリーム</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<section id="stdourstderrのストリームが別れていることのメリット" class="level3">
+<h3 class="anchored" data-anchor-id="stdourstderrのストリームが別れていることのメリット">stdour，stderrのストリームが別れていることのメリット</h3>
+<p>標準出力（stdout） は，通常の処理結果やプログラムの出力を表します． これをリダイレクトしたりパイプで別のコマンドに渡した場合， 出力内容がファイルや別のコマンドへ送られるため，端末上には表示されません．</p>
+<p>標準エラー出力（stderr） は，エラーメッセージや警告を伝えるための専用ストリームとなっています． 通常のリダイレクト（<code>CMD &gt; file1</code> など）では stderr はリダイレクトされず，端末画面にそのまま表示されます． そのため，</p>
 <ul>
-<li>Quarto PropjectのHTMLレンダリングで<a href="https://github.com/SaswatPadhi/pseudocode.js">Pseudocode</a>を利用可能にする</li>
-</ul>
-<section id="requirements" class="level3">
-<h3 class="anchored" data-anchor-id="requirements">💻 Requirements</h3>
-<ul>
-<li>Quarto がインストール済み</li>
-<li>Quarto プロジェクト（blogやbook）を作成済み</li>
+<li>ユーザーは標準出力をファイルや他の処理系に渡していても，エラーメッセージを見落とすことなく確認できる</li>
+<li>ログ処理とエラー監視を独立して制御できる</li>
 </ul>
 </section>
-</section>
-<section id="拡張機能のインストール" class="level2">
-<h2 class="anchored" data-anchor-id="拡張機能のインストール">✅ 拡張機能のインストール</h2>
-<p><a href="https://github.com/leovan/quarto-pseudocode#readme">Quarto Pseudocode Extension</a>をQuarto Projectに<code>quarto</code>コマンドでインストールします:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">quarto</span> add leovan/quarto-pseudocode</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">/_extensions</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">└──</span> leovan</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    <span class="ex">└──</span> pseudocode</span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>        <span class="ex">├──</span> _extension.yml</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>        <span class="ex">├──</span> pseudocode.lua</span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>        <span class="ex">├──</span> pseudocode.min.css</span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>        <span class="ex">└──</span> pseudocode.min.js</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="リダイレクト" class="level3">
+<h3 class="anchored" data-anchor-id="リダイレクト">リダイレクト</h3>
 <div class="callout callout-style-default callout-note callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>REMARKS
+<span class="screen-reader-only">Note</span>リダイレクト
 </div>
 </div>
 <div class="callout-body-container callout-body">
 <ul>
-<li>Project単位でのインストールとなります</li>
+<li>標準出入力先を変更する機能のことをリダイレクトといいます</li>
+<li>標準出入力とリダイレクトを理解することで，コマンドがどこに出力するのかをコントロールできます</li>
 </ul>
 </div>
 </div>
-</section>
-<section id="拡張機能利用のための設定" class="level2">
-<h2 class="anchored" data-anchor-id="拡張機能利用のための設定">🔨 拡張機能利用のための設定</h2>
-<p><code>_quarto.yml</code> に対して <code>filters</code>項目を以下のように追加します:</p>
-<div class="code-with-filename">
-<div class="code-with-filename-file">
-<pre><strong>_quarto.yml</strong></pre>
-</div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" data-filename="_quarto.yml"><pre class="sourceCode yml code-with-copy"><code class="sourceCode yaml"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">project</span><span class="kw">:</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">type</span><span class="kw">:</span><span class="at"> website</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">output-dir</span><span class="kw">:</span><span class="at"> _site</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="fu">filters</span><span class="kw">:</span></span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> pseudocode</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<section id="math-setup" class="level3">
-<h3 class="anchored" data-anchor-id="math-setup">Math Setup</h3>
-<div class="code-with-filename">
-<div class="code-with-filename-file">
-<pre><strong>_quarto.yml</strong></pre>
-</div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" data-filename="_quarto.yml"><pre class="sourceCode yml code-with-copy"><code class="sourceCode yaml"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">format</span><span class="kw">:</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">html</span><span class="kw">:</span></span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">include-in-header</span><span class="kw">:</span></span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> include/mathjax.html</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<p>上記の<code>include/mathjax.html</code>に対して以下のようなLinesを設定します</p>
-<div class="code-with-filename">
-<div class="code-with-filename-file">
-<pre><strong>include/mathjax.html</strong></pre>
-</div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" data-filename="include/mathjax.html"><pre class="sourceCode html code-with-copy"><code class="sourceCode html"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">script</span><span class="dt">&gt;</span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    MathJax <span class="op">=</span> {</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>        <span class="dt">tex</span><span class="op">:</span> {</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>            <span class="dt">inlineMath</span><span class="op">:</span> [[<span class="st">'$'</span><span class="op">,</span><span class="st">'$'</span>]<span class="op">,</span> [<span class="st">'</span><span class="sc">\\</span><span class="st">('</span><span class="op">,</span><span class="st">'</span><span class="sc">\\</span><span class="st">)'</span>]]<span class="op">,</span></span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>            <span class="dt">displayMath</span><span class="op">:</span> [[<span class="st">'$$'</span><span class="op">,</span><span class="st">'$$'</span>]<span class="op">,</span> [<span class="st">'</span><span class="sc">\\</span><span class="st">['</span><span class="op">,</span><span class="st">'</span><span class="sc">\\</span><span class="st">]'</span>]]<span class="op">,</span></span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>            <span class="dt">processEscapes</span><span class="op">:</span> <span class="kw">true</span><span class="op">,</span></span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>            <span class="dt">processEnvironments</span><span class="op">:</span> <span class="kw">true</span><span class="op">,</span></span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>            <span class="dt">tags</span><span class="op">:</span> <span class="st">'all'</span><span class="op">,</span></span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>        }</span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>    }</span>
-<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;/</span><span class="kw">script</span><span class="dt">&gt;</span></span>
-<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">script</span><span class="ot"> src</span><span class="op">=</span><span class="st">"https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml-full.js"</span></span>
-<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a><span class="ot">        integrity</span><span class="op">=</span><span class="st">"sha256-kbAFUDxdHwlYv01zraGjvjNZayxKtdoiJ38bDTFJtaQ="</span></span>
-<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a><span class="ot">        crossorigin</span><span class="op">=</span><span class="st">"anonymous"</span><span class="dt">&gt;</span></span>
-<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;/</span><span class="kw">script</span><span class="dt">&gt;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<p><span class="mini-section">MathJax Options</span></p>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Example 1 (Bash 標準ストリームのリダイレクト一覧)</strong></span> <br></p>
 <div class="no-border-top-table">
 <table class="caption-top table">
 <colgroup>
-<col style="width: 21%">
-<col style="width: 78%">
+<col style="width: 31%">
+<col style="width: 68%">
 </colgroup>
 <thead>
 <tr class="header">
-<th>Keys</th>
-<th>内容</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>inlineMath</code></td>
-<td><strong>インライン数式</strong> のマーカー指定．<br>例：<code>$a^2 + b^2 = c^2$</code> または <code>\(...\)</code></td>
-</tr>
-<tr class="even">
-<td><code>displayMath</code></td>
-<td><strong>ディスプレイ数式（中央寄せで大きく表示）</strong> のマーカー指定．<br>例：<code>$$E = mc^2$$</code> または <code>\[...\]</code></td>
-</tr>
-<tr class="odd">
-<td><code>processEscapes</code></td>
-<td>バックスラッシュを <strong>エスケープとして解釈するか</strong>．<code>true</code> にすると <code>\\(</code> を <code>\(</code> として扱えるようになる</td>
-</tr>
-<tr class="even">
-<td><code>processEnvironments</code></td>
-<td><code>\begin{...} ... \end{...}</code> 形式の <strong>LaTeX 環境</strong> を使えるようにする</td>
-</tr>
-<tr class="odd">
-<td><code>tags: 'all'</code></td>
-<td>式番号を付ける場所の指定．<br><code>'all'</code> は <strong>display 数式すべて</strong> に番号を振る（<code>\begin{equation}</code> でなくても）</td>
-</tr>
-</tbody>
-</table>
-</div>
-<p><span class="mini-section">MathJax本体の読み込み設定</span></p>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 24%">
-<col style="width: 75%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>属性</th>
-<th>説明</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>src</code></td>
-<td>CDN 上の MathJax v3 スクリプト．<code>tex-chtml-full.js</code> は <strong>LaTeX入力 + HTML/CSS出力</strong> 対応の完全版</td>
-</tr>
-<tr class="even">
-<td><code>integrity</code></td>
-<td><strong>Subresource Integrity（SRI）</strong> チェック用ハッシュ（改ざん防止）</td>
-</tr>
-<tr class="odd">
-<td><code>crossorigin="anonymous"</code></td>
-<td>SRI を有効にするための指定</td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-<section id="algorithm表記設定" class="level3">
-<h3 class="anchored" data-anchor-id="algorithm表記設定">Algorithm表記設定</h3>
-<p>Pseudocodeの参照または参照時の表示を設定する場合，<code>_quarto.yml</code>に以下のように記載します</p>
-<div class="code-with-filename">
-<div class="code-with-filename-file">
-<pre><strong>_quarto.yml</strong></pre>
-</div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" data-filename="_quarto.yml"><pre class="sourceCode yml code-with-copy"><code class="sourceCode yaml"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">format</span><span class="kw">:</span></span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">html</span><span class="kw">:</span></span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">pseudocode</span><span class="kw">:</span></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">caption-prefix</span><span class="kw">:</span><span class="at"> </span><span class="st">"アルゴリズム"</span><span class="co">    # DefaultはAlgorithm</span></span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">reference-prefix</span><span class="kw">:</span><span class="at"> </span><span class="st">"アルゴリズム"</span><span class="co">  # DefaultはAlgorithm</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 17%">
-<col style="width: 26%">
-<col style="width: 12%">
-<col style="width: 42%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>オプション名</th>
+<th>構文</th>
 <th>意味</th>
-<th>デフォルト</th>
-<th>解説</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>caption-prefix</code></td>
-<td>キャプションの前に付ける語句</td>
-<td><code>"Algorithm"</code></td>
-<td>例：<code>Algorithm 1: Euclidean</code> のような見出しに使われる</td>
+<td><code>&lt; FileA</code></td>
+<td>標準入力を <strong>FileA</strong> に変更</td>
 </tr>
 <tr class="even">
-<td><code>reference-prefix</code></td>
-<td><code>@ref(fig:xxx)</code> のような参照時の接頭辞</td>
-<td><code>"Algorithm"</code></td>
-<td>参照時に <code>Algorithm 1</code> のように表示されます</td>
+<td><code>&gt; FileA</code></td>
+<td>標準出力を <strong>FileA</strong> に変更（上書き）</td>
 </tr>
 <tr class="odd">
-<td><code>caption-number</code></td>
-<td>番号付けの有無</td>
-<td><code>true</code></td>
-<td><code>false</code> にすると <code>Algorithm: xxx</code> のように番号なしになる</td>
+<td><code>&gt;&gt; FileA</code></td>
+<td>標準出力を <strong>FileA</strong> の末尾に追記</td>
+</tr>
+<tr class="even">
+<td><code>2&gt; FileA</code></td>
+<td>標準エラー出力を <strong>FileA</strong> に変更（上書き）</td>
+</tr>
+<tr class="odd">
+<td><code>2&gt;&gt; FileA</code></td>
+<td>標準エラー出力を <strong>FileA</strong> の末尾に追記</td>
+</tr>
+<tr class="even">
+<td><code>&gt; FileA 2&gt;&amp;1</code></td>
+<td>標準出力と標準エラー出力をまとめて <strong>FileA</strong> に変更</td>
+</tr>
+<tr class="odd">
+<td><code>&amp;&gt; FileA</code></td>
+<td>標準出力と標準エラー出力をまとめて <strong>FileA</strong> に変更</td>
+</tr>
+<tr class="even">
+<td><code>2&gt;&amp;1</code></td>
+<td>標準エラー出力（stderr）を標準出力（stdout）の現在の設定にリダイレクト</td>
+</tr>
+<tr class="odd">
+<td><code>2&gt;&amp;1 1&gt; /dev/null</code></td>
+<td>ラーを標準出力，標準出力を <code>/dev/null</code> に捨てる</td>
 </tr>
 </tbody>
 </table>
 </div>
-</section>
-</section>
-<section id="pseudocode-blockの記述方法" class="level2">
-<h2 class="anchored" data-anchor-id="pseudocode-blockの記述方法">📘 Pseudocode Blockの記述方法</h2>
-<p><code>pseudocode</code>コードブロックの中にPseudocodeを以下のように記述すると，以下のような出力になります．</p>
-<pre>```pseudocode
-#| html-indent-size: "1.2em"
-#| html-comment-delimiter: "//"
-#| html-line-number: true
-#| html-line-number-punc: ":"
-#| html-no-end: false
-#| pdf-placement: "htb!"
-#| pdf-line-number: true
-
-\begin{algorithm}
-\caption{Quicksort}
-\begin{algorithmic}
-\Procedure{Quicksort}{$A, p, r$}
-  \If{$p &lt; r$}
-    \State $q = $ \Call{Partition}{$A, p, r$}
-    \State \Call{Quicksort}{$A, p, q - 1$}
-    \State \Call{Quicksort}{$A, q + 1, r$}
-  \EndIf
-\EndProcedure
-\Procedure{Partition}{$A, p, r$}
-  \State $x = A[r]$
-  \State $i = p - 1$
-  \For{$j = p$ \To $r - 1$}
-    \If{$A[j] &lt; x$}
-      \State $i = i + 1$
-      \State exchange
-      $A[i]$ with     $A[j]$
-    \EndIf
-    \State exchange $A[i]$ with $A[r]$
-  \EndFor
-\EndProcedure
-\end{algorithmic}
-\end{algorithm}
-```
-</pre>
-<div class="pseudocode-container quarto-float" data-no-end="false" data-line-number="true" data-indent-size="1.2em" data-comment-delimiter="//" data-caption-prefix="Algorithm" data-line-number-punc=":" data-pseudocode-number="1">
-<div class="pseudocode">
-\begin{algorithm} \caption{Quicksort} \begin{algorithmic} \Procedure{Quicksort}{$A, p, r$} \If{$p &lt; r$} \State $q = $ \Call{Partition}{$A, p, r$} \State \Call{Quicksort}{$A, p, q - 1$} \State \Call{Quicksort}{$A, q + 1, r$} \EndIf \EndProcedure \Procedure{Partition}{$A, p, r$} \State $x = A[r]$ \State $i = p - 1$ \For{$j = p$ \To $r - 1$} \If{$A[j] &lt; x$} \State $i = i + 1$ \State exchange $A[i]$ with $A[j]$ \EndIf \State exchange $A[i]$ with $A[r]$ \EndFor \EndProcedure \end{algorithmic} \end{algorithm}
+</div>
+<hr>
+<p>というメリットがあります．</p>
+<p><span class="mini-section"><code>/dev/null</code> ファイル</span></p>
+<p>Linux系OSでは <code>/dev/null</code> という疑似デバイスファイルを用意してあります． <code>/dev/null</code> に書き込まれたデータはすべて破棄され，どこからどれだけ読み込んでも何もデータを返しません．</p>
+<p>エラーメッセージのみ出力させたくない場合は</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">'stderr'</span> <span class="dv">2</span><span class="op">&gt;</span> /dev/null</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>としたりします．</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span><code>&lt;&lt; EOF</code> という似て非なるヒアドキュメント構文
 </div>
 </div>
-</section>
-<section id="quarto-pseudocode-の仕様" class="level2">
-<h2 class="anchored" data-anchor-id="quarto-pseudocode-の仕様"><code>quarto-pseudocode</code> の仕様</h2>
-<p><span class="mini-section">Syntax</span></p>
+<div class="callout-body-container callout-body">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">command</span> <span class="op">&lt;&lt;EOF</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="st">... 任意のテキスト ...</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="op">EOF</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <ul>
-<li>キーワードには大文字と小文字の形式(UpperCamelCase) (例: <code>\Procedure</code>, <code>\If</code>, <code>\EndIf</code>) を使用</li>
-<li>数式は標準の LaTeX 数式構文をサポート</li>
+<li><code>&lt;&lt;EOF</code> は「この後に続く行を，<code>EOF</code> が現れるまで標準入力として command に渡す」という意味</li>
+<li><code>&lt;&lt;EOF</code> でなくても <code>&lt;&lt;WORD</code> や <code>&lt;&lt;INPUT</code> としても良いですが，慣例的に <code>EOF</code> が使われる</li>
 </ul>
-<p><span class="mini-section">Block Parameters</span></p>
-<p>コメント形式のパラメーターを以下のように記載することができます．</p>
-<pre><code>#| html-indent-size: "1.2em"
-#| html-comment-delimiter: "//"
-#| html-line-number: true
-#| html-line-number-punc: ":"
-#| html-no-end: false
-#| pdf-placement: "htb!"
-#| pdf-line-number: true
-
-\begin{algorithm}
-\caption{My Algorithm}
-\begin{algorithmic}
-...
-\end{algorithmic}
-\end{algorithm}</code></pre>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 25%">
-<col style="width: 25%">
-<col style="width: 25%">
-<col style="width: 25%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>パラメーター</th>
-<th>デフォルト</th>
-<th>形式</th>
-<th>説明</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>label</code></td>
-<td></td>
-<td>all</td>
-<td>クロス参照用のラベル (alg- で始まる必要があります)</td>
-</tr>
-<tr class="even">
-<td><code>html-indent-size</code></td>
-<td>“1.2em”</td>
-<td>HTML</td>
-<td>ネストされたブロックのインデント サイズ</td>
-</tr>
-<tr class="odd">
-<td><code>html-comment-delimiter</code></td>
-<td>“//”</td>
-<td>HTML</td>
-<td>コメント デリミタ文字</td>
-</tr>
-<tr class="even">
-<td><code>html-line-number</code></td>
-<td>true</td>
-<td>HTML</td>
-<td>行番号を表示</td>
-</tr>
-<tr class="odd">
-<td><code>html-line-number-punc</code></td>
-<td>“:”</td>
-<td>HTML</td>
-<td>行番号の句読点</td>
-</tr>
-<tr class="even">
-<td><code>html-no-end</code></td>
-<td>false</td>
-<td>HTML</td>
-<td>末尾のキーワードを非表示</td>
-</tr>
-<tr class="odd">
-<td><code>pdf-placement</code></td>
-<td>“H”</td>
-<td>PDF</td>
-<td>フロート配置 (htbp!)</td>
-</tr>
-<tr class="even">
-<td><code>pdf-line-number</code></td>
-<td>true</td>
-<td>PDF</td>
-<td>行番号を表示</td>
-</tr>
-</tbody>
-</table>
-<p><span class="mini-section">CSS styleの設定</span></p>
-<p>設定用CSSファイルに以下のような記述をすることでfontやcontainerの設定ができます</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode css code-with-copy"><code class="sourceCode css"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">.pseudocode-container</span> {</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">border</span><span class="ch">:</span> <span class="dv">1</span><span class="dt">px</span> <span class="dv">solid</span> <span class="cn">#ddd</span><span class="op">;</span></span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">border-radius</span><span class="ch">:</span> <span class="dv">5</span><span class="dt">px</span><span class="op">;</span></span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  <span class="kw">padding</span><span class="ch">:</span> <span class="dv">10</span><span class="dt">px</span><span class="op">;</span></span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>  <span class="kw">margin</span><span class="ch">:</span> <span class="dv">20</span><span class="dt">px</span> <span class="dv">0</span><span class="op">;</span></span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="fu">.ps-algorithm</span> {</span>
-<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>  <span class="kw">font-family</span><span class="ch">:</span> <span class="st">'Courier New'</span><span class="op">,</span> <span class="dv">monospace</span><span class="op">;</span></span>
-<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</div>
 </section>
-<section id="appendix-uppercamelcase" class="level2">
-<h2 class="anchored" data-anchor-id="appendix-uppercamelcase">Appendix: UpperCamelCase</h2>
+<section id="パイプ" class="level3">
+<h3 class="anchored" data-anchor-id="パイプ">パイプ</h3>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>パイプ
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>コマンドによって得られた結果を別コマンドに引き渡す機能のこと</li>
+<li>通常では標準エラー出力（<code>STDERR</code>）はパイプされない</li>
+</ul>
+</div>
+</div>
+<p><code>CMD1</code> の実行結果を <code>CMD2</code> の標準入力に渡す場合</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">CMD1</span> <span class="kw">|</span> <span class="ex">CMD2</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>標準出力と標準エラー出力をまとめてパイプで渡したい場合は，<code>2&gt;&amp;1 |</code>，または <code>|&amp;</code> を用います．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co">## 標準エラー出力用のパイプ</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sed</span> <span class="kw">|&amp;</span> <span class="fu">wc</span> <span class="at">-l</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="co">## ファイル記述子とパイプの組み合わせ</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="fu">sed</span> <span class="dv">2</span><span class="op">&gt;&amp;</span><span class="dv">1</span> <span class="kw">|</span> <span class="fu">wc</span> <span class="at">-l</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+</section>
+<section id="標準データストリームリダイレクトパイプの実践" class="level2">
+<h2 class="anchored" data-anchor-id="標準データストリームリダイレクトパイプの実践">標準データストリーム，リダイレクト，パイプの実践</h2>
+<section id="case-1-fileaの内容を並び替えてその結果を別のファイルfilebに保存する" class="level3">
+<h3 class="anchored" data-anchor-id="case-1-fileaの内容を並び替えてその結果を別のファイルfilebに保存する">CASE 1: FileAの内容を並び替えて，その結果を別のファイルFileBに保存する</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sort</span> <span class="op">&lt;</span> FileA <span class="op">&gt;</span> FileB</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<ol type="1">
+<li><code>sort</code> コマンドは FileA の内容を読み取り（<code>&lt; FileA</code>）</li>
+<li><code>sort</code>コマンドを実行し，並び替えを行う</li>
+<li>その結果を <code>FileB</code> に出力（<code>&gt; FileB</code>）</li>
+</ol>
+<p>ただし，同じ動作は</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sort</span> FileA <span class="op">&gt;</span> FileB</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>でも達成できます．</p>
+</section>
+<section id="case-2-エラーメッセージのみ出力させる" class="level3">
+<h3 class="anchored" data-anchor-id="case-2-エラーメッセージのみ出力させる">CASE 2: エラーメッセージのみ出力させる</h3>
+<p>ユーザーがリダイレクトを用いて設定しなくては行けないことは</p>
+<ul>
+<li>標準出力結果を <code>/dev/null</code> へ捨てる</li>
+<li>標準エラー出力を標準出力へ渡す</li>
+</ul>
+<p>の２点となるので，以下の①と④を組み合わせて設定すればよいですが，設定順序がポイントなります．</p>
 <div class="no-border-top-table">
 <table class="caption-top table">
 <colgroup>
-<col style="width: 21%">
-<col style="width: 49%">
-<col style="width: 28%">
+<col style="width: 5%">
+<col style="width: 35%">
+<col style="width: 25%">
+<col style="width: 35%">
 </colgroup>
 <thead>
 <tr class="header">
-<th>名称</th>
-<th>例</th>
-<th>説明</th>
+<th>Index</th>
+<th>目的</th>
+<th>コマンド例</th>
+<th>意味</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><strong>ALL UPPERCASE</strong></td>
-<td><code>PROJECT</code>, <code>TYPE</code>, <code>EXTENSIONS</code></td>
-<td>全部大文字</td>
+<td>①</td>
+<td>標準出力を捨てる</td>
+<td><code>CMD &gt; /dev/null</code><br><code>CMD 1&gt; /dev/null</code></td>
+<td>結果は捨てるが、エラーは表示</td>
 </tr>
 <tr class="even">
-<td><strong>UpperCamelCase</strong></td>
-<td><code>Project</code>, <code>Type</code>, <code>Extensions</code></td>
-<td>各単語の先頭が大文字（キャメルケース）</td>
+<td>②</td>
+<td>標準エラーを捨てる</td>
+<td><code>CMD 2&gt; /dev/null</code></td>
+<td>エラーだけ捨てる</td>
 </tr>
 <tr class="odd">
-<td><strong>lowerCamelCase</strong></td>
-<td><code>project</code>, <code>projectType</code>, <code>extensionList</code></td>
-<td>1語目は小文字で始め，2語目以降の先頭を大文字</td>
+<td>③</td>
+<td>標準出力・標準エラーを両方捨てる</td>
+<td><code>CMD &amp;&gt; /dev/null</code><br><code>CMD &gt; /dev/null 2&gt;&amp;1</code></td>
+<td>すべての出力を破棄</td>
 </tr>
 <tr class="even">
-<td><strong>snake_case</strong></td>
-<td><code>project_type</code>, <code>extension_list</code></td>
-<td>単語をアンダースコア <code>_</code> でつなぐ</td>
+<td>④</td>
+<td>標準エラーを標準出力へ渡す</td>
+<td><code>CMD 2&gt;&amp;1</code></td>
+<td>両者を一緒に処理（例：パイプでまとめる）</td>
 </tr>
 </tbody>
 </table>
 </div>
+<p><span class="mini-section">正しい設定例</span></p>
+<p>まず正しい例は</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">CMD1</span> <span class="dv">2</span><span class="op">&gt;&amp;</span><span class="dv">1</span> <span class="dv">1</span><span class="op">&gt;</span> /dev/null</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><span class="regmonkey-bold">Bashはリダイレクトを左から右へ順に評価するため</span>，先にエラーを標準出力に結合し，次に出力を破棄という設定順番になります．</p>
+<p><span class="mini-section">誤った設定例</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ex">CMD</span> <span class="dv">1</span><span class="op">&gt;</span> /dev/null <span class="dv">2</span><span class="op">&gt;&amp;</span><span class="dv">1</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>だと，先に標準出力を破棄，次にエラーを現在の標準出力設定に結合になるので，標準出力及び標準エラー出力両方が <code>/dev/null</code> に捨てられてしまいます．</p>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Example 2 (poetryで標準エラー出力のみを表示する場合)</strong></span> <br></p>
+<p><code>poetry</code> コマンドを用いるときなど，標準出力結果には興味がないがエラーだけ知りたいという場合があります．この場合は</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ex">poetry</span> update <span class="dv">1</span><span class="op">&gt;</span> /dev/null</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="ex">poetry</span> update <span class="op">&gt;</span> /dev/null</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="ex">poetry</span> update <span class="dv">2</span><span class="op">&gt;&amp;</span><span class="dv">1</span> <span class="dv">1</span><span class="op">&gt;</span> /dev/null</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>のいずれかの実行で標準エラー出力のみを表示することができます．最後の設定は標準エラー出力を標準出力にリダイレクトしているので， 厳密には挙動は同じではないことに注意してください．</p>
+</div>
+<hr>
+</section>
+<section id="case-3-ファイルへの書き込みと標準出力を同時に行う" class="level3">
+<h3 class="anchored" data-anchor-id="case-3-ファイルへの書き込みと標準出力を同時に行う">CASE 3: ファイルへの書き込みと標準出力を同時に行う</h3>
+<p><code>tee</code> コマンドを使うと標準出力を保持しつつファイルにも書き込むことができます．</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span><code>tee</code> コマンド
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li><p><code>tee</code>コマンドは，標準入力から読み込んだデータを標準出力とファイルの両方に出力するコマンド</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="ex">CMD</span> <span class="kw">|</span> <span class="fu">tee</span> ファイル名</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
+<li><p>デフォルトは上書き挙動だが，<code>-a</code> オプションを付与することで<strong>追記(append)</strong>設定も可能</p></li>
+</ul>
+</div>
+</div>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Example 3</strong></span> <br></p>
+<p><code>/etc/passwd</code> ファイルの内容に行番号を付け，その結果をパイプを通してファイルへ出力し，さらにその結果をパイプでheadコマンドに渡す場合は</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> nl /etc/passwd <span class="kw">|</span> <span class="fu">tee</span> test.txt <span class="kw">|</span> <span class="fu">head</span> <span class="at">-3</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>     <span class="ex">1</span>  root:x:0:0:root:/root:/usr/bin/zsh</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>     <span class="ex">2</span>  daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>     <span class="ex">3</span>  bin:x:2:2:bin:/bin:/usr/sbin/nologin</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<hr>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Example 4 (エラーを端末に表示しつつファイルに書く)</strong></span> <br></p>
+<p>標準出力を <code>/dev/null</code> に流しながら，標準エラー出力をファイルに書きたい場合は</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="ex">CMD</span> <span class="dv">1</span><span class="op">&gt;</span> /dev/null <span class="dv">2</span><span class="op">&gt;</span> error.log</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>で十分ですが，これだと端末にエラー出力が表示されません．標準エラー出力表示を維持したい場合は，Bashのプロセス置換 <code>&gt;(...)</code> を用いて</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="ex">CMD</span> <span class="dv">1</span><span class="op">&gt;</span> /dev/null <span class="dv">2</span><span class="op">&gt;</span> <span class="op">&gt;(</span><span class="fu">tee</span> error.log<span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>と記述します．</p>
+</div>
+<hr>
+</section>
 </section>
 <section id="references" class="level2">
 <h2 class="anchored" data-anchor-id="references">References</h2>
 <ul>
-<li><a href="https://github.com/leovan/quarto-pseudocode#readme">Quarto Pseudocode Extension</a></li>
+<li><a href="https://www.shoeisha.co.jp/book/detail/4798109339">UNIXの絵本, 株式会社アンク著</a></li>
+<li><a href="https://www.youtube.com/watch?v=zMKacHGuIHI">Linux Crash Course - Data Streams (stdin, stdout &amp; stderr)</a></li>
 </ul>
 
 
