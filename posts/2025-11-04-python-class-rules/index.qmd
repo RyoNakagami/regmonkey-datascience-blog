@@ -1,0 +1,721 @@
+---
+title: "継承，メソッドオーバーライド，スーパーメソッドの呼び出し"
+author: "Ryo Nakagami"
+date: "2025-11-04"
+date-modified: "2025-11-07"
+categories: [python]
+listing_category: general-series
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## 継承(Inheritance)
+
+サブクラスが親クラスを継承すると，親クラスで定義されたすべてのプロパティとメソッドを引き継ぐことができます．
+
+::: {#def- .custom_problem .blog-custom-border}
+[OOPにおける継承]{.def-title}
+
+- あるクラス（親クラス，スーパークラス，基底クラス）の機能を，別のクラス（子クラス，サブクラス，派生クラス）が引き継ぐ仕組み
+- **再利用性**: 同じような処理を複数のクラスで書かかずに，親クラスにまとめてしまう
+- **拡張性**: 親クラスの機能をそのまま使いつつ，新しい振る舞い（メソッドや属性）を追加・変更できる
+
+:::
+
+::: {#exm- .custom_problem }
+### 初期化処理 `__init__` と継承
+<br>
+
+```{python}
+#| code-overflow: wrap
+#| code-fold: show
+
+class Person:
+    def __init__(self, name, nationality):
+        self.name = name
+        self.nationality = nationality
+
+class FootballPlayer(Person):
+    def __init__(self, name, nationality, position, club):
+        # 親クラスの初期化（nameとnationalityを設定）
+        super().__init__(name, nationality)
+        # 子クラス独自の属性
+        self.position = position
+        self.club = club
+
+# インスタンス生成
+player = FootballPlayer("Kylian Mbappé", "France", "Forward", "Real Madrid")
+
+print(player.name)
+print(player.nationality)
+print(player.position)
+print(player.club)
+```
+
+:::
+---
+
+::: {#exm- .custom_problem }
+### `dataclass` を用いた初期化処理と継承
+<br>
+
+```{python}
+#| code-overflow: wrap
+#| code-fold: show
+
+from dataclasses import dataclass
+
+@dataclass
+class Person:
+    name: str
+    nationality: str
+
+@dataclass
+class FootballPlayer(Person):
+    position: str
+    club: str = 'Arsenal' # デフォルト値OK
+
+player = FootballPlayer("Kylian Mbappé", "France", "Forward", "Real Madrid")
+
+print(player.name)
+print(player.nationality)
+print(player.position)
+print(player.club)
+```
+
+:::
+---
+
+::: {#exm- .custom_problem }
+### `dataclass` を用いた初期化処理と継承 with `__post_init__`
+<br>
+
+- `dataclass` は 親クラス → 子クラス の順にフィールドを結合して `__init__` を自動生成
+- `super().__init__` の設定が `dataclass` 継承では不要になる
+- 親クラスでデフォルト値を用いていると少し話がややこしくなる
+
+```{python}
+#| code-overflow: wrap
+#| code-fold: show
+
+from dataclasses import dataclass
+
+@dataclass
+class Person:
+    name: str
+
+    def print_name(self):
+        print(self.name)
+
+@dataclass
+class MDPerson(Person):
+    affiliation: str
+
+    def __post_init__(self):
+        self.name = f"Doctor {self.name}"
+
+John = MDPerson('John', 'UT')
+John.print_name()
+```
+
+:::
+---
+
+### メソッドのオーバーライド
+
+::: {#def- .custom_problem .blog-custom-border}
+[メソッドのオーバーライド]{.def-title}
+
+- 親クラス（スーパークラス）で定義されたメソッドを，子クラス（サブクラス）で再定義して振る舞いを変更すること
+- Pythonでは，基本的にすべてのメソッドがC++における「仮想関数」に相当 = [いつでもオーバーライド可能]{.regmonkey-bold}
+  - `def __methodname(self)` などのようにprivate化である程度防ぐことは可能
+
+:::
+
+::: {#exm- .custom_problem }
+### 親メソッドを部分的に再利用するオーバーライド
+<br>
+
+```{python}
+#| code-overflow: wrap
+#| code-fold: show
+class Logger:
+    def log(self, msg):
+        print(f"[LOG] {msg}")
+
+class TimestampLogger(Logger):
+    def log(self, msg):
+        import datetime
+        now = datetime.datetime.now().isoformat()
+        super().log(f"{now} - {msg}")
+
+TimestampLogger().log("system started")
+```
+
+:::
+---
+
+[Coding Style Guide]{.mini-section}
+
+::: {.callout-note}
+### OOP Style Guide: Explicitly mark method overrides in subclasses using decorators or documentation.
+
+- `@override` デコレータ（Python 3.12以降 or `typing_extensions`経由）を使う, xor，docstring で「` """Override of Base.process"""`」と明記する
+- 明確な意図がない限り，基底クラスのメソッドや属性を再定義しない
+- 実装を置き換えるのではなく拡張する場合は，`super()` を適切に呼び出す
+- 基底クラス側でオーバーライドを想定していない場合は `__` を付与してprivate化する
+
+:::
+
+::: {#exm- .custom_problem }
+<br>
+
+```{python}
+#| code-overflow: wrap
+#| code-fold: show
+
+# from typing import override  # Python 3.12以降利用可能)
+from typing_extensions import override  # Python 3.11などではtyping_extensions経由
+
+class Base:
+    def process(self, data):
+        print("Base processing:", data)
+
+class Derived(Base):
+    @override
+    def process(self, data):
+        """Override of Base.process"""
+        print("Derived processing:", data)
+        super().process(data)
+```
+
+
+:::
+---
+
+
+### Interface Inheritance vs Implementation Inheritance
+
+::: {#def- .custom_problem .blog-custom-border}
+[Implementation Inheritance（実装継承）]{.def-title}
+
+- 既存の型を特殊化し，基底クラスのコードを再利用する継承のこと
+- インターフェース継承以外の継承は実装継承
+
+:::
+
+[Pros]{.mini-section}
+
+- 基底クラスのコードを再利用するので，コード量を削減できる
+- 継承関係はクラス定義時（コンパイル時相当）に明示されるため，静的解析ツールがその構造を理解しやすく，定義ミス（例: 未実装メソッドや誤ったオーバーライド）を早期に検出できる
+
+
+[Cons]{.mini-section}
+
+- 基底クラスとサブクラスに実装が分散するため，クラス階層を追いかけなければ挙動を理解できない
+- 「上書きすべきでないメソッド」を誤って上書きしてしまうリスクがある
+- 実行時に**メソッド解決順序（MRO）**をたどるため，パフォーマンスが低下する可能性がある
+- 多重継承時に，**ダイヤモンド継承問題**（同一祖先を複数経路で継承する形）が発生するリスクがある
+
+[Coding Style Guide]{.mini-section}
+
+::: {.callout-note}
+### OOP Style Guide: Keep inheritance hierarchies as shallow as possible — ideally within one or two levels.
+
+- 継承階層はできるだけ浅く保ち，理想的には1〜2段階以内にとどめる
+- 多重継承自体は許容されるが，多重実装継承は基本的には非推奨
+- ダイヤモンド継承は特に避けるべき
+
+:::
+
+::: {#exm- .custom_problem }
+### アンチパターン
+<br>
+
+```{python}
+#| code-overflow: wrap
+#| code-fold: show
+
+class Device:
+    def power_on(self):
+        print("Power on")
+
+class NetworkDevice(Device):
+    def connect(self):
+        print("Connect to network")
+
+class SmartDevice(Device):
+    def connect(self):
+        print("Connect to app")
+
+# Diamond inheritance: both inherit from Device
+class SmartNetworkDevice(SmartDevice, NetworkDevice):
+    def sync(self):
+        print("Syncing data")
+
+# Ambiguity: which connect() should be used?
+snd = SmartNetworkDevice()
+snd.connect()  # -> Which one? Depends on MRO (method resolution order)
+```
+
+:::
+---
+
+::: {#def- .custom_problem .blog-custom-border}
+[インターフェース継承]{.def-title}
+
+- 抽象クラスを親クラスとする継承のこと
+- クラスに特定のメソッド群の実装を強制することもできる継承形態
+- 同一APIを複数クラスで統一的に提供したいときに特に利用される
+- 「何をできるか（what）」を宣言し，「どう実装するか（how）」はサブクラスに委ねる
+
+:::
+
+::: {#exm- .custom_problem }
+### Abstract Base Classを用いたインターフェース継承
+<br>
+
+```{python}
+#| code-overflow: wrap
+#| code-fold: show
+
+from abc import ABC, abstractmethod
+
+class Serializer(ABC):
+    @abstractmethod
+    def serialize(self, data):
+        pass
+
+class JsonSerializer(Serializer):
+    def serialize(self, data):
+        import json
+        return json.dumps(data)
+
+def save_data(serializer: Serializer, data):
+    print(serializer.serialize(data))
+
+# Unified interface:
+save_data(JsonSerializer(), {"foo": "bar"})
+```
+
+:::
+---
+
+[Pros]{.mini-section}
+
+- 明示的なインターフェース契約により，APIの一貫性と可読性を高められる
+- IDE補完・型チェック・静的解析が機能する
+- 設計段階で「実装漏れ」や「誤実装」を検出できる
+- ユニットテストケース準備が容易になる
+
+[Cons]{.mini-section}
+
+- 小規模コードでは過剰設計になりがち(そもそも抽象クラスが必要ではない可能性がある)
+- 抽象クラスが肥大化すると，不要なメソッド実装を強制される場合がある
+- API変更時に全実装クラスの修正が必要になる（保守コストの増大）
+- わざわざ継承を使うのではなく，ダックタイピング + コンポジションで十分なケースもある
+- 実装継承と異なり，コード再利用による短縮効果はない
+
+[Coding Style Guide]{.mini-section}
+
+::: {.callout-note}
+### OOP Style Guide: Define clear, minimal, and stable interfaces.
+
+- インターフェースは必要最小限のメソッドにとどめる
+- 共通APIを抽象クラスを用いて定義する場合は，説明用documentを用意すること
+
+例: すべての推定器・予測モデルは `BaseEstimator（ABC）`を継承し，最低限 `fit(X, y)`, `predict(X)` を定義し，必要に応じて`score(X, y)`を追加する
+
+:::
+
+::: {#exm- .custom_problem }
+### 統計推定量モジュール用の実装例
+<br>
+
+```{python}
+#| code-overflow: wrap
+#| code-fold: show
+
+from abc import ABC, abstractmethod
+import numpy as np
+
+class BaseEstimator(ABC):
+    """Abstract base class for all estimators.
+
+    Rules:
+        - Require fit() and predict() methods
+        - Optionally define score()
+    """
+
+    @abstractmethod
+    def fit(self, X: np.ndarray, y: np.ndarray):
+        """Fit model to data."""
+        pass
+
+    @abstractmethod
+    def predict(self, X: np.ndarray) -> np.ndarray:
+        """Predict from model."""
+        pass
+
+    def score(self, X: np.ndarray, y: np.ndarray) -> float:
+        """Optional: default scoring by R^2."""
+        y_pred = self.predict(X)
+        u = ((y - y_pred) ** 2).sum()
+        v = ((y - y.mean()) ** 2).sum()
+        return 1 - u / v
+
+class LinearRegression(BaseEstimator):
+    """Ordinary Least Squares Estimator."""
+
+    def __init__(self):
+        self.coef_ = None
+        self.intercept_ = None
+
+    def fit(self, X: np.ndarray, y: np.ndarray):
+        X_ = np.c_[np.ones(X.shape[0]), X]
+        beta = np.linalg.pinv(X_.T @ X_) @ X_.T @ y
+        self.intercept_ = beta[0]
+        self.coef_ = beta[1:]
+        return self
+
+    def predict(self, X: np.ndarray) -> np.ndarray:
+        return X @ self.coef_ + self.intercept_
+```
+
+Then,
+
+```{python}
+#| code-overflow: wrap
+#| code-fold: show
+#| 
+X = np.random.rand(100, 3)
+y = X @ np.array([1.2, -0.7, 0.3]) + 0.5 + np.random.randn(100) * 0.05
+
+model = LinearRegression()
+model.fit(X, y)
+print("R^2:", model.score(X, y))
+```
+
+:::
+---
+
+### インスタンス属性・メソッドと `public` / `protected` / `private` の整理
+
+継承の文脈において，C++では「**データメンバーはprivateにすべき**」とされますが，
+
+- C++ と異なり，Pythonはすべての属性とメソッドが公開が基本
+- 親クラスの属性を完全にprivate的に運用（名前マングリング）してしまうと継承の柔軟性が大きく失われる
+
+という理由から，private(`__name`) よりかはprotected(`_name`) という運用のほうが好ましいとされます．
+
+:::: {.no-border-top-table}
+
+| 目的       | Pythonでの命名 | サブクラスから | 外部コードから | 備考               |
+| -------- | ---------- | ------- | ------- | ---------------- |
+| 公開API    | `name`     | ✅       | ✅       | 利用者向けのメソッドやプロパティ |
+| 継承向け内部属性 | `_name`    | ✅       | ⚠️（非推奨） | 継承拡張で使うデータメンバー   |
+| 完全に内部限定  | `__name`   | ❌       | ❌       | 継承しない前提での内部実装用   |
+
+::::
+
+### Propertyの活用
+
+API設計の観点から読み取り専用の値や派生値を返す場合，`getter` だけのプロパティを作成して，`setter` を不要にすることもできます．
+
+::: {#exm- .custom_problem }
+<br>
+
+```python
+from abc import ABC, abstractmethod
+
+class BaseEstimator(ABC):
+    @abstractmethod
+    def fit(self, X, y):
+        pass
+
+    @abstractmethod
+    def predict(self, X):
+        pass
+
+class LinearEstimator(BaseEstimator):
+    def __init__(self):
+        self._weights = None  # protected属性として保持
+
+    @property
+    def weights(self):
+        """軽微な計算や検証を伴う派生値を返す"""
+        if self._weights is None:
+            raise ValueError("Estimator has not been fitted yet")
+        return self._weights
+```
+
+- `weights` は計算や状態確認を伴うため プロパティとして提供
+- `fit()` / `predict()` は必須の公開API
+- 内部状態 `_weights` は protected とし，直接操作させない
+
+:::
+---
+
+::: {.callout-note}
+### OOP Style Guide: Use Properties to expose minimal and predictable attribute APIs
+
+- 属性アクセスのAPIを提供する場合，プロパティは軽量な計算や制約チェックがある場合のみ使用
+- 読み取り専用の値や派生値を返す場合，`getter` だけのプロパティを作成して，`setter` を不要にする
+
+:::
+
+
+### 例外的な状況を覗いて `staticmethod` は使用しない
+
+::: {#def- .custom_problem .blog-custom-border}
+[staticmethod]{.def-title}
+
+- クラスに属するが，インスタンス (`self`) やクラス (`cls`) に依存しないメソッド
+- 実際には単なる「モジュール関数」をクラス内に置いた形
+
+:::
+
+::: {#exm- .custom_problem }
+<br>
+
+- `self.__class__` はインスタンスのクラスを参照するので，`staticmethod` も呼び出し可能
+- `<Class>`でも参照可能(`CoyoteWeapon.commercial()`)
+
+```{python}
+#| code-overflow: wrap
+#| code-fold: show
+
+from dataclasses import dataclass
+
+@dataclass
+class CoyoteWeapon:
+    name: str
+    power: int
+
+    @staticmethod
+    def commercial():
+        print("This is Coyote Weapon")
+
+    def info(self):
+        self.__class__.commercial()
+        print(f"Weapon: {self.name}, Power: {self.power}")
+
+# クラス名から staticmethod を呼び出す
+CoyoteWeapon.commercial()  # → This is Coyote Weapon
+
+# インスタンスを作ってメソッドを呼ぶ
+weapon = CoyoteWeapon(name="Rocket Launcher", power=9000)
+weapon.info()
+```
+:::
+---
+
+[Coding Style Guide]{.mini-section}
+
+::: {.callout-note}
+### OOP Style Guide: Avoid staticmethod unless API requires it
+
+- `staticmethod` の乱用を避け，モジュールレベル関数で基本対応する
+- MLflowなどのAPI側が実装を要求する場合のみ利用する
+
+:::
+
+### `classmethod` は限定的に利用する
+
+::: {#def- .custom_problem .blog-custom-border}
+[classmethod]{.def-title}
+
+- クラス全体に影響を与えるmethod
+
+:::
+
+[Coding Style Guide]{.mini-section}
+
+::: {.callout-note}
+### OOP Style Guide: Use classmethod only when writing a named constructor, or a class-specific routine that modifies necessary global state such as a process-wide cache.
+
+- 名前付きコンストラクタ や　クラス固有の処理（例: プロセス全体で使うキャッシュの初期化など）でのみ使用
+
+:::
+
+::: {#exm- .custom_problem }
+### 名前付きコンストラクタ
+<br>
+
+- 通常のコンストラクタ `__init__` とは別に，クラスを初期化する補助的なコンストラクタを作りたい場合に使う
+
+```{python}
+#| code-overflow: wrap
+#| code-fold: show
+
+from dataclasses import dataclass
+
+@dataclass
+class Rectangle:
+    width: float
+    height: float
+
+    @classmethod
+    def from_square(cls, side_length: float):
+        """正方形から Rectangle を作る名前付きコンストラクタ"""
+        return cls(width=side_length, height=side_length)
+
+
+# 使用例
+r = Rectangle.from_square(5)
+print(r)  # Rectangle(width=5, height=5)
+```
+:::
+---
+
+::: {#exm- .custom_problem }
+<br>
+
+- `_global_cache` はクラス全体で共有される状態
+- `classmethod` を使うことで，インスタンスを生成せずにアクセス可能
+
+```{python}
+#| code-overflow: wrap
+#| code-fold: show
+
+class Cache:
+    _global_cache = {}
+
+    @classmethod
+    def set(cls, key, value):
+        cls._global_cache[key] = value
+
+    @classmethod
+    def get(cls, key):
+        return cls._global_cache.get(key)
+
+# 使用例
+Cache.set("x", 100)
+print(Cache.get("x")) 
+```
+
+:::
+---
+
+
+## コンポジション(Composition)
+
+継承(Inhertitance)は，「class Aは class Bの一種」という思想が背景にありますが，
+
+- アヒルは鳥であると同時にくちばしやしっぽを持っている
+
+というようなA(アヒル)はB(くちばしやしっぽ)を有している(A-has-B logic)の場合は，コンポジション（composition）を使うべきとされます．
+
+::: {#exm- .custom_problem }
+### 🦆 コンポジション（A-has-B logic
+<br>
+
+```{python}
+#| code-overflow: wrap
+#| code-fold: show
+
+from dataclasses import dataclass
+
+@dataclass
+class Bill:
+    length_cm: float
+    color: str
+
+    def quack_sound(self):
+        return "Quack!"
+
+
+@dataclass
+class Tail:
+    length_cm: float
+    fluffiness: int  # 1〜10段階
+
+    def wag(self):
+        return "Tail wagging gracefully"
+
+
+@dataclass
+class Bird:
+    species: str
+
+    def fly(self):
+        return f"{self.species} is flying!"
+
+
+@dataclass
+class Duck(Bird):
+    bill: Bill
+    tail: Tail
+
+    def describe(self):
+        return (
+            f"This is a {self.species}.\n"
+            f"Bill: {self.bill.length_cm}cm, color {self.bill.color}\n"
+            f"Tail: {self.tail.length_cm}cm, fluffiness {self.tail.fluffiness}"
+        )
+
+    def quack(self):
+        return self.bill.quack_sound()
+
+    def wag_tail(self):
+        return self.tail.wag()
+
+duck = Duck(
+    species="Mallard",
+    bill=Bill(length_cm=6.5, color="yellow"),
+    tail=Tail(length_cm=8.0, fluffiness=7)
+)
+
+print(duck.describe())
+print(duck.fly())
+print(duck.quack())
+print(duck.wag_tail())
+```
+
+:::
+---
+
+### Composition vs Inheritance
+
+::: {.callout-note}
+### OOP Style Guide: Composition is often more appropriate than inheritance
+
+- 継承は慎重に使い，まずは「コンポジション（composition）」を考えるべき
+- 「部品の入れ替え」が必要な場合や責務を分離したい」場合，Compositionが有効
+
+:::
+
+:::: {.no-border-top-table}
+
+| 項目  | 継承 (Inheritance)    | コンポジション (Composition)                                   |
+| --- | ------------------- | ------------------------------------------------------- |
+| 関係  | is-a（〜は〜である）        | has-a（〜を持っている）                                          |
+| 再利用 | 親クラスの機能を引き継ぐ        | 他クラスの機能を内部で使う                                           |
+| 柔軟性 | 低い（構造が固定）           | 高い（入れ替えや拡張が容易）                                          |
+| 結合度 | 強い                  | 弱い（疎結合）                                                 |
+: {tbl-colwidths="[20,40,40]"}
+
+::::
+
+## Appendix
+### ダックタイピング vs インターフェース継承
+
+:::: {.no-border-top-table}
+
+| 観点              | ダックタイピング                                                         | インターフェース継承                                            |
+| --------------- | ---------------------------------------------------------------- | ----------------------------------------------------- |
+| **定義**          | 「**見た目がアヒルならアヒル**」の原則に基づき，オブジェクトの型ではなく**振る舞い（メソッドや属性の存在）**で判断する | 抽象クラス（ABC）を介して，**特定のメソッド群を必ず実装**することを強制する仕組み         |
+| **Python 的実装例** | `fit()` と `predict()` を持っていれば Estimator として扱う（Scikit-Learn 流）   | `Estimator` 抽象基底クラスを継承し，`fit()`・`predict()` の定義を強制する |
+: {tbl-colwidths="[20,40,40]"}
+
+::::
+
+
+References
+----------
+- [Google C++ Style Guide](https://google.github.io/styleguide/cppguide.html)
+- [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html)
+- [Pythonにおけるオブジェクトとクラス](../2025-11-03-python-class-101/index.html)

@@ -1,0 +1,282 @@
+---
+title: "Pythonにおけるオブジェクトとクラス"
+author: "Ryo Nakagami"
+date: "2025-11-03"
+date-modified: "2025-11-07"
+categories: [python]
+listing_category: general-series
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## オブジェクトとクラス
+
+::: {#def- .custom_problem .blog-custom-border}
+[プログラミングにおけるオブジェクト]{.def-title}
+
+- 「オブジェクト」はデータと，そのデータを操作する手続きをひとまとめにしたもの
+- データ部分は「属性（attribute）」または「データメンバー」と呼ばれる
+- 手続き部分は「メソッド」と呼ばれ，オブジェクトの状態を操作する
+
+:::
+
+上記の意味でのオブジェクトを作るための設計図がPythonにおける「[クラス]{.regmonkey-bold}」です．クラスを基にしてオブジェクトが生成されますが，
+実際にデータ値が格納されたオブジェクトのことをインスタンスといいます．
+
+```{python}
+#| code-overflow: wrap
+#| code-fold: show
+
+class Dog:
+    def __init__(self, name):
+        self.name = name
+
+my_dog = Dog("Pochi")  # ← これがインスタンス
+```
+
+コード行 `my_dog = Dog("Pochi")` の挙動は以下のように分解できます
+
+1. `Dog` クラスの定義を探し出す
+2. メモリ内に新しい新しいオブジェクト（空のインスタンスを作成する
+3. 新しく作ったオブジェクトを `self`，引数 `Pochi` を `name` として渡して，オブジェクトの `__init__` を呼び出す
+4. `name` の値をインスタンスに格納する．
+5. 初期化が完了したインスタンスを返し， そのインスタンスに対して`my_dog` という名前を与える（変数 `my_dog` に格納する）
+
+::: {#exm- .custom_problem }
+### メモリから見たクラスとインスタンスの違い
+<br>
+
+```{python}
+#| code-overflow: wrap
+#| code-fold: show
+
+print(Dog)
+print(my_dog)
+```
+
+- `Dog` は クラスオブジェクト（型そのもの）を指しており，`<class '__main__.Dog'>` のように表示される
+- `my_dog` は `Dog`クラスから生成されたインスタンス（具体的な値を持つ実体）を指しており，メモリアドレスを伴って表示される
+
+:::
+---
+
+## クラス属性とインスタンス属性
+
+::: {#def- .custom_problem .blog-custom-border}
+[クラス属性とインスタンス属性]{.def-title}
+
+- **クラス属性（class attribute）** は，クラスそのものに属する属性．すべてのインスタンスで共有される．  
+- **インスタンス属性（instance attribute）** は，各インスタンス固有の属性．インスタンスごとに異なる値を持つ．  
+- 通常，インスタンス属性は `__init__()` メソッド内で `self.xxx = ...` の形で定義される．  
+- クラス属性は，クラス定義の直下（メソッドの外側）で定義される．  
+
+:::
+
+::: {#exm- .custom_problem }
+### `dataclass` とクラス変数
+<br>
+
+- `dataclass` でクラス変数を作る場合は `ClassVar` を使う
+- `dataclass`はインスタンス変数を自動的に `__init__` 処理するための仕組みなので，`ClassVar` を付けないとクラス変数を用いるとき「インスタンス変数っぽく見える」という混乱が起こります
+- インスタンスメソッドからクラス変数を操作する場合は `self.__class__` を基本用いる
+
+```{python}
+#| code-overflow: wrap
+#| code-fold: show
+
+from dataclasses import dataclass
+from typing import ClassVar
+
+@dataclass
+class Person:
+    name: str                        # インスタンス属性
+    age: int                         # インスタンス属性
+    total_number_of_persons: ClassVar[int] = 0
+
+    def __post_init__(self):
+        # クラス属性
+        self.__class__.total_number_of_persons += 1
+
+adam = Person('Adam', 30)
+john = Person('Jhon', 25)
+
+print(Person.total_number_of_persons)
+print(adam.total_number_of_persons)
+print(john.total_number_of_persons)
+```
+
+:::
+---
+
+[Coding Style Guide]{.mini-section}
+
+::: {.callout-note}
+### Avoid mutable global state.
+
+- クラス変数は「全インスタンスで共有される共通定義」にのみ使用
+- ミュータブルなオブジェクトは避け，必要な場合は `tuple` や `frozenset` を使う
+- 外部アクセスはメソッド経由
+
+:::
+
+::: {#exm- .custom_problem }
+<br>
+
+```{python}
+#| code-overflow: wrap
+#| code-fold: show
+
+from dataclasses import dataclass, field
+from typing import Tuple, ClassVar
+
+@dataclass
+class Stats:
+    # 不変のクラス変数（mutable global state を避ける）
+    _ATTRIBS: ClassVar[Tuple[str, ...]] = ('strength', 'speed', 'intellect', 'tenacity')
+
+    # インスタンス属性
+    strength: int = 0
+    speed: int = 0
+    intellect: int = 0
+    tenacity: int = 0
+
+    # クラスメソッドで安全にアクセス
+    @classmethod
+    def attribs(cls) -> Tuple[str, ...]:
+        """Return the immutable tuple of attribute names."""
+        return cls._ATTRIBS
+
+    # combine メソッドは staticmethod
+    @staticmethod
+    def combine(*args: 'Stats') -> 'Stats':
+        """
+        Combine multiple Stats objects into a new Stats instance.
+        Uses the class-level attribute names safely.
+        """
+        assert all(isinstance(arg, Stats) for arg in args), "All arguments must be Stats instances."
+        combined_values = {stat: 0 for stat in Stats.attribs()}
+        for stat in Stats.attribs():
+            for obj in args:
+                combined_values[stat] += getattr(obj, stat)
+        return Stats(**combined_values)
+
+s1 = Stats(strength=10, speed=5)
+s2 = Stats(intellect=7, tenacity=3)
+
+s_total = Stats.combine(s1, s2)
+print(s_total)
+
+# クラス変数は不変なので安全
+print(Stats.attribs())  # ('strength', 'speed', 'intellect', 'tenacity')
+```
+
+
+:::
+---
+
+## マングリング
+
+`__` をメソッドや属性名の先頭に付与することで，クラス定義の外からは見えづらくする命名方法があります．
+
+```{python}
+#| code-overflow: wrap
+#| code-fold: show
+
+@dataclass
+class Cat:
+    __name: str
+
+    def say(self):
+        print(f"{self.__name} says Meow!")
+
+my_cat = Cat('Tama')
+my_cat.say()
+```
+
+このように`__name` 属性は内部経由だと利用できますが，`my_cat.__name` だとエラーができます．ただし，
+
+```{python}
+#| code-overflow: wrap
+#| code-fold: show
+
+## 外部access
+print(my_cat._Cat__name)
+
+## 属性への直接write
+my_cat._Cat__name = 'Tama2'
+print(my_cat._Cat__name)
+```
+
+とすると一応アクセス(READ及びWRITE)が出来てしまいます．
+
+## インスタンス属性へのアクセス制御
+
+ゲッターとセッターを用いて，インスタンス属性へのアクセスを制御したい場合は `@property`, `@<property>.setter` デコレーターという仕組みを使います．
+
+::: {#exm- .custom_problem }
+### トラファルガー・ローとマングリングとゲッターとセッター
+<br>
+
+ワンピースのトラファルガー・ローを例にすると
+
+- トラファルガー家は，他の「D」の一族と違い，外部にDを名乗ることを避けていた
+- 通称は本名から忌み名を除去したものを名乗っている
+- 通称は変わりうるが，本名は変わらない
+- 本名の外部アクセスは基本想定していない
+
+ということを踏まえてClassを定義すると
+
+```{python}
+#| code-overflow: wrap
+#| code-fold: show
+
+class Waterloos:
+    def __init__(self, real_name):
+        self.__real_name = real_name
+        parts = self.__real_name.split("･")
+        self._nickname = f"{parts[0]}･{parts[-1]}" if len(parts) > 1 else self.__real_name
+
+    @property
+    def name(self):
+        """通称（ニックネーム）を返す"""
+        return self._nickname
+
+    @name.setter
+    def name(self, value):
+        """通称を更新"""
+        if not isinstance(value, str):
+            raise ValueError("Nickname must be a string")
+        self._nickname = value
+
+# トラファルガー･ローの設定
+p = Waterloos(real_name="トラファルガー･D･ワーテル･ロー")
+
+print("通称:", p.name)       # → トラファルガー･ロー
+print("本名:", p._Waterloos__real_name)  # → トラファルガー･D･ワーテル･ロー
+# print("本名:", p.__real_name)  # これではアクセスできない
+```
+
+ワノ国に入国した後に，ワノ国風名前にアレンジしたとすると
+
+```{python}
+#| code-overflow: wrap
+#| code-fold: show
+
+# ワノ国に入国
+p.name = "トラ男"
+
+print("通称:", p.name)       # → トラ男
+print("本名:", p._Waterloos__real_name)  # → トラファルガー･D･ワーテル･ロー
+```
+
+
+:::
+---
+
+
+References
+----------
+- [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html)
