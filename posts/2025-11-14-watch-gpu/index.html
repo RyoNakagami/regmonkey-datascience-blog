@@ -465,7 +465,9 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
   <li><a href="#case-1-gpuリソースを監視する" id="toc-case-1-gpuリソースを監視する" class="nav-link" data-scroll-target="#case-1-gpuリソースを監視する">Case 1: GPUリソースを監視する</a></li>
   <li><a href="#case-2-メモリリソースを監視する" id="toc-case-2-メモリリソースを監視する" class="nav-link" data-scroll-target="#case-2-メモリリソースを監視する">Case 2: メモリリソースを監視する</a></li>
   <li><a href="#case-3-dockerの起動状態を確認する" id="toc-case-3-dockerの起動状態を確認する" class="nav-link" data-scroll-target="#case-3-dockerの起動状態を確認する">Case 3: Dockerの起動状態を確認する</a></li>
+  <li><a href="#case-4-memory-usageの確認" id="toc-case-4-memory-usageの確認" class="nav-link" data-scroll-target="#case-4-memory-usageの確認">Case 4: Memory Usageの確認</a></li>
   </ul></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
     </div>
@@ -695,9 +697,92 @@ Note
 <ul>
 <li>引用符 <code>"</code> はなくても僕の環境では動作しますが，常に安全に動かすには引用符で囲む方が安全とのことです．</li>
 </ul>
-
-
 </section>
+<section id="case-4-memory-usageの確認" class="level3">
+<h3 class="anchored" data-anchor-id="case-4-memory-usageの確認">Case 4: Memory Usageの確認</h3>
+<div class="reveal_vspace" style="--vspace-height: 0.5em;"></div>
+<p><span class="mini-section">コマンド</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="ex">watch</span> <span class="at">-n</span> 1 free <span class="at">-m</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>表示結果例は以下</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="dt">               total        used        free      shared  buff/cache   available</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="dt">Mem:           63439        7314       46771         216        9898       56124</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="dt">Swap:           8191           0        8191</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 18%">
+<col style="width: 14%">
+<col style="width: 66%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>項目</th>
+<th>サイズ (MB)</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>total</td>
+<td>63439</td>
+<td>システム全体の物理メモリ量（約63GB）</td>
+</tr>
+<tr class="even">
+<td>used</td>
+<td>7314</td>
+<td>OSやプロセスによって現在使用中のメモリ量（キャッシュ・バッファ含む）</td>
+</tr>
+<tr class="odd">
+<td>free</td>
+<td>46771</td>
+<td>現在まったく使用されていない空きメモリ</td>
+</tr>
+<tr class="even">
+<td>shared</td>
+<td>216</td>
+<td>プロセス間で共有されているメモリ（最近の Linux では重要度低め）</td>
+</tr>
+<tr class="odd">
+<td>buff/cache</td>
+<td>9898</td>
+<td>ファイルキャッシュやバッファとして使われているメモリ（必要なら解放可能）</td>
+</tr>
+<tr class="even">
+<td>available</td>
+<td>56124</td>
+<td>実際に新しいアプリが使えるメモリ（キャッシュ分も含めて計算済み）</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>メモリの逼迫度や空き容量は基本的には <code>available</code> フィールドの値を見て判断します．</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Cache領域
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>ディスクキャッシュは，最近アクセスしたファイルを RAM に保持する仕組み</li>
+<li>Linuxは未使用のメモリをディスクキャッシュ用に利用する</li>
+<li>キャッシュはアプリからメモリを奪うことはなく，性能向上にだけ使われる</li>
+<li><code>used</code> にはキャッシュも含まれるので，見た目だけでは「メモリ不足」に見えることがあることに注意</li>
+</ul>
+</div>
+</div>
+</section>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<ul>
+<li><a href="https://askubuntu.com/questions/155768/how-do-i-clean-or-disable-the-memory-cache/155771#155771">How do I clean or disable the memory cache?</a></li>
+</ul>
+
+
 </section>
 
 </main> <!-- /main -->
