@@ -7,9 +7,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Ryo Nakagami">
-<meta name="dcterms.date" content="2025-08-25">
+<meta name="dcterms.date" content="2025-11-14">
 
-<title>Columnar Storageの特徴 – regmonkey datascience blog</title>
+<title>watchコマンドを用いてGPUリソースを確認する – regmonkey datascience blog</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -85,6 +85,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../../site_libs/bootstrap/bootstrap-c0e475af79fbf9c16b8f3b53f98210ea.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script src="../../site_libs/quarto-contrib/pseudocode-2.4.1/pseudocode.min.js"></script>
 <link href="../../site_libs/quarto-contrib/pseudocode-2.4.1/pseudocode.min.css" rel="stylesheet">
+<link href="../../site_libs/quarto-contrib/reveal_vspace-1.0.0/reveal_vspace.css" rel="stylesheet">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -163,12 +164,9 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 
 
 <link rel="stylesheet" href="../../styles.css">
-<meta property="og:title" content="Columnar Storageの特徴 – regmonkey datascience blog">
+<meta property="og:title" content="watchコマンドを用いてGPUリソースを確認する – regmonkey datascience blog">
 <meta property="og:description" content="日々の徒然勉強日記">
-<meta property="og:image" content="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-08-25-columnar-storage/columnar-storage.png">
 <meta property="og:site_name" content="regmonkey datascience blog">
-<meta property="og:image:height" content="429">
-<meta property="og:image:width" content="917">
 </head>
 
 <body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
@@ -415,9 +413,10 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 <header id="title-block-header" class="quarto-title-block default page-columns page-full">
   <div class="quarto-title-banner page-columns page-full">
     <div class="quarto-title column-body">
-      <h1 class="title">Columnar Storageの特徴</h1>
+      <h1 class="title">watchコマンドを用いてGPUリソースを確認する</h1>
                                 <div class="quarto-categories">
-                <div class="quarto-category">SQL</div>
+                <div class="quarto-category">Linux</div>
+                <div class="quarto-category">監視</div>
               </div>
                   </div>
   </div>
@@ -435,14 +434,14 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
       <div>
       <div class="quarto-title-meta-heading">Published</div>
       <div class="quarto-title-meta-contents">
-        <p class="date">2025-08-25</p>
+        <p class="date">2025-11-14</p>
       </div>
     </div>
     
       <div>
       <div class="quarto-title-meta-heading">Modified</div>
       <div class="quarto-title-meta-contents">
-        <p class="date-modified">2025-08-25</p>
+        <p class="date-modified">2025-11-14</p>
       </div>
     </div>
       
@@ -457,9 +456,16 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#columnar-storageの特徴" id="toc-columnar-storageの特徴" class="nav-link active" data-scroll-target="#columnar-storageの特徴">Columnar Storageの特徴</a></li>
-  <li><a href="#columnar-storageとlimit句" id="toc-columnar-storageとlimit句" class="nav-link" data-scroll-target="#columnar-storageとlimit句">Columnar storageと<code>LIMIT</code>句</a></li>
-  <li><a href="#rerferences" id="toc-rerferences" class="nav-link" data-scroll-target="#rerferences">Rerferences</a></li>
+  <li><a href="#watch-コマンド" id="toc-watch-コマンド" class="nav-link active" data-scroll-target="#watch-コマンド"><code>watch</code> コマンド</a>
+  <ul class="collapse">
+  <li><a href="#コマンドパート動作の仕組み" id="toc-コマンドパート動作の仕組み" class="nav-link" data-scroll-target="#コマンドパート動作の仕組み">コマンドパート動作の仕組み</a></li>
+  </ul></li>
+  <li><a href="#watchコマンド実践" id="toc-watchコマンド実践" class="nav-link" data-scroll-target="#watchコマンド実践">watchコマンド実践</a>
+  <ul class="collapse">
+  <li><a href="#case-1-gpuリソースを監視する" id="toc-case-1-gpuリソースを監視する" class="nav-link" data-scroll-target="#case-1-gpuリソースを監視する">Case 1: GPUリソースを監視する</a></li>
+  <li><a href="#case-2-メモリリソースを監視する" id="toc-case-2-メモリリソースを監視する" class="nav-link" data-scroll-target="#case-2-メモリリソースを監視する">Case 2: メモリリソースを監視する</a></li>
+  <li><a href="#case-3-dockerの起動状態を確認する" id="toc-case-3-dockerの起動状態を確認する" class="nav-link" data-scroll-target="#case-3-dockerの起動状態を確認する">Case 3: Dockerの起動状態を確認する</a></li>
+  </ul></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
     </div>
@@ -471,132 +477,227 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 
 
 
-<section id="columnar-storageの特徴" class="level2">
-<h2 class="anchored" data-anchor-id="columnar-storageの特徴">Columnar Storageの特徴</h2>
+<section id="watch-コマンド" class="level2">
+<h2 class="anchored" data-anchor-id="watch-コマンド"><code>watch</code> コマンド</h2>
 <div id="def-" class="custom_problem blog-custom-border theorem definition">
-<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title">Columnar Storage</span></p>
+<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title">watch コマンド</span></p>
 <ul>
-<li>1つのレコードをcolumn valuesグループ毎に分割し，それぞれを異なるストレージ領域に格納する技術</li>
-<li>従来のデータベースは通常，レコード全体を1つのストレージ領域に格納する</li>
-<li>ファイルフォーマットまで着目すると，column-based formatの例としてParquetがある</li>
+<li><p><code>watch</code> は，指定したコマンドを 一定間隔で繰り返し実行し，結果をフルスクリーンで表示する Linux コマンド</p></li>
+<li><p>実行中は <code>Ctrl + C</code> で終了できます</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">watch</span> <span class="pp">[</span><span class="ss">オプション</span><span class="pp">]</span> コマンド</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
 </ul>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="./columnar-storage.png" class="img-fluid figure-img"></p>
-<figcaption>Columnar storage image</figcaption>
-</figure>
 </div>
+<p>用途として，</p>
+<ul>
+<li>ファイルやプロセスの状態を監視</li>
+<li>GPU 使用率やメモリ使用量などの変化を追跡</li>
+<li>ディレクトリ内の変化を監視</li>
+</ul>
+<p>をTerminal上でリアルタイムで確認することが出来ます．</p>
+<p><span class="mini-section">Options</span></p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 22%">
+<col style="width: 24%">
+<col style="width: 53%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>短いオプション</th>
+<th>長いオプション</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>-t</code></td>
+<td><code>--no-title</code></td>
+<td>ヘッダ（実行間隔・コマンド名・開始時刻）を非表示</td>
+</tr>
+<tr class="even">
+<td><code>-e</code></td>
+<td><code>--errexit</code></td>
+<td>実行したコマンドがエラー（0以外）で終了したら watch も終了</td>
+</tr>
+<tr class="odd">
+<td><code>-b</code></td>
+<td><code>--beep</code></td>
+<td>エラー時にビープ音を鳴らす</td>
+</tr>
+<tr class="even">
+<td><code>-d</code></td>
+<td><code>--differences</code></td>
+<td>直前の結果と比較し，変化した箇所をハイライト</td>
+</tr>
+<tr class="odd">
+<td><code>-d=permanent</code></td>
+<td></td>
+<td>初回実行から変化した箇所をハイライト表示</td>
+</tr>
+<tr class="even">
+<td><code>-c</code></td>
+<td><code>--color</code></td>
+<td>ANSI カラー指定を有効にする</td>
+</tr>
+<tr class="odd">
+<td><code>-g</code></td>
+<td><code>--chgexit</code></td>
+<td>実行結果が変化したら watch を終了</td>
+</tr>
+<tr class="even">
+<td><code>-n 秒数</code></td>
+<td><code>--interval 秒数</code></td>
+<td>実行間隔（秒）を指定，最小 0.1 秒</td>
+</tr>
+<tr class="odd">
+<td><code>-p</code></td>
+<td><code>--precise</code></td>
+<td>実行タイミングをより厳密に制御</td>
+</tr>
+<tr class="even">
+<td><code>-x</code></td>
+<td><code>--exec</code></td>
+<td>コマンドを <code>exec</code> で実行（<code>sh -c</code> ではない）</td>
+</tr>
+</tbody>
+</table>
 </div>
-<p><span class="mini-section">Columnar Storageの特徴</span></p>
-<div class="callout callout-style-default callout-note no-icon callout-titled">
+<section id="コマンドパート動作の仕組み" class="level3">
+<h3 class="anchored" data-anchor-id="コマンドパート動作の仕組み">コマンドパート動作の仕組み</h3>
+<div class="callout callout-style-default callout-note callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
-<i class="callout-icon no-icon"></i>
+<i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>1: 通信量の最小化
+Note
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<ul>
-<li>クエリ実行時に，必要な列の値だけがスキャンされ，転送される</li>
-<li><code>SELECT title FROM foo</code>は，<code>title</code> 列の値だけにアクセスする</li>
-<li><code>SELECT * FROM foo</code> だと結局ずべてのストーレージ領域に対してアクセスしてしまい，columnar-storageのメリットが活かせなくなる</li>
-</ul>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 22%">
+<col style="width: 45%">
+<col style="width: 31%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>コマンド</th>
+<th>シェルによる展開のタイミング</th>
+<th>表示される PID</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>watch echo $$</code></td>
+<td>入力した瞬間に展開される</td>
+<td>常に「現在のシェルの PID」 → 変化しない</td>
+</tr>
+<tr class="even">
+<td><code>watch echo '$$'</code></td>
+<td>展開されずに watch に渡る → watch 内の sh が展開</td>
+<td>毎回「新しい sh の PID」 → 変化する</td>
+</tr>
+</tbody>
+</table>
 </div>
 </div>
-<div class="callout callout-style-default callout-note no-icon callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon no-icon"></i>
 </div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>2: 高い圧縮率
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>従来のrow-based storageはおおよそ 1:3 の圧縮に対して，Column storageは 1:10 の圧縮率を達成できるとされる(see <a href="http://cs-www.cs.yale.edu/homes/dna/talks/Column_Store_Tutorial_VLDB09.pdf">here</a>)</li>
-<li>Columnには似通った値が並ぶため傾向があるため（特に列のcardinalityが低い場合），row-based storageよりも高い圧縮率を得やすい</li>
-</ul>
-</div>
-</div>
-<div class="callout callout-style-default callout-important no-icon callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon no-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Important</span>3: 更新処理の非効率性
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>既存レコードの更新に弱く，1つのレコードを更新する場合でも列ごとに分割して保存されているため，複数のストレージ領域へアクセスする必要がある</li>
-<li>row-based storageだとrowが１つのストレージ領域へ保存されるので，更新時のアクセスは１つのストレージ領域で済む</li>
-</ul>
-</div>
-</div>
+<p><code>watch</code> で実行されるコマンドは，そのまま実行されるのではな<span class="regmonkey-bold">sh -c &lt;コマンド文字列&gt;として新しいシェルに渡されてから実行</span>されています．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sh</span> <span class="at">-c</span> <span class="st">"&lt;command&gt;"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>このため，指定したコマンドの引数の中で環境変数やシェル変数を参照したいなど，引用符を使いたい場合は，適宜引用符を補う必要があります．</p>
 <div id="exm-" class="custom_problem theorem example">
-<p><span class="theorem-title"><strong>Example 1</strong></span> <span class="def-title">columnar storage vs row-based storage</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="dt">SNO  PRICE CITY    SNAME</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="dt">---  ------ ----    -----</span></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="dt">S1       20 London  Smith</span></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="dt">S2       10 Paris   Jones</span></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="dt">S3       30 Paris   Blake</span></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="dt">S4       20 London  Clark</span></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="dt">S5       30 Athens  Adams</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>というような <code>FOO</code> テーブルを考えます．シンプルなColumnar storageの場合，以下のように<code>;</code>で区切られたグループ毎にストーレージ領域に保存します</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="dt">S1S2S3S4S5;2010302030;LondonParisParisLondonAthens;SmithJonesBlakeClarkAdams </span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>一方，row-based storageの場合</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="dt">S120LondonSmith;S210ParisJones;S330ParisBlake;S420LondonClark;S530AthensAdams</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>それぞれのstorageパターンに対して</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode sql code-with-copy"><code class="sourceCode sql"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> CITY, <span class="fu">SUM</span>(PRICE) </span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> FOO </span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="kw">GROUP</span> <span class="kw">BY</span> CITY;</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>というクエリを実行すると</p>
-<ul>
-<li>Row-based storage: 全列(=不要列（SNO, SNAME）もI/O)を毎回読み込んでから，PRICE と CITY を抽出して集計</li>
-<li>Columnar storage: 必要な列だけ読み込む．集計系クエリで圧倒的に速い</li>
-</ul>
-</div>
-<hr>
-<div id="exm-" class="custom_problem theorem example">
-<p><span class="theorem-title"><strong>Example 2</strong></span> <span class="def-title">row-based storageの方が効率が良い場合</span></p>
-<p>次のようなSELECT文ではrow-based storageの方が効率的な可能性があります</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode sql code-with-copy"><code class="sourceCode sql"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="op">*</span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> SomeTable</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span> col_1 <span class="op">=</span> <span class="st">'A'</span>;</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p><code>col_a = 'A'</code> の条件によってレコード数を大きく絞り込めたとしても，columnar storageの場合は結局 <code>SELECT *</code> によってすべての列にアクセスする必要があります． <code>col_1</code> がインデックスを持つ場合だと，インデックス探索で <code>col_1 = 'A'</code> の行位置を即座に特定してから必要なストーレージ領域のみ読み込めば良いので，効率的なスキャンが期待できます．</p>
+<p><span class="theorem-title"><strong>Example 1 (<code>watch echo $$</code>の場合)</strong></span> <br></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">watch</span> echo <span class="va">$$</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>とすると，シェルが先に <code>$$</code> を展開 してしまいます．つまり，実行時のシェルのPIDが1000なら</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">watch</span> echo 1000</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>と解釈され実行されます．毎回新しいシェルで展開されることを実現したいならば</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">wtach</span> echo <span class="st">'$$'</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>とすると</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sh</span> <span class="at">-c</span> <span class="st">"echo </span><span class="va">$$</span><span class="st">"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>と解釈され，sh が <code>$$</code> を展開し，実行時の sh の PID が表示されます．</p>
 </div>
 <hr>
 </section>
-<section id="columnar-storageとlimit句" class="level2">
-<h2 class="anchored" data-anchor-id="columnar-storageとlimit句">Columnar storageと<code>LIMIT</code>句</h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode sql code-with-copy"><code class="sourceCode sql"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> <span class="kw">table</span> <span class="kw">LIMIT</span> <span class="dv">10</span>;</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>と実行するとColumnar storage型のBigQueryでもPostgreSQLでも，返す行は最大 10 行と結果の行数を制限するという意味では同じです． ただし，クエリ実行計画まで着目するとその挙動に差異があります．</p>
-<p><span class="mini-section">BigQueryの場合</span></p>
+</section>
+<section id="watchコマンド実践" class="level2">
+<h2 class="anchored" data-anchor-id="watchコマンド実践">watchコマンド実践</h2>
+<section id="case-1-gpuリソースを監視する" class="level3">
+<h3 class="anchored" data-anchor-id="case-1-gpuリソースを監視する">Case 1: GPUリソースを監視する</h3>
+<p><span class="mini-section">Requirements</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> gpustat <span class="at">--version</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="ex">gpustat</span> 1.1.1</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> byobu <span class="at">--version</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="ex">byobu</span> version 6.11</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="ex">tmux</span> 3.4</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><span class="mini-section">コマンド</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ex">watch</span> <span class="at">-n</span> 1 nvidia-smi</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <ul>
-<li><code>LIMIT</code>はクエリで返す行数を制限する句</li>
-<li><code>LIMIT</code>は「処理するデータ量」を制限するものではなく，最終的に返す行数を制御するだけ</li>
-<li>そのため，<code>SELECT *</code> に <code>LIMIT</code> を付けても，テーブル全体が読み取られるため課金対象の量を減らすことはできない</li>
-<li>結果件数だけ制御するだけで，処理量や課金は減らない</li>
+<li>毎秒（1秒間隔）で <code>nvidia-smi</code> を再実行し，GPUの状態を表示するコマンド</li>
 </ul>
-<p><span class="mini-section">PostgreSQLの場合</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ex">watch</span> <span class="at">-n</span> 1 gpustat <span class="at">--color</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <ul>
-<li>Postgresは，row-basedデータベースで基本的に必要な行だけ返す</li>
-<li><code>LIMIT</code>を付けると，クエリプランナーは「どのくらい行を読むか」を考慮するため，実際の処理コストは下がることが多い</li>
-<li>結果件数だけでなく，実行計画にも効いて実際の処理量削減につながる余地がある</li>
+<li>毎秒（1秒間隔）で <code>gpustat</code> を再実行し，GPUの状態をカラー表示で更新するコマンド</li>
+<li><code>nvidia-smi</code>と比べ表示がコンパクト</li>
+</ul>
+<p><span class="mini-section">Tips</span></p>
+<ul>
+<li><code>Byobu</code>を用いている場合は <code>Shift</code> + <code>F2</code> で上下にwindowをsplitして，<code>Alt</code> + <code>Shift</code> + <code>↑</code>/<code>↓</code> で表示を領域をコンパクトにできる</li>
+<li><code>Gnome Terminator</code> の場合は <code>Ctrl</code> + <code>Shift</code> + <code>O</code> で上下split，その後 <code>Ctrl</code> + <code>Shift</code> + <code>↑</code>/<code>↓</code> で表示を領域をresize</li>
 </ul>
 </section>
-<section id="rerferences" class="level2">
-<h2 class="anchored" data-anchor-id="rerferences">Rerferences</h2>
+<section id="case-2-メモリリソースを監視する" class="level3">
+<h3 class="anchored" data-anchor-id="case-2-メモリリソースを監視する">Case 2: メモリリソースを監視する</h3>
+<div class="reveal_vspace" style="--vspace-height: 0.5em;"></div>
+<p><span class="mini-section">コマンド</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="ex">watch</span> <span class="at">-n</span> 1 free <span class="at">-h</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <ul>
-<li><a href="http://cs-www.cs.yale.edu/homes/dna/talks/Column_Store_Tutorial_VLDB09.pdf">Column-Oriented Database Systems, Stavros Harizopoulos, Daniel Abadi, Peter Boncz, VLDB 2009 Tutorial</a></li>
-<li><a href="https://cloud.google.com/bigquery/docs/best-practices-performance-compute?hl=ja">BigQuery &gt; Documentation &gt; クエリ計算を最適化する</a></li>
+<li>毎秒（1秒間隔）で <code>free -h</code> を再実行し，メモリとSwapの使用状況を表示するコマンド</li>
+<li>available 列を見ることで，アプリが実際に使えるメモリ量を把握できる</li>
+</ul>
+</section>
+<section id="case-3-dockerの起動状態を確認する" class="level3">
+<h3 class="anchored" data-anchor-id="case-3-dockerの起動状態を確認する">Case 3: Dockerの起動状態を確認する</h3>
+<div class="reveal_vspace" style="--vspace-height: 0.5em;"></div>
+<p><span class="mini-section">コマンド</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="ex">watch</span> <span class="at">-n</span> 30 <span class="at">-t</span> <span class="st">"docker ps"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>オプション/コマンド</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>watch</code></td>
+<td>コマンドを定期実行</td>
+</tr>
+<tr class="even">
+<td><code>-n 30</code></td>
+<td>30秒ごとに実行</td>
+</tr>
+<tr class="odd">
+<td><code>-t</code></td>
+<td>ヘッダーを非表示</td>
+</tr>
+<tr class="even">
+<td><code>docker ps</code></td>
+<td>現在動作中の Docker コンテナを一覧表示</td>
+</tr>
+</tbody>
+</table>
+</div>
+<ul>
+<li>引用符 <code>"</code> はなくても僕の環境では動作しますが，常に安全に動かすには引用符で囲む方が安全とのことです．</li>
 </ul>
 
 
+</section>
 </section>
 
 </main> <!-- /main -->
