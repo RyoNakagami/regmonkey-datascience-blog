@@ -1,0 +1,235 @@
+---
+title: "watchコマンドを用いてGPUリソースを確認する"
+author: "Ryo Nakagami"
+date: "2025-11-14"
+date-modified: "2025-11-14"
+categories: [Linux, 監視]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## `watch` コマンド
+
+::: {#def- .custom_problem .blog-custom-border}
+[watch コマンド]{.def-title}
+
+- `watch` は，指定したコマンドを 一定間隔で繰り返し実行し，結果をフルスクリーンで表示する Linux コマンド
+- 実行中は `Ctrl + C` で終了できます
+
+  ```bash
+  watch [オプション] コマンド
+  ```
+
+:::
+
+
+用途として，
+
+- ファイルやプロセスの状態を監視
+- GPU 使用率やメモリ使用量などの変化を追跡
+- ディレクトリ内の変化を監視
+
+をTerminal上でリアルタイムで確認することが出来ます．
+
+[Options]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| 短いオプション        | 長いオプション         | 説明                                |
+| -------------- | --------------- | --------------------------------- |
+| `-t`           | `--no-title`    | ヘッダ（実行間隔・コマンド名・開始時刻）を非表示          |
+| `-e`           | `--errexit`     | 実行したコマンドがエラー（0以外）で終了したら watch も終了 |
+| `-b`           | `--beep`        | エラー時にビープ音を鳴らす                     |
+| `-d`           | `--differences` | 直前の結果と比較し，変化した箇所をハイライト            |
+| `-d=permanent` |                 | 初回実行から変化した箇所をハイライト表示              |
+| `-c`           | `--color`       | ANSI カラー指定を有効にする                  |
+| `-g`           | `--chgexit`     | 実行結果が変化したら watch を終了              |
+| `-n 秒数`        | `--interval 秒数` | 実行間隔（秒）を指定，最小 0.1 秒               |
+| `-p`           | `--precise`     | 実行タイミングをより厳密に制御                   |
+| `-x`           | `--exec`        | コマンドを `exec` で実行（`sh -c` ではない）    |
+
+::::
+
+### コマンドパート動作の仕組み
+
+::: {.callout-note}
+
+:::: {.no-border-top-table}
+
+| コマンド              | シェルによる展開のタイミング                     | 表示される PID               |
+| ----------------- | ---------------------------------- | ----------------------- |
+| `watch echo $$`   | 入力した瞬間に展開される                       | 常に「現在のシェルの PID」 → 変化しない |
+| `watch echo '$$'` | 展開されずに watch に渡る → watch 内の sh が展開 | 毎回「新しい sh の PID」 → 変化する |
+
+::::
+
+:::
+
+
+`watch` で実行されるコマンドは，そのまま実行されるのではな[sh -c <コマンド文字列>として新しいシェルに渡されてから実行]{.regmonkey-bold}されています．
+
+```bash
+sh -c "<command>"
+```
+
+このため，指定したコマンドの引数の中で環境変数やシェル変数を参照したいなど，引用符を使いたい場合は，適宜引用符を補う必要があります．
+
+::: {#exm- .custom_problem }
+### `watch echo $$`の場合
+<br>
+
+```bash
+watch echo $$
+```
+
+とすると，シェルが先に `$$` を展開 してしまいます．つまり，実行時のシェルのPIDが1000なら
+
+```bash
+watch echo 1000
+```
+
+と解釈され実行されます．毎回新しいシェルで展開されることを実現したいならば
+
+```bash
+wtach echo '$$'
+```
+
+とすると
+
+```bash
+sh -c "echo $$"
+```
+
+と解釈され，sh が `$$` を展開し，実行時の sh の PID が表示されます．
+
+
+:::
+---
+
+
+## watchコマンド実践
+
+### Case 1: GPUリソースを監視する
+
+[Requirements]{.mini-section}
+
+```zsh
+% gpustat --version
+gpustat 1.1.1
+
+% byobu --version
+byobu version 6.11
+tmux 3.4
+```
+
+[コマンド]{.mini-section}
+
+```bash
+watch -n 1 nvidia-smi
+```
+
+- 毎秒（1秒間隔）で `nvidia-smi` を再実行し，GPUの状態を表示するコマンド
+
+
+```bash
+watch -n 1 gpustat --color
+```
+
+- 毎秒（1秒間隔）で `gpustat` を再実行し，GPUの状態をカラー表示で更新するコマンド
+- `nvidia-smi`と比べ表示がコンパクト
+
+
+[Tips]{.mini-section}
+
+- `Byobu`を用いている場合は `Shift` + `F2` で上下にwindowをsplitして，`Alt` + `Shift` + `↑`/`↓` で表示を領域をコンパクトにできる
+- `Gnome Terminator` の場合は `Ctrl` + `Shift` + `O` で上下split，その後 `Ctrl` + `Shift` + `↑`/`↓` で表示を領域をresize
+
+### Case 2: メモリリソースを監視する
+
+{{< reveal_vspace 0.5em >}}
+
+[コマンド]{.mini-section}
+
+```bash
+watch -n 1 free -h
+```
+
+- 毎秒（1秒間隔）で `free -h` を再実行し，メモリとSwapの使用状況を表示するコマンド
+- available 列を見ることで，アプリが実際に使えるメモリ量を把握できる
+
+### Case 3: Dockerの起動状態を確認する
+
+{{< reveal_vspace 0.5em >}}
+
+[コマンド]{.mini-section}
+
+```bash
+watch -n 30 -t "docker ps"
+```
+
+:::: {.no-border-top-table}
+
+| オプション/コマンド  | 説明                      |
+| ----------- | ----------------------- |
+| `watch`     | コマンドを定期実行               |
+| `-n 30`     | 30秒ごとに実行                |
+| `-t`        | ヘッダーを非表示                |
+| `docker ps` | 現在動作中の Docker コンテナを一覧表示 |
+
+::::
+
+- 引用符 `"` はなくても僕の環境では動作しますが，常に安全に動かすには引用符で囲む方が安全とのことです．
+
+### Case 4: Memory Usageの確認
+
+{{< reveal_vspace 0.5em >}}
+
+[コマンド]{.mini-section}
+
+```bash
+watch -n 1 free -m
+```
+
+表示結果例は以下
+
+```ini
+               total        used        free      shared  buff/cache   available
+Mem:           63439        7314       46771         216        9898       56124
+Swap:           8191           0        8191
+```
+
+:::: {.no-border-top-table}
+
+| 項目         | サイズ (MB) | 説明                                   |
+| ---------- | -------- | ------------------------------------ |
+| total      | 63439    | システム全体の物理メモリ量（約63GB）                 |
+| used       | 7314     | OSやプロセスによって現在使用中のメモリ量（キャッシュ・バッファ含む）  |
+| free       | 46771    | 現在まったく使用されていない空きメモリ                  |
+| shared     | 216      | プロセス間で共有されているメモリ（最近の Linux では重要度低め）  |
+| buff/cache | 9898     | ファイルキャッシュやバッファとして使われているメモリ（必要なら解放可能） |
+| available  | 56124    | 実際に新しいアプリが使えるメモリ（キャッシュ分も含めて計算済み）     |
+
+::::
+
+メモリの逼迫度や空き容量は基本的には `available` フィールドの値を見て判断します．
+
+::: {.callout-note}
+### Cache領域
+
+- ディスクキャッシュは，最近アクセスしたファイルを RAM に保持する仕組み
+- Linuxは未使用のメモリをディスクキャッシュ用に利用する
+- キャッシュはアプリからメモリを奪うことはなく，性能向上にだけ使われる
+- `used` にはキャッシュも含まれるので，見た目だけでは「メモリ不足」に見えることがあることに注意
+
+:::
+
+
+
+
+References
+----------
+- [How do I clean or disable the memory cache?](https://askubuntu.com/questions/155768/how-do-i-clean-or-disable-the-memory-cache/155771#155771)
