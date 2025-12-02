@@ -1,0 +1,320 @@
+---
+title: "乱数生成シェルスクリプト"
+author: "Ryo Nakagami"
+date: "2025-11-28"
+date-modified: "2025-12-01"
+categories: [shell]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## シェルスクリプト概要
+
+::: {.callout-note}
+### DOCSTRINGS
+
+{{< reveal_vspace 1em >}}
+
+- `/dev/urandom`を活用して任意の長さの疑似ランダム文字列を生成
+- デフォルトは Base64 形式
+- `-n` オプションを利用するとInteger型で疑似ランダム列を生成
+- 出現文字列の一様性を保証するものではないので，あくまでsandbox環境での簡易的なpasswordの生成などに用途を限定
+
+:::
+
+[シェルスクリプト全体]{.mini-section}
+
+```bash
+#!/bin/bash
+# -----------------------------------------------------------------------------
+# Author: Ryo Nakagami
+# Revised: 2025-11-28
+# Script: generate-random-passwd
+# Description:
+#   Generates a random string of specified length in either base64 or
+#   numeric-only format. Useful for passwords, tokens, or test data.
+#
+#   Steps:
+#     1. Parse command-line options (-n for numeric, -h for help).
+#     2. Validate input length (must be integer, less than 77).
+#     3. Generate random string using /dev/urandom:
+#        - base64 output by default
+#        - numeric-only if -n is specified
+#
+# Options:
+#    -n    Generate numeric-only random string
+#    -h    Show this help message
+#
+# Usage:
+#   ./generate-random-passwd <length>      # Generates base64 string
+#   ./generate-random-passwd -n <length>   # Generates numeric string
+#   ./generate-random-passwd <length> -n   # Generates numeric string
+#
+# Notes:
+#   - Requires /dev/urandom device.
+#   - Requires base64 and tr utilities.
+#   - Sources lib/docstring.sh for usage_helper.
+# -----------------------------------------------------------------------------
+
+# ---- Load library functions ----
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/docstring.sh"
+
+# ---- Default values ----
+PATTERN="BASE64"
+
+if [ -z "$1" ]; then
+    # call library function usage_helper
+    usage_helper
+    exit 1
+fi
+
+
+# ---- Parse command-line options ----
+parse_opts() {
+    while getopts "hn" opt; do
+        case "$opt" in
+            h) usage_helper; exit 0 ;;
+            n) PATTERN="NUMERIC" ;;
+            *) usage_helper; exit 1 ;;
+        esac
+    done
+}
+
+# ---- 1st pass: parse leading options ----
+parse_opts "$@"
+shift $((OPTIND - 1))
+
+# ---- NUMBER_INPUT might be here ----
+if [[ "$1" =~ ^[0-9]+$ ]]; then
+    NUMBER_INPUT="$1"
+    shift 1
+fi
+
+# ---- Reset OPTIND and parse remaining options (after NUMBER_INPUT) ----
+OPTIND=1
+parse_opts "$@"
+shift $((OPTIND - 1))
+
+# ---- Validate input ----
+# Check if NUMBER_INPUT is a positive integer
+if ! [[ "$NUMBER_INPUT" =~ ^[1-9][0-9]*$ ]]; then
+    echo "Error: Input must be a positive integer greater than 0."
+    usage_helper
+    exit 1
+fi
+
+if (( NUMBER_INPUT >= 77 )); then
+    echo "Error: Input must be less than 77."
+    usage_helper
+    exit 1
+fi
+
+if [ "$PATTERN" != "BASE64" ] && [ "$PATTERN" != "NUMERIC" ]; then
+    echo "Error: Invalid pattern specified."
+    usage_helper
+    exit 1
+fi
+
+
+# ---- Generate random string based on pattern ----
+if [ "$PATTERN" = "BASE64" ]; then
+    # ---- Generate random string ----
+    base64 /dev/urandom | head -c "$NUMBER_INPUT"
+    echo
+    exit 0
+elif [ "$PATTERN" = "NUMERIC" ]; then
+    # ---- Generate numeric-only random string ----
+    tr -dc '0-9' < /dev/urandom | head -c "$NUMBER_INPUT"
+    echo
+    exit 0
+fi
+```
+
+::: {#exm- .custom_problem }
+### 実行例
+
+```bash
+% generate-random-passwd 10
+zCJPhQxfr6
+
+% generate-random-passwd 10 -n
+5711270805
+
+% generate-random-passwd -n 10
+9843753838
+```
+:::
+---
+
+## `/dev/urandom` 仮想デバイス
+
+::: {#def- .custom_problem .blog-custom-border}
+[`/dev/urandom`]{.def-title}
+
+- `/dev/urandom`はハードウェア（キーボード・マウス・CPUなどの）動作から得られる環境ノイズを蓄積したデータ領域のこと（＝エントロピープール）
+- 蓄積されたデータはバイナリーデータであるが，`base64` を利用することで乱数ジェネレーターとして利用できる
+- 出力プールの最大周期(period)は $2^{26\times 32} - 1$
+- エントロピープールを再利用する仕組みを持つため，[エントロピー枯渇（entropy pool depletion）を心配する必要はない]{.regmonkey-bold}（＝いつでも利用できる）
+- 疑似乱数の再現性(reproducible seeding)はない
+
+:::
+
+エントロピープールを活用した疑似乱数ジェネレーターは `/dev/urandom` 以外に `dev/random` がありますが，動作の違いがあります．
+`dev/random` は乱数生成に使ったエントロピープール（= 内部状態）をそのまま再利用しないようにロックをかけるという設計になっています．
+
+- 乱数を出力 → プールが「公開された」とみなす
+- 安全のためそのプールはすぐ使わない
+- 新しい環境ノイズ（エントロピー）が十分に貯まるまで待つ
+
+そのため，連続した乱数生成を実施できない場合があります．
+
+- 連続した大量生成
+- 実行環境が低エントロピー環境（仮想マシンなどのノイズが少ない環境）
+
+では，ロックがかかりやすいので `/dev/urandom` ベースの乱数ジェネレーターのほうが一般用途では良いとされます．
+
+### Base64 エンコード
+
+::: {#def- .custom_problem .blog-custom-border}
+[`base64`]{.def-title}
+
+- バイナリーデータをテキストに変換するための[エンコード方式]{.regmonkey-bold}
+- データを64種類の印字可能な英数字(`[A-Za-z0-9+/]`)に変換
+- MIMEの基準では76文字ごとに改行コードが入る
+
+:::
+
+`base64 /dev/urandom` を実行シたときの流れは
+
+1. `/dev/urandom`  (バイナリ)
+2. `base64` でエンコード
+3. ランダムな Base64 文字列が出力される
+
+になります．
+
+## `head` コマンド
+
+::: {#def- .custom_problem .blog-custom-border}
+[`head` コマンド]{.def-title}
+
+- headはテキストファイルの最初の10行を表示するコマンド
+
+:::
+
+[オプション]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| 短いオプション | 長いオプション            | 意味 |
+|--------------|---------------------------|------|
+| `-c 数字`        | `--bytes 数字`              | 先頭から指定したバイト数のみ表示する．「`-c 5 b`」のように単位を付加することも可能（b=512, KB=1000, K=1024, MB=1000×1000, M=1024×1024…） |
+| `-n 数字`        | `--lines 数字`              | 先頭から指定した行数のみ表示する |
+| `-q`            | `--quiet`, `--silent`         | ファイルごとのヘッダ表示を行わない（複数ファイル指定時に使う） |
+| `-v`            | `--verbose`                 | 常にファイルごとのヘッダ出力を行う |
+: {tbl-colwidths="[20,20,60]"}
+
+::::
+
+## `tr` コマンド
+
+::: {#def- .custom_problem .blog-custom-border}
+[`tr` コマンド]{.def-title}
+
+- 標準入力の文字を別の文字に置換したり，削除したりするコマンド
+
+:::
+
+[オプション]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| 短いオプション | 長いオプション | 意味                   |
+| ------- | ------- | -------------------- |
+| `-d`    | `--delete`      | 指定した文字を削除する          |
+| `-c`    | `--complement`      | 指定した文字セットの補集合を扱う（反転） |
+| `-s`    | `--squeeze-repeats`      | 連続する同一文字を1つに圧縮する     |
+: {tbl-colwidths="[20,20,60]"}
+
+::::
+
+::: {#exm- .custom_problem }
+### 文字の置換
+
+`tr 012 abc` を実行すると，
+
+- 「`0`」を「`a`」
+- 「`1`」を「`b`」
+- 「`2`」を「`c`」
+
+に置き換えます．「`012`」という連続した文字列を「`abc`」に置き換えるのではなく，常に1文字対1文字での置き換えとなるので，両者の長さはそろえる必要があります
+
+```bash
+$ echo '012345' | tr 012 abc
+abc345
+
+$ echo '0142345' | tr 012 abc
+ab4c345
+```
+
+:::
+---
+
+::: {#exm- .custom_problem }
+### `/dev/urandom` から数値のみを抽出
+<br>
+
+数値のみのパスワードやトークン生成する場合は，`-d '0-9'` の補集合を取れば良いので
+
+```bash
+tr -dc '0-9' < /dev/urandom | head -c 16
+```
+:::
+---
+
+::: {#exm- .custom_problem }
+### 連続した改行を1つにする
+<br>
+
+`tr -s` は繰り返し文字の圧縮に使えるので
+
+```bash
+$ echo 'A\n\n\nA' 
+A
+
+
+A
+
+$ echo 'A\n\n\nA' | tr -s '\n'
+A
+A
+```
+
+`tr -s '\n'` は不要改行を削除するときに使いますが，同様に `tr -s '[:space:]` を用いて不要スペースをまとめたりします
+
+```bash
+% echo "a   b   c" | tr -s '[:space:]'
+a b c
+```
+:::
+---
+
+
+
+
+
+
+
+
+
+
+
+
+References
+----------
+
+- [うたカモ技術ブログ > Linux 乱数ジェネレーター（/dev/random、/dev/urandom、getrandom）](https://utakamo.com/article/linux/architecture/directory/dev/random-urandom.html)
+- [Is `/dev/urandom` suitable for simulation purpose?](https://stackoverflow.com/questions/32139660/is-dev-urandom-suitable-for-simulation-purpose)

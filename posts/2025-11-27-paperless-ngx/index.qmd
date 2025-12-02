@@ -1,0 +1,489 @@
+---
+title: "paperless-ngxによるセルフホスティングドキュメント管理システム"
+author: "Ryo Nakagami"
+date: "2025-11-27"
+date-modified: "2025-11-28"
+categories: [環境構築, paperless-ngx]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+::: {.callout-caution}
+## 想定環境
+
+- 実行環境は基本的に Ubuntu 24.04 LTSを想定
+- Docker engineは利用可能
+- port 8888 でホスト
+- Tailscaleは導入済み
+- tailnet serveはhttpsを用いてserve
+
+:::
+
+## Paperless-ngxとは？
+
+::: {.callout-note}
+### TL;DRs
+
+- Paperless-ngxは，PDF 論文やレポートを自前サーバで全文検索付きライブラリ化するためのツール
+- 「引用管理」「文献リスト生成」などの機能も欲しいなら，文献管理専用ソフトを使うのが無難
+
+:::
+
+::: {#def- .custom_problem .blog-custom-border}
+[Paperless-ngx]{.def-title}
+
+- pdf, txtなどのドキュメントを検索可能なオンラインアーカイブとして管理できるオープンソースのセルフホスティング文書管理システム
+- サーバーサイドでPaperless-ngxを構築し，クライアント端末からアクセスしたり，コンテンツをダウンロードすることが可能
+- バックエンドはDjango
+
+:::
+
+[Features]{.mini-section}
+
+- タグ・差出人(Correspondence)・文書タイプ・カスタムフィールドでドキュメントを整理可能
+- アップロードしたドキュメントに対してOCRを用いた全文検索が可能
+- 機械学習でタグ・差出人・文書タイプを 自動分類
+- PDF，画像，テキスト，Word/Excel/PowerPoint，LibreOffice など多くの形式に対応
+- Web UI を通じて，複数ユーザーでのアクセス管理，共有リンク発行が可能
+- 文書ごとに権限管理設定可能
+- ワークフロー機能による自動処理
+
+::: {.callout-caution}
+### 文書管理システムであって文献管理ソフトではない
+
+- Zoteroと違い学術論文データベースではないです
+- 文献の著者情報，出版年，ジャーナル名，引用数，参照関係，BibTex形式でのメタ情報出力は標準では備わっていない
+- Paperless-ngxはファイルを独自フォルダ構成で管理するため，「元のファイルツリー構造をそのまま索引化だけしたい」という用途には向かない
+
+:::
+
+
+## Paperless-ngxの設定
+
+Paperless-ngxは Dockerベースで構築することが可能です．構築にあたって
+
+1. シェルスクリプトを用いて，対話式でセットアップする
+2. 自分で `docker-compose.yml` を定義し，公式Paperless-ngx Docker imageを運用する
+
+
+### パターン１: シェルスクリプトを用いて，対話式でセットアップする
+
+
+```bash
+bash -c "$(curl --location --silent --show-error https://raw.githubusercontent.com/paperless-ngx/paperless-ngx/main/install-paperless-ngx.sh)"
+```
+
+を実行することで対話式でセットアップできます．また，Paperless-ngxの中で用いるrootアカウントの設定まで行ってくれます．
+
+
+### パターン２：自分で `docker-compose.yml` を定義
+
+作業手順として
+
+1. 利用可能UID, GIDの確認
+2. GIDの作成
+3. UIDの作成
+4. Docker設定用のdirectoryを作成(= volumn, 設定ファイルの管理用ディレクトリ)
+5. `docker-compose.env` の作成
+6. `docker-compose.yml` の作成
+7. コンテナを起動
+
+です．
+
+[Step 1: paperless-ngx用UIDの作成]{.mini-section}
+
+Ubuntuサーバー側でPaperless-ngxをホスティングするので，まずPaperless-ngx用non-humanアカウントを作成します．
+UIDとGIDは同じIDで基本的には作成されますが，連番の関係が崩れると違ったIDが割り当てられてしまう可能性があるので，利用可能なIDを確認します．
+
+:::: {.no-border-top-table}
+
+|コマンド|挙動|
+|------|----|
+|`getent passwd`|UID一覧の確認コマンド|
+|`getent group`|GID一覧の確認コマンド|
+: {tbl-colwidths="[25,75]"}
+
+::::
+
+上記のコマンドを叩いて目星をつけたならば(例として`120`が空いていたとする)
+
+```bash
+getent passwd 120
+getent group 120
+```
+
+両方のコマンドを叩いて何も返ってこないことを確認します．
+
+[Step 2: GIDの作成]{.mini-section}
+
+GIDの作成は `groupadd` コマンドを以下のように用います
+
+```bash
+sudo groupadd --gid 120 paperless-ngx
+```
+
+GID作成後，意図した通りにGIDが作成されているか確認します
+
+```bash
+$ getent group 120
+paperless-ngx:x:120:
+```
+
+もし間違ったGIDで作成してしまった場合は
+
+```bash
+sudo groupdel <group-name>
+```
+
+[Step 3: UIDの作成]{.mini-section}
+
+`paperless-ngx` ユーザーを作成します．
+不特定多数が利用するサーバーでホスティングするので特定のhumanユーザーではなく，
+サービス専用のシステム用アカウント(ログイン不可のユーザー)として運用したいのが理由となります．
+
+ユーザー作成コマンドは以下です
+
+```bash
+sudo useradd \
+  --system \
+  --no-create-home \
+  --uid 120 \
+  --gid 120 \
+  paperless-ngx
+```
+
+:::: {.no-border-top-table}
+
+| オプション              | 意味                                            |
+| ------------------ | --------------------------------------------- |
+| `useradd`          | 新しいユーザーを作成するコマンド                              |
+| `--system`         | システム専用ユーザーとして作成（ログイン不可，通常 UID 100 未満を使う場合もある） |
+| `--no-create-home` | ホームディレクトリを作らない                                |
+| `--uid 120`        | 作成するユーザーの **UID** を 120 に指定                   |
+| `--gid 120`        | 作成するユーザーの **プライマリグループ** を GID 120 に指定         |
+
+::::
+
+上記のコマンド実行後，home directoryを持たない `paperless-ngx` が作成されますが
+
+```bash
+$ getent passwd 120
+paperless-ngx:x:120:120::/home/paperless-ngx:/bin/sh
+```
+
+となってると思います．ログインシェルと存在しないhome directoryが指定されているのは気持ち悪いので
+
+- `/nonexisent` ディレクトリをhome directoryとする
+- `/usr/sbin/nologin` でログイン不可
+
+という設定更新をします．
+
+```bash
+sudo usermod -d /nonexistent paperless-ngx
+sudo usermod -s /usr/sbin/nologin paperless-ngx
+```
+
+上記のコマンド実行後は
+
+```bash
+$ getent passwd 120
+paperless-ngx:x:120:120::/nonexistent:/usr/sbin/nologin
+```
+
+となっているはずです．
+
+[Step 4: Docker設定用のdirectoryを作成]{.mini-section}
+
+paperless-ngxサービス用のディレクトリを `/srv` 以下に以下のように作成します
+
+```bash
+sudo mkdir -p /srv/paperless-ngx
+```
+
+作成後，所有権を以下のように変更しときます
+
+```bash
+sudo chown -R paperless-ngx:paperless-ngx /srv/paperless-ngx
+```
+
+また，サーバーサイドでの設定なのでパーミッションも以下のように変更しときます
+
+```bash
+sudo chmod 770 /srv/paperless-ngx
+```
+
+::: {.callout-note}
+### `/srv/paperless-ngx` に構築する理由
+
+Paperless-ngx が管理するファイル・設定・ボリューム用ディレクトリを一目でわかる場所で管理するのが望ましいですが，どこで管理するのかが問題となります．
+Ubuntuでは用途ごとに次のようなディレクトリが一般的に用いられます：
+
+:::: {.no-border-top-table}
+
+| ディレクトリ     | 用途                 | コメント                      |
+| ---------- | ------------------ | ------------------------- |
+| `/srv`     | サービス専用データ          | 標準的でわかりやすい                |
+| `/opt`     | サードパーティソフトのインストール先 | バイナリやパッケージ向けでデータ管理向きではない  |
+| `/var/lib` | 可変データ（ログ，DB，キャッシュ） | 物理的に動的なデータ向け，サービスデータ全般にも可 |
+
+::::
+
+
+Paperless-ngx のデータをどこに置くかは最終的に任意ですが，サービス専用ユーザーに所有権を割り当てやすく，管理もしやすいという点から，
+`/srv` 配下にディレクトリを作成する方針にしました．
+
+:::
+
+
+その後，Paperless-ngx用のexportとupload用ボリュームとして `export`, `consume` ディレクトリが必要となるのでそれぞれを作成します．
+
+[Step 5: `docker-compose.env` の作成]{.mini-section}
+
+Dockerコンテナ用の環境変数を定義する `docker-compose.env` を `/srv/paperless-ngx` 以下に作成します
+
+```ini
+USERMAP_UID=120
+USERMAP_GID=120
+PAPERLESS_TIME_ZONE=Asia/Tokyo
+PAPERLESS_OCR_LANGUAGE=eng
+PAPERLESS_SECRET_KEY='<適当な文字列>'
+PAPERLESS_OCR_OUTPUT_TYPE=pdf
+```
+
+| 変数名                               | 説明                                                    | 備考（今回の重要ポイントを踏まえた補足）                                                                                                                 |
+| --------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `USERMAP_UID=120`                 | Paperless コンテナ内部で使用するユーザーID（UID）をホスト側 UID に合わせるための設定 | ホスト側のユーザー権限と揃えることで，生成ファイルの所有権が一致し，権限問題が発生しにくくなる                                                                                     |
+| `USERMAP_GID=120`                 | Paperless コンテナ内部で使用するグループID（GID）をホスト側 GID に合わせる設定    | UID と同様，ホスト側のグループ権限と一致させることで，ファイルアクセスの整合性が取れる．                                                                                       |
+| `PAPERLESS_TIME_ZONE=Asia/Tokyo`  | Paperless 内部で使用するタイムゾーンを指定．                           | ログ，OCR のタイムスタンプ，タスクの実行時間管理に使用されるため，日本で利用するなら `Asia/Tokyo` が最適                                                                       |
+| `PAPERLESS_OCR_LANGUAGE=eng`      | OCR に使用する言語を指定する．複数指定も可能（例: `eng+jpn`）．               | 日本語を扱う場合は `jpn` の追加を推奨．英語のみなら `eng` のままでOK．                                                                                          |
+| `PAPERLESS_SECRET_KEY='<適当な文字列>'` | **セッションを保護する秘密鍵（ユーザー認証に不可欠）．ランダムで長い文字列に必ず変更する必要がある．** | Paperless がインターネットに公開される場合，**デフォルトの SECRET_KEY は広く知られているため危険**．キーボードを適当に叩いた文字列でOK．覚える必要はない．長いほど安全．例: `a9$FJ!p92jaf(3)sa0fjasdf02398` |
+| `PAPERLESS_OCR_OUTPUT_TYPE=<type>` | OCR 後に生成する PDF の種類を指定 | - `pdf` : 元の PDF を極力変更せずに OCR を追加<br>- `pdfa` : PDF/A-2b に変換（長期保存向け）<br>- `pdfa-1`, `pdfa-2`, `pdfa-3` : PDF/A のバージョン指定<br>※ 指定しない場合は `pdfa` がデフォルト|
+
+::: {.callout-note}
+### PAPERLESS_OCR_LANGUAGE設定の注意点
+
+Paperless-ngxはOCR機能としてTesseractを利用しますが，デフォルトでインストールされていない言語を指定すると，
+
+```ini
+The selected ocr language jpn is not installed. Paperless cannot OCR your documents without it. Please fix PAPERLESS_OCR_LANGUAGE.
+```
+
+というエラーを吐きます．日本語対応を含めるため `eng+jpn` を設定する場合は `Dockerfile` を設定して
+
+```bash
+RUN apt-get update \
+    && apt-get install -y tesseract-ocr-jpn \
+    && rm -rf /var/lib/apt/lists/*
+```
+
+というラインを加えた上でビルドの必要があります．
+
+:::
+
+[Step 6: `docker-compose.yml` の作成]{.mini-section}
+
+`/srv/paperless-ngx` にて `docker-compose.yml` を以下のように作成します
+
+```yml
+services:
+  broker:
+    image: docker.io/library/redis:8
+    restart: unless-stopped
+    volumes:
+      - paperless-redisdata:/data
+  
+  db:
+    image: docker.io/library/postgres:18
+    restart: unless-stopped
+    volumes:
+      - paperless-pgdata:/var/lib/postgresql
+    environment:
+      POSTGRES_DB: paperless
+      POSTGRES_USER: paperless
+      POSTGRES_PASSWORD: paperless
+  
+  webserver:
+    image: ghcr.io/paperless-ngx/paperless-ngx:latest
+    restart: unless-stopped
+    depends_on:
+      - db
+      - broker
+    ports:
+      - "8888:8000"
+    volumes:
+      - paperless-data:/usr/src/paperless/data
+      - paperless-media:/usr/src/paperless/media
+      - ./export:/usr/src/paperless/export
+      - ./consume:/usr/src/paperless/consume
+    env_file: docker-compose.env
+    environment:
+      PAPERLESS_REDIS: redis://broker:6379
+      PAPERLESS_DBHOST: db
+
+volumes:
+  paperless-data:
+  paperless-media:
+  paperless-pgdata:
+  paperless-redisdata:
+```
+
+[Step 7: コンテナを起動]{.mini-section}
+
+コンテナは以下の手順で起動します
+
+```bash
+sudo docker compose up -d
+sudo docker compose ps
+```
+
+エラーが発生した場合は
+
+```bash
+sudo docker compose logs -f webserver
+```
+
+でログを確認できます．
+
+::: {.callout-note}
+### uploadしたドキュメントのバックアップを取る
+
+Paperless-ngx コンテナ内の `export` ディレクトリにあるドキュメントをバックアップする場合
+
+```bash
+docker exec -it $(docker ps -aqf "name=paperless-ngx-webserver-1") document_exporter ../export
+```
+
+- `../export` はコンテナ内の相対パス
+- ホスト側ボリューム `/srv/paperless-ngx/export` にマウントしていれば，ホスト側からも直接アクセス可能
+
+:::
+
+
+## Tailnet serve設定
+
+設定手順は
+
+1. `docker-compose.env` の設定とコンテナの再起動
+2. tailnet serve設定
+
+となります
+
+[Step 1: `docker-compose.env` の設定]{.mini-section}
+
+Tailscale 経由で Paperless-ngx にアクセスする場合，Djangoにホスト名とプロトコル（HTTPS）を正しく伝えることが重要です．
+設定項目としては
+
+- `PAPERLESS_URL`: Django の CSRF / CORS / ALLOWED_HOSTS を自動設定するための環境変数．末尾スラッシュなし
+
+今回は Port 8888 経由で公開するので
+
+```ini
+PAPERLESS_URL=https://hogehoge.tail8ada9.ts.net:8888
+```
+
+と設定します．`https://hogehoge.tail8ada9.ts.net:8888` はtailscale serve statusで確認できるものにします．
+
+上記を踏まえると以下のような `docker-compose.env` となります
+
+```ini
+USERMAP_UID=120
+USERMAP_GID=120
+PAPERLESS_TIME_ZONE=Asia/Tokyo
+PAPERLESS_OCR_LANGUAGE=eng+jpn
+PAPERLESS_SECRET_KEY='hogehogehgoehgoeghoeh'
+PAPERLESS_URL=https://hogehoge.tail8ada9.ts.net:8888
+```
+
+[Step 2: `tailnet serve設定` の設定]{.mini-section}
+
+Tailscale の HTTP/HTTPS リバースプロキシ機能をつかってローカルサービスをTailnet上で公開します．
+
+サーバー側で以下のコマンドを実行します
+
+```bash
+sudo tailscale serve --bg --https=8888 8888
+```
+
+| コマンド部分            | 説明                                                      | ポイント / 注意点                                                                                 |
+| ----------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `tailscale serve` | ローカルの HTTP/HTTPS サービスを Tailscale ネットワーク上で公開するリバースプロキシ機能 | Tailscale 1.36 以降で利用可能                                                                     |
+| `--bg`            | バックグラウンドで実行                                             | ターミナルを閉じてもプロセスは継続。デーモン的に動作                                                                 |
+| `--https=8888`    | Tailscale 側で HTTPS を提供するポート番号                           | 自動生成証明書で TLS 保護された HTTPS アクセスが可能                                                           |
+| `8888` (最後の引数)    | ローカルサービスのポート番号                                          | ローカルの `localhost:8888` にあるサービスを Tailscale HTTPS ポートに接続                                     |
+
+上記コマンドの実行後， Tailscale 内から `https://<tailscale-node>:8888` でローカルサービスとしてのpaperless-ngxへアクセス可能となります．
+
+::: {.callout-note}
+### サービスを非公開にしたい場合
+
+Tailscale 内から Paperless-ngx にHTTPSでアクセス負荷にしたい場合は
+
+```bash
+sudo tailscale serve --bg --https=8888 off
+```
+
+ポートは8888想定ですが，`sudo tailscale serve --bg --https=<port> 8888` の `<port>` に応じて変更して下さい．
+
+:::
+
+## Appendix 1: グループからユーザーを削除する方法
+
+特定のユーザーをグループから削除するには `gpasswd` or `deluser` コマンドを使用します
+
+[`gpasswd`コマンド]{.mini-section}
+
+```bash
+## long option
+sudo gpasswd --delete user1 papaerless-ngx
+
+## short option
+sudo gpasswd -d user1 papaerless-ngx
+
+# 現在のユーザーをpaperless-ngxから除去
+sudo gpasswd -d $(whoami) paperless-ngx
+```
+
+[`deluser`コマンド]{.mini-section}
+
+```bash
+## syntax
+sudo deluser user1 paperless-ngx
+
+# 現在のユーザーをpaperless-ngxから除去
+sudo deluser $(whoami) paperless-ngx
+```
+
+## Appendix 2: Zoteroとの併用方法
+
+基本コンセプトは，[Paperless-ngxを原本置き場，Zotero はメタデータ管理だけ]{.regmonkey-bold}
+
+- PDF ファイルを Zotero に保存しない
+- PDF の原本はすべて Paperless に一元管理 
+- Zotero は「文献管理ソフト」として最小限データだけ持つ
+- Zotero 内では Linked Attachment（リンクされた添付ファイル）を使い，Paperless の PDF を参照する
+
+:::: {.no-border-top-table}
+
+| 役割                | 担当                     | 説明                                       |
+| ----------------- | ---------------------- | ---------------------------------------- |
+| **Paperless-ngx** | 原本保管庫（PDF の全保管・OCR・タグ） | すべての PDF ファイルの実体を保管する（NAS代わり）      |
+| **Zotero**        | 文献リスト＋引用情報             | メタデータだけを管理し，PDF本体は保存しない |
+
+::::
+
+[運用イメージ]{.mini-section}
+
+1. PDF を Paperless-ngx に入れる
+2. Paperless-ngx が OCR＋タグ整理
+3. 必要に応じて Zotero に 文献情報（DOI など）を登録
+4. 添付ファイルとして Paperless-ngx の PDF パスを貼る（手動 or 自動スクリプト）
+
+
+References
+----------
+- [Paperless-ngx公式ドキュメント](https://docs.paperless-ngx.com/)
+- [Package: tesseract-ocr-jpn-vert](https://packages.debian.org/bullseye/graphics/tesseract-ocr-jpn-vert)
