@@ -7,9 +7,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Ryo Nakagami">
-<meta name="dcterms.date" content="2025-07-31">
+<meta name="dcterms.date" content="2025-11-28">
 
-<title>Quarto Projectへのpseudocode extensions導入 – regmonkey datascience blog</title>
+<title>乱数生成シェルスクリプト – regmonkey datascience blog</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -85,6 +85,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../../site_libs/bootstrap/bootstrap-c0e475af79fbf9c16b8f3b53f98210ea.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script src="../../site_libs/quarto-contrib/pseudocode-2.4.1/pseudocode.min.js"></script>
 <link href="../../site_libs/quarto-contrib/pseudocode-2.4.1/pseudocode.min.css" rel="stylesheet">
+<link href="../../site_libs/quarto-contrib/reveal_vspace-1.0.0/reveal_vspace.css" rel="stylesheet">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -161,9 +162,38 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 <script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml-full.js" integrity="sha256-kbAFUDxdHwlYv01zraGjvjNZayxKtdoiJ38bDTFJtaQ=" crossorigin="anonymous">
 </script>
 
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
 
 <link rel="stylesheet" href="../../styles.css">
-<meta property="og:title" content="Quarto Projectへのpseudocode extensions導入 – regmonkey datascience blog">
+<meta property="og:title" content="乱数生成シェルスクリプト – regmonkey datascience blog">
 <meta property="og:description" content="日々の徒然勉強日記">
 <meta property="og:site_name" content="regmonkey datascience blog">
 </head>
@@ -412,10 +442,9 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 <header id="title-block-header" class="quarto-title-block default page-columns page-full">
   <div class="quarto-title-banner page-columns page-full">
     <div class="quarto-title column-body">
-      <h1 class="title">Quarto Projectへのpseudocode extensions導入</h1>
+      <h1 class="title">乱数生成シェルスクリプト</h1>
                                 <div class="quarto-categories">
-                <div class="quarto-category">pseudocode</div>
-                <div class="quarto-category">quarto</div>
+                <div class="quarto-category">shell</div>
               </div>
                   </div>
   </div>
@@ -433,14 +462,14 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
       <div>
       <div class="quarto-title-meta-heading">Published</div>
       <div class="quarto-title-meta-contents">
-        <p class="date">2025-07-31</p>
+        <p class="date">2025-11-28</p>
       </div>
     </div>
     
       <div>
       <div class="quarto-title-meta-heading">Modified</div>
       <div class="quarto-title-meta-contents">
-        <p class="date-modified">2025-08-01</p>
+        <p class="date-modified">2025-12-01</p>
       </div>
     </div>
       
@@ -455,19 +484,13 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#ゴール" id="toc-ゴール" class="nav-link active" data-scroll-target="#ゴール">🎯 ゴール</a>
+  <li><a href="#シェルスクリプト概要" id="toc-シェルスクリプト概要" class="nav-link active" data-scroll-target="#シェルスクリプト概要">シェルスクリプト概要</a></li>
+  <li><a href="#devurandom-仮想デバイス" id="toc-devurandom-仮想デバイス" class="nav-link" data-scroll-target="#devurandom-仮想デバイス"><code>/dev/urandom</code> 仮想デバイス</a>
   <ul class="collapse">
-  <li><a href="#requirements" id="toc-requirements" class="nav-link" data-scroll-target="#requirements">💻 Requirements</a></li>
+  <li><a href="#base64-エンコード" id="toc-base64-エンコード" class="nav-link" data-scroll-target="#base64-エンコード">Base64 エンコード</a></li>
   </ul></li>
-  <li><a href="#拡張機能のインストール" id="toc-拡張機能のインストール" class="nav-link" data-scroll-target="#拡張機能のインストール">✅ 拡張機能のインストール</a></li>
-  <li><a href="#拡張機能利用のための設定" id="toc-拡張機能利用のための設定" class="nav-link" data-scroll-target="#拡張機能利用のための設定">🔨 拡張機能利用のための設定</a>
-  <ul class="collapse">
-  <li><a href="#math-setup" id="toc-math-setup" class="nav-link" data-scroll-target="#math-setup">Math Setup</a></li>
-  <li><a href="#algorithm表記設定" id="toc-algorithm表記設定" class="nav-link" data-scroll-target="#algorithm表記設定">Algorithm表記設定</a></li>
-  </ul></li>
-  <li><a href="#pseudocode-blockの記述方法" id="toc-pseudocode-blockの記述方法" class="nav-link" data-scroll-target="#pseudocode-blockの記述方法">📘 Pseudocode Blockの記述方法</a></li>
-  <li><a href="#quarto-pseudocode-の仕様" id="toc-quarto-pseudocode-の仕様" class="nav-link" data-scroll-target="#quarto-pseudocode-の仕様"><code>quarto-pseudocode</code> の仕様</a></li>
-  <li><a href="#appendix-uppercamelcase" id="toc-appendix-uppercamelcase" class="nav-link" data-scroll-target="#appendix-uppercamelcase">Appendix: UpperCamelCase</a></li>
+  <li><a href="#head-コマンド" id="toc-head-コマンド" class="nav-link" data-scroll-target="#head-コマンド"><code>head</code> コマンド</a></li>
+  <li><a href="#tr-コマンド" id="toc-tr-コマンド" class="nav-link" data-scroll-target="#tr-コマンド"><code>tr</code> コマンド</a></li>
   <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
@@ -480,403 +503,321 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 
 
 
-<section id="ゴール" class="level2">
-<h2 class="anchored" data-anchor-id="ゴール">🎯 ゴール</h2>
-<ul>
-<li>Quarto PropjectのHTMLレンダリングで<a href="https://github.com/SaswatPadhi/pseudocode.js">Pseudocode</a>を利用可能にする</li>
-</ul>
-<section id="requirements" class="level3">
-<h3 class="anchored" data-anchor-id="requirements">💻 Requirements</h3>
-<ul>
-<li>Quarto がインストール済み</li>
-<li>Quarto プロジェクト（blogやbook）を作成済み</li>
-</ul>
-</section>
-</section>
-<section id="拡張機能のインストール" class="level2">
-<h2 class="anchored" data-anchor-id="拡張機能のインストール">✅ 拡張機能のインストール</h2>
-<p><a href="https://github.com/leovan/quarto-pseudocode#readme">Quarto Pseudocode Extension</a>をQuarto Projectに<code>quarto</code>コマンドでインストールします:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">quarto</span> add leovan/quarto-pseudocode</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">/_extensions</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">└──</span> leovan</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    <span class="ex">└──</span> pseudocode</span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>        <span class="ex">├──</span> _extension.yml</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>        <span class="ex">├──</span> pseudocode.lua</span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>        <span class="ex">├──</span> pseudocode.min.css</span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>        <span class="ex">└──</span> pseudocode.min.js</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="シェルスクリプト概要" class="level2">
+<h2 class="anchored" data-anchor-id="シェルスクリプト概要">シェルスクリプト概要</h2>
 <div class="callout callout-style-default callout-note callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>REMARKS
+<span class="screen-reader-only">Note</span>DOCSTRINGS
 </div>
 </div>
 <div class="callout-body-container callout-body">
+<div class="reveal_vspace" style="--vspace-height: 1em;"></div>
 <ul>
-<li>Project単位でのインストールとなります</li>
+<li><code>/dev/urandom</code>を活用して任意の長さの疑似ランダム文字列を生成</li>
+<li>デフォルトは Base64 形式</li>
+<li><code>-n</code> オプションを利用するとInteger型で疑似ランダム列を生成</li>
+<li>出現文字列の一様性を保証するものではないので，あくまでsandbox環境での簡易的なpasswordの生成などに用途を限定</li>
 </ul>
 </div>
 </div>
+<p><span class="mini-section">シェルスクリプト全体</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/bin/bash</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="co"># -----------------------------------------------------------------------------</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Author: Ryo Nakagami</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Revised: 2025-11-28</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Script: generate-random-passwd</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Description:</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co">#   Generates a random string of specified length in either base64 or</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="co">#   numeric-only format. Useful for passwords, tokens, or test data.</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="co">#   Steps:</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="co">#     1. Parse command-line options (-n for numeric, -h for help).</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="co">#     2. Validate input length (must be integer, less than 77).</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="co">#     3. Generate random string using /dev/urandom:</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="co">#        - base64 output by default</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="co">#        - numeric-only if -n is specified</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Options:</span></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a><span class="co">#    -n    Generate numeric-only random string</span></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a><span class="co">#    -h    Show this help message</span></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a><span class="co"># Usage:</span></span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a><span class="co">#   ./generate-random-passwd &lt;length&gt;      # Generates base64 string</span></span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a><span class="co">#   ./generate-random-passwd -n &lt;length&gt;   # Generates numeric string</span></span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a><span class="co">#   ./generate-random-passwd &lt;length&gt; -n   # Generates numeric string</span></span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a><span class="co"># Notes:</span></span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a><span class="co">#   - Requires /dev/urandom device.</span></span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a><span class="co">#   - Requires base64 and tr utilities.</span></span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a><span class="co">#   - Sources lib/docstring.sh for usage_helper.</span></span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a><span class="co"># -----------------------------------------------------------------------------</span></span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a><span class="co"># ---- Load library functions ----</span></span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a><span class="bu">source</span> <span class="st">"</span><span class="va">$(</span><span class="fu">dirname</span> <span class="st">"</span><span class="va">${BASH_SOURCE</span><span class="op">[</span><span class="dv">0</span><span class="op">]</span><span class="va">}</span><span class="st">"</span><span class="va">)</span><span class="st">/../lib/docstring.sh"</span></span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a><span class="co"># ---- Default values ----</span></span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a><span class="va">PATTERN</span><span class="op">=</span><span class="st">"BASE64"</span></span>
+<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="bu">[</span> <span class="ot">-z</span> <span class="st">"</span><span class="va">$1</span><span class="st">"</span> <span class="bu">]</span><span class="kw">;</span> <span class="cf">then</span></span>
+<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a>    <span class="co"># call library function usage_helper</span></span>
+<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a>    <span class="ex">usage_helper</span></span>
+<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a>    <span class="bu">exit</span> 1</span>
+<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a><span class="cf">fi</span></span>
+<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-44"><a href="#cb1-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-45"><a href="#cb1-45" aria-hidden="true" tabindex="-1"></a><span class="co"># ---- Parse command-line options ----</span></span>
+<span id="cb1-46"><a href="#cb1-46" aria-hidden="true" tabindex="-1"></a><span class="fu">parse_opts()</span> <span class="kw">{</span></span>
+<span id="cb1-47"><a href="#cb1-47" aria-hidden="true" tabindex="-1"></a>    <span class="cf">while</span> <span class="bu">getopts</span> <span class="st">"hn"</span> <span class="va">opt</span><span class="kw">;</span> <span class="cf">do</span></span>
+<span id="cb1-48"><a href="#cb1-48" aria-hidden="true" tabindex="-1"></a>        <span class="cf">case</span> <span class="st">"</span><span class="va">$opt</span><span class="st">"</span> <span class="kw">in</span></span>
+<span id="cb1-49"><a href="#cb1-49" aria-hidden="true" tabindex="-1"></a>            <span class="ss">h</span><span class="kw">)</span> <span class="ex">usage_helper</span><span class="kw">;</span> <span class="bu">exit</span> 0 <span class="cf">;;</span></span>
+<span id="cb1-50"><a href="#cb1-50" aria-hidden="true" tabindex="-1"></a>            <span class="ss">n</span><span class="kw">)</span> <span class="va">PATTERN</span><span class="op">=</span><span class="st">"NUMERIC"</span> <span class="cf">;;</span></span>
+<span id="cb1-51"><a href="#cb1-51" aria-hidden="true" tabindex="-1"></a>            <span class="pp">*</span><span class="kw">)</span> <span class="ex">usage_helper</span><span class="kw">;</span> <span class="bu">exit</span> 1 <span class="cf">;;</span></span>
+<span id="cb1-52"><a href="#cb1-52" aria-hidden="true" tabindex="-1"></a>        <span class="cf">esac</span></span>
+<span id="cb1-53"><a href="#cb1-53" aria-hidden="true" tabindex="-1"></a>    <span class="cf">done</span></span>
+<span id="cb1-54"><a href="#cb1-54" aria-hidden="true" tabindex="-1"></a><span class="kw">}</span></span>
+<span id="cb1-55"><a href="#cb1-55" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-56"><a href="#cb1-56" aria-hidden="true" tabindex="-1"></a><span class="co"># ---- 1st pass: parse leading options ----</span></span>
+<span id="cb1-57"><a href="#cb1-57" aria-hidden="true" tabindex="-1"></a><span class="ex">parse_opts</span> <span class="st">"</span><span class="va">$@</span><span class="st">"</span></span>
+<span id="cb1-58"><a href="#cb1-58" aria-hidden="true" tabindex="-1"></a><span class="bu">shift</span> <span class="va">$((OPTIND</span> <span class="op">-</span> <span class="dv">1</span><span class="va">))</span></span>
+<span id="cb1-59"><a href="#cb1-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-60"><a href="#cb1-60" aria-hidden="true" tabindex="-1"></a><span class="co"># ---- NUMBER_INPUT might be here ----</span></span>
+<span id="cb1-61"><a href="#cb1-61" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="kw">[[</span> <span class="st">"</span><span class="va">$1</span><span class="st">"</span> <span class="ot">=~</span> <span class="pp">^</span><span class="op">[</span><span class="ss">0</span><span class="op">-</span><span class="ss">9</span><span class="op">]</span><span class="pp">+</span><span class="op">$</span> <span class="kw">]];</span> <span class="cf">then</span></span>
+<span id="cb1-62"><a href="#cb1-62" aria-hidden="true" tabindex="-1"></a>    <span class="va">NUMBER_INPUT</span><span class="op">=</span><span class="st">"</span><span class="va">$1</span><span class="st">"</span></span>
+<span id="cb1-63"><a href="#cb1-63" aria-hidden="true" tabindex="-1"></a>    <span class="bu">shift</span> 1</span>
+<span id="cb1-64"><a href="#cb1-64" aria-hidden="true" tabindex="-1"></a><span class="cf">fi</span></span>
+<span id="cb1-65"><a href="#cb1-65" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-66"><a href="#cb1-66" aria-hidden="true" tabindex="-1"></a><span class="co"># ---- Reset OPTIND and parse remaining options (after NUMBER_INPUT) ----</span></span>
+<span id="cb1-67"><a href="#cb1-67" aria-hidden="true" tabindex="-1"></a><span class="va">OPTIND</span><span class="op">=</span>1</span>
+<span id="cb1-68"><a href="#cb1-68" aria-hidden="true" tabindex="-1"></a><span class="ex">parse_opts</span> <span class="st">"</span><span class="va">$@</span><span class="st">"</span></span>
+<span id="cb1-69"><a href="#cb1-69" aria-hidden="true" tabindex="-1"></a><span class="bu">shift</span> <span class="va">$((OPTIND</span> <span class="op">-</span> <span class="dv">1</span><span class="va">))</span></span>
+<span id="cb1-70"><a href="#cb1-70" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-71"><a href="#cb1-71" aria-hidden="true" tabindex="-1"></a><span class="co"># ---- Validate input ----</span></span>
+<span id="cb1-72"><a href="#cb1-72" aria-hidden="true" tabindex="-1"></a><span class="co"># Check if NUMBER_INPUT is a positive integer</span></span>
+<span id="cb1-73"><a href="#cb1-73" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="ot">! </span><span class="kw">[[</span> <span class="st">"</span><span class="va">$NUMBER_INPUT</span><span class="st">"</span> <span class="ot">=~</span> <span class="pp">^</span><span class="op">[</span><span class="ss">1</span><span class="op">-</span><span class="ss">9</span><span class="op">][</span><span class="ss">0</span><span class="op">-</span><span class="ss">9</span><span class="op">]</span><span class="pp">*</span><span class="op">$</span> <span class="kw">]];</span> <span class="cf">then</span></span>
+<span id="cb1-74"><a href="#cb1-74" aria-hidden="true" tabindex="-1"></a>    <span class="bu">echo</span> <span class="st">"Error: Input must be a positive integer greater than 0."</span></span>
+<span id="cb1-75"><a href="#cb1-75" aria-hidden="true" tabindex="-1"></a>    <span class="ex">usage_helper</span></span>
+<span id="cb1-76"><a href="#cb1-76" aria-hidden="true" tabindex="-1"></a>    <span class="bu">exit</span> 1</span>
+<span id="cb1-77"><a href="#cb1-77" aria-hidden="true" tabindex="-1"></a><span class="cf">fi</span></span>
+<span id="cb1-78"><a href="#cb1-78" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-79"><a href="#cb1-79" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="kw">((</span> <span class="va">NUMBER_INPUT</span> <span class="op">&gt;=</span> <span class="dv">77</span> <span class="kw">));</span> <span class="cf">then</span></span>
+<span id="cb1-80"><a href="#cb1-80" aria-hidden="true" tabindex="-1"></a>    <span class="bu">echo</span> <span class="st">"Error: Input must be less than 77."</span></span>
+<span id="cb1-81"><a href="#cb1-81" aria-hidden="true" tabindex="-1"></a>    <span class="ex">usage_helper</span></span>
+<span id="cb1-82"><a href="#cb1-82" aria-hidden="true" tabindex="-1"></a>    <span class="bu">exit</span> 1</span>
+<span id="cb1-83"><a href="#cb1-83" aria-hidden="true" tabindex="-1"></a><span class="cf">fi</span></span>
+<span id="cb1-84"><a href="#cb1-84" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-85"><a href="#cb1-85" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="bu">[</span> <span class="st">"</span><span class="va">$PATTERN</span><span class="st">"</span> <span class="ot">!=</span> <span class="st">"BASE64"</span> <span class="bu">]</span> <span class="kw">&amp;&amp;</span> <span class="bu">[</span> <span class="st">"</span><span class="va">$PATTERN</span><span class="st">"</span> <span class="ot">!=</span> <span class="st">"NUMERIC"</span> <span class="bu">]</span><span class="kw">;</span> <span class="cf">then</span></span>
+<span id="cb1-86"><a href="#cb1-86" aria-hidden="true" tabindex="-1"></a>    <span class="bu">echo</span> <span class="st">"Error: Invalid pattern specified."</span></span>
+<span id="cb1-87"><a href="#cb1-87" aria-hidden="true" tabindex="-1"></a>    <span class="ex">usage_helper</span></span>
+<span id="cb1-88"><a href="#cb1-88" aria-hidden="true" tabindex="-1"></a>    <span class="bu">exit</span> 1</span>
+<span id="cb1-89"><a href="#cb1-89" aria-hidden="true" tabindex="-1"></a><span class="cf">fi</span></span>
+<span id="cb1-90"><a href="#cb1-90" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-91"><a href="#cb1-91" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-92"><a href="#cb1-92" aria-hidden="true" tabindex="-1"></a><span class="co"># ---- Generate random string based on pattern ----</span></span>
+<span id="cb1-93"><a href="#cb1-93" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="bu">[</span> <span class="st">"</span><span class="va">$PATTERN</span><span class="st">"</span> <span class="ot">=</span> <span class="st">"BASE64"</span> <span class="bu">]</span><span class="kw">;</span> <span class="cf">then</span></span>
+<span id="cb1-94"><a href="#cb1-94" aria-hidden="true" tabindex="-1"></a>    <span class="co"># ---- Generate random string ----</span></span>
+<span id="cb1-95"><a href="#cb1-95" aria-hidden="true" tabindex="-1"></a>    <span class="fu">base64</span> /dev/urandom <span class="kw">|</span> <span class="fu">head</span> <span class="at">-c</span> <span class="st">"</span><span class="va">$NUMBER_INPUT</span><span class="st">"</span></span>
+<span id="cb1-96"><a href="#cb1-96" aria-hidden="true" tabindex="-1"></a>    <span class="bu">echo</span></span>
+<span id="cb1-97"><a href="#cb1-97" aria-hidden="true" tabindex="-1"></a>    <span class="bu">exit</span> 0</span>
+<span id="cb1-98"><a href="#cb1-98" aria-hidden="true" tabindex="-1"></a><span class="cf">elif</span> <span class="bu">[</span> <span class="st">"</span><span class="va">$PATTERN</span><span class="st">"</span> <span class="ot">=</span> <span class="st">"NUMERIC"</span> <span class="bu">]</span><span class="kw">;</span> <span class="cf">then</span></span>
+<span id="cb1-99"><a href="#cb1-99" aria-hidden="true" tabindex="-1"></a>    <span class="co"># ---- Generate numeric-only random string ----</span></span>
+<span id="cb1-100"><a href="#cb1-100" aria-hidden="true" tabindex="-1"></a>    <span class="fu">tr</span> <span class="at">-dc</span> <span class="st">'0-9'</span> <span class="op">&lt;</span> /dev/urandom <span class="kw">|</span> <span class="fu">head</span> <span class="at">-c</span> <span class="st">"</span><span class="va">$NUMBER_INPUT</span><span class="st">"</span></span>
+<span id="cb1-101"><a href="#cb1-101" aria-hidden="true" tabindex="-1"></a>    <span class="bu">echo</span></span>
+<span id="cb1-102"><a href="#cb1-102" aria-hidden="true" tabindex="-1"></a>    <span class="bu">exit</span> 0</span>
+<span id="cb1-103"><a href="#cb1-103" aria-hidden="true" tabindex="-1"></a><span class="cf">fi</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Example 1 (実行例)</strong></span> &nbsp;</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> generate-random-passwd 10</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">zCJPhQxfr6</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> generate-random-passwd 10 <span class="at">-n</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="ex">5711270805</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> generate-random-passwd <span class="at">-n</span> 10</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="ex">9843753838</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<hr>
 </section>
-<section id="拡張機能利用のための設定" class="level2">
-<h2 class="anchored" data-anchor-id="拡張機能利用のための設定">🔨 拡張機能利用のための設定</h2>
-<p><code>_quarto.yml</code> に対して <code>filters</code>項目を以下のように追加します:</p>
-<div class="code-with-filename">
-<div class="code-with-filename-file">
-<pre><strong>_quarto.yml</strong></pre>
+<section id="devurandom-仮想デバイス" class="level2">
+<h2 class="anchored" data-anchor-id="devurandom-仮想デバイス"><code>/dev/urandom</code> 仮想デバイス</h2>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title"><code>/dev/urandom</code></span></p>
+<ul>
+<li><code>/dev/urandom</code>はハードウェア（キーボード・マウス・CPUなどの）動作から得られる環境ノイズを蓄積したデータ領域のこと（＝エントロピープール）</li>
+<li>蓄積されたデータはバイナリーデータであるが，<code>base64</code> を利用することで乱数ジェネレーターとして利用できる</li>
+<li>出力プールの最大周期(period)は <span class="math inline">\(2^{26\times 32} - 1\)</span></li>
+<li>エントロピープールを再利用する仕組みを持つため，<span class="regmonkey-bold">エントロピー枯渇（entropy pool depletion）を心配する必要はない</span>（＝いつでも利用できる）</li>
+<li>疑似乱数の再現性(reproducible seeding)はない</li>
+</ul>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" data-filename="_quarto.yml"><pre class="sourceCode yml code-with-copy"><code class="sourceCode yaml"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">project</span><span class="kw">:</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">type</span><span class="kw">:</span><span class="at"> website</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">output-dir</span><span class="kw">:</span><span class="at"> _site</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="fu">filters</span><span class="kw">:</span></span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> pseudocode</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>エントロピープールを活用した疑似乱数ジェネレーターは <code>/dev/urandom</code> 以外に <code>dev/random</code> がありますが，動作の違いがあります． <code>dev/random</code> は乱数生成に使ったエントロピープール（= 内部状態）をそのまま再利用しないようにロックをかけるという設計になっています．</p>
+<ul>
+<li>乱数を出力 → プールが「公開された」とみなす</li>
+<li>安全のためそのプールはすぐ使わない</li>
+<li>新しい環境ノイズ（エントロピー）が十分に貯まるまで待つ</li>
+</ul>
+<p>そのため，連続した乱数生成を実施できない場合があります．</p>
+<ul>
+<li>連続した大量生成</li>
+<li>実行環境が低エントロピー環境（仮想マシンなどのノイズが少ない環境）</li>
+</ul>
+<p>では，ロックがかかりやすいので <code>/dev/urandom</code> ベースの乱数ジェネレーターのほうが一般用途では良いとされます．</p>
+<section id="base64-エンコード" class="level3">
+<h3 class="anchored" data-anchor-id="base64-エンコード">Base64 エンコード</h3>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 2</strong></span> <span class="def-title"><code>base64</code></span></p>
+<ul>
+<li>バイナリーデータをテキストに変換するための<span class="regmonkey-bold">エンコード方式</span></li>
+<li>データを64種類の印字可能な英数字(<code>[A-Za-z0-9+/]</code>)に変換</li>
+<li>MIMEの基準では76文字ごとに改行コードが入る</li>
+</ul>
 </div>
-<section id="math-setup" class="level3">
-<h3 class="anchored" data-anchor-id="math-setup">Math Setup</h3>
-<div class="code-with-filename">
-<div class="code-with-filename-file">
-<pre><strong>_quarto.yml</strong></pre>
-</div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" data-filename="_quarto.yml"><pre class="sourceCode yml code-with-copy"><code class="sourceCode yaml"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">format</span><span class="kw">:</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">html</span><span class="kw">:</span></span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">include-in-header</span><span class="kw">:</span></span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> include/mathjax.html</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<p>上記の<code>include/mathjax.html</code>に対して以下のようなLinesを設定します</p>
-<div class="code-with-filename">
-<div class="code-with-filename-file">
-<pre><strong>include/mathjax.html</strong></pre>
-</div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" data-filename="include/mathjax.html"><pre class="sourceCode html code-with-copy"><code class="sourceCode html"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">script</span><span class="dt">&gt;</span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    MathJax <span class="op">=</span> {</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>        <span class="dt">tex</span><span class="op">:</span> {</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>            <span class="dt">inlineMath</span><span class="op">:</span> [[<span class="st">'$'</span><span class="op">,</span><span class="st">'$'</span>]<span class="op">,</span> [<span class="st">'</span><span class="sc">\\</span><span class="st">('</span><span class="op">,</span><span class="st">'</span><span class="sc">\\</span><span class="st">)'</span>]]<span class="op">,</span></span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>            <span class="dt">displayMath</span><span class="op">:</span> [[<span class="st">'$$'</span><span class="op">,</span><span class="st">'$$'</span>]<span class="op">,</span> [<span class="st">'</span><span class="sc">\\</span><span class="st">['</span><span class="op">,</span><span class="st">'</span><span class="sc">\\</span><span class="st">]'</span>]]<span class="op">,</span></span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>            <span class="dt">processEscapes</span><span class="op">:</span> <span class="kw">true</span><span class="op">,</span></span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>            <span class="dt">processEnvironments</span><span class="op">:</span> <span class="kw">true</span><span class="op">,</span></span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>            <span class="dt">tags</span><span class="op">:</span> <span class="st">'all'</span><span class="op">,</span></span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>        }</span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>    }</span>
-<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;/</span><span class="kw">script</span><span class="dt">&gt;</span></span>
-<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">script</span><span class="ot"> src</span><span class="op">=</span><span class="st">"https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml-full.js"</span></span>
-<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a><span class="ot">        integrity</span><span class="op">=</span><span class="st">"sha256-kbAFUDxdHwlYv01zraGjvjNZayxKtdoiJ38bDTFJtaQ="</span></span>
-<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a><span class="ot">        crossorigin</span><span class="op">=</span><span class="st">"anonymous"</span><span class="dt">&gt;</span></span>
-<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;/</span><span class="kw">script</span><span class="dt">&gt;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<p><span class="mini-section">MathJax Options</span></p>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 21%">
-<col style="width: 78%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Keys</th>
-<th>内容</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>inlineMath</code></td>
-<td><strong>インライン数式</strong> のマーカー指定．<br>例：<code>$a^2 + b^2 = c^2$</code> または <code>\(...\)</code></td>
-</tr>
-<tr class="even">
-<td><code>displayMath</code></td>
-<td><strong>ディスプレイ数式（中央寄せで大きく表示）</strong> のマーカー指定．<br>例：<code>$$E = mc^2$$</code> または <code>\[...\]</code></td>
-</tr>
-<tr class="odd">
-<td><code>processEscapes</code></td>
-<td>バックスラッシュを <strong>エスケープとして解釈するか</strong>．<code>true</code> にすると <code>\\(</code> を <code>\(</code> として扱えるようになる</td>
-</tr>
-<tr class="even">
-<td><code>processEnvironments</code></td>
-<td><code>\begin{...} ... \end{...}</code> 形式の <strong>LaTeX 環境</strong> を使えるようにする</td>
-</tr>
-<tr class="odd">
-<td><code>tags: 'all'</code></td>
-<td>式番号を付ける場所の指定．<br><code>'all'</code> は <strong>display 数式すべて</strong> に番号を振る（<code>\begin{equation}</code> でなくても）</td>
-</tr>
-</tbody>
-</table>
-</div>
-<p><span class="mini-section">MathJax本体の読み込み設定</span></p>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 24%">
-<col style="width: 75%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>属性</th>
-<th>説明</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>src</code></td>
-<td>CDN 上の MathJax v3 スクリプト．<code>tex-chtml-full.js</code> は <strong>LaTeX入力 + HTML/CSS出力</strong> 対応の完全版</td>
-</tr>
-<tr class="even">
-<td><code>integrity</code></td>
-<td><strong>Subresource Integrity（SRI）</strong> チェック用ハッシュ（改ざん防止）</td>
-</tr>
-<tr class="odd">
-<td><code>crossorigin="anonymous"</code></td>
-<td>SRI を有効にするための指定</td>
-</tr>
-</tbody>
-</table>
-</div>
+<p><code>base64 /dev/urandom</code> を実行シたときの流れは</p>
+<ol type="1">
+<li><code>/dev/urandom</code> (バイナリ)</li>
+<li><code>base64</code> でエンコード</li>
+<li>ランダムな Base64 文字列が出力される</li>
+</ol>
+<p>になります．</p>
 </section>
-<section id="algorithm表記設定" class="level3">
-<h3 class="anchored" data-anchor-id="algorithm表記設定">Algorithm表記設定</h3>
-<p>Pseudocodeの参照または参照時の表示を設定する場合，<code>_quarto.yml</code>に以下のように記載します</p>
-<div class="code-with-filename">
-<div class="code-with-filename-file">
-<pre><strong>_quarto.yml</strong></pre>
+</section>
+<section id="head-コマンド" class="level2">
+<h2 class="anchored" data-anchor-id="head-コマンド"><code>head</code> コマンド</h2>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 3</strong></span> <span class="def-title"><code>head</code> コマンド</span></p>
+<ul>
+<li>headはテキストファイルの最初の10行を表示するコマンド</li>
+</ul>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" data-filename="_quarto.yml"><pre class="sourceCode yml code-with-copy"><code class="sourceCode yaml"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">format</span><span class="kw">:</span></span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">html</span><span class="kw">:</span></span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">pseudocode</span><span class="kw">:</span></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">caption-prefix</span><span class="kw">:</span><span class="at"> </span><span class="st">"アルゴリズム"</span><span class="co">    # DefaultはAlgorithm</span></span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">reference-prefix</span><span class="kw">:</span><span class="at"> </span><span class="st">"アルゴリズム"</span><span class="co">  # DefaultはAlgorithm</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
+<p><span class="mini-section">オプション</span></p>
 <div class="no-border-top-table">
 <table class="caption-top table">
 <colgroup>
-<col style="width: 17%">
-<col style="width: 26%">
-<col style="width: 12%">
-<col style="width: 42%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 60%">
 </colgroup>
 <thead>
 <tr class="header">
-<th>オプション名</th>
+<th>短いオプション</th>
+<th>長いオプション</th>
 <th>意味</th>
-<th>デフォルト</th>
-<th>解説</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>caption-prefix</code></td>
-<td>キャプションの前に付ける語句</td>
-<td><code>"Algorithm"</code></td>
-<td>例：<code>Algorithm 1: Euclidean</code> のような見出しに使われる</td>
+<td><code>-c 数字</code></td>
+<td><code>--bytes 数字</code></td>
+<td>先頭から指定したバイト数のみ表示する．「<code>-c 5 b</code>」のように単位を付加することも可能（b=512, KB=1000, K=1024, MB=1000×1000, M=1024×1024…）</td>
 </tr>
 <tr class="even">
-<td><code>reference-prefix</code></td>
-<td><code>@ref(fig:xxx)</code> のような参照時の接頭辞</td>
-<td><code>"Algorithm"</code></td>
-<td>参照時に <code>Algorithm 1</code> のように表示されます</td>
+<td><code>-n 数字</code></td>
+<td><code>--lines 数字</code></td>
+<td>先頭から指定した行数のみ表示する</td>
 </tr>
 <tr class="odd">
-<td><code>caption-number</code></td>
-<td>番号付けの有無</td>
-<td><code>true</code></td>
-<td><code>false</code> にすると <code>Algorithm: xxx</code> のように番号なしになる</td>
+<td><code>-q</code></td>
+<td><code>--quiet</code>, <code>--silent</code></td>
+<td>ファイルごとのヘッダ表示を行わない（複数ファイル指定時に使う）</td>
+</tr>
+<tr class="even">
+<td><code>-v</code></td>
+<td><code>--verbose</code></td>
+<td>常にファイルごとのヘッダ出力を行う</td>
 </tr>
 </tbody>
 </table>
 </div>
 </section>
-</section>
-<section id="pseudocode-blockの記述方法" class="level2">
-<h2 class="anchored" data-anchor-id="pseudocode-blockの記述方法">📘 Pseudocode Blockの記述方法</h2>
-<p><code>pseudocode</code>コードブロックの中にPseudocodeを以下のように記述すると，以下のような出力になります．</p>
-<pre>```pseudocode
-#| html-indent-size: "1.2em"
-#| html-comment-delimiter: "//"
-#| html-line-number: true
-#| html-line-number-punc: ":"
-#| html-no-end: false
-#| pdf-placement: "htb!"
-#| pdf-line-number: true
-
-\begin{algorithm}
-\caption{Quicksort}
-\begin{algorithmic}
-\Procedure{Quicksort}{$A, p, r$}
-  \If{$p &lt; r$}
-    \State $q = $ \Call{Partition}{$A, p, r$}
-    \State \Call{Quicksort}{$A, p, q - 1$}
-    \State \Call{Quicksort}{$A, q + 1, r$}
-  \EndIf
-\EndProcedure
-\Procedure{Partition}{$A, p, r$}
-  \State $x = A[r]$
-  \State $i = p - 1$
-  \For{$j = p$ \To $r - 1$}
-    \If{$A[j] &lt; x$}
-      \State $i = i + 1$
-      \State exchange
-      $A[i]$ with     $A[j]$
-    \EndIf
-    \State exchange $A[i]$ with $A[r]$
-  \EndFor
-\EndProcedure
-\end{algorithmic}
-\end{algorithm}
-```
-</pre>
-<div class="pseudocode-container quarto-float" data-line-number="true" data-pseudocode-number="1" data-no-end="false" data-line-number-punc=":" data-indent-size="1.2em" data-caption-prefix="Algorithm" data-comment-delimiter="//">
-<div class="pseudocode">
-\begin{algorithm} \caption{Quicksort} \begin{algorithmic} \Procedure{Quicksort}{$A, p, r$} \If{$p &lt; r$} \State $q = $ \Call{Partition}{$A, p, r$} \State \Call{Quicksort}{$A, p, q - 1$} \State \Call{Quicksort}{$A, q + 1, r$} \EndIf \EndProcedure \Procedure{Partition}{$A, p, r$} \State $x = A[r]$ \State $i = p - 1$ \For{$j = p$ \To $r - 1$} \If{$A[j] &lt; x$} \State $i = i + 1$ \State exchange $A[i]$ with $A[j]$ \EndIf \State exchange $A[i]$ with $A[r]$ \EndFor \EndProcedure \end{algorithmic} \end{algorithm}
-</div>
-</div>
-</section>
-<section id="quarto-pseudocode-の仕様" class="level2">
-<h2 class="anchored" data-anchor-id="quarto-pseudocode-の仕様"><code>quarto-pseudocode</code> の仕様</h2>
-<p><span class="mini-section">Syntax</span></p>
+<section id="tr-コマンド" class="level2">
+<h2 class="anchored" data-anchor-id="tr-コマンド"><code>tr</code> コマンド</h2>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 4</strong></span> <span class="def-title"><code>tr</code> コマンド</span></p>
 <ul>
-<li>キーワードには大文字と小文字の形式(UpperCamelCase) (例: <code>\Procedure</code>, <code>\If</code>, <code>\EndIf</code>) を使用</li>
-<li>数式は標準の LaTeX 数式構文をサポート</li>
+<li>標準入力の文字を別の文字に置換したり，削除したりするコマンド</li>
 </ul>
-<p><span class="mini-section">Block Parameters</span></p>
-<p>コメント形式のパラメーターを以下のように記載することができます．</p>
-<pre><code>#| html-indent-size: "1.2em"
-#| html-comment-delimiter: "//"
-#| html-line-number: true
-#| html-line-number-punc: ":"
-#| html-no-end: false
-#| pdf-placement: "htb!"
-#| pdf-line-number: true
-
-\begin{algorithm}
-\caption{My Algorithm}
-\begin{algorithmic}
-...
-\end{algorithmic}
-\end{algorithm}</code></pre>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 25%">
-<col style="width: 25%">
-<col style="width: 25%">
-<col style="width: 25%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>パラメーター</th>
-<th>デフォルト</th>
-<th>形式</th>
-<th>説明</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>label</code></td>
-<td></td>
-<td>all</td>
-<td>クロス参照用のラベル (alg- で始まる必要があります)</td>
-</tr>
-<tr class="even">
-<td><code>html-indent-size</code></td>
-<td>“1.2em”</td>
-<td>HTML</td>
-<td>ネストされたブロックのインデント サイズ</td>
-</tr>
-<tr class="odd">
-<td><code>html-comment-delimiter</code></td>
-<td>“//”</td>
-<td>HTML</td>
-<td>コメント デリミタ文字</td>
-</tr>
-<tr class="even">
-<td><code>html-line-number</code></td>
-<td>true</td>
-<td>HTML</td>
-<td>行番号を表示</td>
-</tr>
-<tr class="odd">
-<td><code>html-line-number-punc</code></td>
-<td>“:”</td>
-<td>HTML</td>
-<td>行番号の句読点</td>
-</tr>
-<tr class="even">
-<td><code>html-no-end</code></td>
-<td>false</td>
-<td>HTML</td>
-<td>末尾のキーワードを非表示</td>
-</tr>
-<tr class="odd">
-<td><code>pdf-placement</code></td>
-<td>“H”</td>
-<td>PDF</td>
-<td>フロート配置 (htbp!)</td>
-</tr>
-<tr class="even">
-<td><code>pdf-line-number</code></td>
-<td>true</td>
-<td>PDF</td>
-<td>行番号を表示</td>
-</tr>
-</tbody>
-</table>
-<p><span class="mini-section">CSS styleの設定</span></p>
-<p>設定用CSSファイルに以下のような記述をすることでfontやcontainerの設定ができます</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode css code-with-copy"><code class="sourceCode css"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">.pseudocode-container</span> {</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">border</span><span class="ch">:</span> <span class="dv">1</span><span class="dt">px</span> <span class="dv">solid</span> <span class="cn">#ddd</span><span class="op">;</span></span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">border-radius</span><span class="ch">:</span> <span class="dv">5</span><span class="dt">px</span><span class="op">;</span></span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  <span class="kw">padding</span><span class="ch">:</span> <span class="dv">10</span><span class="dt">px</span><span class="op">;</span></span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>  <span class="kw">margin</span><span class="ch">:</span> <span class="dv">20</span><span class="dt">px</span> <span class="dv">0</span><span class="op">;</span></span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="fu">.ps-algorithm</span> {</span>
-<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>  <span class="kw">font-family</span><span class="ch">:</span> <span class="st">'Courier New'</span><span class="op">,</span> <span class="dv">monospace</span><span class="op">;</span></span>
-<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</section>
-<section id="appendix-uppercamelcase" class="level2">
-<h2 class="anchored" data-anchor-id="appendix-uppercamelcase">Appendix: UpperCamelCase</h2>
+</div>
+<p><span class="mini-section">オプション</span></p>
 <div class="no-border-top-table">
 <table class="caption-top table">
 <colgroup>
-<col style="width: 21%">
-<col style="width: 49%">
-<col style="width: 28%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 60%">
 </colgroup>
 <thead>
 <tr class="header">
-<th>名称</th>
-<th>例</th>
-<th>説明</th>
+<th>短いオプション</th>
+<th>長いオプション</th>
+<th>意味</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><strong>ALL UPPERCASE</strong></td>
-<td><code>PROJECT</code>, <code>TYPE</code>, <code>EXTENSIONS</code></td>
-<td>全部大文字</td>
+<td><code>-d</code></td>
+<td><code>--delete</code></td>
+<td>指定した文字を削除する</td>
 </tr>
 <tr class="even">
-<td><strong>UpperCamelCase</strong></td>
-<td><code>Project</code>, <code>Type</code>, <code>Extensions</code></td>
-<td>各単語の先頭が大文字（キャメルケース）</td>
+<td><code>-c</code></td>
+<td><code>--complement</code></td>
+<td>指定した文字セットの補集合を扱う（反転）</td>
 </tr>
 <tr class="odd">
-<td><strong>lowerCamelCase</strong></td>
-<td><code>project</code>, <code>projectType</code>, <code>extensionList</code></td>
-<td>1語目は小文字で始め，2語目以降の先頭を大文字</td>
-</tr>
-<tr class="even">
-<td><strong>snake_case</strong></td>
-<td><code>project_type</code>, <code>extension_list</code></td>
-<td>単語をアンダースコア <code>_</code> でつなぐ</td>
+<td><code>-s</code></td>
+<td><code>--squeeze-repeats</code></td>
+<td>連続する同一文字を1つに圧縮する</td>
 </tr>
 </tbody>
 </table>
 </div>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Example 2 (文字の置換)</strong></span> <code>tr 012 abc</code> を実行すると，</p>
+<ul>
+<li>「<code>0</code>」を「<code>a</code>」</li>
+<li>「<code>1</code>」を「<code>b</code>」</li>
+<li>「<code>2</code>」を「<code>c</code>」</li>
+</ul>
+<p>に置き換えます．「<code>012</code>」という連続した文字列を「<code>abc</code>」に置き換えるのではなく，常に1文字対1文字での置き換えとなるので，両者の長さはそろえる必要があります</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> echo <span class="st">'012345'</span> <span class="kw">|</span> <span class="fu">tr</span> 012 abc</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="ex">abc345</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> echo <span class="st">'0142345'</span> <span class="kw">|</span> <span class="fu">tr</span> 012 abc</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="ex">ab4c345</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<hr>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Example 3 (<code>/dev/urandom</code> から数値のみを抽出)</strong></span> <br></p>
+<p>数値のみのパスワードやトークン生成する場合は，<code>-d '0-9'</code> の補集合を取れば良いので</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tr</span> <span class="at">-dc</span> <span class="st">'0-9'</span> <span class="op">&lt;</span> /dev/urandom <span class="kw">|</span> <span class="fu">head</span> <span class="at">-c</span> 16</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<hr>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Example 4 (連続した改行を1つにする)</strong></span> <br></p>
+<p><code>tr -s</code> は繰り返し文字の圧縮に使えるので</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> echo <span class="st">'A\n\n\nA'</span> </span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="ex">A</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="ex">A</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> echo <span class="st">'A\n\n\nA'</span> <span class="kw">|</span> <span class="fu">tr</span> <span class="at">-s</span> <span class="st">'\n'</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="ex">A</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="ex">A</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>tr -s '\n'</code> は不要改行を削除するときに使いますが，同様に <code>tr -s '[:space:]</code> を用いて不要スペースをまとめたりします</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> echo <span class="st">"a   b   c"</span> <span class="kw">|</span> <span class="fu">tr</span> <span class="at">-s</span> <span class="st">'[:space:]'</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="ex">a</span> b c</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<hr>
 </section>
 <section id="references" class="level2">
 <h2 class="anchored" data-anchor-id="references">References</h2>
 <ul>
-<li><a href="https://github.com/leovan/quarto-pseudocode#readme">Quarto Pseudocode Extension</a></li>
+<li><a href="https://utakamo.com/article/linux/architecture/directory/dev/random-urandom.html">うたカモ技術ブログ &gt; Linux 乱数ジェネレーター（/dev/random、/dev/urandom、getrandom）</a></li>
+<li><a href="https://stackoverflow.com/questions/32139660/is-dev-urandom-suitable-for-simulation-purpose">Is <code>/dev/urandom</code> suitable for simulation purpose?</a></li>
 </ul>
 
 

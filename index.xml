@@ -10,7 +10,2099 @@
 <atom:link href="https://ryonakagami.github.io/regmonkey-datascience-blog/index.xml" rel="self" type="application/rss+xml"/>
 <description>日々の徒然勉強日記</description>
 <generator>quarto-1.8.26</generator>
-<lastBuildDate>Sun, 16 Nov 2025 00:00:00 GMT</lastBuildDate>
+<lastBuildDate>Fri, 28 Nov 2025 00:00:00 GMT</lastBuildDate>
+<item>
+  <title>乱数生成シェルスクリプト</title>
+  <dc:creator>Ryo Nakagami</dc:creator>
+  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-11-28-generate-random-passwd/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+
+<section id="シェルスクリプト概要" class="level2">
+<h2 class="anchored" data-anchor-id="シェルスクリプト概要">シェルスクリプト概要</h2>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>DOCSTRINGS
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<div class="reveal_vspace" style="--vspace-height: 1em;"></div>
+<ul>
+<li><code>/dev/urandom</code>を活用して任意の長さの疑似ランダム文字列を生成</li>
+<li>デフォルトは Base64 形式</li>
+<li><code>-n</code> オプションを利用するとInteger型で疑似ランダム列を生成</li>
+<li>出現文字列の一様性を保証するものではないので，あくまでsandbox環境での簡易的なpasswordの生成などに用途を限定</li>
+</ul>
+</div>
+</div>
+<p><span class="mini-section">シェルスクリプト全体</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#!/bin/bash</span></span>
+<span id="cb1-2"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># -----------------------------------------------------------------------------</span></span>
+<span id="cb1-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Author: Ryo Nakagami</span></span>
+<span id="cb1-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Revised: 2025-11-28</span></span>
+<span id="cb1-5"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Script: generate-random-passwd</span></span>
+<span id="cb1-6"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Description:</span></span>
+<span id="cb1-7"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#   Generates a random string of specified length in either base64 or</span></span>
+<span id="cb1-8"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#   numeric-only format. Useful for passwords, tokens, or test data.</span></span>
+<span id="cb1-9"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#</span></span>
+<span id="cb1-10"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#   Steps:</span></span>
+<span id="cb1-11"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#     1. Parse command-line options (-n for numeric, -h for help).</span></span>
+<span id="cb1-12"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#     2. Validate input length (must be integer, less than 77).</span></span>
+<span id="cb1-13"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#     3. Generate random string using /dev/urandom:</span></span>
+<span id="cb1-14"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#        - base64 output by default</span></span>
+<span id="cb1-15"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#        - numeric-only if -n is specified</span></span>
+<span id="cb1-16"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#</span></span>
+<span id="cb1-17"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Options:</span></span>
+<span id="cb1-18"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#    -n    Generate numeric-only random string</span></span>
+<span id="cb1-19"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#    -h    Show this help message</span></span>
+<span id="cb1-20"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#</span></span>
+<span id="cb1-21"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Usage:</span></span>
+<span id="cb1-22"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#   ./generate-random-passwd &lt;length&gt;      # Generates base64 string</span></span>
+<span id="cb1-23"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#   ./generate-random-passwd -n &lt;length&gt;   # Generates numeric string</span></span>
+<span id="cb1-24"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#   ./generate-random-passwd &lt;length&gt; -n   # Generates numeric string</span></span>
+<span id="cb1-25"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#</span></span>
+<span id="cb1-26"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Notes:</span></span>
+<span id="cb1-27"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#   - Requires /dev/urandom device.</span></span>
+<span id="cb1-28"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#   - Requires base64 and tr utilities.</span></span>
+<span id="cb1-29"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#   - Sources lib/docstring.sh for usage_helper.</span></span>
+<span id="cb1-30"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># -----------------------------------------------------------------------------</span></span>
+<span id="cb1-31"></span>
+<span id="cb1-32"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># ---- Load library functions ----</span></span>
+<span id="cb1-33"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">source</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$(</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">dirname</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">${BASH_SOURCE</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">[</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">]</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">}</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">)</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">/../lib/docstring.sh"</span></span>
+<span id="cb1-34"></span>
+<span id="cb1-35"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># ---- Default values ----</span></span>
+<span id="cb1-36"><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">PATTERN</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"BASE64"</span></span>
+<span id="cb1-37"></span>
+<span id="cb1-38"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">[</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">-z</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$1</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">]</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">;</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">then</span></span>
+<span id="cb1-39">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># call library function usage_helper</span></span>
+<span id="cb1-40">    <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">usage_helper</span></span>
+<span id="cb1-41">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">exit</span> 1</span>
+<span id="cb1-42"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">fi</span></span>
+<span id="cb1-43"></span>
+<span id="cb1-44"></span>
+<span id="cb1-45"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># ---- Parse command-line options ----</span></span>
+<span id="cb1-46"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">parse_opts()</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">{</span></span>
+<span id="cb1-47">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">while</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">getopts</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"hn"</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">opt</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">;</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">do</span></span>
+<span id="cb1-48">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">case</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$opt</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span></span>
+<span id="cb1-49">            <span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">h</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">)</span> <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">usage_helper</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">;</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">exit</span> 0 <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">;;</span></span>
+<span id="cb1-50">            <span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">n</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">)</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">PATTERN</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"NUMERIC"</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">;;</span></span>
+<span id="cb1-51">            <span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">*</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">)</span> <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">usage_helper</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">;</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">exit</span> 1 <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">;;</span></span>
+<span id="cb1-52">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">esac</span></span>
+<span id="cb1-53">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">done</span></span>
+<span id="cb1-54"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">}</span></span>
+<span id="cb1-55"></span>
+<span id="cb1-56"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># ---- 1st pass: parse leading options ----</span></span>
+<span id="cb1-57"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">parse_opts</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$@</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span></span>
+<span id="cb1-58"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">shift</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$((OPTIND</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">))</span></span>
+<span id="cb1-59"></span>
+<span id="cb1-60"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># ---- NUMBER_INPUT might be here ----</span></span>
+<span id="cb1-61"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">[[</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$1</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=~</span> <span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">^</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">[</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">0</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">9</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">]</span><span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">+</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">]];</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">then</span></span>
+<span id="cb1-62">    <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">NUMBER_INPUT</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$1</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span></span>
+<span id="cb1-63">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">shift</span> 1</span>
+<span id="cb1-64"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">fi</span></span>
+<span id="cb1-65"></span>
+<span id="cb1-66"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># ---- Reset OPTIND and parse remaining options (after NUMBER_INPUT) ----</span></span>
+<span id="cb1-67"><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">OPTIND</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>1</span>
+<span id="cb1-68"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">parse_opts</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$@</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span></span>
+<span id="cb1-69"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">shift</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$((OPTIND</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">))</span></span>
+<span id="cb1-70"></span>
+<span id="cb1-71"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># ---- Validate input ----</span></span>
+<span id="cb1-72"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Check if NUMBER_INPUT is a positive integer</span></span>
+<span id="cb1-73"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">! </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">[[</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$NUMBER_INPUT</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=~</span> <span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">^</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">[</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">1</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">9</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">][</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">0</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">9</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">]</span><span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">*</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">]];</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">then</span></span>
+<span id="cb1-74">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Error: Input must be a positive integer greater than 0."</span></span>
+<span id="cb1-75">    <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">usage_helper</span></span>
+<span id="cb1-76">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">exit</span> 1</span>
+<span id="cb1-77"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">fi</span></span>
+<span id="cb1-78"></span>
+<span id="cb1-79"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">((</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">NUMBER_INPUT</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">77</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">));</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">then</span></span>
+<span id="cb1-80">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Error: Input must be less than 77."</span></span>
+<span id="cb1-81">    <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">usage_helper</span></span>
+<span id="cb1-82">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">exit</span> 1</span>
+<span id="cb1-83"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">fi</span></span>
+<span id="cb1-84"></span>
+<span id="cb1-85"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">[</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$PATTERN</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">!=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"BASE64"</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">]</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">&amp;&amp;</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">[</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$PATTERN</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">!=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"NUMERIC"</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">]</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">;</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">then</span></span>
+<span id="cb1-86">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Error: Invalid pattern specified."</span></span>
+<span id="cb1-87">    <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">usage_helper</span></span>
+<span id="cb1-88">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">exit</span> 1</span>
+<span id="cb1-89"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">fi</span></span>
+<span id="cb1-90"></span>
+<span id="cb1-91"></span>
+<span id="cb1-92"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># ---- Generate random string based on pattern ----</span></span>
+<span id="cb1-93"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">[</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$PATTERN</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"BASE64"</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">]</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">;</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">then</span></span>
+<span id="cb1-94">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># ---- Generate random string ----</span></span>
+<span id="cb1-95">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">base64</span> /dev/urandom <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">head</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-c</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$NUMBER_INPUT</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span></span>
+<span id="cb1-96">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">echo</span></span>
+<span id="cb1-97">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">exit</span> 0</span>
+<span id="cb1-98"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">elif</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">[</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$PATTERN</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"NUMERIC"</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">]</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">;</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">then</span></span>
+<span id="cb1-99">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># ---- Generate numeric-only random string ----</span></span>
+<span id="cb1-100">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tr</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-dc</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'0-9'</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;</span> /dev/urandom <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">head</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-c</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$NUMBER_INPUT</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span></span>
+<span id="cb1-101">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">echo</span></span>
+<span id="cb1-102">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">exit</span> 0</span>
+<span id="cb1-103"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">fi</span></span></code></pre></div></div>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Example 1 (実行例)</strong></span> &nbsp;</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> generate-random-passwd 10</span>
+<span id="cb2-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">zCJPhQxfr6</span></span>
+<span id="cb2-3"></span>
+<span id="cb2-4"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> generate-random-passwd 10 <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-n</span></span>
+<span id="cb2-5"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">5711270805</span></span>
+<span id="cb2-6"></span>
+<span id="cb2-7"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> generate-random-passwd <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-n</span> 10</span>
+<span id="cb2-8"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">9843753838</span></span></code></pre></div></div>
+</div>
+<hr>
+</section>
+<section id="devurandom-仮想デバイス" class="level2">
+<h2 class="anchored" data-anchor-id="devurandom-仮想デバイス"><code>/dev/urandom</code> 仮想デバイス</h2>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title"><code>/dev/urandom</code></span></p>
+<ul>
+<li><code>/dev/urandom</code>はハードウェア（キーボード・マウス・CPUなどの）動作から得られる環境ノイズを蓄積したデータ領域のこと（＝エントロピープール）</li>
+<li>蓄積されたデータはバイナリーデータであるが，<code>base64</code> を利用することで乱数ジェネレーターとして利用できる</li>
+<li>出力プールの最大周期(period)は <img src="https://latex.codecogs.com/png.latex?2%5E%7B26%5Ctimes%2032%7D%20-%201"></li>
+<li>エントロピープールを再利用する仕組みを持つため，<span class="regmonkey-bold">エントロピー枯渇（entropy pool depletion）を心配する必要はない</span>（＝いつでも利用できる）</li>
+<li>疑似乱数の再現性(reproducible seeding)はない</li>
+</ul>
+</div>
+<p>エントロピープールを活用した疑似乱数ジェネレーターは <code>/dev/urandom</code> 以外に <code>dev/random</code> がありますが，動作の違いがあります． <code>dev/random</code> は乱数生成に使ったエントロピープール（= 内部状態）をそのまま再利用しないようにロックをかけるという設計になっています．</p>
+<ul>
+<li>乱数を出力 → プールが「公開された」とみなす</li>
+<li>安全のためそのプールはすぐ使わない</li>
+<li>新しい環境ノイズ（エントロピー）が十分に貯まるまで待つ</li>
+</ul>
+<p>そのため，連続した乱数生成を実施できない場合があります．</p>
+<ul>
+<li>連続した大量生成</li>
+<li>実行環境が低エントロピー環境（仮想マシンなどのノイズが少ない環境）</li>
+</ul>
+<p>では，ロックがかかりやすいので <code>/dev/urandom</code> ベースの乱数ジェネレーターのほうが一般用途では良いとされます．</p>
+<section id="base64-エンコード" class="level3">
+<h3 class="anchored" data-anchor-id="base64-エンコード">Base64 エンコード</h3>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 2</strong></span> <span class="def-title"><code>base64</code></span></p>
+<ul>
+<li>バイナリーデータをテキストに変換するための<span class="regmonkey-bold">エンコード方式</span></li>
+<li>データを64種類の印字可能な英数字(<code>[A-Za-z0-9+/]</code>)に変換</li>
+<li>MIMEの基準では76文字ごとに改行コードが入る</li>
+</ul>
+</div>
+<p><code>base64 /dev/urandom</code> を実行シたときの流れは</p>
+<ol type="1">
+<li><code>/dev/urandom</code> (バイナリ)</li>
+<li><code>base64</code> でエンコード</li>
+<li>ランダムな Base64 文字列が出力される</li>
+</ol>
+<p>になります．</p>
+</section>
+</section>
+<section id="head-コマンド" class="level2">
+<h2 class="anchored" data-anchor-id="head-コマンド"><code>head</code> コマンド</h2>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 3</strong></span> <span class="def-title"><code>head</code> コマンド</span></p>
+<ul>
+<li>headはテキストファイルの最初の10行を表示するコマンド</li>
+</ul>
+</div>
+<p><span class="mini-section">オプション</span></p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 60%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>短いオプション</th>
+<th>長いオプション</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>-c 数字</code></td>
+<td><code>--bytes 数字</code></td>
+<td>先頭から指定したバイト数のみ表示する．「<code>-c 5 b</code>」のように単位を付加することも可能（b=512, KB=1000, K=1024, MB=1000×1000, M=1024×1024…）</td>
+</tr>
+<tr class="even">
+<td><code>-n 数字</code></td>
+<td><code>--lines 数字</code></td>
+<td>先頭から指定した行数のみ表示する</td>
+</tr>
+<tr class="odd">
+<td><code>-q</code></td>
+<td><code>--quiet</code>, <code>--silent</code></td>
+<td>ファイルごとのヘッダ表示を行わない（複数ファイル指定時に使う）</td>
+</tr>
+<tr class="even">
+<td><code>-v</code></td>
+<td><code>--verbose</code></td>
+<td>常にファイルごとのヘッダ出力を行う</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="tr-コマンド" class="level2">
+<h2 class="anchored" data-anchor-id="tr-コマンド"><code>tr</code> コマンド</h2>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 4</strong></span> <span class="def-title"><code>tr</code> コマンド</span></p>
+<ul>
+<li>標準入力の文字を別の文字に置換したり，削除したりするコマンド</li>
+</ul>
+</div>
+<p><span class="mini-section">オプション</span></p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 60%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>短いオプション</th>
+<th>長いオプション</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>-d</code></td>
+<td><code>--delete</code></td>
+<td>指定した文字を削除する</td>
+</tr>
+<tr class="even">
+<td><code>-c</code></td>
+<td><code>--complement</code></td>
+<td>指定した文字セットの補集合を扱う（反転）</td>
+</tr>
+<tr class="odd">
+<td><code>-s</code></td>
+<td><code>--squeeze-repeats</code></td>
+<td>連続する同一文字を1つに圧縮する</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Example 2 (文字の置換)</strong></span> <code>tr 012 abc</code> を実行すると，</p>
+<ul>
+<li>「<code>0</code>」を「<code>a</code>」</li>
+<li>「<code>1</code>」を「<code>b</code>」</li>
+<li>「<code>2</code>」を「<code>c</code>」</li>
+</ul>
+<p>に置き換えます．「<code>012</code>」という連続した文字列を「<code>abc</code>」に置き換えるのではなく，常に1文字対1文字での置き換えとなるので，両者の長さはそろえる必要があります</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">$</span> echo <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'012345'</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tr</span> 012 abc</span>
+<span id="cb3-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">abc345</span></span>
+<span id="cb3-3"></span>
+<span id="cb3-4"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">$</span> echo <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'0142345'</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tr</span> 012 abc</span>
+<span id="cb3-5"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">ab4c345</span></span></code></pre></div></div>
+</div>
+<hr>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Example 3 (<code>/dev/urandom</code> から数値のみを抽出)</strong></span> <br></p>
+<p>数値のみのパスワードやトークン生成する場合は，<code>-d '0-9'</code> の補集合を取れば良いので</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tr</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-dc</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'0-9'</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;</span> /dev/urandom <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">head</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-c</span> 16</span></code></pre></div></div>
+</div>
+<hr>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Example 4 (連続した改行を1つにする)</strong></span> <br></p>
+<p><code>tr -s</code> は繰り返し文字の圧縮に使えるので</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">$</span> echo <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'A\n\n\nA'</span> </span>
+<span id="cb5-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">A</span></span>
+<span id="cb5-3"></span>
+<span id="cb5-4"></span>
+<span id="cb5-5"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">A</span></span>
+<span id="cb5-6"></span>
+<span id="cb5-7"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">$</span> echo <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'A\n\n\nA'</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tr</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-s</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'\n'</span></span>
+<span id="cb5-8"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">A</span></span>
+<span id="cb5-9"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">A</span></span></code></pre></div></div>
+<p><code>tr -s '\n'</code> は不要改行を削除するときに使いますが，同様に <code>tr -s '[:space:]</code> を用いて不要スペースをまとめたりします</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> echo <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"a   b   c"</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tr</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-s</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'[:space:]'</span></span>
+<span id="cb6-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">a</span> b c</span></code></pre></div></div>
+</div>
+<hr>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<ul>
+<li><a href="https://utakamo.com/article/linux/architecture/directory/dev/random-urandom.html">うたカモ技術ブログ &gt; Linux 乱数ジェネレーター（/dev/random、/dev/urandom、getrandom）</a></li>
+<li><a href="https://stackoverflow.com/questions/32139660/is-dev-urandom-suitable-for-simulation-purpose">Is <code>/dev/urandom</code> suitable for simulation purpose?</a></li>
+</ul>
+
+
+</section>
+
+ ]]></description>
+  <category>shell</category>
+  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-11-28-generate-random-passwd/</guid>
+  <pubDate>Fri, 28 Nov 2025 00:00:00 GMT</pubDate>
+</item>
+<item>
+  <title>paperless-ngxによるセルフホスティングドキュメント管理システム</title>
+  <dc:creator>Ryo Nakagami</dc:creator>
+  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-11-27-paperless-ngx/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+
+<div class="callout callout-style-default callout-caution callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Caution</span>想定環境
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>実行環境は基本的に Ubuntu 24.04 LTSを想定</li>
+<li>Docker engineは利用可能</li>
+<li>port 8888 でホスト</li>
+<li>Tailscaleは導入済み</li>
+<li>tailnet serveはhttpsを用いてserve</li>
+</ul>
+</div>
+</div>
+<section id="paperless-ngxとは" class="level2">
+<h2 class="anchored" data-anchor-id="paperless-ngxとは">Paperless-ngxとは？</h2>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>TL;DRs
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>Paperless-ngxは，PDF 論文やレポートを自前サーバで全文検索付きライブラリ化するためのツール</li>
+<li>「引用管理」「文献リスト生成」などの機能も欲しいなら，文献管理専用ソフトを使うのが無難</li>
+</ul>
+</div>
+</div>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title">Paperless-ngx</span></p>
+<ul>
+<li>pdf, txtなどのドキュメントを検索可能なオンラインアーカイブとして管理できるオープンソースのセルフホスティング文書管理システム</li>
+<li>サーバーサイドでPaperless-ngxを構築し，クライアント端末からアクセスしたり，コンテンツをダウンロードすることが可能</li>
+<li>バックエンドはDjango</li>
+</ul>
+</div>
+<p><span class="mini-section">Features</span></p>
+<ul>
+<li>タグ・差出人(Correspondence)・文書タイプ・カスタムフィールドでドキュメントを整理可能</li>
+<li>アップロードしたドキュメントに対してOCRを用いた全文検索が可能</li>
+<li>機械学習でタグ・差出人・文書タイプを 自動分類</li>
+<li>PDF，画像，テキスト，Word/Excel/PowerPoint，LibreOffice など多くの形式に対応</li>
+<li>Web UI を通じて，複数ユーザーでのアクセス管理，共有リンク発行が可能</li>
+<li>文書ごとに権限管理設定可能</li>
+<li>ワークフロー機能による自動処理</li>
+</ul>
+<div class="callout callout-style-default callout-caution callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Caution</span>文書管理システムであって文献管理ソフトではない
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>Zoteroと違い学術論文データベースではないです</li>
+<li>文献の著者情報，出版年，ジャーナル名，引用数，参照関係，BibTex形式でのメタ情報出力は標準では備わっていない</li>
+<li>Paperless-ngxはファイルを独自フォルダ構成で管理するため，「元のファイルツリー構造をそのまま索引化だけしたい」という用途には向かない</li>
+</ul>
+</div>
+</div>
+</section>
+<section id="paperless-ngxの設定" class="level2">
+<h2 class="anchored" data-anchor-id="paperless-ngxの設定">Paperless-ngxの設定</h2>
+<p>Paperless-ngxは Dockerベースで構築することが可能です．構築にあたって</p>
+<ol type="1">
+<li>シェルスクリプトを用いて，対話式でセットアップする</li>
+<li>自分で <code>docker-compose.yml</code> を定義し，公式Paperless-ngx Docker imageを運用する</li>
+</ol>
+<section id="パターン１-シェルスクリプトを用いて対話式でセットアップする" class="level3">
+<h3 class="anchored" data-anchor-id="パターン１-シェルスクリプトを用いて対話式でセットアップする">パターン１: シェルスクリプトを用いて，対話式でセットアップする</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">bash</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-c</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$(</span><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">curl</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--location</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--silent</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--show-error</span> https://raw.githubusercontent.com/paperless-ngx/paperless-ngx/main/install-paperless-ngx.sh<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">)</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span></span></code></pre></div></div>
+<p>を実行することで対話式でセットアップできます．また，Paperless-ngxの中で用いるrootアカウントの設定まで行ってくれます．</p>
+</section>
+<section id="パターン２自分で-docker-compose.yml-を定義" class="level3">
+<h3 class="anchored" data-anchor-id="パターン２自分で-docker-compose.yml-を定義">パターン２：自分で <code>docker-compose.yml</code> を定義</h3>
+<p>作業手順として</p>
+<ol type="1">
+<li>利用可能UID, GIDの確認</li>
+<li>GIDの作成</li>
+<li>UIDの作成</li>
+<li>Docker設定用のdirectoryを作成(= volumn, 設定ファイルの管理用ディレクトリ)</li>
+<li><code>docker-compose.env</code> の作成</li>
+<li><code>docker-compose.yml</code> の作成</li>
+<li>コンテナを起動</li>
+</ol>
+<p>です．</p>
+<p><span class="mini-section">Step 1: paperless-ngx用UIDの作成</span></p>
+<p>Ubuntuサーバー側でPaperless-ngxをホスティングするので，まずPaperless-ngx用non-humanアカウントを作成します． UIDとGIDは同じIDで基本的には作成されますが，連番の関係が崩れると違ったIDが割り当てられてしまう可能性があるので，利用可能なIDを確認します．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 75%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>コマンド</th>
+<th>挙動</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>getent passwd</code></td>
+<td>UID一覧の確認コマンド</td>
+</tr>
+<tr class="even">
+<td><code>getent group</code></td>
+<td>GID一覧の確認コマンド</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>上記のコマンドを叩いて目星をつけたならば(例として<code>120</code>が空いていたとする)</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">getent</span> passwd 120</span>
+<span id="cb2-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">getent</span> group 120</span></code></pre></div></div>
+<p>両方のコマンドを叩いて何も返ってこないことを確認します．</p>
+<p><span class="mini-section">Step 2: GIDの作成</span></p>
+<p>GIDの作成は <code>groupadd</code> コマンドを以下のように用います</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sudo</span> groupadd <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--gid</span> 120 paperless-ngx</span></code></pre></div></div>
+<p>GID作成後，意図した通りにGIDが作成されているか確認します</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">$</span> getent group 120</span>
+<span id="cb4-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">paperless-ngx:x:120:</span></span></code></pre></div></div>
+<p>もし間違ったGIDで作成してしまった場合は</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sudo</span> groupdel <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;</span>group-name<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span></span></code></pre></div></div>
+<p><span class="mini-section">Step 3: UIDの作成</span></p>
+<p><code>paperless-ngx</code> ユーザーを作成します． 不特定多数が利用するサーバーでホスティングするので特定のhumanユーザーではなく， サービス専用のシステム用アカウント(ログイン不可のユーザー)として運用したいのが理由となります．</p>
+<p>ユーザー作成コマンドは以下です</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sudo</span> useradd <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb6-2">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--system</span> <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb6-3">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--no-create-home</span> <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb6-4">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--uid</span> 120 <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb6-5">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--gid</span> 120 <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb6-6">  paperless-ngx</span></code></pre></div></div>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 28%">
+<col style="width: 71%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>オプション</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>useradd</code></td>
+<td>新しいユーザーを作成するコマンド</td>
+</tr>
+<tr class="even">
+<td><code>--system</code></td>
+<td>システム専用ユーザーとして作成（ログイン不可，通常 UID 100 未満を使う場合もある）</td>
+</tr>
+<tr class="odd">
+<td><code>--no-create-home</code></td>
+<td>ホームディレクトリを作らない</td>
+</tr>
+<tr class="even">
+<td><code>--uid 120</code></td>
+<td>作成するユーザーの <strong>UID</strong> を 120 に指定</td>
+</tr>
+<tr class="odd">
+<td><code>--gid 120</code></td>
+<td>作成するユーザーの <strong>プライマリグループ</strong> を GID 120 に指定</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>上記のコマンド実行後，home directoryを持たない <code>paperless-ngx</code> が作成されますが</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">$</span> getent passwd 120</span>
+<span id="cb7-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">paperless-ngx:x:120:120::/home/paperless-ngx:/bin/sh</span></span></code></pre></div></div>
+<p>となってると思います．ログインシェルと存在しないhome directoryが指定されているのは気持ち悪いので</p>
+<ul>
+<li><code>/nonexisent</code> ディレクトリをhome directoryとする</li>
+<li><code>/usr/sbin/nologin</code> でログイン不可</li>
+</ul>
+<p>という設定更新をします．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sudo</span> usermod <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-d</span> /nonexistent paperless-ngx</span>
+<span id="cb8-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sudo</span> usermod <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-s</span> /usr/sbin/nologin paperless-ngx</span></code></pre></div></div>
+<p>上記のコマンド実行後は</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">$</span> getent passwd 120</span>
+<span id="cb9-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">paperless-ngx:x:120:120::/nonexistent:/usr/sbin/nologin</span></span></code></pre></div></div>
+<p>となっているはずです．</p>
+<p><span class="mini-section">Step 4: Docker設定用のdirectoryを作成</span></p>
+<p>paperless-ngxサービス用のディレクトリを <code>/srv</code> 以下に以下のように作成します</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sudo</span> mkdir <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-p</span> /srv/paperless-ngx</span></code></pre></div></div>
+<p>作成後，所有権を以下のように変更しときます</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sudo</span> chown <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-R</span> paperless-ngx:paperless-ngx /srv/paperless-ngx</span></code></pre></div></div>
+<p>また，サーバーサイドでの設定なのでパーミッションも以下のように変更しときます</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sudo</span> chmod 770 /srv/paperless-ngx</span></code></pre></div></div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span><code>/srv/paperless-ngx</code> に構築する理由
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Paperless-ngx が管理するファイル・設定・ボリューム用ディレクトリを一目でわかる場所で管理するのが望ましいですが，どこで管理するのかが問題となります． Ubuntuでは用途ごとに次のようなディレクトリが一般的に用いられます：</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 18%">
+<col style="width: 33%">
+<col style="width: 47%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>ディレクトリ</th>
+<th>用途</th>
+<th>コメント</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>/srv</code></td>
+<td>サービス専用データ</td>
+<td>標準的でわかりやすい</td>
+</tr>
+<tr class="even">
+<td><code>/opt</code></td>
+<td>サードパーティソフトのインストール先</td>
+<td>バイナリやパッケージ向けでデータ管理向きではない</td>
+</tr>
+<tr class="odd">
+<td><code>/var/lib</code></td>
+<td>可変データ（ログ，DB，キャッシュ）</td>
+<td>物理的に動的なデータ向け，サービスデータ全般にも可</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Paperless-ngx のデータをどこに置くかは最終的に任意ですが，サービス専用ユーザーに所有権を割り当てやすく，管理もしやすいという点から， <code>/srv</code> 配下にディレクトリを作成する方針にしました．</p>
+</div>
+</div>
+<p>その後，Paperless-ngx用のexportとupload用ボリュームとして <code>export</code>, <code>consume</code> ディレクトリが必要となるのでそれぞれを作成します．</p>
+<p><span class="mini-section">Step 5: <code>docker-compose.env</code> の作成</span></p>
+<p>Dockerコンテナ用の環境変数を定義する <code>docker-compose.env</code> を <code>/srv/paperless-ngx</code> 以下に作成します</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb13-1"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">USERMAP_UID</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">120</span></span>
+<span id="cb13-2"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">USERMAP_GID</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">120</span></span>
+<span id="cb13-3"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">PAPERLESS_TIME_ZONE</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">Asia/Tokyo</span></span>
+<span id="cb13-4"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">PAPERLESS_OCR_LANGUAGE</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">eng</span></span>
+<span id="cb13-5"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">PAPERLESS_SECRET_KEY</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'&lt;適当な文字列&gt;'</span></span>
+<span id="cb13-6"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">PAPERLESS_OCR_OUTPUT_TYPE</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">pdf</span></span></code></pre></div></div>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 15%">
+<col style="width: 24%">
+<col style="width: 60%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>変数名</th>
+<th>説明</th>
+<th>備考（今回の重要ポイントを踏まえた補足）</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>USERMAP_UID=120</code></td>
+<td>Paperless コンテナ内部で使用するユーザーID（UID）をホスト側 UID に合わせるための設定</td>
+<td>ホスト側のユーザー権限と揃えることで，生成ファイルの所有権が一致し，権限問題が発生しにくくなる</td>
+</tr>
+<tr class="even">
+<td><code>USERMAP_GID=120</code></td>
+<td>Paperless コンテナ内部で使用するグループID（GID）をホスト側 GID に合わせる設定</td>
+<td>UID と同様，ホスト側のグループ権限と一致させることで，ファイルアクセスの整合性が取れる．</td>
+</tr>
+<tr class="odd">
+<td><code>PAPERLESS_TIME_ZONE=Asia/Tokyo</code></td>
+<td>Paperless 内部で使用するタイムゾーンを指定．</td>
+<td>ログ，OCR のタイムスタンプ，タスクの実行時間管理に使用されるため，日本で利用するなら <code>Asia/Tokyo</code> が最適</td>
+</tr>
+<tr class="even">
+<td><code>PAPERLESS_OCR_LANGUAGE=eng</code></td>
+<td>OCR に使用する言語を指定する．複数指定も可能（例: <code>eng+jpn</code>）．</td>
+<td>日本語を扱う場合は <code>jpn</code> の追加を推奨．英語のみなら <code>eng</code> のままでOK．</td>
+</tr>
+<tr class="odd">
+<td><code>PAPERLESS_SECRET_KEY='&lt;適当な文字列&gt;'</code></td>
+<td><strong>セッションを保護する秘密鍵（ユーザー認証に不可欠）．ランダムで長い文字列に必ず変更する必要がある．</strong></td>
+<td>Paperless がインターネットに公開される場合，<strong>デフォルトの SECRET_KEY は広く知られているため危険</strong>．キーボードを適当に叩いた文字列でOK．覚える必要はない．長いほど安全．例: <code>a9$FJ!p92jaf(3)sa0fjasdf02398</code></td>
+</tr>
+<tr class="even">
+<td><code>PAPERLESS_OCR_OUTPUT_TYPE=&lt;type&gt;</code></td>
+<td>OCR 後に生成する PDF の種類を指定</td>
+<td>- <code>pdf</code> : 元の PDF を極力変更せずに OCR を追加<br>- <code>pdfa</code> : PDF/A-2b に変換（長期保存向け）<br>- <code>pdfa-1</code>, <code>pdfa-2</code>, <code>pdfa-3</code> : PDF/A のバージョン指定<br>※ 指定しない場合は <code>pdfa</code> がデフォルト</td>
+</tr>
+</tbody>
+</table>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>PAPERLESS_OCR_LANGUAGE設定の注意点
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Paperless-ngxはOCR機能としてTesseractを利用しますが，デフォルトでインストールされていない言語を指定すると，</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb14-1"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">The selected ocr language jpn is not installed. Paperless cannot OCR your documents without it. Please fix PAPERLESS_OCR_LANGUAGE.</span></span></code></pre></div></div>
+<p>というエラーを吐きます．日本語対応を含めるため <code>eng+jpn</code> を設定する場合は <code>Dockerfile</code> を設定して</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb15-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">RUN</span> apt-get update <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb15-2">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">&amp;&amp;</span> <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">apt-get</span> install <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-y</span> tesseract-ocr-jpn <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb15-3">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">&amp;&amp;</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rm</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-rf</span> /var/lib/apt/lists/<span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">*</span></span></code></pre></div></div>
+<p>というラインを加えた上でビルドの必要があります．</p>
+</div>
+</div>
+<p><span class="mini-section">Step 6: <code>docker-compose.yml</code> の作成</span></p>
+<p><code>/srv/paperless-ngx</code> にて <code>docker-compose.yml</code> を以下のように作成します</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16" style="background: #f1f3f5;"><pre class="sourceCode yml code-with-copy"><code class="sourceCode yaml"><span id="cb16-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">services</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span></span>
+<span id="cb16-2"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">broker</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span></span>
+<span id="cb16-3"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">    </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">image</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> docker.io/library/redis:8</span></span>
+<span id="cb16-4"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">    </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">restart</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> unless-stopped</span></span>
+<span id="cb16-5"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">    </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">volumes</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span></span>
+<span id="cb16-6"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">      </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> paperless-redisdata:/data</span></span>
+<span id="cb16-7"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span></span>
+<span id="cb16-8"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">db</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span></span>
+<span id="cb16-9"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">    </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">image</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> docker.io/library/postgres:18</span></span>
+<span id="cb16-10"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">    </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">restart</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> unless-stopped</span></span>
+<span id="cb16-11"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">    </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">volumes</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span></span>
+<span id="cb16-12"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">      </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> paperless-pgdata:/var/lib/postgresql</span></span>
+<span id="cb16-13"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">    </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">environment</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span></span>
+<span id="cb16-14"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">      </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">POSTGRES_DB</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> paperless</span></span>
+<span id="cb16-15"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">      </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">POSTGRES_USER</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> paperless</span></span>
+<span id="cb16-16"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">      </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">POSTGRES_PASSWORD</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> paperless</span></span>
+<span id="cb16-17"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span></span>
+<span id="cb16-18"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">webserver</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span></span>
+<span id="cb16-19"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">    </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">image</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> ghcr.io/paperless-ngx/paperless-ngx:latest</span></span>
+<span id="cb16-20"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">    </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">restart</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> unless-stopped</span></span>
+<span id="cb16-21"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">    </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">depends_on</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span></span>
+<span id="cb16-22"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">      </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> db</span></span>
+<span id="cb16-23"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">      </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> broker</span></span>
+<span id="cb16-24"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">    </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ports</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span></span>
+<span id="cb16-25"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">      </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"8888:8000"</span></span>
+<span id="cb16-26"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">    </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">volumes</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span></span>
+<span id="cb16-27"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">      </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> paperless-data:/usr/src/paperless/data</span></span>
+<span id="cb16-28"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">      </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> paperless-media:/usr/src/paperless/media</span></span>
+<span id="cb16-29"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">      </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> ./export:/usr/src/paperless/export</span></span>
+<span id="cb16-30"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">      </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> ./consume:/usr/src/paperless/consume</span></span>
+<span id="cb16-31"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">    </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">env_file</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> docker-compose.env</span></span>
+<span id="cb16-32"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">    </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">environment</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span></span>
+<span id="cb16-33"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">      </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">PAPERLESS_REDIS</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> redis://broker:6379</span></span>
+<span id="cb16-34"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">      </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">PAPERLESS_DBHOST</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> db</span></span>
+<span id="cb16-35"></span>
+<span id="cb16-36"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">volumes</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span></span>
+<span id="cb16-37"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">paperless-data</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span></span>
+<span id="cb16-38"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">paperless-media</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span></span>
+<span id="cb16-39"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">paperless-pgdata</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span></span>
+<span id="cb16-40"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">paperless-redisdata</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span></span></code></pre></div></div>
+<p><span class="mini-section">Step 7: コンテナを起動</span></p>
+<p>コンテナは以下の手順で起動します</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb17-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sudo</span> docker compose up <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-d</span></span>
+<span id="cb17-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sudo</span> docker compose ps</span></code></pre></div></div>
+<p>エラーが発生した場合は</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb18-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sudo</span> docker compose logs <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-f</span> webserver</span></code></pre></div></div>
+<p>でログを確認できます．</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>uploadしたドキュメントのバックアップを取る
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Paperless-ngx コンテナ内の <code>export</code> ディレクトリにあるドキュメントをバックアップする場合</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb19-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">docker</span> exec <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-it</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$(</span><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">docker</span> ps <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-aqf</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"name=paperless-ngx-webserver-1"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">)</span> document_exporter ../export</span></code></pre></div></div>
+<ul>
+<li><code>../export</code> はコンテナ内の相対パス</li>
+<li>ホスト側ボリューム <code>/srv/paperless-ngx/export</code> にマウントしていれば，ホスト側からも直接アクセス可能</li>
+</ul>
+</div>
+</div>
+</section>
+</section>
+<section id="tailnet-serve設定" class="level2">
+<h2 class="anchored" data-anchor-id="tailnet-serve設定">Tailnet serve設定</h2>
+<p>設定手順は</p>
+<ol type="1">
+<li><code>docker-compose.env</code> の設定とコンテナの再起動</li>
+<li>tailnet serve設定</li>
+</ol>
+<p>となります</p>
+<p><span class="mini-section">Step 1: <code>docker-compose.env</code> の設定</span></p>
+<p>Tailscale 経由で Paperless-ngx にアクセスする場合，Djangoにホスト名とプロトコル（HTTPS）を正しく伝えることが重要です． 設定項目としては</p>
+<ul>
+<li><code>PAPERLESS_URL</code>: Django の CSRF / CORS / ALLOWED_HOSTS を自動設定するための環境変数．末尾スラッシュなし</li>
+</ul>
+<p>今回は Port 8888 経由で公開するので</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb20-1"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">PAPERLESS_URL</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">https://hogehoge.tail8ada9.ts.net:8888</span></span></code></pre></div></div>
+<p>と設定します．<code>https://hogehoge.tail8ada9.ts.net:8888</code> はtailscale serve statusで確認できるものにします．</p>
+<p>上記を踏まえると以下のような <code>docker-compose.env</code> となります</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb21-1"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">USERMAP_UID</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">120</span></span>
+<span id="cb21-2"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">USERMAP_GID</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">120</span></span>
+<span id="cb21-3"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">PAPERLESS_TIME_ZONE</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">Asia/Tokyo</span></span>
+<span id="cb21-4"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">PAPERLESS_OCR_LANGUAGE</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">eng+jpn</span></span>
+<span id="cb21-5"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">PAPERLESS_SECRET_KEY</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'hogehogehgoehgoeghoeh'</span></span>
+<span id="cb21-6"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">PAPERLESS_URL</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">https://hogehoge.tail8ada9.ts.net:8888</span></span></code></pre></div></div>
+<p><span class="mini-section">Step 2: <code>tailnet serve設定</code> の設定</span></p>
+<p>Tailscale の HTTP/HTTPS リバースプロキシ機能をつかってローカルサービスをTailnet上で公開します．</p>
+<p>サーバー側で以下のコマンドを実行します</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb22" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb22-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sudo</span> tailscale serve <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--bg</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--https</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>8888 8888</span></code></pre></div></div>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 10%">
+<col style="width: 33%">
+<col style="width: 55%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>コマンド部分</th>
+<th>説明</th>
+<th>ポイント / 注意点</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>tailscale serve</code></td>
+<td>ローカルの HTTP/HTTPS サービスを Tailscale ネットワーク上で公開するリバースプロキシ機能</td>
+<td>Tailscale 1.36 以降で利用可能</td>
+</tr>
+<tr class="even">
+<td><code>--bg</code></td>
+<td>バックグラウンドで実行</td>
+<td>ターミナルを閉じてもプロセスは継続。デーモン的に動作</td>
+</tr>
+<tr class="odd">
+<td><code>--https=8888</code></td>
+<td>Tailscale 側で HTTPS を提供するポート番号</td>
+<td>自動生成証明書で TLS 保護された HTTPS アクセスが可能</td>
+</tr>
+<tr class="even">
+<td><code>8888</code> (最後の引数)</td>
+<td>ローカルサービスのポート番号</td>
+<td>ローカルの <code>localhost:8888</code> にあるサービスを Tailscale HTTPS ポートに接続</td>
+</tr>
+</tbody>
+</table>
+<p>上記コマンドの実行後， Tailscale 内から <code>https://&lt;tailscale-node&gt;:8888</code> でローカルサービスとしてのpaperless-ngxへアクセス可能となります．</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>サービスを非公開にしたい場合
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Tailscale 内から Paperless-ngx にHTTPSでアクセス負荷にしたい場合は</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb23" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb23-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sudo</span> tailscale serve <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--bg</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--https</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>8888 off</span></code></pre></div></div>
+<p>ポートは8888想定ですが，<code>sudo tailscale serve --bg --https=&lt;port&gt; 8888</code> の <code>&lt;port&gt;</code> に応じて変更して下さい．</p>
+</div>
+</div>
+</section>
+<section id="appendix-1-グループからユーザーを削除する方法" class="level2">
+<h2 class="anchored" data-anchor-id="appendix-1-グループからユーザーを削除する方法">Appendix 1: グループからユーザーを削除する方法</h2>
+<p>特定のユーザーをグループから削除するには <code>gpasswd</code> or <code>deluser</code> コマンドを使用します</p>
+<p><span class="mini-section"><code>gpasswd</code>コマンド</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb24" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb24-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">## long option</span></span>
+<span id="cb24-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sudo</span> gpasswd <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--delete</span> user1 papaerless-ngx</span>
+<span id="cb24-3"></span>
+<span id="cb24-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">## short option</span></span>
+<span id="cb24-5"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sudo</span> gpasswd <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-d</span> user1 papaerless-ngx</span>
+<span id="cb24-6"></span>
+<span id="cb24-7"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 現在のユーザーをpaperless-ngxから除去</span></span>
+<span id="cb24-8"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sudo</span> gpasswd <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-d</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$(</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">whoami</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">)</span> paperless-ngx</span></code></pre></div></div>
+<p><span class="mini-section"><code>deluser</code>コマンド</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb25" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb25-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">## syntax</span></span>
+<span id="cb25-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sudo</span> deluser user1 paperless-ngx</span>
+<span id="cb25-3"></span>
+<span id="cb25-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 現在のユーザーをpaperless-ngxから除去</span></span>
+<span id="cb25-5"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sudo</span> deluser <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$(</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">whoami</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">)</span> paperless-ngx</span></code></pre></div></div>
+</section>
+<section id="appendix-2-zoteroとの併用方法" class="level2">
+<h2 class="anchored" data-anchor-id="appendix-2-zoteroとの併用方法">Appendix 2: Zoteroとの併用方法</h2>
+<p>基本コンセプトは，<span class="regmonkey-bold">Paperless-ngxを原本置き場，Zotero はメタデータ管理だけ</span></p>
+<ul>
+<li>PDF ファイルを Zotero に保存しない</li>
+<li>PDF の原本はすべて Paperless に一元管理</li>
+<li>Zotero は「文献管理ソフト」として最小限データだけ持つ</li>
+<li>Zotero 内では Linked Attachment（リンクされた添付ファイル）を使い，Paperless の PDF を参照する</li>
+</ul>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 21%">
+<col style="width: 27%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>役割</th>
+<th>担当</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Paperless-ngx</strong></td>
+<td>原本保管庫（PDF の全保管・OCR・タグ）</td>
+<td>すべての PDF ファイルの実体を保管する（NAS代わり）</td>
+</tr>
+<tr class="even">
+<td><strong>Zotero</strong></td>
+<td>文献リスト＋引用情報</td>
+<td>メタデータだけを管理し，PDF本体は保存しない</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><span class="mini-section">運用イメージ</span></p>
+<ol type="1">
+<li>PDF を Paperless-ngx に入れる</li>
+<li>Paperless-ngx が OCR＋タグ整理</li>
+<li>必要に応じて Zotero に 文献情報（DOI など）を登録</li>
+<li>添付ファイルとして Paperless-ngx の PDF パスを貼る（手動 or 自動スクリプト）</li>
+</ol>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<ul>
+<li><a href="https://docs.paperless-ngx.com/">Paperless-ngx公式ドキュメント</a></li>
+<li><a href="https://packages.debian.org/bullseye/graphics/tesseract-ocr-jpn-vert">Package: tesseract-ocr-jpn-vert</a></li>
+</ul>
+
+
+</section>
+
+ ]]></description>
+  <category>環境構築</category>
+  <category>paperless-ngx</category>
+  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-11-27-paperless-ngx/</guid>
+  <pubDate>Thu, 27 Nov 2025 00:00:00 GMT</pubDate>
+</item>
 <item>
   <title>Counterオブジェクト</title>
   <dc:creator>Ryo Nakagami</dc:creator>
@@ -33,7 +2125,7 @@
 </ul>
 </div>
 <p>リストの要素の出現回数を集計する場合，<code>Dict</code> を用いる場合</p>
-<div id="a44386dc" class="cell" data-execution_count="1">
+<div id="fb9d4955" class="cell" data-execution_count="1">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb1-1">words <span class="op" style="color: #5E5E5E;
@@ -84,7 +2176,7 @@ font-style: inherit;">print</span>(count_dict)</span></code></pre></div></div>
 </div>
 </div>
 <p><code>Counter</code>を用いることで以下のようにより簡単に集計することが出来ます</p>
-<div id="a079efa3" class="cell" data-execution_count="2">
+<div id="35986447" class="cell" data-execution_count="2">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb3-1"><span class="im" style="color: #00769E;
@@ -106,7 +2198,7 @@ font-style: inherit;">print</span>(word_counter)</span></code></pre></div></div>
 </div>
 </div>
 <p>また，すべての要素の出現頻度の合計は <code>total()</code> メソッドを用いて表示できます</p>
-<div id="bde91af7" class="cell" data-execution_count="3">
+<div id="27bddb4d" class="cell" data-execution_count="3">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb5-1"><span class="bu" style="color: null;
@@ -122,7 +2214,7 @@ font-style: inherit;"># 6 = 3 + 2 + 1</span></span></code></pre></div></div>
 <div id="exm-" class="custom_problem theorem example">
 <p><span class="theorem-title"><strong>Example 1 (単語出現頻度の計測)</strong></span> <br></p>
 <p>ハムレットの一節を内容とする <code>hamlet.txt</code> を例に，出現単語のTop 5の計測を行います．<code>Counter</code> クラスには <code>most_common()</code> メソッドがあり，要素を出現頻度に応じて降順で返してくれます．引数として整数を指定すると，最上位から数えてその個数分だけを出力してくれるので</p>
-<div id="539f8b32" class="cell" data-execution_count="4">
+<div id="9b4ee55f" class="cell" data-execution_count="4">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb7-1"><span class="im" style="color: #00769E;
@@ -161,7 +2253,7 @@ font-style: inherit;">5</span>)</span></code></pre></div></div>
 </div>
 </div>
 <p>出現頻度下位Top 3を出力したい場合は</p>
-<div id="0e73750a" class="cell" data-execution_count="5">
+<div id="b8b22cc4" class="cell" data-execution_count="5">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb9-1">hamlet_counter <span class="op" style="color: #5E5E5E;
@@ -185,7 +2277,7 @@ font-style: inherit;">1</span>]</span></code></pre></div></div>
 <hr>
 <section id="counter-インスタンスの作成方法" class="level3">
 <h3 class="anchored" data-anchor-id="counter-インスタンスの作成方法"><code>Counter</code> インスタンスの作成方法</h3>
-<div id="2c353105" class="cell" data-execution_count="6">
+<div id="2360a1e5" class="cell" data-execution_count="6">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb11-1"><span class="im" style="color: #00769E;
@@ -271,7 +2363,7 @@ Counter({'dogs': 8, 'cats': 4})</code></pre>
 <section id="存在しないキーの取り扱い" class="level3">
 <h3 class="anchored" data-anchor-id="存在しないキーの取り扱い">存在しないキーの取り扱い</h3>
 <p><code>Counter</code> では存在しないキーにアクセスしても KeyError にはならず，<code>0</code> が返るのが特徴です</p>
-<div id="50159d08" class="cell" data-execution_count="7">
+<div id="46a2757a" class="cell" data-execution_count="7">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb13-1"><span class="im" style="color: #00769E;
@@ -320,7 +2412,7 @@ font-style: inherit;"># 0 ← KeyError にはならない</span></span></code></
 </div>
 <div id="exm-" class="custom_problem theorem example">
 <p><span class="theorem-title"><strong>Example 2 (<code>dict</code> と KeyError)</strong></span> <br></p>
-<div id="0d0d79bc" class="cell" data-execution_count="8">
+<div id="8d26d7a0" class="cell" data-execution_count="8">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb15-1">foods <span class="op" style="color: #5E5E5E;
@@ -378,7 +2470,7 @@ font-style: inherit;">"</span>)</span></code></pre></div></div>
 <section id="挿入順序の保持" class="level3">
 <h3 class="anchored" data-anchor-id="挿入順序の保持">挿入順序の保持</h3>
 <p>Python 3.7 以降，<code>Counter</code> は内部的には挿入順を保持しています．<code>print</code> などでkey-valueを出力するとvalueに応じた降順でソートされたように見えますが，<code>Counter.keys()</code> などでkeyの順番を確認すると，挿入順となっています</p>
-<div id="e59f8630" class="cell" data-execution_count="9">
+<div id="fce98c5c" class="cell" data-execution_count="9">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb17-1"><span class="im" style="color: #00769E;
@@ -431,7 +2523,7 @@ dict_keys(['g', 'a', 'l', 'h', 'd'])
 <p><span class="mini-section">演算処理の順番</span></p>
 <p><code>Counter</code> オブジェクトは，<code>+</code> を使った加算処理ができます．このとき，基本的なキーの順番は左オペラントとなり，新しいキーは右オペランドから追加されるという内部処理になります．</p>
 <p>つまり，要素順は，<span class="regmonkey-bold">左オペランドの出現順 → 右オペランドで新規に現れた順</span>で決まります．</p>
-<div id="ed99b92d" class="cell" data-execution_count="10">
+<div id="c381e705" class="cell" data-execution_count="10">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb19-1"><span class="im" style="color: #00769E;
@@ -486,7 +2578,7 @@ dict_keys(['z', 'b', 'c', 'a', 'd'])
 <section id="counter-と算術演算" class="level2">
 <h2 class="anchored" data-anchor-id="counter-と算術演算"><code>Counter</code> と算術演算</h2>
 <p><span class="mini-section">TL;DRs</span></p>
-<div id="038b3dcb" class="cell" data-execution_count="11">
+<div id="6f5217a0" class="cell" data-execution_count="11">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb21-1"><span class="im" style="color: #00769E;
@@ -638,7 +2730,7 @@ c &gt;= d ? False</code></pre>
 </ul>
 </div>
 <p>基本的な使い方は</p>
-<div id="49a38a0d" class="cell" data-execution_count="12">
+<div id="43f22a18" class="cell" data-execution_count="12">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb23-1"><span class="im" style="color: #00769E;
@@ -673,7 +2765,7 @@ font-style: inherit;">print</span>(c1)</span></code></pre></div></div>
 </div>
 <div id="exm-" class="custom_problem theorem example">
 <p><span class="theorem-title"><strong>Example 3 (iterableからの減算)</strong></span> <br></p>
-<div id="4300149b" class="cell" data-execution_count="13">
+<div id="5be68596" class="cell" data-execution_count="13">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb25-1">c <span class="op" style="color: #5E5E5E;
@@ -698,7 +2790,7 @@ font-style: inherit;">print</span>(c)</span></code></pre></div></div>
 <hr>
 <div id="exm-" class="custom_problem theorem example">
 <p><span class="theorem-title"><strong>Example 4 (値は 0 未満になる場合)</strong></span> <br></p>
-<div id="ddd2e7f6" class="cell" data-execution_count="14">
+<div id="b4b5a94d" class="cell" data-execution_count="14">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb27-1">c <span class="op" style="color: #5E5E5E;
@@ -762,7 +2854,7 @@ Caution
 </ul>
 </div>
 </div>
-<div id="dd107c08" class="cell" data-execution_count="15">
+<div id="0ed5d301" class="cell" data-execution_count="15">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb29-1"><span class="im" style="color: #00769E;
@@ -850,7 +2942,7 @@ Counter({'a': 5, 'b': 5, 'e': 1, 'c': 1, 'd': 1})</code></pre>
 </div>
 <p><span class="mini-section">ロバストな加算処理</span></p>
 <p>値を置き換えるのではなく，順序ロバストにカウントを加算して計算したい場合は <code>update</code> メソッドを用いるほうが良いかもしれません</p>
-<div id="8f00ea1f" class="cell" data-execution_count="16">
+<div id="87593517" class="cell" data-execution_count="16">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb31-1"><span class="im" style="color: #00769E;
@@ -2024,7 +4116,7 @@ font-style: inherit;">}</span></span></code></pre></div></div>
 </div>
 <div id="exm-" class="custom_problem theorem example">
 <p><span class="theorem-title"><strong>Example 1 (初期化処理 <code>__init__</code> と継承)</strong></span> <br></p>
-<div id="cd2a05c2" class="cell" data-execution_count="1">
+<div id="64d5628f" class="cell" data-execution_count="1">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb1-1"><span class="kw" style="color: #003B4F;
@@ -2123,7 +4215,7 @@ Real Madrid</code></pre>
 <hr>
 <div id="exm-" class="custom_problem theorem example">
 <p><span class="theorem-title"><strong>Example 2 (<code>dataclass</code> を用いた初期化処理と継承)</strong></span> <br></p>
-<div id="7499f018" class="cell" data-execution_count="2">
+<div id="10d551ae" class="cell" data-execution_count="2">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb3-1"><span class="im" style="color: #00769E;
@@ -2207,7 +4299,7 @@ Real Madrid</code></pre>
 <li><code>super().__init__</code> の設定が <code>dataclass</code> 継承では不要になる</li>
 <li>親クラスでデフォルト値を用いていると少し話がややこしくなる</li>
 </ul>
-<div id="67c25395" class="cell" data-execution_count="3">
+<div id="3df5c31e" class="cell" data-execution_count="3">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb5-1"><span class="im" style="color: #00769E;
@@ -2303,7 +4395,7 @@ font-style: inherit;">'UT'</span>)</span>
 </div>
 <div id="exm-" class="custom_problem theorem example">
 <p><span class="theorem-title"><strong>Example 4 (親メソッドを部分的に再利用するオーバーライド)</strong></span> <br></p>
-<div id="acd26244" class="cell" data-execution_count="4">
+<div id="1607df5d" class="cell" data-execution_count="4">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb7-1"><span class="kw" style="color: #003B4F;
@@ -2367,7 +4459,7 @@ background-color: null;
 font-style: inherit;">"system started"</span>)</span></code></pre></div></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>[LOG] 2025-11-26T08:23:41.646974 - system started</code></pre>
+<pre><code>[LOG] 2025-12-02T09:05:10.336740 - system started</code></pre>
 </div>
 </div>
 </div>
@@ -2393,7 +4485,7 @@ font-style: inherit;">"system started"</span>)</span></code></pre></div></div>
 </div>
 <div id="exm-" class="custom_problem theorem example">
 <p><span class="theorem-title"><strong>Example 5</strong></span> <br></p>
-<div id="304ba756" class="cell" data-execution_count="5">
+<div id="75e5fa5e" class="cell" data-execution_count="5">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb9-1"><span class="co" style="color: #5E5E5E;
@@ -2493,7 +4585,7 @@ font-style: inherit;">super</span>().process(data)</span></code></pre></div></di
 </div>
 <div id="exm-" class="custom_problem theorem example">
 <p><span class="theorem-title"><strong>Example 6 (アンチパターン)</strong></span> <br></p>
-<div id="8fdecf80" class="cell" data-execution_count="6">
+<div id="8f8357d2" class="cell" data-execution_count="6">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb10-1"><span class="kw" style="color: #003B4F;
@@ -2596,7 +4688,7 @@ font-style: inherit;"># -&gt; Which one? Depends on MRO (method resolution order
 </div>
 <div id="exm-" class="custom_problem theorem example">
 <p><span class="theorem-title"><strong>Example 7 (Abstract Base Classを用いたインターフェース継承)</strong></span> <br></p>
-<div id="beac2c15" class="cell" data-execution_count="7">
+<div id="27713db9" class="cell" data-execution_count="7">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb12-1"><span class="im" style="color: #00769E;
@@ -2699,7 +4791,7 @@ font-style: inherit;">"bar"</span>})</span></code></pre></div></div>
 </div>
 <div id="exm-" class="custom_problem theorem example">
 <p><span class="theorem-title"><strong>Example 8 (統計推定量モジュール用の実装例)</strong></span> <br></p>
-<div id="bf11972f" class="cell" data-execution_count="8">
+<div id="90383800" class="cell" data-execution_count="8">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb14-1"><span class="im" style="color: #00769E;
@@ -2916,7 +5008,7 @@ font-style: inherit;">self</span>.intercept_</span></code></pre></div></div>
 </details>
 </div>
 <p>Then,</p>
-<div id="44711f89" class="cell" data-execution_count="9">
+<div id="b3476f8f" class="cell" data-execution_count="9">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb15-1">X <span class="op" style="color: #5E5E5E;
@@ -2963,7 +5055,7 @@ background-color: null;
 font-style: inherit;">"R^2:"</span>, model.score(X, y))</span></code></pre></div></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>R^2: 0.9896984269918373</code></pre>
+<pre><code>R^2: 0.9891425767355426</code></pre>
 </div>
 </div>
 </div>
@@ -3162,7 +5254,7 @@ font-style: inherit;">self</span>._weights</span></code></pre></div></div>
 <li><code>self.__class__</code> はインスタンスのクラスを参照するので，<code>staticmethod</code> も呼び出し可能</li>
 <li><code>&lt;Class&gt;</code>でも参照可能(<code>CoyoteWeapon.commercial()</code>)</li>
 </ul>
-<div id="4c36a1ae" class="cell" data-execution_count="10">
+<div id="6a81555a" class="cell" data-execution_count="10">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb18-1"><span class="im" style="color: #00769E;
@@ -3313,7 +5405,7 @@ Weapon: Rocket Launcher, Power: 9000</code></pre>
 <ul>
 <li>通常のコンストラクタ <code>__init__</code> とは別に，クラスを初期化する補助的なコンストラクタを作りたい場合に使う</li>
 </ul>
-<div id="7c9e7061" class="cell" data-execution_count="11">
+<div id="a76b7000" class="cell" data-execution_count="11">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb20-1"><span class="im" style="color: #00769E;
@@ -3384,7 +5476,7 @@ font-style: inherit;"># Rectangle(width=5, height=5)</span></span></code></pre><
 <li><code>_global_cache</code> はクラス全体で共有される状態</li>
 <li><code>classmethod</code> を使うことで，インスタンスを生成せずにアクセス可能</li>
 </ul>
-<div id="7d4ecff6" class="cell" data-execution_count="12">
+<div id="88f81884" class="cell" data-execution_count="12">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb22-1"><span class="kw" style="color: #003B4F;
@@ -3453,7 +5545,7 @@ font-style: inherit;">"x"</span>)) </span></code></pre></div></div>
 <p>というようなA(アヒル)はB(くちばしやしっぽ)を有している(A-has-B logic)の場合は，コンポジション（composition）を使うべきとされます．</p>
 <div id="exm-" class="custom_problem theorem example">
 <p><span class="theorem-title"><strong>Example 13 (🦆 コンポジション（A-has-B logic)</strong></span> <br></p>
-<div id="bfcbe60b" class="cell" data-execution_count="13">
+<div id="74957936" class="cell" data-execution_count="13">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb24-1"><span class="im" style="color: #00769E;
@@ -3862,7 +5954,7 @@ Tail wagging gracefully</code></pre>
 </ul>
 </div>
 <p>上記の意味でのオブジェクトを作るための設計図がPythonにおける「<span class="regmonkey-bold">クラス</span>」です．クラスを基にしてオブジェクトが生成されますが， 実際にデータ値が格納されたオブジェクトのことをインスタンスといいます．</p>
-<div id="22ea1506" class="cell" data-execution_count="1">
+<div id="95f74812" class="cell" data-execution_count="1">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb1-1"><span class="kw" style="color: #003B4F;
@@ -3902,7 +5994,7 @@ font-style: inherit;"># ← これがインスタンス</span></span></code></pr
 </ol>
 <div id="exm-" class="custom_problem theorem example">
 <p><span class="theorem-title"><strong>Example 1 (メモリから見たクラスとインスタンスの違い)</strong></span> <br></p>
-<div id="87a02b1e" class="cell" data-execution_count="2">
+<div id="45645efc" class="cell" data-execution_count="2">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb2-1"><span class="bu" style="color: null;
@@ -3914,7 +6006,7 @@ font-style: inherit;">print</span>(my_dog)</span></code></pre></div></div>
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>&lt;class '__main__.Dog'&gt;
-&lt;__main__.Dog object at 0x7f4eec5a8410&gt;</code></pre>
+&lt;__main__.Dog object at 0x7f10dcc89e50&gt;</code></pre>
 </div>
 </div>
 <ul>
@@ -3945,7 +6037,7 @@ font-style: inherit;">print</span>(my_dog)</span></code></pre></div></div>
 <li><code>dataclass</code>はインスタンス変数を自動的に <code>__init__</code> 処理するための仕組みなので，<code>ClassVar</code> を付けないとクラス変数を用いるとき「インスタンス変数っぽく見える」という混乱が起こります</li>
 <li>インスタンスメソッドからクラス変数を操作する場合は <code>self.__class__</code> を基本用いる</li>
 </ul>
-<div id="06155d62" class="cell" data-execution_count="3">
+<div id="e9e5445e" class="cell" data-execution_count="3">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb4-1"><span class="im" style="color: #00769E;
@@ -4056,7 +6148,7 @@ font-style: inherit;">print</span>(john.total_number_of_persons)</span></code></
 </div>
 <div id="exm-" class="custom_problem theorem example">
 <p><span class="theorem-title"><strong>Example 3</strong></span> <br></p>
-<div id="c802fbf1" class="cell" data-execution_count="4">
+<div id="e6713886" class="cell" data-execution_count="4">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb6-1"><span class="im" style="color: #00769E;
@@ -4281,7 +6373,7 @@ font-style: inherit;"># ('strength', 'speed', 'intellect', 'tenacity')</span></s
 <section id="マングリング" class="level2">
 <h2 class="anchored" data-anchor-id="マングリング">マングリング</h2>
 <p><code>__</code> をメソッドや属性名の先頭に付与することで，クラス定義の外からは見えづらくする命名方法があります．</p>
-<div id="6851018f" class="cell" data-execution_count="5">
+<div id="de391a10" class="cell" data-execution_count="5">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb8-1"><span class="at" style="color: #657422;
@@ -4329,7 +6421,7 @@ font-style: inherit;">'Tama'</span>)</span>
 </div>
 </div>
 <p>このように<code>__name</code> 属性は内部経由だと利用できますが，<code>my_cat.__name</code> だとエラーができます．ただし，</p>
-<div id="548963da" class="cell" data-execution_count="6">
+<div id="cbec090f" class="cell" data-execution_count="6">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb10-1"><span class="co" style="color: #5E5E5E;
@@ -4371,7 +6463,7 @@ Tama2</code></pre>
 <li>本名の外部アクセスは基本想定していない</li>
 </ul>
 <p>ということを踏まえてClassを定義すると</p>
-<div id="34d18e36" class="cell" data-execution_count="7">
+<div id="395bfeb9" class="cell" data-execution_count="7">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb12-1"><span class="kw" style="color: #003B4F;
@@ -4529,7 +6621,7 @@ font-style: inherit;"># print("本名:", p.__real_name)  # これではアクセ
 </div>
 </div>
 <p>ワノ国に入国した後に，ワノ国風名前にアレンジしたとすると</p>
-<div id="0ff91372" class="cell" data-execution_count="8">
+<div id="e3260386" class="cell" data-execution_count="8">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb14-1"><span class="co" style="color: #5E5E5E;
@@ -5458,515 +7550,6 @@ font-style: inherit;">%</span> unsetopt INTERACTIVE_COMMENTS</span></code></pre>
   <category>shell</category>
   <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-10-10-zsh-inline-comment/</guid>
   <pubDate>Fri, 10 Oct 2025 00:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>Google Cloud Project命名規則</title>
-  <dc:creator>Ryo Nakagami</dc:creator>
-  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-10-06-google-project-name/</link>
-  <description><![CDATA[ 
-
-
-
-
-
-
-<section id="project識別子" class="level2">
-<h2 class="anchored" data-anchor-id="project識別子">Project識別子</h2>
-<p>Google Cloud Projectの識別子は以下の３つがあります</p>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 20%">
-<col style="width: 35%">
-<col style="width: 15%">
-<col style="width: 15%">
-<col style="width: 15%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>識別子</th>
-<th>説明</th>
-<th>形式</th>
-<th>事後編集可能性</th>
-<th>重複可能性</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>Project Name</td>
-<td>人が読めるプロジェクト名</td>
-<td>alphanumeric</td>
-<td>✅</td>
-<td>✅</td>
-</tr>
-<tr class="even">
-<td>Project ID</td>
-<td>グローバルに一意のプロジェクト ID</td>
-<td>alphanumeric</td>
-<td>❌</td>
-<td>❌</td>
-</tr>
-<tr class="odd">
-<td>Project Number</td>
-<td>自動生成される一意のプロジェクト識別子</td>
-<td>digits</td>
-<td>❌</td>
-<td>❌</td>
-</tr>
-</tbody>
-</table>
-</div>
-<p><span class="mini-section">確認方法</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">$</span> gcloud projects list</span>
-<span id="cb1-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">PROJECT_ID</span>               NAME                    PROJECT_NUMBER</span>
-<span id="cb1-3"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">digital-twin-2025</span>        Digital Twin            104567892123</span>
-<span id="cb1-4"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">regmonkey-blog</span>           regmonkey-blog          103998721045</span>
-<span id="cb1-5"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">test-lab-ml</span>              ML Experiment Sandbox   105432109876</span>
-<span id="cb1-6"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">old-project</span>              Old Internal Tool       101234567890</span></code></pre></div></div>
-<p><span class="mini-section">Project IDは公開されるのか？</span></p>
-<ul>
-<li><span class="regmonkey-bold">Answer</span>
-<ul>
-<li>プロジェクトや関連するリソースを参照すると、プロジェクト ID とリソース名が公開されます</li>
-<li>例: URL(<code>https://console.cloud.google.com/bigquery?project=regmonkey-blogdata</code>)</li>
-</ul></li>
-</ul>
-<p><span class="mini-section">Projectの削除</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">$</span> gcloud projects delete <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&lt;</span>project ID<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;</span></span>
-<span id="cb2-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">Your</span> project will be deleted.</span>
-<span id="cb2-3"></span>
-<span id="cb2-4"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">Do</span> you want to continue <span class="er" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">(</span><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">Y/n</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">)</span><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">?</span>  y</span>
-<span id="cb2-5"></span>
-<span id="cb2-6"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">Deleted</span> [https://cloudresourcemanager.googleapis.com/v1/projects/<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&lt;</span>project ID<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;</span>].</span>
-<span id="cb2-7"></span>
-<span id="cb2-8"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">You</span> can undo this operation for a limited period by running the command below.</span>
-<span id="cb2-9">    <span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">$</span> gcloud projects undelete <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&lt;</span>project ID<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;</span></span>
-<span id="cb2-10"></span>
-<span id="cb2-11"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">See</span> https://cloud.google.com/resource-manager/docs/creating-managing-projects for information on shutting down projects.</span></code></pre></div></div>
-</section>
-<section id="google-cloud-naming-convention" class="level2">
-<h2 class="anchored" data-anchor-id="google-cloud-naming-convention">Google Cloud Naming Convention</h2>
-<section id="編集ルールfaq" class="level3">
-<h3 class="anchored" data-anchor-id="編集ルールfaq">❓ 編集ルールFAQ</h3>
-<div class="reveal_vspace" style="--vspace-height: 1em;"></div>
-<p><span class="mini-section">Project Name/ID/Numberは設定時に編集可能か？</span></p>
-<ul>
-<li><span class="regmonkey-bold">Answer</span>:
-<ul>
-<li>Project Name: 編集可能</li>
-<li>Project ID: 編集可能</li>
-<li>Project Number: 編集不可</li>
-</ul></li>
-</ul>
-<p><span class="mini-section">Project Name作成要件</span></p>
-<ul>
-<li>4~30文字にする必要があり</li>
-<li>大文字を含めた英数字，シングルクォート，ハイフン，スペース，<code>!</code> が使用可能</li>
-</ul>
-<p><span class="mini-section">Project ID作成要件</span></p>
-<ul>
-<li>6～30 文字にする必要があり</li>
-<li>小文字、数字、ハイフンのみ</li>
-<li>先頭は英文字でなければならない</li>
-<li>末尾にハイフンは使用できない</li>
-<li>使用中または以前に使用された ID は指定できない（削除済みのプロジェクトも含む）</li>
-<li><code>google</code> や <code>ssl</code> などの制限付き文字列を含めることはできない</li>
-</ul>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-10-06-google-project-name/google-cloud-setup.png" class="img-fluid figure-img"></p>
-<figcaption>Projectの新規作成例</figcaption>
-</figure>
-</div>
-</section>
-<section id="tips" class="level3">
-<h3 class="anchored" data-anchor-id="tips">📘 Tips</h3>
-<div class="reveal_vspace" style="--vspace-height: 1em;"></div>
-<div class="callout callout-style-default callout-note no-icon callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon no-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>① Project Nameの可読性
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>誰でも理解できる短く分かりやすい名前</li>
-<li>個人情報（PII）や機密情報を含めない</li>
-</ul>
-</div>
-</div>
-<div class="callout callout-style-default callout-note no-icon callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon no-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>② Project IDとProject Nameのアライン
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>Project IDとProject Nameは異なっていてもよいが，管理容易性の観点からは似たような名前であることが望ましい</li>
-<li>Project IDとProject Name共通の命名規則持つのが良い</li>
-</ul>
-<p>参考例として</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb3-1"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">{サービス識別子}-{環境識別子(staging / production)}-{企業識別子} </span></span></code></pre></div></div>
-</div>
-</div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">## simple</span></span>
-<span id="cb4-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">$</span> gcloud projects create scm-staging-regmonkey</span>
-<span id="cb4-3"></span>
-<span id="cb4-4"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">## 別にProject Nameをつける場合</span></span>
-<span id="cb4-5"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">$</span> gcloud projects create scm-staging-regmonkey <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--name</span> unko</span></code></pre></div></div>
-<p>と<code>gcloud</code>コマンドベースでProjectを作成するとき <code>create scm-staging-regmonkey</code> は Project IDとなります．<code>--name</code> オプションを利用することでProject Nameも別に指定することができますが， デフォルトでは Google Project ID = Project Nameという処理が実行されます．</p>
-<div class="callout callout-style-default callout-note no-icon callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon no-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>③ 環境識別子の明示
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li><code>staging/dev/production</code>を明示することで，誤操作リスクを減らす</li>
-</ul>
-</div>
-</div>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>④ インデックスを使う場合はゼロ埋めする
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>数値・インデックスを使う場合はゼロ埋め(<code>001</code>, <code>002</code>)するとソートしやすくなる</li>
-</ul>
-</div>
-</div>
-</section>
-</section>
-<section id="refereneces" class="level2">
-<h2 class="anchored" data-anchor-id="refereneces">Refereneces</h2>
-<ul>
-<li><a href="https://cloud.google.com/resource-manager/docs/creating-managing-projects?hl=ja">Google Cloud Document &gt; プロジェクトの作成と管理</a></li>
-</ul>
-
-
-</section>
-
- ]]></description>
-  <category>環境構築</category>
-  <category>google cloud</category>
-  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-10-06-google-project-name/</guid>
-  <pubDate>Mon, 06 Oct 2025 00:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>Research PapaerにおけるAbstractの書き方</title>
-  <dc:creator>Ryo Nakagami</dc:creator>
-  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-10-02-how-to-write-an-abstract/</link>
-  <description><![CDATA[ 
-
-
-
-
-
-
-<section id="abtractとは" class="level2">
-<h2 class="anchored" data-anchor-id="abtractとは">🎯 Abtractとは？</h2>
-<div class="callout callout-style-default callout-note no-icon callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon no-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>Abstractとは分析レポートの簡潔なサマリー
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<div class="reveal_vspace" style="--vspace-height: 1em;"></div>
-<p>Abstractとは読者に「<strong>研究の全体像を理解</strong>」させるための簡潔なサマリー文章のこと．必要条件として以下の要件を満たす必要があります</p>
-<ul class="task-list">
-<li><label><input type="checkbox">研究の目的・問い・方法・主要分析結果・意義を抑えていること</label></li>
-<li><label><input type="checkbox">self-contained(自己完結的)な文章であること(=本文を読まなくても，研究の目的・方法・結果・意義がわかる)</label></li>
-</ul>
-</div>
-</div>
-<p><span class="mini-section">Descriptive Abstract vs Informative Abstract</span></p>
-<p>状況に応じるが，基本的には分析レポートについてのAbstractは<strong>Informative Abstract</strong>であるべきとされます．</p>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 27%">
-<col style="width: 36%">
-<col style="width: 35%">
-</colgroup>
-<thead>
-<tr class="header">
-<th style="text-align: left;">種類</th>
-<th style="text-align: left;">特徴</th>
-<th style="text-align: left;">構成内容</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: left;"><strong>Informative Abstract</strong></td>
-<td style="text-align: left;">研究の <strong>目的・問い・方法・主要分析結果・意義</strong> をすべて含み，論文のエッセンスを要約する</td>
-<td style="text-align: left;">背景・目的 / 問い / 方法 / 結果 / 結論（5要素すべて）</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;"><strong>Descriptive Abstract</strong></td>
-<td style="text-align: left;">論文の主な<strong>構成やテーマの概要</strong>を述べるだけで，結果や結論を含まない</td>
-<td style="text-align: left;">研究の範囲・主題・目的・手法の概要のみ（具体的な結果・結論は書かない）</td>
-</tr>
-</tbody>
-</table>
-</div>
-<ul>
-<li>論文の主な構成は「Introduction」で記載すれば良い</li>
-<li>後述の「Selection」「Indexing」機能を享受したいのであるならば， <strong>目的・問い・方法・主要分析結果・意義</strong> をすべて含むのが良い</li>
-</ul>
-</section>
-<section id="abtractの機能-selectionとindexing" class="level2">
-<h2 class="anchored" data-anchor-id="abtractの機能-selectionとindexing">Abtractの機能: SelectionとIndexing</h2>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 20%">
-<col style="width: 25%">
-<col style="width: 25%">
-<col style="width: 25%">
-</colgroup>
-<thead>
-<tr class="header">
-<th style="text-align: left;">機能</th>
-<th style="text-align: left;">内容</th>
-<th style="text-align: left;">読者にとっての意味</th>
-<th style="text-align: left;">執筆者にとってのポイント</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: left;"><strong>1. Selection Function</strong></td>
-<td style="text-align: left;">研究の目的・方法・主要結果・意義を簡潔に伝える</td>
-<td style="text-align: left;">- 論文を読む・引用する・購読するかを判断できる<br>- 自分の研究テーマとの関連性を素早く評価できる</td>
-<td style="text-align: left;">- 読者に「読む理由」を与えるように設計する<br>- 特徴的な結果や新規性を明確に打ち出す</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;"><strong>2. Indexing Function</strong></td>
-<td style="text-align: left;">論文データベース（例：arXiv）などで論文が適切に検索・分類されるようにする</td>
-<td style="text-align: left;">- 検索キーワードや要約から論文を発見できる</td>
-<td style="text-align: left;">- 適切な専門用語・キーワードをAbstract内に自然に含める<br>- 分野標準の表現・語彙を用いる</td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-<section id="abtractの5つの構成要素" class="level2">
-<h2 class="anchored" data-anchor-id="abtractの5つの構成要素">✅ Abtractの5つの構成要素</h2>
-<div class="callout callout-style-default callout-note no-icon callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon no-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>① Reason for writing（研究を行う理由）
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>なぜこの研究が必要なのか（問題意識・背景・意義）を簡潔に述べる</li>
-<li>読者が「なぜこのテーマが重要か」を理解できるようにする</li>
-</ul>
-</div>
-</div>
-<div class="callout callout-style-default callout-note no-icon callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon no-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>② Problem / Research Question（研究課題・研究質問）
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li><strong>解決すべき問題（gap）</strong>，または検証すべき<strong>問い（question）</strong>を明示する</li>
-<li>「何を明らかにしようとしているのか」を一文で言い切る</li>
-</ul>
-</div>
-</div>
-<div class="callout callout-style-default callout-note no-icon callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon no-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>③ Method / Approach（方法・手法）
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>どのようなデータ・モデル・実験・分析を用いたかを簡潔に説明する</li>
-<li>詳細よりも「方法の枠組み」を明確にする</li>
-</ul>
-</div>
-</div>
-<div class="callout callout-style-default callout-note no-icon callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon no-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>④ Results / Findings（結果）
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>得られた成果・検証結果を簡潔にまとめる</li>
-<li>できるだけ具体的な改善・効果・発見を述べる</li>
-</ul>
-</div>
-</div>
-<div class="callout callout-style-default callout-note no-icon callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon no-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>⑤ Conclusion / Implication（結論・意義）
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>得られた結果がどのような意義・貢献をもつかを示す</li>
-<li>結果を踏まえた上で，実証/理論分野における今後の展望などを1〜2文でまとめる</li>
-</ul>
-</div>
-</div>
-<section id="structured-abstract-imrad-式" class="level3">
-<h3 class="anchored" data-anchor-id="structured-abstract-imrad-式">structured abstract: IMRaD ⽅式</h3>
-<p>医学・生命科学系の論文では，IMRaD方式を用いたstructured abstractがよく使われます．</p>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 19%">
-<col style="width: 32%">
-<col style="width: 19%">
-<col style="width: 29%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>セクション</th>
-<th>目的</th>
-<th>キーとなる質問</th>
-<th>含めるべき要素</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><strong>Introduction</strong></td>
-<td>研究の動機・背景を説明する</td>
-<td>「なぜこの研究を行うのか？」</td>
-<td>背景，先行研究の限界，研究目的（明確な仮説）</td>
-</tr>
-<tr class="even">
-<td><strong>Methods</strong></td>
-<td>研究をどのように実施したか説明する</td>
-<td>「どのように研究を行ったのか？」</td>
-<td>研究デザイン，データ取得⽅法，主要評価アウトカム，統計解析</td>
-</tr>
-<tr class="odd">
-<td><strong>Results</strong></td>
-<td>研究で得られた結果を報告する</td>
-<td>「何が分かったのか？」</td>
-<td>主な結果（表・図・統計指標），頑健性check</td>
-</tr>
-<tr class="even">
-<td><strong>Discussion</strong></td>
-<td>結果をどのように解釈し，どのような意味があるかを論じる</td>
-<td>「この結果は何を意味するのか？」</td>
-<td>主な発見の解釈，先行研究との比較，限界，今後の展望</td>
-</tr>
-</tbody>
-</table>
-</div>
-
-
-</section>
-</section>
-
- ]]></description>
-  <category>方法論</category>
-  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-10-02-how-to-write-an-abstract/</guid>
-  <pubDate>Thu, 02 Oct 2025 00:00:00 GMT</pubDate>
 </item>
 </channel>
 </rss>
