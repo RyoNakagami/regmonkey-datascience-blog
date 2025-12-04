@@ -96,6 +96,368 @@
   <pubDate>Thu, 04 Dec 2025 00:00:00 GMT</pubDate>
 </item>
 <item>
+  <title>UTF-8 の BOM 付き vs BOM なし</title>
+  <dc:creator>Ryo Nakagami</dc:creator>
+  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-12-03-BOM/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+
+<section id="bombyte-order-mark" class="level2">
+<h2 class="anchored" data-anchor-id="bombyte-order-mark">BOM(Byte Order Mark)</h2>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title">BOM</span></p>
+<ul>
+<li>バイト順序（エンディアン）を示すためのマーク</li>
+<li>BOM は必ずテキストの先頭に付与される(= テキストの中間に置かれることはない)</li>
+<li>UTF-8 はバイト順序がないので必要ないが，UTF-8であることの判定のためにUTF-8 with BOM となる場合がある</li>
+</ul>
+</div>
+<p>プログラムがテキストデータを読み込む際に先頭の数バイトによりUnicodeのデータであることやどの種類の符号化形式を採用しているのかを判別しています． BOM付きのUTF-8であれば先頭の3バイトがBOMであり，<code>0xEF 0xBB 0xBF</code>というデータになります．</p>
+<p><span class="mini-section">BOM一覧</span></p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 8%">
+<col style="width: 70%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>符号化形式（符号化スキーム）</th>
+<th>エンディアン</th>
+<th>バイト順マーク (BOM)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>UTF-8</td>
+<td>なし</td>
+<td><code>EF BB BF</code></td>
+</tr>
+<tr class="even">
+<td>UTF-16</td>
+<td>BE</td>
+<td><code>FE FF</code></td>
+</tr>
+<tr class="odd">
+<td>UTF-16</td>
+<td>LE</td>
+<td><code>FF FE</code></td>
+</tr>
+<tr class="even">
+<td>UTF-32</td>
+<td>BE</td>
+<td><code>00 00 FE FF</code></td>
+</tr>
+<tr class="odd">
+<td>UTF-32</td>
+<td>LE</td>
+<td><code>FF FE 00 00</code></td>
+</tr>
+</tbody>
+</table>
+<section id="xxd-コマンドでbomを確認する" class="level3">
+<h3 class="anchored" data-anchor-id="xxd-コマンドでbomを確認する"><code>xxd</code> コマンドでBOMを確認する</h3>
+<p>以下を内容とする <code>test.sh</code> というファイルがあるとします．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#!/bin/bash</span></span>
+<span id="cb1-2"></span>
+<span id="cb1-3"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Hallo World!!"</span></span></code></pre></div></div>
+<p>BOMが付与されていないと</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">$</span> xxd test.sh <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">head</span>                </span>
+<span id="cb2-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">00000000:</span> 2321 2f62 696e 2f62 6173 680a 0a65 6368  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#!/bin/bash..ech</span></span>
+<span id="cb2-3"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">00000010:</span> 6f20 2248 616c 6c6f 2057 6f72 6c64 2121  o <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Hallo World!!</span></span>
+<span id="cb2-4"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">00000020: 220a 0a                                  "</span>..</span></code></pre></div></div>
+<p>となりますが，<code>vim "+set bomb" "+wq" test.sh</code> とBOMを付与すると</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">$</span> xxd test.sh <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">head</span>                 </span>
+<span id="cb3-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">00000000:</span> efbb bf23 212f 6269 6e2f 6261 7368 0a0a  ...#!/bin/bash..</span>
+<span id="cb3-3"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">00000010:</span> 6563 686f 2022 4861 6c6c 6f20 576f 726c  echo <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Hallo Worl</span></span>
+<span id="cb3-4"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">00000020: 6421 2122 0a0a                           d!!"</span>..</span></code></pre></div></div>
+<p>先頭バイトが <code>efbb bf</code> となっていることから UTF-8 with BOMであることがわかります．</p>
+<p>BOMありの場合，<code>chmod +x test.sh</code> 実行後にランしてみると</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">$</span> ./test.sh                    </span>
+<span id="cb4-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">./test.sh:</span> 1: ﻿#!/bin/bash: not found</span>
+<span id="cb4-3"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Hallo</span> World!!</span></code></pre></div></div>
+<p>となります．</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span><code>nkf</code> を用いた文字コード判定
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><code>nkf</code> コマンドと <code>--guess</code> オプションを組み合わせると，使用されている文字コードと改行コードの判定結果を表示することができます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">$</span> nkf <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--guess</span> test.sh </span>
+<span id="cb5-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">UTF-8</span> <span class="er" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">(</span><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">BOM</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">)</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">(</span><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">LF</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">)</span></span></code></pre></div></div>
+</div>
+</div>
+</section>
+<section id="nkf-コマンドを用いてbomなしへ変換する" class="level3">
+<h3 class="anchored" data-anchor-id="nkf-コマンドを用いてbomなしへ変換する"><code>nkf</code> コマンドを用いてBOMなしへ変換する</h3>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 2</strong></span> <span class="def-title"><code>nkf</code> コマンド</span></p>
+<ul>
+<li><p>Network Kanji Filterの略</p></li>
+<li><p>文字コードと改行コードを変換するためのコマンド</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">nkf</span> <span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">[</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">opttion</span><span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">]</span> <span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">[</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">file</span><span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">]</span></span></code></pre></div></div></li>
+</ul>
+</div>
+<p><span class="mini-section">入力文字コードオプション</span></p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>オプション</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>-J</code></td>
+<td>入力を ISO-2022-JP とみなす</td>
+</tr>
+<tr class="even">
+<td><code>-S</code></td>
+<td>入力を Shift_JIS とみなす</td>
+</tr>
+<tr class="odd">
+<td><code>-E</code></td>
+<td>入力を EUC-JP とみなす</td>
+</tr>
+<tr class="even">
+<td><code>--ic=UTF-8</code></td>
+<td>入力を UTF-8 とみなす</td>
+</tr>
+</tbody>
+</table>
+<p><span class="mini-section">出力文字コードオプション</span></p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>オプション</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>-j</code></td>
+<td>出力を ISO-2022-JP</td>
+</tr>
+<tr class="even">
+<td><code>-s</code></td>
+<td>出力を Shift_JIS</td>
+</tr>
+<tr class="odd">
+<td><code>-e</code></td>
+<td>出力を EUC-JP</td>
+</tr>
+<tr class="even">
+<td><code>-w</code></td>
+<td>出力を UTF-8（BOMなし）</td>
+</tr>
+<tr class="odd">
+<td><code>-w8</code></td>
+<td>出力を UTF-8（BOM付き）</td>
+</tr>
+<tr class="even">
+<td><code>--oc=UTF-8</code></td>
+<td>出力を UTF-8（BOMなし）</td>
+</tr>
+<tr class="odd">
+<td><code>--oc=UTF-8-BOM</code></td>
+<td>出力を UTF-8（BOM付き）</td>
+</tr>
+</tbody>
+</table>
+<section id="bomを取り除く" class="level4">
+<h4 class="anchored" data-anchor-id="bomを取り除く">BOMを取り除く</h4>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">nkf</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--overwrite</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--oc</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>UTF-8 test.sh</span></code></pre></div></div>
+<p>とすることでBOMなしUTF-8へ変換することが出来ます．</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 17%">
+<col style="width: 82%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>オプション</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>--overwrite</code></td>
+<td><strong>元ファイルを上書き</strong>して保存する</td>
+</tr>
+<tr class="even">
+<td><code>--oc=UTF-8</code></td>
+<td>出力の文字コードを UTF-8 にする</td>
+</tr>
+</tbody>
+</table>
+<p>内部的には</p>
+<ol type="1">
+<li>元ファイルの文字コードが自動判定される</li>
+<li>内容を UTF-8 に変換</li>
+<li>BOM を持っていた場合は削除</li>
+<li>変換後の内容で test.sh を上書き保存</li>
+</ol>
+<p>という処理が行われるので，もし思ったような挙動が確認できない場合は「<strong>元ファイルの文字コードが自動判定される</strong>」に問題があるかもなので 入力文字コード指定オプションを組み合わせたりします</p>
+</section>
+</section>
+</section>
+<section id="appendix" class="level2">
+<h2 class="anchored" data-anchor-id="appendix">Appendix</h2>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 3</strong></span> <span class="def-title">UTF-8</span></p>
+<ul>
+<li>Unicodeで割り振ったコードポイントの文字符号化形式(encoding形式)の一種</li>
+<li>ASCIIと同じ文字は1バイト，その他の文字については2～4バイトを用いて文字を表現する</li>
+<li>ASCIIとの対応関係があるので 「ASCIIと上位互換性がある」 と言われる</li>
+</ul>
+</div>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Example 1 (Unicode と UTF-8 の対応)</strong></span> &nbsp;</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 11%">
+<col style="width: 19%">
+<col style="width: 44%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>文字</th>
+<th>Unicode</th>
+<th>UTF-8</th>
+<th>UTF-8の2進数表現</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>A</td>
+<td><code>U+0041</code></td>
+<td><code>0x41</code></td>
+<td><code>0100</code> <code>0001</code></td>
+</tr>
+<tr class="even">
+<td>α</td>
+<td><code>U+03B1</code></td>
+<td><code>0xCE</code> <code>0xB1</code></td>
+<td><code>1100</code> <code>1110</code> <code>1011</code> <code>0001</code></td>
+</tr>
+</tbody>
+</table>
+<p>AのUTF-8の2進数表現は 8 bit = 1 Byteであるので，「ASCIIと同じ文字は1バイト」であることがわかります．また， α は16 bitとなっていますが，ギリシャ文字は ASCII の範囲外なので 2 Bytes となります．</p>
+</div>
+<hr>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<ul>
+<li><a href="https://atmarkit.itmedia.co.jp/ait/articles/1609/29/news016.html">【nkf】コマンド――文字コードと改行コードを変換する</a></li>
+</ul>
+
+
+</section>
+
+ ]]></description>
+  <category>文字コード</category>
+  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-12-03-BOM/</guid>
+  <pubDate>Wed, 03 Dec 2025 00:00:00 GMT</pubDate>
+</item>
+<item>
   <title>乱数生成シェルスクリプト</title>
   <dc:creator>Ryo Nakagami</dc:creator>
   <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-11-28-generate-random-passwd/</link>
@@ -2209,7 +2571,7 @@ font-style: inherit;">)</span> paperless-ngx</span></code></pre></div></div>
 </ul>
 </div>
 <p>リストの要素の出現回数を集計する場合，<code>Dict</code> を用いる場合</p>
-<div id="1df1404c" class="cell" data-execution_count="1">
+<div id="0bcaf1ae" class="cell" data-execution_count="1">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb1-1">words <span class="op" style="color: #5E5E5E;
@@ -2260,7 +2622,7 @@ font-style: inherit;">print</span>(count_dict)</span></code></pre></div></div>
 </div>
 </div>
 <p><code>Counter</code>を用いることで以下のようにより簡単に集計することが出来ます</p>
-<div id="272e2645" class="cell" data-execution_count="2">
+<div id="ea87cada" class="cell" data-execution_count="2">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb3-1"><span class="im" style="color: #00769E;
@@ -2282,7 +2644,7 @@ font-style: inherit;">print</span>(word_counter)</span></code></pre></div></div>
 </div>
 </div>
 <p>また，すべての要素の出現頻度の合計は <code>total()</code> メソッドを用いて表示できます</p>
-<div id="f5276740" class="cell" data-execution_count="3">
+<div id="46ce9bf8" class="cell" data-execution_count="3">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb5-1"><span class="bu" style="color: null;
@@ -2298,7 +2660,7 @@ font-style: inherit;"># 6 = 3 + 2 + 1</span></span></code></pre></div></div>
 <div id="exm-" class="custom_problem theorem example">
 <p><span class="theorem-title"><strong>Example 1 (単語出現頻度の計測)</strong></span> <br></p>
 <p>ハムレットの一節を内容とする <code>hamlet.txt</code> を例に，出現単語のTop 5の計測を行います．<code>Counter</code> クラスには <code>most_common()</code> メソッドがあり，要素を出現頻度に応じて降順で返してくれます．引数として整数を指定すると，最上位から数えてその個数分だけを出力してくれるので</p>
-<div id="cac9609f" class="cell" data-execution_count="4">
+<div id="7c517a06" class="cell" data-execution_count="4">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb7-1"><span class="im" style="color: #00769E;
@@ -2337,7 +2699,7 @@ font-style: inherit;">5</span>)</span></code></pre></div></div>
 </div>
 </div>
 <p>出現頻度下位Top 3を出力したい場合は</p>
-<div id="ac555b83" class="cell" data-execution_count="5">
+<div id="846a5b66" class="cell" data-execution_count="5">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb9-1">hamlet_counter <span class="op" style="color: #5E5E5E;
@@ -2361,7 +2723,7 @@ font-style: inherit;">1</span>]</span></code></pre></div></div>
 <hr>
 <section id="counter-インスタンスの作成方法" class="level3">
 <h3 class="anchored" data-anchor-id="counter-インスタンスの作成方法"><code>Counter</code> インスタンスの作成方法</h3>
-<div id="1ece940b" class="cell" data-execution_count="6">
+<div id="953cd6b2" class="cell" data-execution_count="6">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb11-1"><span class="im" style="color: #00769E;
@@ -2447,7 +2809,7 @@ Counter({'dogs': 8, 'cats': 4})</code></pre>
 <section id="存在しないキーの取り扱い" class="level3">
 <h3 class="anchored" data-anchor-id="存在しないキーの取り扱い">存在しないキーの取り扱い</h3>
 <p><code>Counter</code> では存在しないキーにアクセスしても KeyError にはならず，<code>0</code> が返るのが特徴です</p>
-<div id="04a68247" class="cell" data-execution_count="7">
+<div id="797dd5b6" class="cell" data-execution_count="7">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb13-1"><span class="im" style="color: #00769E;
@@ -2496,7 +2858,7 @@ font-style: inherit;"># 0 ← KeyError にはならない</span></span></code></
 </div>
 <div id="exm-" class="custom_problem theorem example">
 <p><span class="theorem-title"><strong>Example 2 (<code>dict</code> と KeyError)</strong></span> <br></p>
-<div id="b1bd09be" class="cell" data-execution_count="8">
+<div id="7725a470" class="cell" data-execution_count="8">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb15-1">foods <span class="op" style="color: #5E5E5E;
@@ -2554,7 +2916,7 @@ font-style: inherit;">"</span>)</span></code></pre></div></div>
 <section id="挿入順序の保持" class="level3">
 <h3 class="anchored" data-anchor-id="挿入順序の保持">挿入順序の保持</h3>
 <p>Python 3.7 以降，<code>Counter</code> は内部的には挿入順を保持しています．<code>print</code> などでkey-valueを出力するとvalueに応じた降順でソートされたように見えますが，<code>Counter.keys()</code> などでkeyの順番を確認すると，挿入順となっています</p>
-<div id="044f6abe" class="cell" data-execution_count="9">
+<div id="f4d97b7b" class="cell" data-execution_count="9">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb17-1"><span class="im" style="color: #00769E;
@@ -2607,7 +2969,7 @@ dict_keys(['g', 'a', 'l', 'h', 'd'])
 <p><span class="mini-section">演算処理の順番</span></p>
 <p><code>Counter</code> オブジェクトは，<code>+</code> を使った加算処理ができます．このとき，基本的なキーの順番は左オペラントとなり，新しいキーは右オペランドから追加されるという内部処理になります．</p>
 <p>つまり，要素順は，<span class="regmonkey-bold">左オペランドの出現順 → 右オペランドで新規に現れた順</span>で決まります．</p>
-<div id="6702db3c" class="cell" data-execution_count="10">
+<div id="4a25a552" class="cell" data-execution_count="10">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb19-1"><span class="im" style="color: #00769E;
@@ -2662,7 +3024,7 @@ dict_keys(['z', 'b', 'c', 'a', 'd'])
 <section id="counter-と算術演算" class="level2">
 <h2 class="anchored" data-anchor-id="counter-と算術演算"><code>Counter</code> と算術演算</h2>
 <p><span class="mini-section">TL;DRs</span></p>
-<div id="feb1b8f5" class="cell" data-execution_count="11">
+<div id="e140a7dd" class="cell" data-execution_count="11">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb21-1"><span class="im" style="color: #00769E;
@@ -2814,7 +3176,7 @@ c &gt;= d ? False</code></pre>
 </ul>
 </div>
 <p>基本的な使い方は</p>
-<div id="8ba418e7" class="cell" data-execution_count="12">
+<div id="16d2237f" class="cell" data-execution_count="12">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb23-1"><span class="im" style="color: #00769E;
@@ -2849,7 +3211,7 @@ font-style: inherit;">print</span>(c1)</span></code></pre></div></div>
 </div>
 <div id="exm-" class="custom_problem theorem example">
 <p><span class="theorem-title"><strong>Example 3 (iterableからの減算)</strong></span> <br></p>
-<div id="d5eb1d74" class="cell" data-execution_count="13">
+<div id="dc6906f1" class="cell" data-execution_count="13">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb25-1">c <span class="op" style="color: #5E5E5E;
@@ -2874,7 +3236,7 @@ font-style: inherit;">print</span>(c)</span></code></pre></div></div>
 <hr>
 <div id="exm-" class="custom_problem theorem example">
 <p><span class="theorem-title"><strong>Example 4 (値は 0 未満になる場合)</strong></span> <br></p>
-<div id="49f4fb23" class="cell" data-execution_count="14">
+<div id="4794468b" class="cell" data-execution_count="14">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb27-1">c <span class="op" style="color: #5E5E5E;
@@ -2938,7 +3300,7 @@ Caution
 </ul>
 </div>
 </div>
-<div id="286320a0" class="cell" data-execution_count="15">
+<div id="6c96399d" class="cell" data-execution_count="15">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb29-1"><span class="im" style="color: #00769E;
@@ -3026,7 +3388,7 @@ Counter({'a': 5, 'b': 5, 'e': 1, 'c': 1, 'd': 1})</code></pre>
 </div>
 <p><span class="mini-section">ロバストな加算処理</span></p>
 <p>値を置き換えるのではなく，順序ロバストにカウントを加算して計算したい場合は <code>update</code> メソッドを用いるほうが良いかもしれません</p>
-<div id="a6e870e0" class="cell" data-execution_count="16">
+<div id="55174203" class="cell" data-execution_count="16">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb31-1"><span class="im" style="color: #00769E;
@@ -4200,7 +4562,7 @@ font-style: inherit;">}</span></span></code></pre></div></div>
 </div>
 <div id="exm-" class="custom_problem theorem example">
 <p><span class="theorem-title"><strong>Example 1 (初期化処理 <code>__init__</code> と継承)</strong></span> <br></p>
-<div id="334dc8f3" class="cell" data-execution_count="1">
+<div id="61a59e1d" class="cell" data-execution_count="1">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb1-1"><span class="kw" style="color: #003B4F;
@@ -4299,7 +4661,7 @@ Real Madrid</code></pre>
 <hr>
 <div id="exm-" class="custom_problem theorem example">
 <p><span class="theorem-title"><strong>Example 2 (<code>dataclass</code> を用いた初期化処理と継承)</strong></span> <br></p>
-<div id="a7081995" class="cell" data-execution_count="2">
+<div id="71f1232d" class="cell" data-execution_count="2">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb3-1"><span class="im" style="color: #00769E;
@@ -4383,7 +4745,7 @@ Real Madrid</code></pre>
 <li><code>super().__init__</code> の設定が <code>dataclass</code> 継承では不要になる</li>
 <li>親クラスでデフォルト値を用いていると少し話がややこしくなる</li>
 </ul>
-<div id="ac6c2b98" class="cell" data-execution_count="3">
+<div id="4eae6a0b" class="cell" data-execution_count="3">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb5-1"><span class="im" style="color: #00769E;
@@ -4479,7 +4841,7 @@ font-style: inherit;">'UT'</span>)</span>
 </div>
 <div id="exm-" class="custom_problem theorem example">
 <p><span class="theorem-title"><strong>Example 4 (親メソッドを部分的に再利用するオーバーライド)</strong></span> <br></p>
-<div id="bb8f824c" class="cell" data-execution_count="4">
+<div id="fd355814" class="cell" data-execution_count="4">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb7-1"><span class="kw" style="color: #003B4F;
@@ -4543,7 +4905,7 @@ background-color: null;
 font-style: inherit;">"system started"</span>)</span></code></pre></div></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>[LOG] 2025-12-04T12:16:03.291058 - system started</code></pre>
+<pre><code>[LOG] 2025-12-04T15:24:37.890611 - system started</code></pre>
 </div>
 </div>
 </div>
@@ -4569,7 +4931,7 @@ font-style: inherit;">"system started"</span>)</span></code></pre></div></div>
 </div>
 <div id="exm-" class="custom_problem theorem example">
 <p><span class="theorem-title"><strong>Example 5</strong></span> <br></p>
-<div id="93bc9c25" class="cell" data-execution_count="5">
+<div id="9ec5690f" class="cell" data-execution_count="5">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb9-1"><span class="co" style="color: #5E5E5E;
@@ -4669,7 +5031,7 @@ font-style: inherit;">super</span>().process(data)</span></code></pre></div></di
 </div>
 <div id="exm-" class="custom_problem theorem example">
 <p><span class="theorem-title"><strong>Example 6 (アンチパターン)</strong></span> <br></p>
-<div id="2c9d811b" class="cell" data-execution_count="6">
+<div id="87d405dc" class="cell" data-execution_count="6">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb10-1"><span class="kw" style="color: #003B4F;
@@ -4772,7 +5134,7 @@ font-style: inherit;"># -&gt; Which one? Depends on MRO (method resolution order
 </div>
 <div id="exm-" class="custom_problem theorem example">
 <p><span class="theorem-title"><strong>Example 7 (Abstract Base Classを用いたインターフェース継承)</strong></span> <br></p>
-<div id="4a388391" class="cell" data-execution_count="7">
+<div id="d8f2e53a" class="cell" data-execution_count="7">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb12-1"><span class="im" style="color: #00769E;
@@ -4875,7 +5237,7 @@ font-style: inherit;">"bar"</span>})</span></code></pre></div></div>
 </div>
 <div id="exm-" class="custom_problem theorem example">
 <p><span class="theorem-title"><strong>Example 8 (統計推定量モジュール用の実装例)</strong></span> <br></p>
-<div id="28a7f2f5" class="cell" data-execution_count="8">
+<div id="676ee4e2" class="cell" data-execution_count="8">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb14-1"><span class="im" style="color: #00769E;
@@ -5092,7 +5454,7 @@ font-style: inherit;">self</span>.intercept_</span></code></pre></div></div>
 </details>
 </div>
 <p>Then,</p>
-<div id="9df1dc6e" class="cell" data-execution_count="9">
+<div id="5aa12105" class="cell" data-execution_count="9">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb15-1">X <span class="op" style="color: #5E5E5E;
@@ -5139,7 +5501,7 @@ background-color: null;
 font-style: inherit;">"R^2:"</span>, model.score(X, y))</span></code></pre></div></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>R^2: 0.9830573678643854</code></pre>
+<pre><code>R^2: 0.9875191561941137</code></pre>
 </div>
 </div>
 </div>
@@ -5338,7 +5700,7 @@ font-style: inherit;">self</span>._weights</span></code></pre></div></div>
 <li><code>self.__class__</code> はインスタンスのクラスを参照するので，<code>staticmethod</code> も呼び出し可能</li>
 <li><code>&lt;Class&gt;</code>でも参照可能(<code>CoyoteWeapon.commercial()</code>)</li>
 </ul>
-<div id="25b8b75f" class="cell" data-execution_count="10">
+<div id="f73c5738" class="cell" data-execution_count="10">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb18-1"><span class="im" style="color: #00769E;
@@ -5489,7 +5851,7 @@ Weapon: Rocket Launcher, Power: 9000</code></pre>
 <ul>
 <li>通常のコンストラクタ <code>__init__</code> とは別に，クラスを初期化する補助的なコンストラクタを作りたい場合に使う</li>
 </ul>
-<div id="be317d0c" class="cell" data-execution_count="11">
+<div id="2f5f9c9d" class="cell" data-execution_count="11">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb20-1"><span class="im" style="color: #00769E;
@@ -5560,7 +5922,7 @@ font-style: inherit;"># Rectangle(width=5, height=5)</span></span></code></pre><
 <li><code>_global_cache</code> はクラス全体で共有される状態</li>
 <li><code>classmethod</code> を使うことで，インスタンスを生成せずにアクセス可能</li>
 </ul>
-<div id="4621f967" class="cell" data-execution_count="12">
+<div id="59921077" class="cell" data-execution_count="12">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb22-1"><span class="kw" style="color: #003B4F;
@@ -5629,7 +5991,7 @@ font-style: inherit;">"x"</span>)) </span></code></pre></div></div>
 <p>というようなA(アヒル)はB(くちばしやしっぽ)を有している(A-has-B logic)の場合は，コンポジション（composition）を使うべきとされます．</p>
 <div id="exm-" class="custom_problem theorem example">
 <p><span class="theorem-title"><strong>Example 13 (🦆 コンポジション（A-has-B logic)</strong></span> <br></p>
-<div id="94f49bf4" class="cell" data-execution_count="13">
+<div id="8bc15af0" class="cell" data-execution_count="13">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb24-1"><span class="im" style="color: #00769E;
@@ -6038,7 +6400,7 @@ Tail wagging gracefully</code></pre>
 </ul>
 </div>
 <p>上記の意味でのオブジェクトを作るための設計図がPythonにおける「<span class="regmonkey-bold">クラス</span>」です．クラスを基にしてオブジェクトが生成されますが， 実際にデータ値が格納されたオブジェクトのことをインスタンスといいます．</p>
-<div id="75c113cc" class="cell" data-execution_count="1">
+<div id="50399f71" class="cell" data-execution_count="1">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb1-1"><span class="kw" style="color: #003B4F;
@@ -6078,7 +6440,7 @@ font-style: inherit;"># ← これがインスタンス</span></span></code></pr
 </ol>
 <div id="exm-" class="custom_problem theorem example">
 <p><span class="theorem-title"><strong>Example 1 (メモリから見たクラスとインスタンスの違い)</strong></span> <br></p>
-<div id="0a3eeafa" class="cell" data-execution_count="2">
+<div id="cea0d93b" class="cell" data-execution_count="2">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb2-1"><span class="bu" style="color: null;
@@ -6090,7 +6452,7 @@ font-style: inherit;">print</span>(my_dog)</span></code></pre></div></div>
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>&lt;class '__main__.Dog'&gt;
-&lt;__main__.Dog object at 0x7fdd186e5b10&gt;</code></pre>
+&lt;__main__.Dog object at 0x7f7c40b89090&gt;</code></pre>
 </div>
 </div>
 <ul>
@@ -6121,7 +6483,7 @@ font-style: inherit;">print</span>(my_dog)</span></code></pre></div></div>
 <li><code>dataclass</code>はインスタンス変数を自動的に <code>__init__</code> 処理するための仕組みなので，<code>ClassVar</code> を付けないとクラス変数を用いるとき「インスタンス変数っぽく見える」という混乱が起こります</li>
 <li>インスタンスメソッドからクラス変数を操作する場合は <code>self.__class__</code> を基本用いる</li>
 </ul>
-<div id="14be11ce" class="cell" data-execution_count="3">
+<div id="dc63933b" class="cell" data-execution_count="3">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb4-1"><span class="im" style="color: #00769E;
@@ -6232,7 +6594,7 @@ font-style: inherit;">print</span>(john.total_number_of_persons)</span></code></
 </div>
 <div id="exm-" class="custom_problem theorem example">
 <p><span class="theorem-title"><strong>Example 3</strong></span> <br></p>
-<div id="563189ce" class="cell" data-execution_count="4">
+<div id="236acc1b" class="cell" data-execution_count="4">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb6-1"><span class="im" style="color: #00769E;
@@ -6457,7 +6819,7 @@ font-style: inherit;"># ('strength', 'speed', 'intellect', 'tenacity')</span></s
 <section id="マングリング" class="level2">
 <h2 class="anchored" data-anchor-id="マングリング">マングリング</h2>
 <p><code>__</code> をメソッドや属性名の先頭に付与することで，クラス定義の外からは見えづらくする命名方法があります．</p>
-<div id="d54f74a9" class="cell" data-execution_count="5">
+<div id="27f3668c" class="cell" data-execution_count="5">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb8-1"><span class="at" style="color: #657422;
@@ -6505,7 +6867,7 @@ font-style: inherit;">'Tama'</span>)</span>
 </div>
 </div>
 <p>このように<code>__name</code> 属性は内部経由だと利用できますが，<code>my_cat.__name</code> だとエラーができます．ただし，</p>
-<div id="43419eef" class="cell" data-execution_count="6">
+<div id="316c6e16" class="cell" data-execution_count="6">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb10-1"><span class="co" style="color: #5E5E5E;
@@ -6547,7 +6909,7 @@ Tama2</code></pre>
 <li>本名の外部アクセスは基本想定していない</li>
 </ul>
 <p>ということを踏まえてClassを定義すると</p>
-<div id="8ab8f699" class="cell" data-execution_count="7">
+<div id="59f555e3" class="cell" data-execution_count="7">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb12-1"><span class="kw" style="color: #003B4F;
@@ -6705,7 +7067,7 @@ font-style: inherit;"># print("本名:", p.__real_name)  # これではアクセ
 </div>
 </div>
 <p>ワノ国に入国した後に，ワノ国風名前にアレンジしたとすると</p>
-<div id="2c2e4f1b" class="cell" data-execution_count="8">
+<div id="649b6722" class="cell" data-execution_count="8">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb14-1"><span class="co" style="color: #5E5E5E;
@@ -6753,751 +7115,6 @@ font-style: inherit;"># → トラファルガー･D･ワーテル･ロー</s
   <category>python</category>
   <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-11-03-python-class-101/</guid>
   <pubDate>Mon, 03 Nov 2025 00:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>Git Flow–based branch strategy</title>
-  <dc:creator>Ryo Nakagami</dc:creator>
-  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-10-30-branch-strategy/</link>
-  <description><![CDATA[ 
-
-
-
-
-
-
-<section id="branch-strategy" class="level2">
-<h2 class="anchored" data-anchor-id="branch-strategy">1. Branch Strategy</h2>
-<ul>
-<li>Git Flow をベースにしたブランチ戦略を採用</li>
-<li>リリース系列ブランチ，<code>develop</code>を統合ブランチとするが，Issue規模・リリース運用の実態に合わせて，Issue用の統合ブランチを活用</li>
-</ul>
-<div class="cell" data-layout-align="default">
-<div class="cell-output-display">
-<div>
-<p></p><figure class="figure"><p></p>
-<div>
-<pre class="mermaid mermaid-js">%%{ init: {
-    'theme': 'default',
-    'themeVariables': {
-        'fontFamily': 'Meiryo'
-    },
-    'gitGraph': {
-        'orientation': 'LR',
-        'nodeSpacing': 150,
-        'mainBranchName': 'main'
-    }
-} }%%
-
-gitGraph
-   commit id: "" tag: "v1.0.0"
-
-   branch hotfix
-   checkout hotfix
-   commit id: "BUGFIX"
-
-   checkout main
-   branch develop
-   checkout develop
-   commit id: "開発開始"
-
-   branch feature/0001/login
-   checkout feature/0001/login
-   commit id: ""
-
-   checkout main
-   merge hotfix tag: "v1.0.1"
-
-   checkout develop
-   merge hotfix
-   commit id: "incorporate hotfix"
-
-   checkout develop
-   merge feature/0001/login
-   commit id: "ログイン機能実装"
-
-   branch release/1.1.x
-   checkout release/1.1.x
-   commit id: "リリース準備"
-   commit id: "bugfix"
-
-   checkout develop
-   merge release/1.1.x
-
-   checkout main
-   merge release/1.1.x  tag: "v1.1.0"
-
-   checkout develop
-   commit id: "FEATURE"
-</pre>
-</div>
-<p></p></figure><p></p>
-</div>
-</div>
-</div>
-</section>
-<section id="ブランチの種類" class="level2">
-<h2 class="anchored" data-anchor-id="ブランチの種類">2. ブランチの種類</h2>
-<section id="basic-syntax" class="level3">
-<h3 class="anchored" data-anchor-id="basic-syntax">Basic Syntax</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb1-1"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">&lt;branch-type&gt;/&lt;issue-number&gt;/&lt;task-description&gt;</span></span></code></pre></div></div>
-<p>release 系列ブランチや hotfix ブランチなど，Issue番号を含まない場合もあります．その場合は</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb2-1"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">release/&lt;major&gt;.&lt;minor&gt;.&lt;patch&gt;</span></span>
-<span id="cb2-2"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">hotfix/&lt;task-description&gt;</span></span></code></pre></div></div>
-</section>
-<section id="命名規則" class="level3">
-<h3 class="anchored" data-anchor-id="命名規則">命名規則</h3>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 20%">
-<col style="width: 40%">
-<col style="width: 40%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>ブランチ種別</th>
-<th>命名規則</th>
-<th>目的</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><strong>本番用</strong></td>
-<td><code>main</code></td>
-<td>本番デプロイ可能な安定版コード．常にリリース済みの状態を保持</td>
-</tr>
-<tr class="even">
-<td><strong>開発用</strong></td>
-<td><code>develop</code></td>
-<td>全機能・修正の統合先（メイン開発ブランチ）</td>
-</tr>
-<tr class="odd">
-<td><strong>機能追加</strong></td>
-<td><code>feature/&lt;issue番号&gt;/&lt;タスク&gt;</code></td>
-<td>新機能開発や改善タスク．小規模IssueはこのままdevelopへPR</td>
-</tr>
-<tr class="even">
-<td><strong>機能改善</strong></td>
-<td><code>enhancement/&lt;issue番号&gt;/&lt;タスク&gt;</code></td>
-<td>既存機能の改善タスク．UX改善・処理最適化など</td>
-</tr>
-<tr class="odd">
-<td><strong>バグ修正</strong></td>
-<td><code>bugfix/&lt;issue番号&gt;/&lt;タスク&gt;</code></td>
-<td>不具合修正用ブランチ．テスト後developへ統合</td>
-</tr>
-<tr class="even">
-<td><strong>Issue統合</strong></td>
-<td><code>issue/&lt;issue番号&gt;</code></td>
-<td><strong>中〜大規模Issueの場合のみ</strong>作成．複数サブタスクを統合するための統合ブランチ</td>
-</tr>
-<tr class="odd">
-<td><strong>リリース系列</strong></td>
-<td><code>release/&lt;major&gt;.&lt;minor&gt;.x</code></td>
-<td>特定マイナー系列（例: 1.1.x）の安定維持・軽微修正対応用（長寿命）</td>
-</tr>
-<tr class="even">
-<td><strong>リリース準備</strong></td>
-<td><code>release/&lt;version&gt;/create-release-note</code></td>
-<td>リリースノート作成・バージョン確定・タグ準備用（短命）</td>
-</tr>
-<tr class="odd">
-<td><strong>緊急修正</strong></td>
-<td><code>hotfix/&lt;issue番号&gt;</code></td>
-<td>本番環境向けの即時修正．修正後 main / develop 両方に反映</td>
-</tr>
-<tr class="even">
-<td><strong>テスト検証用</strong></td>
-<td><code>test/&lt;issue番号&gt;/&lt;タスク&gt;</code></td>
-<td>一時的なテストコード・検証用ブランチ．検証完了後削除</td>
-</tr>
-<tr class="odd">
-<td><strong>ドキュメント整備</strong></td>
-<td><code>docs/&lt;issue番号&gt;/&lt;タスク&gt;</code></td>
-<td>ドキュメント・ガイド・README更新などのためのブランチ</td>
-</tr>
-<tr class="even">
-<td><strong>リファクタリング</strong></td>
-<td><code>refactor/&lt;issue番号&gt;/&lt;タスク&gt;</code></td>
-<td>挙動を変えずに内部構造を改善するためのブランチ</td>
-</tr>
-<tr class="odd">
-<td><strong>検証・試作用</strong></td>
-<td><code>sandbox/&lt;タスク&gt;</code></td>
-<td>新しいアイデアやPoCを試すための実験的ブランチ（非公式）．安定版にマージしない前提</td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-<section id="命名例" class="level3">
-<h3 class="anchored" data-anchor-id="命名例">命名例</h3>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 40%">
-<col style="width: 60%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>ブランチ名</th>
-<th>用途</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>feature/0123-add-login</code></td>
-<td>新機能</td>
-</tr>
-<tr class="even">
-<td><code>bugfix/0123-fix-login-error</code></td>
-<td>修正</td>
-</tr>
-<tr class="odd">
-<td><code>issue/0123</code></td>
-<td>複数サブタスクを含むIssue統合</td>
-</tr>
-<tr class="even">
-<td><code>release/1.1.x</code></td>
-<td>1.1 系列のリリース維持</td>
-</tr>
-<tr class="odd">
-<td><code>release/1.1.1/create-release-note</code></td>
-<td>1.1.1 リリース準備</td>
-</tr>
-<tr class="even">
-<td><code>hotfix/0145-critical-fix</code></td>
-<td>緊急対応</td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-</section>
-<section id="開発フロー" class="level2">
-<h2 class="anchored" data-anchor-id="開発フロー">3. 開発フロー</h2>
-<section id="step-1.-サブタスク開発" class="level3">
-<h3 class="anchored" data-anchor-id="step-1.-サブタスク開発">Step 1. サブタスク開発</h3>
-<p>各Issueに対して、必要なサブタスクごとにブランチを切ります．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">git</span> switch develop</span>
-<span id="cb3-2"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">git</span> switch <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-c</span> feature/0123/add-login</span>
-<span id="cb3-3"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">git</span> switch <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-c</span> bugfix/0123/fix-login-error</span></code></pre></div></div>
-<ul>
-<li>小規模Issueなら、このまま develop に直接PR(Step3へ)</li>
-<li>中〜大規模Issueなら，Issue統合ブランチを作成し，サブタスクをまとめる (Step 2へ)</li>
-</ul>
-</section>
-<section id="step-2.-中大規模issueの統合ブランチ任意" class="level3">
-<h3 class="anchored" data-anchor-id="step-2.-中大規模issueの統合ブランチ任意">Step 2. 中〜大規模Issueの統合ブランチ（任意）</h3>
-<p>複数のサブタスクをまとめてレビューしたい場合にのみ作成します．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">git</span> switch develop</span>
-<span id="cb4-2"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">git</span> switch <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-c</span> issue/0123</span>
-<span id="cb4-3"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">git</span> merge feature/0123/add-login</span>
-<span id="cb4-4"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">git</span> merge bugfix/0123/fix-login-error</span>
-<span id="cb4-5"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">git</span> push <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-u</span> origin issue/0123</span></code></pre></div></div>
-<ul>
-<li>統合PRを作成：<code>issue/0123</code> → <code>develop</code></li>
-<li>チーム単位でまとめてレビュー／テストを実施</li>
-</ul>
-</section>
-<section id="step-3.-developへの統合" class="level3">
-<h3 class="anchored" data-anchor-id="step-3.-developへの統合">Step 3. developへの統合</h3>
-<ul>
-<li>Issue単位またはサブタスク単位で <code>develop</code> にPR作成</li>
-<li>ローカルで実行する場合は <code>git merge --no-ff</code> で対応</li>
-</ul>
-</section>
-<section id="step-4.-リリース系列ブランチ作成" class="level3">
-<h3 class="anchored" data-anchor-id="step-4.-リリース系列ブランチ作成">Step 4. リリース系列ブランチ作成</h3>
-<ul>
-<li>開発が安定したタイミングでマイナー系列ブランチを作成</li>
-<li>ブランチ作成は開発規模に応じて，<code>git switch -c</code> または GitHub Actionsで実施</li>
-</ul>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">git</span> switch develop</span>
-<span id="cb5-2"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">git</span> switch <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-c</span> release/1.1.x</span>
-<span id="cb5-3"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">git</span> push <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-u</span> origin release/1.1.x</span></code></pre></div></div>
-</section>
-<section id="step-5.-リリース準備ブランチ" class="level3">
-<h3 class="anchored" data-anchor-id="step-5.-リリース準備ブランチ">Step 5. リリース準備ブランチ</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">git</span> switch release/1.1.x</span>
-<span id="cb6-2"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">git</span> switch <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-c</span> release/1.1.1/0130/create-release-note</span></code></pre></div></div>
-<ul>
-<li>作業内容例:
-<ul>
-<li>リリースノート更新</li>
-<li>バージョン番号更新 (<code>__version__.py</code> など)</li>
-<li>最終テスト、修正</li>
-</ul></li>
-<li>PR作成：<code>release/1.1.1/create-release-note</code> → <code>release/1.1.x</code></li>
-</ul>
-</section>
-<section id="step-6.-リリース確定" class="level3">
-<h3 class="anchored" data-anchor-id="step-6.-リリース確定">Step 6. リリース確定</h3>
-<ul>
-<li>GitHub Release ページに正式リリースノートを公開</li>
-<li>git タグを付与し，<code>main</code> ブランチにマージ</li>
-</ul>
-</section>
-<section id="step-7.-main-develop-への反映" class="level3">
-<h3 class="anchored" data-anchor-id="step-7.-main-develop-への反映">Step 7. main / develop への反映</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># 本番用</span></span>
-<span id="cb7-2"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">git</span> switch main</span>
-<span id="cb7-3"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">git</span> merge <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--ff</span> release/1.1.x</span>
-<span id="cb7-4"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">git</span> push origin main</span>
-<span id="cb7-5"></span>
-<span id="cb7-6"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># 開発用</span></span>
-<span id="cb7-7"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">git</span> switch develop</span>
-<span id="cb7-8"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">git</span> merge <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--ff</span> release/1.1.x</span>
-<span id="cb7-9"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">git</span> push origin develop</span></code></pre></div></div>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>運用ポイント
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 18%">
-<col style="width: 24%">
-<col style="width: 24%">
-<col style="width: 24%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>対象</th>
-<th>ブランチ命名規則</th>
-<th>用途・対象範囲</th>
-<th>運用方針</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><strong>小規模 Issue</strong></td>
-<td><code>feature/&lt;issue番号&gt;-&lt;タスク&gt;</code></td>
-<td>小規模な新機能・修正 <br> <code>develop</code> に直接 PR</td>
-<td>単一タスク・軽微修正に適用</td>
-</tr>
-<tr class="even">
-<td><strong>中〜大規模 Issue</strong></td>
-<td><code>issue/&lt;issue番号&gt;</code></td>
-<td>複数サブタスクを統合</td>
-<td>サブタスクを統合して <code>develop</code> に PR <br> <code>feature</code> / <code>bugfix</code> をまとめてレビュー</td>
-</tr>
-<tr class="odd">
-<td><strong>リリース系列ブランチ</strong></td>
-<td><code>release/&lt;major&gt;.&lt;minor&gt;.x</code></td>
-<td>特定マイナー系列（例: 1.1.x）</td>
-<td>安定版維持・軽微修正対応 <br> 長寿命ブランチ．保守・検証に利用</td>
-</tr>
-<tr class="even">
-<td><strong>リリース準備ブランチ</strong></td>
-<td><code>release/&lt;version&gt;/&lt;subtask&gt;</code></td>
-<td>各パッチリリース（例: 1.1.1）</td>
-<td>リリースノート作成・バージョン確定・PR作成など <br> 短命ブランチ．完了後削除</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-</div>
-</section>
-</section>
-<section id="ブランチ削除ポリシー" class="level2">
-<h2 class="anchored" data-anchor-id="ブランチ削除ポリシー">4. ブランチ削除ポリシー</h2>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 30%">
-<col style="width: 35%">
-<col style="width: 35%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>ブランチ種別</th>
-<th>削除タイミング</th>
-<th>備考</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>feature</code> / <code>bugfix</code> / <code>issue</code></td>
-<td>develop マージ後</td>
-<td>即削除（必要ならタグで履歴追跡）</td>
-</tr>
-<tr class="even">
-<td><code>release/&lt;version&gt;/&lt;subtask&gt;</code></td>
-<td>main・develop 反映後</td>
-<td>削除</td>
-</tr>
-<tr class="odd">
-<td><code>release/&lt;series&gt;.x</code></td>
-<td>次マイナー系列発足時</td>
-<td>継続保守中は残す</td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-<section id="注意事項" class="level2">
-<h2 class="anchored" data-anchor-id="注意事項">5. 注意事項</h2>
-<div class="callout callout-style-default callout-important callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Important</span>Rule 1: 小文字とハイフンを使用する
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>ブランチ名は常に小文字で記述</li>
-<li>大文字を含めると，ファイルシステムが大文字・小文字を区別する環境がある</li>
-<li>単語の区切りにはハイフン（<code>-</code>）を使用</li>
-</ul>
-</div>
-</div>
-<p><strong>📘 Example</strong></p>
-<ul>
-<li>✅ Good: <code>feature/user-login</code></li>
-<li>❌ Avoid: <code>Feature_UserLogin</code>, <code>FeatUserLogin</code></li>
-</ul>
-<div class="callout callout-style-default callout-important callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Important</span>Rule 2: 明確なトークンからブランチ名を開始する
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>各ブランチ名は、目的を示すカテゴリトークンから始めます。</li>
-<li>トークンの例：
-<ul>
-<li><code>feature</code>（新機能開発）</li>
-<li><code>bugfix</code>（バグ修正）</li>
-<li><code>docs</code>（ドキュメント更新）</li>
-</ul></li>
-<li>トークンと説明文はスラッシュ（<code>/</code>）で区切る</li>
-</ul>
-</div>
-</div>
-<p><strong>📘 Example</strong></p>
-<ul>
-<li>✅ Example: <code>bugfix/payment-timeout</code></li>
-<li>❌ Avoid: <code>payment-timeout</code> (purpose unclear)</li>
-</ul>
-<p><strong>活用例</strong></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Listing branches by token</span></span>
-<span id="cb8-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">$</span> git branch <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--list</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"feature/*"</span></span>
-<span id="cb8-3"></span>
-<span id="cb8-4"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Pushing or mapping branches with tokens</span></span>
-<span id="cb8-5"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">$</span> git push origin <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">'refs/heads/feature/*'</span></span>
-<span id="cb8-6"></span>
-<span id="cb8-7"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Deleting multiple branches by token</span></span>
-<span id="cb8-8"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">$</span> git branch <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-D</span> <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$(</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">git</span> branch <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--list</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"feature/*"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">)</span></span></code></pre></div></div>
-<div class="callout callout-style-default callout-important callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Important</span>Rule 3: ブランチ名は簡潔・明確に
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>意図を説明できる範囲で，長すぎる名前は避ける</li>
-<li>長すぎるブランチ名は，ログ表示の一行に収まらず，可視性が下がるため</li>
-</ul>
-</div>
-</div>
-<p><strong>📘 Example</strong></p>
-<ul>
-<li>✅ 良い例: <code>refactor/api-headers</code></li>
-<li>❌ 悪い例: <code>refactor/update-the-way-we-handle-request-headers-in-api</code></li>
-</ul>
-<div class="callout callout-style-default callout-important callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Important</span>Rule 4: 衝突を生む可能性のあるブランチは作らない
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li><code>git switch -c feature</code> のように意図が不明瞭な名前や既存ブランチと衝突する可能性のある名前は避ける</li>
-<li>Gitは内部的に ブランチ名をパス（ディレクトリ構造）として管理しているため，<code>feature</code> が作成されていると <code>feature/login-v2</code> が名前衝突して作成できなくなってしまう
-<ul>
-<li>同じ階層にファイルとディレクトリを同時に作れないため</li>
-</ul></li>
-</ul>
-</div>
-</div>
-<p><strong>📘 Example</strong></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">$</span> git switch <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-c</span> bugfix/0123/fix-login-error</span>
-<span id="cb9-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">Switched</span> to a new branch <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">'bugfix/0123/fix-login-error'</span></span>
-<span id="cb9-3"></span>
-<span id="cb9-4"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">$</span> ls .git/refs/heads/bugfix/0123</span>
-<span id="cb9-5"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">fix-login-error</span></span></code></pre></div></div>
-</section>
-<section id="appendix-なぜbranchは名前衝突するのか" class="level2">
-<h2 class="anchored" data-anchor-id="appendix-なぜbranchは名前衝突するのか">Appendix: なぜbranchは名前衝突するのか？</h2>
-<p><span class="mini-section">Commit Object</span></p>
-<p>Gitのコアの部分はシンプルなキー・バリュー型データストアです．Gitで追跡されているファイル(blob)はディレクトリの状態（ツリー）と合わせて圧縮された <code>.git/objects</code> にオブジェクトファイルとして保存されます． <code>git commit</code> を実行すると，commit時点でのその状態をスナップショットとして</p>
-<ul>
-<li>誰が(<code>user.name</code>, <code>user.email</code>)</li>
-<li>いつ(現在のタイムスタンプ)</li>
-<li>どんなメッセージを残して</li>
-<li>どのcommitのあとに（=親コミット情報）</li>
-<li>コミットが作成された時点のスナップショットのトップレベルのツリー</li>
-</ul>
-<p>を記録します．これが<span class="regmonkey-bold">コミットオブジェクト</span>です．このコミットオブジェクトをvalueとすると，それに対応するSHA-1ハッシュ値がキーとなります．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb10-1"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">.git/HEAD</span></span>
-<span id="cb10-2"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">    │</span></span>
-<span id="cb10-3"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">    └─ ref: refs/heads/main</span></span>
-<span id="cb10-4"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">           │</span></span>
-<span id="cb10-5"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">           └─ SHA-1 commit object (latest commit)</span></span>
-<span id="cb10-6"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">                  │</span></span>
-<span id="cb10-7"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">                  ├─ tree object</span></span>
-<span id="cb10-8"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">                  │     ├─ blob (file1)</span></span>
-<span id="cb10-9"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">                  │     └─ blob (file2)</span></span>
-<span id="cb10-10"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">                  └─ parent commit(s)</span></span></code></pre></div></div>
-<p><span class="mini-section">ブランチはポインター</span></p>
-<p>各ブランチはブランチ自体が実体を持っているのではなく，どのcommit objectを参照しているか？で状態が管理されています．ここで登場するのが <code>refs/heads/&lt;branch-name&gt;</code> です． <code>main</code> ブランチが参照するCommit Objectは <code>.git/refs/heads/main</code> に記録されており</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb11-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> cat .git/refs/heads/main</span>
-<span id="cb11-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">35f61422e59fb8b34bf3a85f82a71669c1eeec30</span></span></code></pre></div></div>
-<p><code>git add</code> &amp; <code>git commit</code> を実行すると，この値が新たなCommit Objectへの参照へと書き換わります．</p>
-<p><span class="mini-section">なぜブランチは名前衝突するのか？</span></p>
-<p>上記のようにブランチの情報は <code>.git/refs/heads/&lt;branch-name&gt;</code> で管理されています．<code>git switch -c develop</code> とすると</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb12-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> git switch <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-c</span> develop</span>
-<span id="cb12-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">Switched</span> to a new branch <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">'develop'</span></span>
-<span id="cb12-3"></span>
-<span id="cb12-4"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> cat .git/refs/heads/develop</span>
-<span id="cb12-5"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">35f61422e59fb8b34bf3a85f82a71669c1eeec30</span></span></code></pre></div></div>
-<p>とファイルが生成されます．しかし，ブランチ名に <code>/</code> を含む場合だと</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb13-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> git switch <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-c</span> bugfix/0001/test</span>
-<span id="cb13-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">Switched</span> to a new branch <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">'bugfix/0001/test'</span></span>
-<span id="cb13-3"></span>
-<span id="cb13-4"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> tree .git/refs/heads/</span>
-<span id="cb13-5"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">.git/refs/heads/</span></span>
-<span id="cb13-6"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">├──</span> bugfix</span>
-<span id="cb13-7"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">│</span>   └── 0001</span>
-<span id="cb13-8"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">│</span>       └── test</span>
-<span id="cb13-9"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">├──</span> develop</span>
-<span id="cb13-10"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">└──</span> main</span></code></pre></div></div>
-<p>と <code>bugfix/0001/test</code> の<code>/</code>(スラッシュ)がディレクトリ区切りと解釈されてしまします．<code>develop</code>ブランチがある状態で <code>develop/test</code> を作成しようとすると， <code>.git/refs/heads/develop/</code> ディレクトリを作成してから，その下に <code>test</code> ファイルを作成しようとしますが，すでに<code>develop</code> ファイルが存在する = 同姓同名のディレクトリを同じ層では作成できないという状態が発生します</p>
-<p>そのため，</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb14-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> git switch <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-c</span> develop/test</span>
-<span id="cb14-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">fatal:</span> cannot lock ref <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">'refs/heads/develop/test'</span>: <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">'refs/heads/develop'</span> exists<span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">;</span> <span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">cannot</span> create <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">'refs/heads/develop/test'</span></span></code></pre></div></div>
-<p>というエラーが発生します．</p>
-</section>
-<section id="references" class="level2">
-<h2 class="anchored" data-anchor-id="references">References</h2>
-<ul>
-<li><a href="https://git-scm.com/book/ja/v2/Git%E3%81%AE%E5%86%85%E5%81%B4-Git%E3%82%AA%E3%83%96%E3%82%B8%E3%82%A7%E3%82%AF%E3%83%88">10.2 Gitの内側 - Gitオブジェクト</a></li>
-</ul>
-
-
-</section>
-
- ]]></description>
-  <category>環境構築</category>
-  <category>git</category>
-  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-10-30-branch-strategy/</guid>
-  <pubDate>Thu, 30 Oct 2025 00:00:00 GMT</pubDate>
 </item>
 </channel>
 </rss>
