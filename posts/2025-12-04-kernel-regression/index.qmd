@@ -1,0 +1,154 @@
+---
+title: "NW Regressionのメモ"
+author: "Ryo Nakagami"
+date: "2025-12-04"
+date-modified: "2025-12-04"
+categories: [統計]
+listing_category: datascience-statistics-series
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## Non-parametric Regression
+
+$(X_1, Y_1), \cdots, (X_n, Y_n) \sim F$ というデータを観測したとき，
+
+$$
+r(x) = \mathbb E[Y | X = x]
+$$
+
+というCEFを推定するのがゴールとなります．このとき，$\hat r(x)$ を回帰関数とすると $r(x)$ との距離を考える必要があります．
+距離の一例として
+
+$$
+L(\hat r, r) = \int (\hat r(x) - r(x))^2 \,\mathrm{d}x
+$$
+
+とするとリスク関数は
+
+$$
+R(\hat r, r) = \mathbb E\left[\int (\hat r(x) - r(x))^2 \,\mathrm{d}x\right]
+$$
+
+- このとき，$r^{\prime\prime}(y) < \infty$ であると仮定しています
+
+回帰関数のBiasとVarianceを $b(x), v(x)$ とすると，
+
+$$
+R(\hat r, r) = \int b^2(x) \,\mathrm{d}x + \int v(x)\,\mathrm{d}x
+$$
+
+[Non-parametric Regressionの方針]{.mini-section}
+
+Non-parametric Regression推定の考え方は，データの「局所平均」をとることでです．
+ある点における回帰関数の推定値は、その点の近傍にある $Y$ の値の平均として求めることになります．
+
+バンド幅は Bias と Variance に影響を与えますが，
+
+- 近傍が広すぎると，Bias が大きく Variance が小さい状態へ（oversmoothing）
+- 逆に近傍が狭すぎると，Bias は小さいが Variance が大きい状態へ（undersmoothing）
+
+## Kernel Regression
+
+::: {#def- .custom_problem .blog-custom-border}
+[Kernel Regression Estimator]{.def-title}
+
+$$
+\hat r(x) = \sum_{i=1}^n w_i(x) Y_i
+$$
+
+$w_i(x)$: importance weight and the form is following
+
+$$
+w_i(x) = \frac{K\left(\frac{x - X_i}{h}\right)}{\sum_{i=1}^nK\left(\frac{x - X_i}{h}\right)}
+$$
+
+:::
+
+表記簡略化のため $K\left(\frac{x - X_i}{h}\right) = K_h(X_i)$ とし，$X_i$ は １変数の場合とします．
+
+<div class="math display" style="overflow: auto">
+$$
+\begin{align}
+\hat r(x)
+  &= \frac{\sum Y_i K_h(X_i)}{\sum K_h(X_i)}\\
+  &= \frac{\frac{1}{n}\sum Y_i K_h(X_i)}{\frac{1}{n}\sum K_h(X_i)}\\
+  &= \frac{\frac{1}{n}\sum Y_i K_h(X_i)}{\hat p(x)}\\
+  &\approx \frac{\frac{1}{n}\sum Y_i K_h(X_i)}{p(x)}
+\end{align}
+$$
+</div>
+
+このとき numerator 側の期待値を考えると
+
+<div class="math display" style="overflow: auto">
+$$
+\begin{align}
+\mathbb{E}[Y K_h(X - x)]
+&= \iint y K_h(u - x) p(u, y)\, dy\, du \\
+&= \int K_h(u - x) \left( \int y p(y \mid u)\, dy \right) p(u)\, du \\
+&= \int K_h(u - x) r(u) p(u)\, du \\
+&= \int K(t)\, r(x + th)\, p(x + th)\, dt \\
+&\approx \int K(t)
+\left[ r(x) + th r'(x) + \frac{t^2 h^2}{2} r''(x) \right]
+\left[ p(x) + th p'(x) + \frac{t^2 h^2}{2} p''(x) \right] dt \\
+&= r(x)p(x) + \frac{c h^2}{2} \left[ r(x)p''(x) + 2 r'(x)p'(x) + r''(x)p(x) \right]
+\end{align}
+$$
+</div>
+
+このとき $c = \int t^2K(t)$．したがって，
+
+$$
+\mathbb E[\hat r(x)] = r(x) + Ch^2
+$$
+
+[分散の導出]{.mini-section}
+
+<div class="math display" style="overflow: auto">
+$$
+\begin{align}
+\mathbb E[Y^2K^2_h(X - x)]
+  &= \int \mathbb E[Y^2 | X=u]K^2_h(u - x)p(u)\, du \\
+  &= \int (r^2(u) + \sigma^2(u))K^2_h(u - x)p(u)\, du \\
+  &= \int \left( \sigma^{2}(x + th) + r^{2}(x + th) \right)
+      \frac{1}{h^{2}} K^{2}(t)\, p(x + th)\, h\, dt \\
+  &= \frac{1}{h} \int \left( \sigma^{2}(x) + r^{2}(x) \right)
+      p(x)\, K^{2}(t)\, dt + o\!\left(\frac{1}{h}\right).
+\end{align}
+$$
+</div>
+
+したがって， $\mathcal{O}(1/h)$. $h\to 0$ の状況では $\mathbb E[Y^2K^2_h(X - x)]$ のオーダーが支配的になるので
+
+$$
+\operatorname{Var}(Y K_h(X - x)) \approx \mathcal{O}(1/h)
+$$
+
+したがって，i.i.dと $\sum_{i=1}^n$ より
+
+$$
+\operatorname{Var}(\hat r(x)) = \frac{C}{nh}
+$$
+
+これらを踏まえるとIMSEは
+
+$$
+\operatorname{IMSE} = ch^4 + \frac{c}{nh}
+$$
+
+::: {.callout-note}
+### Curse of dimensionality
+
+$d$ 次元を考えるとリスク関数は次のオーダーになります
+
+$$
+R(\hat r, r) \approx n^{-4/(4 + d)}
+$$
+
+$d$ が大きくなるほど，IMSEのオーダーは悪くなることから curse of dimensionality と呼びます．
+
+:::
