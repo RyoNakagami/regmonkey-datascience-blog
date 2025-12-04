@@ -1,0 +1,179 @@
+---
+title: "UTF-8 の BOM 付き vs BOM なし"
+author: "Ryo Nakagami"
+date: "2025-12-03"
+date-modified: "2025-12-04"
+categories: [文字コード]
+listing_category: general-series
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## BOM(Byte Order Mark)
+
+::: {#def- .custom_problem .blog-custom-border}
+[BOM]{.def-title}
+
+- バイト順序（エンディアン）を示すためのマーク
+- BOM は必ずテキストの先頭に付与される(= テキストの中間に置かれることはない)
+- UTF-8 はバイト順序がないので必要ないが，UTF-8であることの判定のためにUTF-8 with BOM となる場合がある
+
+:::
+
+プログラムがテキストデータを読み込む際に先頭の数バイトによりUnicodeのデータであることやどの種類の符号化形式を採用しているのかを判別しています．
+BOM付きのUTF-8であれば先頭の3バイトがBOMであり，`0xEF 0xBB 0xBF`というデータになります．
+
+[BOM一覧]{.mini-section}
+
+| 符号化形式（符号化スキーム） | エンディアン | バイト順マーク (BOM)                                   |
+| -------------- | ------ | ----------------------------------------------- |
+| UTF-8          | なし      | `EF BB BF`                                      |
+| UTF-16         | BE       | `FE FF`                                         |
+| UTF-16         | LE       | `FF FE`                                         |
+| UTF-32         | BE       | `00 00 FE FF`                                   |
+| UTF-32         | LE       | `FF FE 00 00`                                   |
+
+### `xxd` コマンドでBOMを確認する
+
+以下を内容とする `test.sh` というファイルがあるとします．
+
+```bash
+#!/bin/bash
+
+echo "Hallo World!!"
+
+```
+
+BOMが付与されていないと
+
+```bash
+$ xxd test.sh | head                
+00000000: 2321 2f62 696e 2f62 6173 680a 0a65 6368  #!/bin/bash..ech
+00000010: 6f20 2248 616c 6c6f 2057 6f72 6c64 2121  o "Hallo World!!
+00000020: 220a 0a                                  "..
+```
+
+となりますが，`vim "+set bomb" "+wq" test.sh` とBOMを付与すると
+
+```bash
+$ xxd test.sh | head                 
+00000000: efbb bf23 212f 6269 6e2f 6261 7368 0a0a  ...#!/bin/bash..
+00000010: 6563 686f 2022 4861 6c6c 6f20 576f 726c  echo "Hallo Worl
+00000020: 6421 2122 0a0a                           d!!"..
+```
+
+先頭バイトが `efbb bf` となっていることから UTF-8 with BOMであることがわかります．
+
+BOMありの場合，`chmod +x test.sh` 実行後にランしてみると
+
+```bash
+$ ./test.sh                    
+./test.sh: 1: ﻿#!/bin/bash: not found
+Hallo World!!
+
+```
+
+となります．
+
+::: {.callout-note}
+### `nkf` を用いた文字コード判定
+
+`nkf` コマンドと `--guess` オプションを組み合わせると，使用されている文字コードと改行コードの判定結果を表示することができます．
+
+```bash
+$ nkf --guess test.sh 
+UTF-8 (BOM) (LF)
+```
+
+:::
+
+### `nkf` コマンドを用いてBOMなしへ変換する
+
+::: {#def- .custom_problem .blog-custom-border}
+[`nkf` コマンド]{.def-title}
+
+- Network Kanji Filterの略
+- 文字コードと改行コードを変換するためのコマンド
+
+  ```bash
+  nkf [opttion] [file]
+  ```
+
+:::
+
+[入力文字コードオプション]{.mini-section}
+
+| オプション        | 意味                   |
+| ------------ | -------------------- |
+| `-J`         | 入力を ISO-2022-JP とみなす |
+| `-S`         | 入力を Shift_JIS とみなす   |
+| `-E`         | 入力を EUC-JP とみなす      |
+| `--ic=UTF-8` | 入力を UTF-8 とみなす       |
+
+[出力文字コードオプション]{.mini-section}
+
+| オプション            | 意味               |
+| ---------------- | ---------------- |
+| `-j`             | 出力を ISO-2022-JP  |
+| `-s`             | 出力を Shift_JIS    |
+| `-e`             | 出力を EUC-JP       |
+| `-w`             | 出力を UTF-8（BOMなし） |
+| `-w8`            | 出力を UTF-8（BOM付き） |
+| `--oc=UTF-8`     | 出力を UTF-8（BOMなし） |
+| `--oc=UTF-8-BOM` | 出力を UTF-8（BOM付き） |
+
+#### BOMを取り除く
+
+```bash
+nkf --overwrite --oc=UTF-8 test.sh
+```
+
+とすることでBOMなしUTF-8へ変換することが出来ます．
+
+| オプション         | 意味                                                             |
+| ------------- | -------------------------------------------------------------- |
+| `--overwrite` | **元ファイルを上書き**して保存する                          |
+| `--oc=UTF-8`  | 出力の文字コードを UTF-8 にする |
+
+内部的には
+
+1. 元ファイルの文字コードが自動判定される
+2. 内容を UTF-8 に変換
+3. BOM を持っていた場合は削除
+4. 変換後の内容で test.sh を上書き保存
+
+という処理が行われるので，もし思ったような挙動が確認できない場合は「**元ファイルの文字コードが自動判定される**」に問題があるかもなので
+入力文字コード指定オプションを組み合わせたりします
+
+
+## Appendix
+
+::: {#def- .custom_problem .blog-custom-border}
+[UTF-8]{.def-title}
+
+- Unicodeで割り振ったコードポイントの文字符号化形式(encoding形式)の一種
+- ASCIIと同じ文字は1バイト，その他の文字については2～4バイトを用いて文字を表現する
+- ASCIIとの対応関係があるので 「ASCIIと上位互換性がある」 と言われる
+
+:::
+
+::: {#exm- .custom_problem }
+### Unicode と UTF-8 の対応
+
+| 文字 | Unicode | UTF-8                | UTF-8の2進数表現|
+|------|----------|-----------------------|-------------|
+| A    | `U+0041`   | `0x41`  | `0100` `0001`|
+| α    | `U+03B1`   | `0xCE` `0xB1`            | `1100` `1110` `1011` `0001` |
+
+AのUTF-8の2進数表現は 8 bit = 1 Byteであるので，「ASCIIと同じ文字は1バイト」であることがわかります．また，
+α は16 bitとなっていますが，ギリシャ文字は ASCII の範囲外なので 2 Bytes となります．
+
+:::
+---
+
+References
+----------
+- [【nkf】コマンド――文字コードと改行コードを変換する](https://atmarkit.itmedia.co.jp/ait/articles/1609/29/news016.html)
