@@ -1,0 +1,554 @@
+---
+title: "ISO 8601 カレンダーテーブルの作成"
+author: "Ryo Nakagami"
+date: "2025-12-09"
+date-modified: "2025-12-09"
+categories: [python, SQL, shell]
+listing_category: datascience-preprocess-series
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## ISO 8601 とは？
+
+::: {#def- .custom_problem .blog-custom-border}
+[ISO 8601]{.def-title}
+
+- 日付と時刻の表現形式に関する ISO の国際標準
+- グレゴリオ暦の西暦2016年3月25日は `2016-03-25` と表記する
+
+:::
+
+日付を `01/05/22` と数字で表す場合，
+
+- 2022-01-05
+- 2022-05-01
+
+のどちらでも解釈できてしまいます．ISO 8601 は，このような混乱を解消するために日付の国際的な表記方法を定めた規格です．
+日本では日本産業規格の JIS X 0301 にて，ISO 8601 と同等の内容が採用されています．
+
+
+### 日付表記 (Date)
+
+::: {#def- .custom_problem .blog-custom-border}
+[日付表記]{.def-title}
+
+- ISO 8601 では，日付は 年・月・日を左から順に並べる形式とし，半角数字・ハイフン区切りで表す
+
+:::
+
+
+```ini
+YYYY-MM-DD
+```
+
+- `YYYY`：西暦年（4桁．年の表記は 0000年～9999年 を想定）
+- `MM`：月（2桁．1桁の場合は先頭に `0` を付与）
+- `DD`：日（2桁．1桁の場合は先頭に `0` を付与）
+
+::: {.callout-note}
+
+- 0000年より前または9999年より後の年を表記する場合には，事前に通信の送信側と受信側との間での合意が必要
+- `YYYYMMDD` という表記もあり得る
+
+:::
+
+
+### 曜日表記 (Day of Week)
+
+::: {#def- .custom_problem .blog-custom-border}
+[曜日表記]{.def-title}
+
+- ISO 8601 では，週の始まりは月曜日（=1） と定められており，曜日は 1〜7 の整数値で表される
+- 日本の商習慣では「日曜始まり」のカレンダーが多い点に注意
+
+:::
+
+| 数値 | 曜日  |
+| -- | --- |
+| 1  | 月曜日 |
+| 2  | 火曜日 |
+| 3  | 水曜日 |
+| 4  | 木曜日 |
+| 5  | 金曜日 |
+| 6  | 土曜日 |
+| 7  | 日曜日 |
+
+### 時刻表記 (Time)
+
+::: {#def- .custom_problem .blog-custom-border}
+[時刻表記]{.def-title}
+
+- ISO 8601 の時刻は 24 時間制で，コロン区切りとする
+
+:::
+
+```ini
+hh:mm:ss
+```
+
+- `hh`：時（00–24）
+- `mm`：分（00–59）
+- `ss`：秒（00–59，必要に応じて小数も可）
+
+::: {#exm- .custom_problem }
+### ミリ秒とマイクロ秒
+<br>
+
+```ini
+14:30:00.123   （ミリ秒）
+14:30:00.123456（マイクロ秒）
+```
+
+:::
+---
+
+### 日付と時刻の組み合わせ（Datetime）
+
+::: {#def- .custom_problem .blog-custom-border}
+[Datetime]{.def-title}
+
+- ISO 8601 では，日付と時刻を組み合わせる場合 `T` を連結文字として使用する
+- 必要に応じて UTC との時差（オフセット）を付与する
+
+```ini
+YYYY-MM-DDThh:mm:ss[±hh:mm]
+```
+
+:::
+
+タイムゾーン省略時は「ローカル時刻」とみなされるため，システム間連携ではオフセット付与版が望ましいとされます．
+というか**プログラミングで扱うときは，基本的にはオフセット付与版を用いましょう**．
+
+::: {#exm- .custom_problem }
+<br>
+
+```ini
+2025-12-09T14:30:00+09:00   # 日本標準時 (JST)
+2025-12-09T05:30:00Z        # UTC（Z は +00:00 と等価）
+```
+
+:::
+---
+
+### ISO week date
+
+::: {#def- .custom_problem .blog-custom-border}
+[ISOWEEK]{.def-title}
+
+- ISO-8601 という国際標準で定められた「週番号」の体系
+
+```ini
+Date	            2025-12-08
+Week	            2025-W50
+Week with weekday	2025-W50-1
+```
+
+:::
+
+
+[ISOWEEK計算アルゴリズム]{.mini-section}
+
+1. 年初からの通算日（day of year）から，その日の ISO 曜日番号を引く
+2. その結果に 10 を加える
+3. 7 で割り，余りを切り捨てる
+
+その後，次の判定を行う
+
+- 計算結果が 0 の場合: この日付は 前年の最終週（週番号 52 または 53）
+- 計算結果が 53 の場合: 
+    - その年に ISO 週 53 が存在するか確認
+    - 存在しない年の場合，この日付は 翌年の週 1
+
+
+```pseudocode
+#| html-indent-size: "1.2em"
+#| html-comment-delimiter: "//"
+#| html-line-number: true
+#| html-line-number-punc: ":"
+#| html-no-end: false
+#| pdf-placement: "htb!"
+#| pdf-line-number: true
+
+\begin{algorithm}
+\caption{ISO Week Number Calculation}
+\begin{algorithmic}
+
+\Procedure{WeekdayOfDec31}{$y$}
+    \State $p = (\, y + \lfloor y/4 \rfloor - \lfloor y/100 \rfloor + \lfloor y/400 \rfloor \,) \bmod 7$
+    \Return $p$
+\EndProcedure
+
+\State
+
+\Procedure{WeeksInYear}{$y$}
+    \State $p_y$ = \Call{WeekdayOfDec31}{$y$}
+    \State $p_{y-1}$ = \Call{WeekdayOfDec31}{$y-1$}
+    \If{$p_y = 4 \ OR \ p_{y-1} = 3$}
+        \Return $53$
+    \Else
+        \Return $52$
+    \EndIf
+\EndProcedure
+
+\State
+
+\Procedure{ISOWeek}{$date$}
+    \State $y = year(date)$
+    \State $doy = doy(date)$  $\,\,\,\,\,$ \Comment{   day of year}
+    \State $dow = dow(date)$  $\,\,\,\,\,$\Comment{ISO weekday: 1=Mon,...,7=Sun}
+
+    \State $w = \left\lfloor \dfrac{10 + doy - dow}{7} \right\rfloor$
+
+    \If{$w < 1$}
+        \Return \Call{WeeksInYear}{$y-1$}
+    \ElsIf{$w$ > \Call{WeeksInYear}{$y$}}
+        \Return $1$
+    \Else
+        \Return $w$
+    \EndIf
+\EndProcedure
+
+\end{algorithmic}
+\end{algorithm}
+```
+
+## カレンダーとプログラミング
+### シェルでISOWEEK計算
+
+::: {#def- .custom_problem .blog-custom-border}
+[`date` コマンド]{.def-title}
+
+```bash
+date +%V
+```
+
+を実行すると，現在時刻のISO WEEKが表示される
+
+:::
+
+[関連オプション]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| フォーマット | 意味                     |
+| ------ | ---------------------- |
+| `%V`   | ISO 8601 週番号（01–53）    |
+| `%G`   | ISO 年（week-based year） |
+| `%g`   | ISO 年（下2桁）             |
+| `%u`   | ISO 曜日（1=Mon〜7=Sun）    |
+| `%a`   | 曜日名（Mon, Tue, ...）     |
+
+
+::::
+
+::: {#exm- .custom_problem }
+#### UTC vs Asia/Tokyo
+<br>
+
+```bash
+$ date +%V -d '2024-12-30T08:00:00.123213+09:00' -u
+52
+
+$ date +%V -d '2024-12-30T08:00:00.123213+00:00' -u
+01
+```
+:::
+---
+
+### 日付レンジからカレンダーテーブルの作成
+
+::: {.callout-note}
+#### Goal
+
+- `YYYY-MM-DD` 形式の２つの引数を入力すると，指定した開始日から終了日までの日付範囲を1日ずつ列挙したテーブル形式で出力する関数を作成
+
+```bash
+$ date-table 2020-01-01 2020-01-10   
+
+date,weekday,iso_day_of_week,isoweek,day_of_year
+2020-01-01,Wed,3,01,001
+2020-01-02,Thu,4,01,002
+2020-01-03,Fri,5,01,003
+2020-01-04,Sat,6,01,004
+2020-01-05,Sun,7,01,005
+2020-01-06,Mon,1,02,006
+2020-01-07,Tue,2,02,007
+2020-01-08,Wed,3,02,008
+2020-01-09,Thu,4,02,009
+2020-01-10,Fri,5,02,010
+```
+:::
+
+[実装例]{.mini-section}
+
+::: {.panel-tabset group="language"}
+#### Bash
+
+```bash
+#!/bin/bash
+# -----------------------------------------------------------------------------
+# Author: Ryo Nakagami
+# Revised: 2025-12-09
+# Script: date-table
+# Description:
+#   Generates a CSV table of dates and their properties for a given date range.
+#   Outputs columns for date, weekday, ISO day of week, ISO week number, and
+#   day of year, with options to select which columns to display.
+#
+#   Steps:
+#     1. Parse and validate command-line options and arguments.
+#     2. Validate input dates (format and calendar existence).
+#     3. Set output columns based on options (default: all columns).
+#     4. Print CSV header.
+#     5. Iterate from start to end date, printing each row with selected fields.
+#
+# Options:
+#    -a    Show weekday column
+#    -u    Show ISO day of week column
+#    -V    Show ISO week number column
+#    -j    Show day of year column
+#    -h    Show this help message
+#
+# Usage:
+#   ./date-table [-a] [-u] [-V] [-j] <start-date> <end-date>
+#     # Outputs a CSV table for the date range, with selected columns.
+#
+# Notes:
+#   - Requires bash, GNU date, and coreutils installed.
+#   - Dates must be in YYYY-MM-DD format.
+#   - Exits with error if dates are invalid or out of order.
+# -----------------------------------------------------------------------------
+set -euo pipefail
+
+# --- Validate YYYY-MM-DD ---
+validate_ymd() {
+    local d="$1"
+
+    # Format check
+    if [[ ! $d =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+        echo "Error: Invalid format '$d'. Expected YYYY-MM-DD." >&2
+        exit 1
+    fi
+
+    # Calendar existence check
+    local norm
+    if ! norm=$(date -d "$d" +%Y-%m-%d 2>/dev/null); then
+        echo "Error: '$d' is not a real date." >&2
+        exit 1
+    fi
+
+    # Reject auto-corrected dates (e.g., 2025-02-30 → 2025-03-02)
+    if [[ "$norm" != "$d" ]]; then
+        echo "Error: '$d' is not a valid calendar date." >&2
+        exit 1
+    fi
+}
+
+# --- Option parsing ---
+show_weekday=false
+show_iso_day=false
+show_isoweek=false
+show_day_of_year=false
+opt_specified=false
+
+while getopts "auVj" opt; do
+    opt_specified=true
+    case $opt in
+        a) show_weekday=true ;;
+        u) show_iso_day=true ;;
+        V) show_isoweek=true ;;
+        j) show_day_of_year=true ;;
+    esac
+done
+ 
+shift $((OPTIND - 1))
+
+if [[ $# -ne 2 ]]; then
+    echo "Usage: $0 [-a] [-u] [-V] [-j] <start-date> <end-date>" >&2
+    exit 1
+fi
+
+start_date="$1"
+end_date="$2"
+
+validate_ymd "$start_date"
+validate_ymd "$end_date"
+
+# Ensure start <= end
+if [[ "$start_date" > "$end_date" ]]; then
+    echo "Error: start_date > end_date" >&2
+    exit 1
+fi
+
+# If no options specified → output all
+if ! $opt_specified; then
+    show_weekday=true
+    show_iso_day=true
+    show_isoweek=true
+    show_day_of_year=true
+fi
+
+# --- Print header ---
+printf "date"
+$show_weekday    && printf ",weekday"
+$show_iso_day    && printf ",iso_day_of_week"
+$show_isoweek    && printf ",isoweek"
+$show_day_of_year && printf ",day_of_year"
+printf "\n"
+
+# --- Generate rows ---
+current="$start_date"
+while true; do
+
+    weekday=$(date -d "$current" +%a)
+    iso_day=$(date -d "$current" +%u)
+    isoweek=$(date -d "$current" +%V)
+    doy=$(date -d "$current" +%j)
+
+    printf "%s" "$current"
+    $show_weekday     && printf ",%s" "$weekday"
+    $show_iso_day     && printf ",%s" "$iso_day"
+    $show_isoweek     && printf ",%s" "$isoweek"
+    $show_day_of_year && printf ",%s" "$doy"
+
+    printf "\n"
+
+    [[ "$current" == "$end_date" ]] && break
+
+    current=$(date -d "$current +1 day" +%Y-%m-%d)
+done
+
+```
+
+#### Python + datetimeモジュール
+
+```python
+from datetime import datetime, timedelta
+
+def date_table(start_date: str, end_date: str):
+    start = datetime.fromisoformat(start_date).date()
+    end = datetime.fromisoformat(end_date).date()
+
+    delta = end - start
+
+    result = []
+    for i in range(delta.days + 1):
+        d = start + timedelta(days=i)
+        result.append(
+            {
+                "date": d,
+                "date_str": d.isoformat(),
+                "weekday": d.strftime("%a"),  # Mon, Tue ...
+                "iso_day_of_week": d.isoweekday(),  # 1=Mon ... 7=Sun
+                "isoweek": d.isocalendar()[1],  # ISO week number
+                "day_of_year": d.timetuple().tm_yday,  # 1〜365/366
+            }
+        )
+    return result
+```
+
+#### Pandas
+
+```python
+import pandas as pd
+
+
+def date_table_pd(start_date: str, end_date: str) -> pd.DataFrame:
+    # date range
+    dates = pd.date_range(start=start_date, end=end_date, freq="D")
+
+    df = pd.DataFrame(
+        {
+            "date": dates.date,  # date object
+            "date_str": dates.strftime("%Y-%m-%d"),
+            "weekday": dates.strftime("%a"),  # Mon, Tue, ...
+            "iso_day_of_week": dates.isocalendar().day.values.astype(int),  # 1–7
+            "isoweek": dates.isocalendar().week.values.astype(int),  # ISO week number
+            "day_of_year": dates.dayofyear.values.astype(int),  # 1–366
+        }
+    )
+
+    return df
+```
+
+- `dates.isocalendar().day` などは Date Index付 `pandas.core.series.Series` で返してしまうので `.values` を使用
+
+
+#### Polars
+
+```python
+import polars as pl
+from datetime import date
+
+
+def date_table_pl(start_date: str, end_date: str) -> pl.DataFrame:
+    # reformat to date object
+    start = date.fromisoformat(start_date)
+    end = date.fromisoformat(end_date)
+
+    # date range
+    dates = pl.date_range(start=start, end=end, interval="1d", eager=True)
+
+    df = pl.DataFrame({"date": dates}).with_columns(
+        [
+            pl.col("date").dt.to_string("%Y-%m-%d").alias("date_str"),
+            pl.col("date").dt.strftime("%a").alias("weekday"),
+            pl.col("date").dt.weekday().alias("iso_day_of_week"),
+            pl.col("date").dt.week().alias("isoweek"),
+            pl.col("date").dt.ordinal_day().alias("day_of_year"),
+        ]
+    )
+
+    return df
+```
+
+#### BigQuery with UDF Table
+
+1. テーブル関数用のData setの作成
+
+```sql
+CREATE SCHEMA `hogehoge-project.utility_table`
+OPTIONS (location="asia-northeast1");
+```
+
+2. テーブル関数作成 (`CREATE TABLE FUNCTION`)
+
+BigQuery の `DAYOFWEEK` が `Sunday=1` であるのでISO8601形式に変換
+
+```sql
+CREATE OR REPLACE TABLE FUNCTION
+  `hogehoge-project.utility_table.date_table`(start_date DATE, end_date DATE)
+AS (
+  SELECT
+    d AS date,
+    FORMAT_DATE('%Y-%m-%d', d) AS date_str,
+    FORMAT_DATE('%a', d) AS weekday,
+    MOD(EXTRACT(DAYOFWEEK FROM d) + 5, 7) + 1 AS iso_day_of_week,
+    EXTRACT(ISOWEEK FROM d) AS isoweek,
+    EXTRACT(DAYOFYEAR FROM d) AS day_of_year
+  FROM
+    UNNEST(GENERATE_DATE_ARRAY(start_date, end_date, INTERVAL 1 DAY)) AS d
+);
+```
+
+3. 実行
+
+```sql
+SELECT *
+FROM 
+  `hogehoge-project.utility_table.date_table`('2025-02-01', '2025-02-10');
+```
+
+
+:::
+
+
+
+
+References
+----------
+- [Python Documentation > datetime --- 基本的な日付と時間の型](https://docs.python.org/ja/3.14/library/datetime.html#)
