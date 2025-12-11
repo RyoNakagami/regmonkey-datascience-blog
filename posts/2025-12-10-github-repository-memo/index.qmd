@@ -1,0 +1,244 @@
+---
+title: "自分用GitHub Repository作成時のメモ"
+author: "Ryo Nakagami"
+date: "2025-12-10"
+date-modified: "2025-12-11"
+categories: [環境構築, github]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## 🔨 Getting Started
+
+::: {.callout-note}
+
+- あくまで共通項についてのメモです
+- 厳密には下記のStep 3 ghコマンドの実行 の前にdocument や gitignoreなり他にもやることはあります
+
+:::
+
+[minimum structure]{.mini-section}
+
+```ini
+.
+├── .github/
+│   ├── repository_metadata/    # Repository configuration files
+│   │   ├── gh_repo.yml        # Repository metadata
+│   │   └── label_master.yml   # Label definitions
+│   └── workflows/             # GitHub Actions workflows
+│       └── label-generator.yml # Label automation workflow
+└── README.md
+```
+
+[手順]{.mini-section}
+
+1. **ディレクトリの作成と移動**
+
+    ```bash
+    mkdir <repository-name> && cd $_
+    ```
+
+2. **Repositoryメタデータの作成**
+
+    以下のように `.github/repository_metadata/gh_repo.yml` に記述します
+
+    ```{.yaml filename='gh_repo.yml'}
+    meta-data:
+    repository_name: your-repo-name       # Required: Repository name
+    visibility: private|public            # Required: Repository visibility
+    org-name: YourOrgName                # Required: Organization name
+    homepage: YourURL                    # Optional: e.g., https://ryonakagami.github.io/regmonkey-datascience-blog/
+    tag:                                 # Optional: Repository tags
+      - tag1
+      - tag2
+    description: |                       # Required: Repository description
+      A clear, concise description of your project.
+    ```
+
+::: {.callout-caution style="margin-left: 2em;"}
+
+`'Required'` とされているフィールドは必ず入力して下さい
+
+:::
+
+3. **ghコマンドの実行**
+
+    自分は `.gitconfig` で Alias 設定を行い [git create-repo](https://github.com/RyoNakagami/regmonkey-gitcommand/blob/main/src/git-create-repo.sh) と 
+    [git update-repo](https://github.com/RyoNakagami/regmonkey-gitcommand/blob/main/src/git-repo-update.sh) を実行できるようにしています．
+
+    ```bash
+    # step 1
+    git create-repo   # only when the repository not created yet
+
+    # step 2
+    git update-repo   # reflecting tags, description, and homepage
+    ```
+
+4. **（Optional）ラベルのカスタマイズ**
+
+    `.github/repository_metadata/label_master.yml` を以下のフォーマットで編集．`main` へのpushが `label_master.yml` の変更を含んでいるときにラベルが作成される
+
+    ```yml
+    # ------------------------------------------------
+    # GitHub Issue Labels aligned with Branch Naming Conventions
+    # Author: Ryo Nakagami
+    # ------------------------------------------------
+    
+    # --- Development Workflows (Aligned with Branch Prefixes) ---
+    - name: environment
+      color: EFDECD         # almond
+      description: This issue is related to development repository structure etc
+    
+    - name: feature
+      color: 008000         # green
+      description: New feature development
+    
+    - name: bugfix
+      color: DC143C         # crimson
+      description: Bug fix or defect correction
+    ```
+
+
+### Label Generator Workflow
+
+:::: {.no-border-top-table}
+
+| イベント              | Workflow が動作する？| 説明                               |
+| -------------------- | --------------- | -------------------------- |
+| `main` への PR を作成         | ❌                                            | `push` ではないため                      |
+| `main` への PR を更新（コミット追加） | ❌ | push は発生しているが，そのブランチで動くので `main` とは関係なし                                 |
+| `main` への PR を merge     | ✅                                            | merge commit が `main` に `push` されるため |
+
+::::
+
+
+[ワークフローファイル]{.mini-section}
+
+```{.yaml filename='label-generator.yml'}
+name: Label Manager
+
+# Trigger: Runs when labels.yaml is modified
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/repository_metadata/label_master.yml
+
+# Minimal required permissions
+permissions:
+  contents: read    # Read repository files
+  issues: write     # Create/update/delete labels
+
+jobs:
+  sync-labels:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # ============================================================
+      # SETUP: Install required tools and authenticate
+      # ============================================================
+      
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        # uv is used to install Python tools like yamlcli
+
+      - name: Install dependencies
+        run: |
+          # Update package lists quietly
+          sudo apt-get update -qq
+          
+          # Install jq (JSON processor) and gh (GitHub CLI)
+          sudo apt-get install -y -qq jq gh
+          
+          # Install yamlcli via uv to convert YAML to JSON
+          uv tool install git+https://github.com/RyoNakagami/yamlcli.git
+
+      - name: Authenticate GitHub CLI
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
+        # Note: Not setting GH_TOKEN here allows gh to store credentials
+        # This prevents "To have GitHub CLI store credentials..." warning
+
+      # ============================================================
+      # PARSE: Convert YAML configuration to JSON
+      # ============================================================
+      
+      - name: Parse labels configuration
+        id: parse
+        run: |
+          # Convert labels.yaml to JSON format and save to file
+          yamlcli --to-json .github/repository_metadata/label_master.yml > /tmp/labels.json
+          echo "Labels configuration parsed successfully"
+
+      # ============================================================
+      # SYNC: Create or update labels from configuration
+      # ============================================================
+      
+      - name: Sync labels
+        run: |
+          # Exit on error, undefined variables, or pipe failures
+          set -euo pipefail
+          
+          # Get list of existing label names once to avoid repeated API calls
+          EXISTING_LABELS=$(gh label list --json name --jq '.[].name')
+          
+          # Process each label definition from the JSON array
+          jq -c '.[]' /tmp/labels.json | while IFS= read -r label; do
+            # Extract label properties
+            NAME=$(echo "$label" | jq -r '.name')
+            COLOR=$(echo "$label" | jq -r '.color')
+            DESC=$(echo "$label" | jq -r '.description // ""')  # Default to empty string if null
+            
+            echo "Processing label: $NAME"
+            
+            # Check if label already exists in repository
+            if echo "$EXISTING_LABELS" | grep -Fxq "$NAME"; then
+              # Update existing label
+              echo "  Updating existing label"
+              gh label edit "$NAME" --color "$COLOR" --description "$DESC"
+            else
+              # Create new label
+              echo "  Creating new label"
+              gh label create "$NAME" --color "$COLOR" --description "$DESC"
+            fi
+          done
+
+      # ============================================================
+      # PRUNE: Remove labels not defined in configuration
+      # ============================================================
+      
+      - name: Prune obsolete labels
+        run: |
+          # Exit on error, undefined variables, or pipe failures
+          set -euo pipefail
+          
+          # Get list of all existing labels in the repository
+          EXISTING_LABELS=$(gh label list --json name --jq '.[].name')
+          
+          # Get list of desired labels from configuration
+          DESIRED_LABELS=$(jq -r '.[].name' /tmp/labels.json)
+          
+          # Check each existing label
+          echo "$EXISTING_LABELS" | while IFS= read -r label; do
+            # Skip empty lines
+            if [[ -n "$label" ]] && ! echo "$DESIRED_LABELS" | grep -Fxq "$label"; then
+              # Label exists in repo but not in config - delete it
+              echo "Deleting obsolete label: $label"
+              gh label delete "$label" --yes || echo "  Failed to delete $label (may be in use)"
+            fi
+          done
+        # gh CLI uses stored credentials from auth login step
+```
+
+
+
+References
+----------
+- [regmonkey-gitcommand](https://github.com/RyoNakagami/regmonkey-gitcommand)
