@@ -10,7 +10,2214 @@
 <atom:link href="https://ryonakagami.github.io/regmonkey-datascience-blog/index.xml" rel="self" type="application/rss+xml"/>
 <description>日々の徒然勉強日記</description>
 <generator>quarto-1.8.26</generator>
-<lastBuildDate>Wed, 10 Dec 2025 00:00:00 GMT</lastBuildDate>
+<lastBuildDate>Mon, 15 Dec 2025 00:00:00 GMT</lastBuildDate>
+<item>
+  <title>中年男性の中性脂肪分布はLognormalで近似できるか？</title>
+  <dc:creator>Ryo Nakagami</dc:creator>
+  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-12-15-statistical-inference/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+
+<section id="リサーチクエッション" class="level2">
+<h2 class="anchored" data-anchor-id="リサーチクエッション">1. リサーチクエッション</h2>
+<ul>
+<li><strong>アメリカの中年男性（40-59歳）の血中中性脂肪（トリグリセリド）濃度は，Lognormal分布でどの程度近似できるか？</strong></li>
+</ul>
+<section id="背景" class="level3">
+<h3 class="anchored" data-anchor-id="背景">背景</h3>
+<p>血中脂質値は多くの場合，正規分布ではなく右に歪んだ分布を示す。特に中性脂肪は，生活習慣や遺伝的要因により極端な高値を示す個人が存在するため，Lognormal分布での近似がしばしば用いられます． このノートでは，米国の代表的な健康調査データを用いて，この仮説を検証したいとおもいます．</p>
+</section>
+</section>
+<section id="data" class="level2">
+<h2 class="anchored" data-anchor-id="data">2. Data</h2>
+<p><span class="mini-section">データソース</span></p>
+<ul>
+<li><a href="https://wwwn.cdc.gov/nchs/nhanes/search/datapage.aspx?Component=Laboratory&amp;Cycle=2021-2023&amp;utm_source=chatgpt.com">NHANES (National Health and Nutrition Examination Survey) August 2021 - August 2023</a></li>
+<li>アメリカCDCが実施する全国規模の健康・栄養調査データ．</li>
+</ul>
+<p><span class="mini-section">使用ファイル</span></p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>ファイル</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>DEMO_L.xpt</code></td>
+<td>人口統計学的データ（年齢，性別等）</td>
+</tr>
+<tr class="even">
+<td><code>TRIGLY_L.xpt</code></td>
+<td>中性脂肪・LDLコレステロールデータ</td>
+</tr>
+</tbody>
+</table>
+<p><span class="mini-section">対象者の選択基準</span></p>
+<ol type="1">
+<li><strong>性別</strong>: 男性 (<code>RIAGENDR = 1</code>)</li>
+<li><strong>年齢</strong>: 40-59歳 (<code>RIDAGEYR</code>)</li>
+<li><strong>中性脂肪データ</strong>: 欠損なし (<code>LBXTLG</code> is not null)</li>
+<li><strong>サンプルウェイト</strong>: 有効 (<code>WTSAF2YR</code> &gt; 0)</li>
+</ol>
+<p><span class="mini-section">測定方法</span></p>
+<ul>
+<li>中性脂肪（Triglycerides）は，12歳以上の参加者のうち，8-24時間絶食という空腹条件を満たした部分標本（fasting subsample） に対してのみ測定</li>
+</ul>
+<p><span class="mini-section">サンプルウェイト</span></p>
+<ul>
+<li><strong>WTSAF2YR</strong>（空腹時サブサンプル2年MEC重み）を使用</li>
+<li>see <a href="https://wwwn.cdc.gov/nchs/nhanes/tutorials/weighting.aspx">here</a></li>
+</ul>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title">WTSAF2YR</span></p>
+<ul>
+<li>「当該参加者が米国の民間非施設居住人口の何人規模のグループをを代表しているか」を表す設計ウェイト</li>
+<li>ある参加者の<code>WTSAF2YR = 50,000</code> の場合，その参加者は母集団内の約50,000人グループを代表することを意味する</li>
+</ul>
+</div>
+<p>ウェイトの基本的な考えは</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Ctext%7Bsample%20person's%20weight%7D%20=%20%5Cfrac%7B1%7D%7B%5Ctext%7Bprobability%20of%20selection%7D%7D%0A"></p>
+<p>詳しい説明は省略しますが，</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-12-15-statistical-inference/sampling.png" class="img-fluid figure-img"></p>
+<figcaption>Four Stages of NHANES Sampling Procedure</figcaption>
+</figure>
+</div>
+<ol type="1">
+<li>米国全体を分割した一次抽出（PSU：郡または郡群）</li>
+<li>選ばれた PSU 内で小地域（街区・セグメント）が選ばれる</li>
+<li>選ばれたセグメント内で，世帯（household） が抽出される</li>
+<li>世帯内の構成員のうち，調査対象者として個人が選ばれる</li>
+</ol>
+<p>という流れでNHANESでは層化抽出が行われ <code>probability of selection</code> が定まります．解釈としては</p>
+<blockquote class="blockquote">
+<p>“A sample weight is assigned to each sample person. <strong>It is a measure of the number of people in the population represented by that sample person in NHANES</strong>, reflecting the unequal probability of selection, an adjustment for sample person non-response, and adjustment to account for differences between the final sample and the total population based on independent population control totals.”</p>
+</blockquote>
+<p>したがって，母集団平均の推定には</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Ctext%7Bweighted%20mean%7D%20=%20%5Cfrac%7B%5Csum%20%5Ctext%7BWTSAF2YR%7D%20%5Ctimes%20%5Ctext%7Bvalue%7D%7D%7B%5Csum%20%5Ctext%7BWTSAF2YR%7D%7D%0A"></p>
+<p>となります．</p>
+</section>
+<section id="分析方針" class="level2">
+<h2 class="anchored" data-anchor-id="分析方針">3. 分析方針</h2>
+<p><span class="mini-section">Lognormal分布の仮定</span></p>
+<p>血中中性脂肪濃度は以下の特徴を持つため，Lognormal分布での近似をおこないます：</p>
+<ol type="1">
+<li><strong>正の値のみ</strong>: 濃度は必ず正の値をとる</li>
+<li><strong>右に歪んだ分布</strong>: 極端な高値を示す個人が存在</li>
+<li><strong>乗法的な影響</strong>: 遺伝・食事・運動などの要因が乗法的に作用すると仮定</li>
+</ol>
+<p><span class="mini-section">適合度の評価方法</span></p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>評価方法</th>
+<th>目的</th>
+<th>判断</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>重み付きヒストグラム vs PDF</td>
+<td>視覚的な分布形状の比較</td>
+<td>主観的判断</td>
+</tr>
+<tr class="even">
+<td>Q-Qプロット</td>
+<td>分位点の一致度を評価</td>
+<td>主観的判断</td>
+</tr>
+<tr class="odd">
+<td>Kolmogorov-Smirnov検定</td>
+<td>統計的な適合度検定</td>
+<td>統計的判定</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="推定関数" class="level2">
+<h2 class="anchored" data-anchor-id="推定関数">4. 推定関数</h2>
+<section id="重み付きqq-plot" class="level3">
+<h3 class="anchored" data-anchor-id="重み付きqq-plot">重み付きQQ plot</h3>
+<div id="2ad309ac" class="cell" data-execution_count="1">
+<details open="" class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb1-1"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> numpy <span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">as</span> np</span>
+<span id="cb1-2"></span>
+<span id="cb1-3"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> weighted_quantiles(</span>
+<span id="cb1-4">    values: np.ndarray, weights: np.ndarray, quantiles: np.ndarray</span>
+<span id="cb1-5">) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> np.ndarray:</span>
+<span id="cb1-6">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""</span></span>
+<span id="cb1-7"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    Compute weighted quantiles.</span></span>
+<span id="cb1-8"></span>
+<span id="cb1-9"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    Parameters</span></span>
+<span id="cb1-10"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    ----------</span></span>
+<span id="cb1-11"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    values : array-like</span></span>
+<span id="cb1-12"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        Array of observed values.</span></span>
+<span id="cb1-13"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    weights : array-like</span></span>
+<span id="cb1-14"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        Sample weights corresponding to each observation.</span></span>
+<span id="cb1-15"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    quantiles : array-like</span></span>
+<span id="cb1-16"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        Quantiles to compute (values between 0 and 1).</span></span>
+<span id="cb1-17"></span>
+<span id="cb1-18"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    Returns</span></span>
+<span id="cb1-19"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    -------</span></span>
+<span id="cb1-20"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    ndarray</span></span>
+<span id="cb1-21"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        Values corresponding to the specified quantiles.</span></span>
+<span id="cb1-22"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    """</span></span>
+<span id="cb1-23">    sorted_indices <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.argsort(values)</span>
+<span id="cb1-24">    sorted_values <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> values[sorted_indices]</span>
+<span id="cb1-25">    sorted_weights <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> weights[sorted_indices]</span>
+<span id="cb1-26"></span>
+<span id="cb1-27">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Cumulative sum of weights, normalized to [0, 1]</span></span>
+<span id="cb1-28">    cumsum_normalized <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.cumsum(sorted_weights) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> np.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>(sorted_weights)</span>
+<span id="cb1-29"></span>
+<span id="cb1-30">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> np.interp(quantiles, cumsum_normalized, sorted_values)</span></code></pre></div></div>
+</details>
+</div>
+<section id="重み付きks検定の実装" class="level4">
+<h4 class="anchored" data-anchor-id="重み付きks検定の実装">重み付きKS検定の実装</h4>
+<ul>
+<li>scipy の <code>ks_2samp</code> をベースに、両側からのCDF差を計算する方法を採用</li>
+<li>effective sample sizeは <img src="https://latex.codecogs.com/png.latex?(%5Csum%20w_i)%5E2%20/%20%5Csum%20w_i%5E2"> で計算 (see Monahan, J. (2011). <em>Numerical Methods of Statistics</em>.)</li>
+</ul>
+<div id="9bb5b466" class="cell" data-execution_count="2">
+<details open="" class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb2-1"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">from</span> typing <span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> Callable</span>
+<span id="cb2-2"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">from</span> scipy <span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> stats</span>
+<span id="cb2-3"></span>
+<span id="cb2-4"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> weighted_ks_1samp(</span>
+<span id="cb2-5">    values: np.ndarray, weights: np.ndarray, cdf_func: Callable[[np.ndarray], np.ndarray]</span>
+<span id="cb2-6">) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">tuple</span>[<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">float</span>, <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">float</span>]:</span>
+<span id="cb2-7">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""</span></span>
+<span id="cb2-8"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    Perform a one-sample weighted Kolmogorov–Smirnov test.</span></span>
+<span id="cb2-9"></span>
+<span id="cb2-10"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    The p-value is computed using an effective sample size</span></span>
+<span id="cb2-11"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    (Kish's effective sample size), following the approach</span></span>
+<span id="cb2-12"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    proposed by Monahan.</span></span>
+<span id="cb2-13"></span>
+<span id="cb2-14"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    Parameters</span></span>
+<span id="cb2-15"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    ----------</span></span>
+<span id="cb2-16"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    values : np.ndarray</span></span>
+<span id="cb2-17"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        Array of observed values.</span></span>
+<span id="cb2-18"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    weights : np.ndarray</span></span>
+<span id="cb2-19"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        Sample weights corresponding to each observation.</span></span>
+<span id="cb2-20"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    cdf_func : Callable[[np.ndarray], np.ndarray]</span></span>
+<span id="cb2-21"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        CDF function of the theoretical distribution. It takes</span></span>
+<span id="cb2-22"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        an array of values and returns cumulative probabilities.</span></span>
+<span id="cb2-23"></span>
+<span id="cb2-24"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    Returns</span></span>
+<span id="cb2-25"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    -------</span></span>
+<span id="cb2-26"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    tuple[float, float]</span></span>
+<span id="cb2-27"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        (ks_stat, p_value) – the KS statistic and the asymptotic p-value.</span></span>
+<span id="cb2-28"></span>
+<span id="cb2-29"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    References</span></span>
+<span id="cb2-30"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    ----------</span></span>
+<span id="cb2-31"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    Monahan, J. (2011). *Numerical Methods of Statistics*.</span></span>
+<span id="cb2-32"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    """</span></span>
+<span id="cb2-33">    sorted_indices <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.argsort(values)</span>
+<span id="cb2-34">    sorted_values <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> values[sorted_indices]</span>
+<span id="cb2-35">    sorted_weights <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> weights[sorted_indices]</span>
+<span id="cb2-36"></span>
+<span id="cb2-37">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Weighted ECDF: F_n(x) = Σ w_i * I(X_i ≤ x) / Σ w_i</span></span>
+<span id="cb2-38">    cumsum <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.cumsum(sorted_weights)</span>
+<span id="cb2-39">    total_weight <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> cumsum[<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>]</span>
+<span id="cb2-40">    ecdf_after <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> cumsum <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> total_weight          <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># F_n(x) = P(X ≤ x)</span></span>
+<span id="cb2-41">    ecdf_before <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.concatenate([[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>], ecdf_after[:<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>]])  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># F_n(x−)</span></span>
+<span id="cb2-42"></span>
+<span id="cb2-43">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Theoretical CDF</span></span>
+<span id="cb2-44">    theoretical_cdf <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> cdf_func(sorted_values)</span>
+<span id="cb2-45"></span>
+<span id="cb2-46">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># KS statistic: maximum deviation from both sides</span></span>
+<span id="cb2-47">    d_plus <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">max</span>(ecdf_after <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> theoretical_cdf)    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># sup(F_n − F)</span></span>
+<span id="cb2-48">    d_minus <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">max</span>(theoretical_cdf <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> ecdf_before)  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># sup(F − F_n)</span></span>
+<span id="cb2-49">    ks_stat <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">max</span>(d_plus, d_minus)</span>
+<span id="cb2-50"></span>
+<span id="cb2-51">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Effective sample size (Kish's effective sample size)</span></span>
+<span id="cb2-52">    n_eff <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> total_weight<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">**</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> np.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>(sorted_weights<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">**</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>)</span>
+<span id="cb2-53"></span>
+<span id="cb2-54">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Asymptotic p-value (Kolmogorov distribution)</span></span>
+<span id="cb2-55">    p_value <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> stats.kstwobign.sf(np.sqrt(n_eff) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> ks_stat)</span>
+<span id="cb2-56"></span>
+<span id="cb2-57">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">float</span>(ks_stat), <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">float</span>(np.clip(p_value, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>))</span></code></pre></div></div>
+</details>
+</div>
+</section>
+</section>
+</section>
+<section id="分析コード" class="level2">
+<h2 class="anchored" data-anchor-id="分析コード">5. 分析コード</h2>
+<div id="841a96ae" class="cell" data-execution_count="3">
+<details open="" class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb3-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""</span></span>
+<span id="cb3-2"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">NHANES August 2021-August 2023 中年男性の中性脂肪分析</span></span>
+<span id="cb3-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">ヒストグラムとlognormal分布の比較</span></span>
+<span id="cb3-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">（サンプルウェイト WTSAF2YR を考慮）</span></span>
+<span id="cb3-5"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""</span></span>
+<span id="cb3-6"></span>
+<span id="cb3-7"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> polars <span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">as</span> pl</span>
+<span id="cb3-8"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> pyreadstat</span>
+<span id="cb3-9"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> matplotlib.pyplot <span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">as</span> plt</span>
+<span id="cb3-10"></span>
+<span id="cb3-11"></span>
+<span id="cb3-12"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> load_data():</span>
+<span id="cb3-13">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""DEMO_L と TRIGLY_L データを読み込み結合"""</span></span>
+<span id="cb3-14">    demo_pd, _ <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> pyreadstat.read_xport(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"DEMO_L.xpt"</span>, encoding<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"latin1"</span>)</span>
+<span id="cb3-15">    trigly_pd, _ <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> pyreadstat.read_xport(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"TRIGLY_L.xpt"</span>, encoding<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"latin1"</span>)</span>
+<span id="cb3-16"></span>
+<span id="cb3-17">    demo <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> pl.from_pandas(demo_pd)</span>
+<span id="cb3-18">    trigly <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> pl.from_pandas(trigly_pd)</span>
+<span id="cb3-19"></span>
+<span id="cb3-20">    df <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> demo.join(trigly, on<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"SEQN"</span>, how<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"inner"</span>)</span>
+<span id="cb3-21">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> df</span>
+<span id="cb3-22"></span>
+<span id="cb3-23"></span>
+<span id="cb3-24"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> filter_middle_aged_men(df: pl.DataFrame) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> pl.DataFrame:</span>
+<span id="cb3-25">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""</span></span>
+<span id="cb3-26"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    中年男性（40-59歳）をフィルタリング</span></span>
+<span id="cb3-27"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    - RIAGENDR: 1 = Male</span></span>
+<span id="cb3-28"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    - RIDAGEYR: 年齢</span></span>
+<span id="cb3-29"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    - LBXTLG: 中性脂肪 (mg/dL)</span></span>
+<span id="cb3-30"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    - WTSAF2YR &gt; 0: 有効なサンプルウェイトを持つ参加者のみ</span></span>
+<span id="cb3-31"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    """</span></span>
+<span id="cb3-32">    filtered <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> df.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">filter</span>(</span>
+<span id="cb3-33">        (pl.col(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"RIAGENDR"</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)</span>
+<span id="cb3-34">        <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&amp;</span> (pl.col(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"RIDAGEYR"</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">40</span>)</span>
+<span id="cb3-35">        <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&amp;</span> (pl.col(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"RIDAGEYR"</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">59</span>)</span>
+<span id="cb3-36">        <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&amp;</span> (pl.col(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"LBXTLG"</span>).is_not_null())</span>
+<span id="cb3-37">        <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&amp;</span> (pl.col(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"WTSAF2YR"</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>)</span>
+<span id="cb3-38">    )</span>
+<span id="cb3-39">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> filtered</span>
+<span id="cb3-40"></span>
+<span id="cb3-41"></span>
+<span id="cb3-42"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> weighted_mean(values: np.ndarray, weights: np.ndarray) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">float</span>:</span>
+<span id="cb3-43">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""重み付き平均"""</span></span>
+<span id="cb3-44">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> np.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>(values <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> weights) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> np.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>(weights)</span>
+<span id="cb3-45"></span>
+<span id="cb3-46"></span>
+<span id="cb3-47"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> weighted_std(values: np.ndarray, weights: np.ndarray) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">float</span>:</span>
+<span id="cb3-48">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""重み付き標準偏差"""</span></span>
+<span id="cb3-49">    mean <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> weighted_mean(values, weights)</span>
+<span id="cb3-50">    variance <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>(weights <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> (values <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> mean) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">**</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> np.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>(weights)</span>
+<span id="cb3-51">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> np.sqrt(variance)</span>
+<span id="cb3-52"></span>
+<span id="cb3-53"></span>
+<span id="cb3-54"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> weighted_median(values: np.ndarray, weights: np.ndarray) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">float</span>:</span>
+<span id="cb3-55">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""重み付き中央値"""</span></span>
+<span id="cb3-56">    sorted_indices <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.argsort(values)</span>
+<span id="cb3-57">    sorted_values <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> values[sorted_indices]</span>
+<span id="cb3-58">    sorted_weights <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> weights[sorted_indices]</span>
+<span id="cb3-59">    cumsum <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.cumsum(sorted_weights)</span>
+<span id="cb3-60">    cutoff <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>(sorted_weights) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2.0</span></span>
+<span id="cb3-61">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> sorted_values[np.searchsorted(cumsum, cutoff)]</span>
+<span id="cb3-62"></span>
+<span id="cb3-63"></span>
+<span id="cb3-64"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> weighted_histogram(values: np.ndarray, weights: np.ndarray, bins: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">int</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">50</span>):</span>
+<span id="cb3-65">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""重み付きヒストグラムのデータを計算"""</span></span>
+<span id="cb3-66">    hist, bin_edges <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.histogram(values, bins<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>bins, weights<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>weights, density<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">True</span>)</span>
+<span id="cb3-67">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> hist, bin_edges</span>
+<span id="cb3-68"></span>
+<span id="cb3-69"></span>
+<span id="cb3-70"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> weighted_ecdf(values: np.ndarray, weights: np.ndarray) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">tuple</span>:</span>
+<span id="cb3-71">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""重み付き経験累積分布関数を計算"""</span></span>
+<span id="cb3-72">    sorted_indices <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.argsort(values)</span>
+<span id="cb3-73">    sorted_values <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> values[sorted_indices]</span>
+<span id="cb3-74">    sorted_weights <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> weights[sorted_indices]</span>
+<span id="cb3-75"></span>
+<span id="cb3-76">    cumsum <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.cumsum(sorted_weights)</span>
+<span id="cb3-77">    ecdf <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> cumsum <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> cumsum[<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>]</span>
+<span id="cb3-78"></span>
+<span id="cb3-79">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> sorted_values, ecdf</span>
+<span id="cb3-80"></span>
+<span id="cb3-81"></span>
+<span id="cb3-82"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> filter_by_percentile(</span>
+<span id="cb3-83">    values: np.ndarray,</span>
+<span id="cb3-84">    weights: np.ndarray,</span>
+<span id="cb3-85">    lower_pct: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">float</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.05</span>,</span>
+<span id="cb3-86">    upper_pct: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">float</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.95</span>,</span>
+<span id="cb3-87">) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">tuple</span>[np.ndarray, np.ndarray]:</span>
+<span id="cb3-88">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""</span></span>
+<span id="cb3-89"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    重み付きパーセンタイルでデータをフィルタリング</span></span>
+<span id="cb3-90"></span>
+<span id="cb3-91"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    Parameters</span></span>
+<span id="cb3-92"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    ----------</span></span>
+<span id="cb3-93"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    values : np.ndarray</span></span>
+<span id="cb3-94"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        観測値</span></span>
+<span id="cb3-95"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    weights : np.ndarray</span></span>
+<span id="cb3-96"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        サンプルウェイト</span></span>
+<span id="cb3-97"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    lower_pct : float</span></span>
+<span id="cb3-98"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        下限パーセンタイル（0-1）</span></span>
+<span id="cb3-99"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    upper_pct : float</span></span>
+<span id="cb3-100"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        上限パーセンタイル（0-1）</span></span>
+<span id="cb3-101"></span>
+<span id="cb3-102"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    Returns</span></span>
+<span id="cb3-103"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    -------</span></span>
+<span id="cb3-104"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    filtered_values : np.ndarray</span></span>
+<span id="cb3-105"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        フィルタリング後の観測値</span></span>
+<span id="cb3-106"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    filtered_weights : np.ndarray</span></span>
+<span id="cb3-107"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        フィルタリング後のウェイト</span></span>
+<span id="cb3-108"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    """</span></span>
+<span id="cb3-109">    quantile_bounds <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> weighted_quantiles(values, weights, np.array([lower_pct, upper_pct]))</span>
+<span id="cb3-110">    lower_bound, upper_bound <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> quantile_bounds[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>], quantile_bounds[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>]</span>
+<span id="cb3-111"></span>
+<span id="cb3-112">    mask <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> (values <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;=</span> lower_bound) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&amp;</span> (values <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;=</span> upper_bound)</span>
+<span id="cb3-113">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> values[mask], weights[mask], lower_bound, upper_bound</span>
+<span id="cb3-114"></span>
+<span id="cb3-115"></span>
+<span id="cb3-116"></span>
+<span id="cb3-117"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> analyze_and_plot(</span>
+<span id="cb3-118">    triglyceride_values: np.ndarray,</span>
+<span id="cb3-119">    weights: np.ndarray,</span>
+<span id="cb3-120">    save_suffix: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">str</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">""</span>,</span>
+<span id="cb3-121">):</span>
+<span id="cb3-122">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""ヒストグラムとlognormal分布の比較プロット（重み付き）"""</span></span>
+<span id="cb3-123"></span>
+<span id="cb3-124">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># --- 重み付きパラメータ推定 ---</span></span>
+<span id="cb3-125">    log_values <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.log(triglyceride_values)</span>
+<span id="cb3-126">    mu_weighted <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> weighted_mean(log_values, weights)</span>
+<span id="cb3-127">    sigma_weighted <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> weighted_std(log_values, weights)</span>
+<span id="cb3-128"></span>
+<span id="cb3-129">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># プロット作成</span></span>
+<span id="cb3-130">    fig, axes <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> plt.subplots(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>, figsize<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">14</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>))</span>
+<span id="cb3-131"></span>
+<span id="cb3-132">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># --- 左: ヒストグラムとlognormal PDF ---</span></span>
+<span id="cb3-133">    ax1 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> axes[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>]</span>
+<span id="cb3-134"></span>
+<span id="cb3-135">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 重み付きヒストグラム</span></span>
+<span id="cb3-136">    hist, bin_edges <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> weighted_histogram(triglyceride_values, weights, bins<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">50</span>)</span>
+<span id="cb3-137">    bin_centers <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> (bin_edges[:<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> bin_edges[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>:]) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span></span>
+<span id="cb3-138">    bin_width <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> bin_edges[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> bin_edges[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>]</span>
+<span id="cb3-139">    ax1.bar(</span>
+<span id="cb3-140">        bin_centers,</span>
+<span id="cb3-141">        hist,</span>
+<span id="cb3-142">        width<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>bin_width <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.9</span>,</span>
+<span id="cb3-143">        alpha<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.7</span>,</span>
+<span id="cb3-144">        color<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"steelblue"</span>,</span>
+<span id="cb3-145">        edgecolor<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"white"</span>,</span>
+<span id="cb3-146">        label<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Weighted histogram"</span>,</span>
+<span id="cb3-147">    )</span>
+<span id="cb3-148"></span>
+<span id="cb3-149">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Lognormal PDF（重み付きパラメータ）</span></span>
+<span id="cb3-150">    x <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.linspace(triglyceride_values.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">min</span>(), triglyceride_values.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">max</span>(), <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">500</span>)</span>
+<span id="cb3-151">    pdf_weighted <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> stats.lognorm.pdf(x, s<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>sigma_weighted, scale<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>np.exp(mu_weighted))</span>
+<span id="cb3-152">    ax1.plot(</span>
+<span id="cb3-153">        x,</span>
+<span id="cb3-154">        pdf_weighted,</span>
+<span id="cb3-155">        <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"r-"</span>,</span>
+<span id="cb3-156">        linewidth<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>,</span>
+<span id="cb3-157">        label<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"Lognormal (weighted)</span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">\n</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">(μ=</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>mu_weighted<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.2f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">, σ=</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>sigma_weighted<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.2f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">)"</span>,</span>
+<span id="cb3-158">    )</span>
+<span id="cb3-159"></span>
+<span id="cb3-160">    ax1.set_xlabel(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Triglyceride (mg/dL)"</span>, fontsize<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">12</span>)</span>
+<span id="cb3-161">    ax1.set_ylabel(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Density"</span>, fontsize<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">12</span>)</span>
+<span id="cb3-162">    ax1.set_title(</span>
+<span id="cb3-163">        <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Middle-aged Men (40-59 years) Triglyceride Distribution</span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">\n</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span></span>
+<span id="cb3-164">        <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"NHANES August 2021-August 2023 (Weighted by WTSAF2YR)"</span>,</span>
+<span id="cb3-165">        fontsize<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">12</span>,</span>
+<span id="cb3-166">    )</span>
+<span id="cb3-167">    ax1.legend(fontsize<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">9</span>)</span>
+<span id="cb3-168">    ax1.grid(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">True</span>, alpha<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.3</span>)</span>
+<span id="cb3-169"></span>
+<span id="cb3-170">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># --- 右: 重み付きQ-Qプロット ---</span></span>
+<span id="cb3-171">    ax2 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> axes[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>]</span>
+<span id="cb3-172"></span>
+<span id="cb3-173">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 重み付き分位点を計算</span></span>
+<span id="cb3-174">    n_quantiles <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">100</span>  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># プロット用の分位点数</span></span>
+<span id="cb3-175">    prob_points <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.linspace(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.001</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.999</span>, n_quantiles)  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 0.1%〜99.9%で裾もカバー</span></span>
+<span id="cb3-176"></span>
+<span id="cb3-177">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 重み付き観測分位点</span></span>
+<span id="cb3-178">    observed_quantiles <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> weighted_quantiles(triglyceride_values, weights, prob_points)</span>
+<span id="cb3-179"></span>
+<span id="cb3-180">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 理論分位点（Lognormal）</span></span>
+<span id="cb3-181">    theoretical_quantiles <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> stats.lognorm.ppf(</span>
+<span id="cb3-182">        prob_points, s<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>sigma_weighted, scale<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>np.exp(mu_weighted)</span>
+<span id="cb3-183">    )</span>
+<span id="cb3-184"></span>
+<span id="cb3-185">    ax2.scatter(</span>
+<span id="cb3-186">        theoretical_quantiles, observed_quantiles, alpha<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.7</span>, s<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">20</span>, c<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"steelblue"</span></span>
+<span id="cb3-187">    )</span>
+<span id="cb3-188">    min_val <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">min</span>(theoretical_quantiles.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">min</span>(), observed_quantiles.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">min</span>())</span>
+<span id="cb3-189">    max_val <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">max</span>(theoretical_quantiles.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">max</span>(), observed_quantiles.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">max</span>())</span>
+<span id="cb3-190">    ax2.plot(</span>
+<span id="cb3-191">        [min_val, max_val], [min_val, max_val], <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"r--"</span>, linewidth<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>, label<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Perfect fit"</span></span>
+<span id="cb3-192">    )</span>
+<span id="cb3-193"></span>
+<span id="cb3-194">    ax2.set_xlabel(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Theoretical Quantiles (Lognormal)"</span>, fontsize<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">12</span>)</span>
+<span id="cb3-195">    ax2.set_ylabel(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Weighted Observed Quantiles"</span>, fontsize<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">12</span>)</span>
+<span id="cb3-196">    ax2.set_title(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Weighted Q-Q Plot: Lognormal Distribution Fit"</span>, fontsize<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">12</span>)</span>
+<span id="cb3-197">    ax2.legend(fontsize<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10</span>)</span>
+<span id="cb3-198">    ax2.grid(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">True</span>, alpha<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.3</span>)</span>
+<span id="cb3-199"></span>
+<span id="cb3-200">    plt.tight_layout()</span>
+<span id="cb3-201">    plt.savefig(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"triglyceride_analysis</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>save_suffix<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">.png"</span>, dpi<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">150</span>, bbox_inches<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"tight"</span>)</span>
+<span id="cb3-202">    plt.show()</span>
+<span id="cb3-203"></span>
+<span id="cb3-204">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 統計情報を出力</span></span>
+<span id="cb3-205">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">\n</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"="</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">70</span>)</span>
+<span id="cb3-206">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Statistics: Middle-aged Men (40-59 years) Triglyceride"</span>)</span>
+<span id="cb3-207">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"NHANES August 2021-August 2023 (with sample weights)"</span>)</span>
+<span id="cb3-208">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"="</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">70</span>)</span>
+<span id="cb3-209">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"Sample size (n): </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">len</span>(triglyceride_values)<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb3-210">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"Sum of weights: </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>np<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>(weights)<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:,.0f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb3-211"></span>
+<span id="cb3-212">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"</span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">\n</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">[Descriptive Statistics - WEIGHTED (population estimates)]"</span>)</span>
+<span id="cb3-213">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"  Mean: </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>weighted_mean(triglyceride_values, weights)<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.1f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> mg/dL"</span>)</span>
+<span id="cb3-214">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"  Median: </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>weighted_median(triglyceride_values, weights)<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.1f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> mg/dL"</span>)</span>
+<span id="cb3-215">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"  Std Dev: </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>weighted_std(triglyceride_values, weights)<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.1f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> mg/dL"</span>)</span>
+<span id="cb3-216"></span>
+<span id="cb3-217">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"</span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">\n</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">[Descriptive Statistics - UNWEIGHTED (sample only)]"</span>)</span>
+<span id="cb3-218">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"  Mean: </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>np<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>mean(triglyceride_values)<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.1f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> mg/dL"</span>)</span>
+<span id="cb3-219">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"  Median: </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>np<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>median(triglyceride_values)<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.1f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> mg/dL"</span>)</span>
+<span id="cb3-220">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"  Std Dev: </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>np<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>std(triglyceride_values, ddof<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.1f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> mg/dL"</span>)</span>
+<span id="cb3-221">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"  Min: </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>np<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">min</span>(triglyceride_values)<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.1f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> mg/dL"</span>)</span>
+<span id="cb3-222">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"  Max: </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>np<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">max</span>(triglyceride_values)<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.1f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> mg/dL"</span>)</span>
+<span id="cb3-223"></span>
+<span id="cb3-224">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"</span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">\n</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">[Lognormal Parameters - WEIGHTED]"</span>)</span>
+<span id="cb3-225">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"  μ (log-scale mean): </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>mu_weighted<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.4f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb3-226">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"  σ (log-scale std): </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>sigma_weighted<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.4f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb3-227">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"  Median from fit (exp(μ)): </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>np<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>exp(mu_weighted)<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.1f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> mg/dL"</span>)</span>
+<span id="cb3-228"></span>
+<span id="cb3-229"></span>
+<span id="cb3-230">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 適合度検定 (Kolmogorov-Smirnov)</span></span>
+<span id="cb3-231">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> cdf_func(x):</span>
+<span id="cb3-232">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> stats.lognorm.cdf(x, s<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>sigma_weighted, scale<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>np.exp(mu_weighted))</span>
+<span id="cb3-233"></span>
+<span id="cb3-234">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 重み付きKS検定</span></span>
+<span id="cb3-235">    ks_stat_weighted, ks_pvalue_weighted <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> weighted_ks_1samp(</span>
+<span id="cb3-236">        triglyceride_values, weights, cdf_func</span>
+<span id="cb3-237">    )</span>
+<span id="cb3-238"></span>
+<span id="cb3-239">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 有効サンプルサイズ（Kish's effective sample size）</span></span>
+<span id="cb3-240">    n_eff <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> (np.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>(weights) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">**</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> np.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>(weights<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">**</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>)</span>
+<span id="cb3-241"></span>
+<span id="cb3-242">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 重みなしKS検定（参考）</span></span>
+<span id="cb3-243">    ks_stat_unweighted, ks_pvalue_unweighted <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> stats.kstest(</span>
+<span id="cb3-244">        triglyceride_values, cdf_func</span>
+<span id="cb3-245">    )</span>
+<span id="cb3-246"></span>
+<span id="cb3-247">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">\n</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">[Goodness-of-fit (Kolmogorov-Smirnov)]"</span>)</span>
+<span id="cb3-248">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"  [WEIGHTED]"</span>)</span>
+<span id="cb3-249">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"    KS statistic: </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>ks_stat_weighted<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.4f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb3-250">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"    Asymptotic p-value: </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>ks_pvalue_weighted<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.4f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb3-251">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"    Effective sample size (Kish): </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>n_eff<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.1f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb3-252">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"    Note: p-value uses asymptotic approximation with n_eff"</span>)</span>
+<span id="cb3-253">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> ks_pvalue_weighted <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.05</span>:</span>
+<span id="cb3-254">        <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"    -&gt; p &gt; 0.05: No significant difference from lognormal"</span>)</span>
+<span id="cb3-255">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">else</span>:</span>
+<span id="cb3-256">        <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"    -&gt; p &lt; 0.05: Significantly different from lognormal"</span>)</span>
+<span id="cb3-257"></span>
+<span id="cb3-258">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"  [UNWEIGHTED (reference)]"</span>)</span>
+<span id="cb3-259">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"    KS statistic: </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>ks_stat_unweighted<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.4f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb3-260">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"    p-value: </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>ks_pvalue_unweighted<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.4f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb3-261">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> ks_pvalue_unweighted <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.05</span>:</span>
+<span id="cb3-262">        <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"    -&gt; p &gt; 0.05: No significant difference from lognormal"</span>)</span>
+<span id="cb3-263">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">else</span>:</span>
+<span id="cb3-264">        <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"    -&gt; p &lt; 0.05: Significantly different from lognormal"</span>)</span>
+<span id="cb3-265">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"="</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">70</span>)</span>
+<span id="cb3-266"></span>
+<span id="cb3-267"></span>
+<span id="cb3-268"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> main():</span>
+<span id="cb3-269">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Loading NHANES data..."</span>)</span>
+<span id="cb3-270">    df <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> load_data()</span>
+<span id="cb3-271"></span>
+<span id="cb3-272">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Filtering middle-aged men (40-59 years) with valid weights..."</span>)</span>
+<span id="cb3-273">    middle_aged_men <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> filter_middle_aged_men(df)</span>
+<span id="cb3-274"></span>
+<span id="cb3-275">    triglyceride_values <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> middle_aged_men.select(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"LBXTLG"</span>).to_numpy().flatten()</span>
+<span id="cb3-276">    weights <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> middle_aged_men.select(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"WTSAF2YR"</span>).to_numpy().flatten()</span>
+<span id="cb3-277"></span>
+<span id="cb3-278">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"Sample size: </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">len</span>(triglyceride_values)<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb3-279">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"Excluded (WTSAF2YR = 0 or missing): checked"</span>)</span>
+<span id="cb3-280"></span>
+<span id="cb3-281">    analyze_and_plot(triglyceride_values, weights)</span>
+<span id="cb3-282"></span>
+<span id="cb3-283"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">__name__</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"__main__"</span>:</span>
+<span id="cb3-284">    main()</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Loading NHANES data...
+Filtering middle-aged men (40-59 years) with valid weights...
+Sample size: 362
+Excluded (WTSAF2YR = 0 or missing): checked</code></pre>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-12-15-statistical-inference/index_files/figure-html/cell-4-output-2.png" width="1332" height="471" class="figure-img"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+======================================================================
+Statistics: Middle-aged Men (40-59 years) Triglyceride
+NHANES August 2021-August 2023 (with sample weights)
+======================================================================
+Sample size (n): 362
+Sum of weights: 39,758,496
+
+[Descriptive Statistics - WEIGHTED (population estimates)]
+  Mean: 152.6 mg/dL
+  Median: 111.0 mg/dL
+  Std Dev: 180.6 mg/dL
+
+[Descriptive Statistics - UNWEIGHTED (sample only)]
+  Mean: 149.9 mg/dL
+  Median: 108.5 mg/dL
+  Std Dev: 160.2 mg/dL
+  Min: 28.0 mg/dL
+  Max: 1745.0 mg/dL
+
+[Lognormal Parameters - WEIGHTED]
+  μ (log-scale mean): 4.7800
+  σ (log-scale std): 0.6062
+  Median from fit (exp(μ)): 119.1 mg/dL
+
+[Goodness-of-fit (Kolmogorov-Smirnov)]
+  [WEIGHTED]
+    KS statistic: 0.0893
+    Asymptotic p-value: 0.0344
+    Effective sample size (Kish): 254.8
+    Note: p-value uses asymptotic approximation with n_eff
+    -&gt; p &lt; 0.05: Significantly different from lognormal
+  [UNWEIGHTED (reference)]
+    KS statistic: 0.0892
+    p-value: 0.0059
+    -&gt; p &lt; 0.05: Significantly different from lognormal
+======================================================================</code></pre>
+</div>
+</div>
+</section>
+<section id="結果解釈" class="level2">
+<h2 class="anchored" data-anchor-id="結果解釈">6. 結果解釈</h2>
+<section id="qq-plot" class="level3">
+<h3 class="anchored" data-anchor-id="qq-plot">QQ plot</h3>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>観測点の位置</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>直線上</td>
+<td>理論分布と一致</td>
+</tr>
+<tr class="even">
+<td>直線より上</td>
+<td>観測データの裾が厚い (heavy tail)</td>
+</tr>
+<tr class="odd">
+<td>直線より下</td>
+<td>観測データの裾が薄い (light tail)</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><span class="mini-section">今回のデータの特徴</span></p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>領域</th>
+<th>観察されたパターン</th>
+<th>解釈</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>下側の裾（低値）</td>
+<td>ほぼ直線上</td>
+<td>Lognormalと良く一致</td>
+</tr>
+<tr class="even">
+<td>中央部（50-300 mg/dL）</td>
+<td>直線上</td>
+<td>良好なフィット</td>
+</tr>
+<tr class="odd">
+<td>上側の裾（高値）</td>
+<td>直線より上に乖離</td>
+<td><strong>Lognormalより裾が厚い</strong></td>
+</tr>
+</tbody>
+</table>
+<p><span class="mini-section">Insights</span></p>
+<ol type="1">
+<li><strong>全体的なフィット</strong>: Lognormal分布は中性脂肪分布の大部分（約95%）を良く近似する</li>
+<li><strong>上側の裾の逸脱</strong>: 極端な高値（概ね400 mg/dL以上）の出現頻度がLognormal分布の予測より高い</li>
+<li><strong>臨床的含意</strong>:
+<ul>
+<li>高トリグリセリド血症の有病率推定において、Lognormalモデルは過小評価のリスクがある</li>
+<li>リスク評価では、より裾の厚い分布（例：一般化ガンマ分布）の検討も有用かも？</li>
+</ul></li>
+</ol>
+</section>
+</section>
+<section id="追加分析" class="level2">
+<h2 class="anchored" data-anchor-id="追加分析">7. 追加分析</h2>
+<div id="9d3c515b" class="cell" data-execution_count="4">
+<details open="" class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb6-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> additional_analysis():</span>
+<span id="cb6-2">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Loading NHANES data..."</span>)</span>
+<span id="cb6-3">    df <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> load_data()</span>
+<span id="cb6-4"></span>
+<span id="cb6-5">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Filtering middle-aged men (40-59 years) with valid weights..."</span>)</span>
+<span id="cb6-6">    middle_aged_men <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> filter_middle_aged_men(df)</span>
+<span id="cb6-7"></span>
+<span id="cb6-8">    triglyceride_values <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> middle_aged_men.select(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"LBXTLG"</span>).to_numpy().flatten()</span>
+<span id="cb6-9">    weights <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> middle_aged_men.select(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"WTSAF2YR"</span>).to_numpy().flatten()</span>
+<span id="cb6-10"></span>
+<span id="cb6-11">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># === 5%-95%パーセンタイル範囲での分析 ===</span></span>
+<span id="cb6-12">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">\n</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"="</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">70</span>)</span>
+<span id="cb6-13">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"ANALYSIS 2: Trimmed Data (5th-95th Percentile)"</span>)</span>
+<span id="cb6-14">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"="</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">70</span>)</span>
+<span id="cb6-15">    trimmed_values, trimmed_weights, lower_bound, upper_bound <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> filter_by_percentile(</span>
+<span id="cb6-16">        triglyceride_values, weights, lower_pct<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.05</span>, upper_pct<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.95</span></span>
+<span id="cb6-17">    )</span>
+<span id="cb6-18">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"Percentile range: [</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>lower_bound<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.1f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">, </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>upper_bound<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.1f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">] mg/dL"</span>)</span>
+<span id="cb6-19">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"Trimmed sample size: </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">len</span>(trimmed_values)<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> (from </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">len</span>(triglyceride_values)<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">)"</span>)</span>
+<span id="cb6-20">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"Excluded: </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">len</span>(triglyceride_values) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">len</span>(trimmed_values)<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> extreme values"</span>)</span>
+<span id="cb6-21"></span>
+<span id="cb6-22">    analyze_and_plot(trimmed_values, trimmed_weights, save_suffix<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"_trimmed_5_95"</span>)</span>
+<span id="cb6-23"></span>
+<span id="cb6-24">additional_analysis()</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Loading NHANES data...
+Filtering middle-aged men (40-59 years) with valid weights...
+
+======================================================================
+ANALYSIS 2: Trimmed Data (5th-95th Percentile)
+======================================================================
+Percentile range: [52.8, 351.4] mg/dL
+Trimmed sample size: 326 (from 362)
+Excluded: 36 extreme values</code></pre>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-12-15-statistical-inference/index_files/figure-html/cell-5-output-2.png" width="1334" height="471" class="figure-img"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+======================================================================
+Statistics: Middle-aged Men (40-59 years) Triglyceride
+NHANES August 2021-August 2023 (with sample weights)
+======================================================================
+Sample size (n): 326
+Sum of weights: 35,785,691
+
+[Descriptive Statistics - WEIGHTED (population estimates)]
+  Mean: 126.0 mg/dL
+  Median: 111.0 mg/dL
+  Std Dev: 59.0 mg/dL
+
+[Descriptive Statistics - UNWEIGHTED (sample only)]
+  Mean: 127.4 mg/dL
+  Median: 108.0 mg/dL
+  Std Dev: 63.0 mg/dL
+  Min: 53.0 mg/dL
+  Max: 336.0 mg/dL
+
+[Lognormal Parameters - WEIGHTED]
+  μ (log-scale mean): 4.7400
+  σ (log-scale std): 0.4308
+  Median from fit (exp(μ)): 114.4 mg/dL
+
+[Goodness-of-fit (Kolmogorov-Smirnov)]
+  [WEIGHTED]
+    KS statistic: 0.0688
+    Asymptotic p-value: 0.2259
+    Effective sample size (Kish): 230.1
+    Note: p-value uses asymptotic approximation with n_eff
+    -&gt; p &gt; 0.05: No significant difference from lognormal
+  [UNWEIGHTED (reference)]
+    KS statistic: 0.0704
+    p-value: 0.0755
+    -&gt; p &gt; 0.05: No significant difference from lognormal
+======================================================================</code></pre>
+</div>
+</div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>追加分析解釈
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>log-scale が0.6062 → 0.0688に減少: 裾の極端な値を除外したことで分散が小さくなった</li>
+<li>KS統計量も0.0893 → 0.4308に減少: 経験分布と理論分布の最大乖離が縮小</li>
+<li>Q-Qプロットを見ても，トリミング後は理論直線（赤破線）にデータポイントがいい感じに乗っている．特に上側の裾の逸脱が解消</li>
+<li>ただし，そもそも上位5%を異常値として除外できるかどうかは，適合度のみではわからない．
+<ul>
+<li><strong>分析目的などによりケースバイケースで判断が必要</strong></li>
+</ul></li>
+</ul>
+</div>
+</div>
+</section>
+<section id="appendix-トリグリセリド" class="level2">
+<h2 class="anchored" data-anchor-id="appendix-トリグリセリド">Appendix: トリグリセリド</h2>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 2</strong></span> <span class="def-title">中性脂肪 / トリグリセリド</span></p>
+<ul>
+<li>肉や魚・食用油など食品中の脂質や，体内の脂質の大部分を占める物質</li>
+<li>中性脂肪は重要なエネルギー源であり，ビタミンの吸収を助けたり，必須脂肪酸（体内で合成されない脂肪酸）を摂取するという点においても不可欠なもの</li>
+<li>とりすぎると体脂肪として蓄えられて肥満を招き，心筋梗塞などになりやすくなる</li>
+<li>血液中の中性脂肪値は特定健診の検査項目に含まれており，空腹時150mg/dⅬ以上，随時175mg/dⅬ以上になると「高TG（トリグリセライド）血症」とされる</li>
+</ul>
+</div>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 15%">
+<col style="width: 30%">
+<col style="width: 9%">
+<col style="width: 9%">
+<col style="width: 35%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>測定項目</th>
+<th>英語名</th>
+<th>略称</th>
+<th>単位</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>総コレステロール</td>
+<td>Total Cholesterol</td>
+<td>TC</td>
+<td>mg/dL</td>
+<td>血中コレステロールの総量．心血管疾患リスク評価の基本指標</td>
+</tr>
+<tr class="even">
+<td>高比重リポ蛋白コレステロール</td>
+<td>High-Density Lipoprotein Cholesterol</td>
+<td>HDL-C</td>
+<td>mg/dL</td>
+<td>いわゆる「善玉」コレステロール．高値は心血管リスク低下と関連</td>
+</tr>
+<tr class="odd">
+<td>低比重リポ蛋白コレステロール</td>
+<td>Low-Density Lipoprotein Cholesterol</td>
+<td>LDL-C</td>
+<td>mg/dL</td>
+<td>いわゆる「悪玉」コレステロール．動脈硬化リスクと強く関連</td>
+</tr>
+<tr class="even">
+<td>中性脂肪</td>
+<td>Triglycerides</td>
+<td>TG</td>
+<td>mg/dL</td>
+<td>血中脂質の一種．エネルギー代謝やメタボリックリスクと関連</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="appendix-qq-plot" class="level2">
+<h2 class="anchored" data-anchor-id="appendix-qq-plot">Appendix: QQ plot</h2>
+<p><a href="https://www.kyoritsu-pub.co.jp/book/b10033628.html">データ解析のための数理統計入門</a>ベースで行くとQQ plotは以下のように定義されています．</p>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 3</strong></span> <span class="def-title">QQ plot</span></p>
+<p>確率変数 <img src="https://latex.codecogs.com/png.latex?X_1,%20%5Ccdots,%20X_n%20%5Coverset%7B%5Cmathrm%7Biid%7D%7D%7B%5Csim%7D%20F"> とし，その順序統計量を</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AX_%7B(1)%7D%20%5Cleq%20%5Ccdots%20%5Cleq%20X_%7B(n)%7D%0A"></p>
+<p>とする．<img src="https://latex.codecogs.com/png.latex?X_%7B(j)%7D"> の実現値 <img src="https://latex.codecogs.com/png.latex?x_%7B(j)%7D"> として， <img src="https://latex.codecogs.com/png.latex?F"> の逆変換を施した点</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A(x_%7B(j)%7D,%20F%5E%7B-1%7D(j/(n+1)))%0A"></p>
+<p>をplotしたものをQQ plotという．</p>
+</div>
+<p>この定義を正とすると，分析におけるQQ plotはQQ plotではない．ただ，久保川先生では</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AF(x_%7B(j)%7D,%20j/(n+1))%0A"></p>
+<p>をplotしたものをPP plotと呼んでおり，分析におけるQQ plotは久保川流でいくならば PP plotということになります．PP plotの理論的根拠は， 確率積分変換により <img src="https://latex.codecogs.com/png.latex?F(X)"> は一様分布に従い，iid sampleは各点独立に</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cmathbb%20E%5BF(X_%7B(j)%7D)%5D%20=%20%5Cfrac%7Bj%7D%7Bn+1%7D%0A"></p>
+<p>になるはずという考えが背景にあります．</p>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<ul>
+<li><a href="https://kennet.mhlw.go.jp/information/information/dictionary/metabolic/ym-045">厚生労働省 &gt; 健康日本21アクション支援システム ～健康づくりサポートネット～ &gt; 中性脂肪 / トリグリセリド</a></li>
+<li><a href="https://wwwn.cdc.gov/nchs/nhanes/search/datapage.aspx?Component=Laboratory&amp;Cycle=2021-2023&amp;utm_source=chatgpt.com">NHANES (National Health and Nutrition Examination Survey) August 2021 - August 2023</a></li>
+<li><a href="https://www.amazon.co.jp/-/en/Numerical-Statistics-Statistical-Probabilistic-Mathematics/dp/0521791685">Monahan, J. (2011). <em>Numerical Methods of Statistics</em>.</a></li>
+<li><a href="https://numpy.org/devdocs/reference/generated/numpy.interp.html">numpy.interp</a></li>
+<li><a href="https://www.kyoritsu-pub.co.jp/book/b10033628.html">データ解析のための数理統計入門</a></li>
+</ul>
+
+
+</section>
+
+ ]]></description>
+  <category>統計</category>
+  <category>python</category>
+  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-12-15-statistical-inference/</guid>
+  <pubDate>Mon, 15 Dec 2025 00:00:00 GMT</pubDate>
+</item>
 <item>
   <title>自分用GitHub Repository作成時のメモ</title>
   <dc:creator>Ryo Nakagami</dc:creator>
@@ -1007,7 +3214,7 @@ font-style: inherit;">Week with weekday   2025-W50-1</span></span></code></pre><
 <li>存在しない年の場合，この日付は 翌年の週 1</li>
 </ul></li>
 </ul>
-<div class="pseudocode-container quarto-float" data-indent-size="1.2em" data-pseudocode-number="1" data-no-end="false" data-line-number="true" data-caption-prefix="Algorithm" data-comment-delimiter="//" data-line-number-punc=":">
+<div class="pseudocode-container quarto-float" data-caption-prefix="Algorithm" data-pseudocode-number="1" data-comment-delimiter="//" data-indent-size="1.2em" data-line-number="true" data-line-number-punc=":" data-no-end="false">
 <div class="pseudocode">
 \begin{algorithm} \caption{ISO Week Number Calculation} \begin{algorithmic} \Procedure{WeekdayOfDec31}{$y$} \State $p = (\, y + \lfloor y/4 \rfloor - \lfloor y/100 \rfloor + \lfloor y/400 \rfloor \,) \bmod 7$ \Return $p$ \EndProcedure \State \Procedure{WeeksInYear}{$y$} \State $p_y$ = \Call{WeekdayOfDec31}{$y$} \State $p_{y-1}$ = \Call{WeekdayOfDec31}{$y-1$} \If{$p_y = 4 \ OR \ p_{y-1} = 3$} \Return $53$ \Else \Return $52$ \EndIf \EndProcedure \State \Procedure{ISOWeek}{$date$} \State $y = year(date)$ \State $doy = doy(date)$ $\,\,\,\,\,$ \Comment{ day of year} \State $dow = dow(date)$ $\,\,\,\,\,$\Comment{ISO weekday: 1=Mon,...,7=Sun} \State $w = \left\lfloor \dfrac{10 + doy - dow}{7} \right\rfloor$ \If{$w &lt; 1$} \Return \Call{WeeksInYear}{$y-1$} \ElsIf{$w$ &gt; \Call{WeeksInYear}{$y$}} \Return $1$ \Else \Return $w$ \EndIf \EndProcedure \end{algorithmic} \end{algorithm}
 </div>
@@ -2529,6 +4736,119 @@ font-style: inherit;">'2025-02-10'</span>);</span></code></pre></div></div>
   <category>shell</category>
   <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-12-09-create-calendar-table/</guid>
   <pubDate>Tue, 09 Dec 2025 00:00:00 GMT</pubDate>
+</item>
+<item>
+  <title>P-valueの考え方</title>
+  <dc:creator>Ryo Nakagami</dc:creator>
+  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-12-05-p-value/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+
+<section id="p-valueの定義" class="level2">
+<h2 class="anchored" data-anchor-id="p-valueの定義">P-valueの定義</h2>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title">P value</span></p>
+<p>データにばらつきがある場合，ばらつきだけの原因で評価指標が観測された以上の大きな値を取る確率</p>
+</div>
+<p>P値はNHSTの文脈で用いられる指標です．統計的文脈に則した定義を与えるとすると，</p>
+<p><img src="https://latex.codecogs.com/png.latex?H_o:%20%20%5Ctheta%20%5Cin%20%5CTheta_0"> vs <img src="https://latex.codecogs.com/png.latex?H_o:%20%20%5Ctheta%20%5Cnotin%20%5CTheta_0"> なるNHSTにおいて，棄却域が</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AR%20=%20%5C%7B%5Cpmb%20x%20%7C%20W(%5Cpmb%20x)%20%3E%20c%5C%7D%0A"></p>
+<p>で与えられる検定を考えます．このとき</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0Ap(%5Cpmb%20x)%20=%20%5Csup_%7B%5Ctheta%20%5Cin%20%5CTheta_0%7D%20P_%5Ctheta%20(W(%5Cpmb%20X)%20%5Cgeq%20W(%5Cpmb%20x))%0A"></p>
+<p>をP値もしくは有意確率といいます．</p>
+<div id="thm-bound" class="custom_problem blog-custom-border theorem">
+<p><span class="theorem-title"><strong>Theorem 1</strong></span> <span class="def-title">Type I エラーのバウンド</span></p>
+<p>すべての <img src="https://latex.codecogs.com/png.latex?%5Ctheta%20%5Cin%20%5CTheta_0"> とすべての <img src="https://latex.codecogs.com/png.latex?%5Calpha%20%5Cin%20(0,%201)"> について</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AP_%5Ctheta(p(%5Cpmb%20X)%20%5Cleq%20%5Calpha)%20%5Cleq%20%5Calpha%0A"></p>
+<p>が成り立つ．</p>
+</div>
+<div class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-1-contents" aria-controls="callout-1" aria-expanded="true" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Proof
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-1" class="callout-1-contents callout-collapse collapse show">
+<div class="callout-body-container callout-body">
+<p><img src="https://latex.codecogs.com/png.latex?%5Ctheta%20%5Cin%20%5CTheta_0"> を任意に固定して</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0Ap(%5Cpmb%20x%20%7C%20%5Ctheta)%20=%20P_%5Ctheta(W(%5Cpmb%20X)%20%5Cgeq%20W(%5Cpmb%20x))%0A"></p>
+<p>とおきます．<img src="https://latex.codecogs.com/png.latex?-W(%5Cpmb%20X)"> の分布関数を <img src="https://latex.codecogs.com/png.latex?F_%5Ctheta(w)"> とすると</p>
+<div class="math display" style="overflow: auto">
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign%7D%0Ap(%5Cpmb%20x%20%7C%20%5Ctheta)%0A%20%20&amp;=%20P_%5Ctheta(-W(%5Cpmb%20X)%20%5Cgeq%20-W(%5Cpmb%20x))%5C%5C%5B5pt%5D%0A%20%20&amp;=%20F_%5Ctheta(-W(%5Cpmb%20x))%0A%5Cend%7Balign%7D%0A"></p>
+</div>
+<p><img src="https://latex.codecogs.com/png.latex?F_%5Ctheta(-W(%5Cpmb%20X))"> は分布関数 <img src="https://latex.codecogs.com/png.latex?F_%5Ctheta"> に <img src="https://latex.codecogs.com/png.latex?-W(%5Cpmb%20X)"> を代入したものなので，<img src="https://latex.codecogs.com/png.latex?(0,%201)"> 上に一様分布します． したがって，確率測度 <img src="https://latex.codecogs.com/png.latex?P_%5Ctheta"> に対して</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AP_%5Ctheta(p(%5Cpmb%20X%20%7C%20%5Ctheta)%20%5Cleq%20%5Calpha)%20=%20P_%5Ctheta(F_%5Ctheta(-W(%5Cpmb%20X)))%20=%20%5Calpha%0A"></p>
+<p>定義より</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0Ap(%5Cpmb%20x)%20=%20%5Csup_%7B%5Ctheta%5E%5Cprime%20%5Cin%20%5CTheta_0%7D%20p(%5Cpmb%20x%20%7C%20%5Ctheta%5E%5Cprime)%20%5Cgeq%20p(%5Cpmb%20x%20%7C%20%5Ctheta)%0A"></p>
+<p>であるので</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AP_%5Ctheta(p(%5Cpmb%20X)%20%5Cleq%20%5Calpha)%20%5Cleq%20P_%5Ctheta(p(%5Cpmb%20X%20%7C%20%5Ctheta)%20%5Cleq%20%5Calpha)%20=%20%5Calpha%0A"></p>
+</div>
+</div>
+</div>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Example 1</strong></span> <br></p>
+<p><img src="https://latex.codecogs.com/png.latex?X_1,%20%5Ccdots.%20X_n%20%5Coverset%7B%5Cmathrm%7Biid%7D%7D%7B%5Csim%7D%20%20N(%5Cmu,%20%5Csigma%5E2_0)"> とし，<img src="https://latex.codecogs.com/png.latex?%5Csigma%5E2_0"> は既知であるとする．</p>
+<ul>
+<li><img src="https://latex.codecogs.com/png.latex?H_0:%20%5Cmu%20=%20%5Cmu_0"></li>
+<li><img src="https://latex.codecogs.com/png.latex?H_1:%20%5Cmu%20=%5Cneq%20%5Cmu_0"></li>
+</ul>
+<p>となる両側検定については，検定統計量は</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AW(%5Cbar%20X)%20=%20%5Csqrt%7Bn%7D%7C%5Cbar%20X%20-%20%5Cmu_0%7C/%5Csigma_0%0A"></p>
+<p>となり，有意水準 <img src="https://latex.codecogs.com/png.latex?%5Calpha"> について，対応する棄却域は</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AR%20=%20%5C%7B%5Cbar%20x%20%7C%20W(%5Cbar%20x)%20%3E%20z_%7B%5Calpha/2%7D%5C%7D%0A"></p>
+<p>このとき，<img src="https://latex.codecogs.com/png.latex?Z%20=%20%5Csqrt%7Bn%7D(%5Cbar%20X%20-%20%5Cmu_0)/%5Csigma_0"> とおくと，<img src="https://latex.codecogs.com/png.latex?W(%5Cbar%20X)%20=%20%7CZ%7C"> になります．また，<img src="https://latex.codecogs.com/png.latex?H_0"> のもとで <img src="https://latex.codecogs.com/png.latex?Z%20%5Csim%20N(0,%201)"> であるので</p>
+<div class="math display" style="overflow: auto">
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign%7D%0Ap(%5Cbar%20x)%0A%20%20&amp;=%20P_%7B%5Cmu_0%7D(W(%5Cbar%20X)%20%5Cgeq%20W(%5Cbar%20x))%5C%5C%0A%20%20&amp;=%20P(%7CZ%7C%20%5Cgeq%20%5Csqrt%7Bn%7D%7C%5Cbar%20x%20-%20%5Cmu%7C/%5Csigma_0)%0A%5Cend%7Balign%7D%0A"></p>
+</div>
+<p><img src="https://latex.codecogs.com/png.latex?%5Cbar%20x%20%5Cin%20R"> のときは</p>
+<div class="math display" style="overflow: auto">
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign%7D%0Ap(%5Cbar%20x)%0A%20%20&amp;=%20P(%7CZ%7C%20%5Cgeq%20%5Csqrt%7Bn%7D%7C%5Cbar%20x%20-%20%5Cmu_0%7C/%5Csigma_0)%5C%5C%0A%20%20&amp;%5Cleq%20P(%7CZ%7C%20%5Cgeq%20z_%7B%5Calpha/2%7D)%20=%20%5Calpha%0A%5Cend%7Balign%7D%0A"></p>
+</div>
+<p>したがって，定理 Theorem&nbsp;1 より</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AP_%7B%5Cmu_0%7D(p(%5Cbar%20X)%20%5Cleq%20%5Calpha)%20=%20%5Calpha%0A"></p>
+<p>となります．仮にデータを観測して <img src="https://latex.codecogs.com/png.latex?p(%5Cbar%20x)%20%3C%200.01"> となるとき．<img src="https://latex.codecogs.com/png.latex?H_0"> のもとで，P値が0.01より小さくなる確率は 0.01 より小さいことがわかります．</p>
+</div>
+<hr>
+</section>
+<section id="統計的判定とドメイン領域判定" class="level2">
+<h2 class="anchored" data-anchor-id="統計的判定とドメイン領域判定">統計的判定とドメイン領域判定</h2>
+<p>医薬品の臨床試験においては、<img src="https://latex.codecogs.com/png.latex?%5Ctext%7Bp-value%7D%3C%5Calpha"> のとき「統計的に有意である」と判定し，帰無仮説（処置効果が存在しない）を棄却する，というプロトコルが用いられます．</p>
+<p>しかし，この判定は<span class="regmonnkey-bold">あくまで統計的判定であり，医学的に意味のある処置効果が存在することを直接示すものではない</span>です．P値はあくまで，</p>
+<ul>
+<li>データにばらつきがある場合，ばらつきだけの原因で評価指標が観測された以上の大きな値を取る確率</li>
+</ul>
+<p>を表す量であり，</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AP_%5Ctheta(p(%5Cpmb%20X)%20%5Cleq%20%5Calpha)%20%5Cleq%20%5Calpha%20%5C,%20%5C%20(%5Ctheta%20%5Cin%20%5CTheta_0)%0A"></p>
+<p>を用いたNeyman-Pearson流の意思決定フレームワークにおけるType I Error制御にすぎません．「医薬品の効果があった」という医学的判定とは異なります． 医学的判定において重要なのは，</p>
+<ul>
+<li>効果量の大きさが臨床的に意味のある水準か</li>
+<li>副作用や安全性とのバランスは妥当か</li>
+<li>除外すべき患者がデータに含まれていないか？</li>
+</ul>
+<p>といったP-valueの枠外の観点と照らし合わせて，結果を解釈して意思決定を行うことです．</p>
+<p>統計的判定が得られなければ，医学的判断の対象にはなりえない，といったプロトコルを事前に作成して統計的判定の指標としてP値を用いるのはよいですが， P値そのものは医学的有効性や臨床的価値の判断とは切り分けて解釈されるべきです．</p>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<ul>
+<li><a href="https://www.kyoritsu-pub.co.jp/book/b10003681.html">久保川 - 現代数理統計学の基礎, 7.5.4</a></li>
+</ul>
+
+
+</section>
+
+ ]]></description>
+  <category>統計</category>
+  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-12-05-p-value/</guid>
+  <pubDate>Fri, 05 Dec 2025 00:00:00 GMT</pubDate>
 </item>
 <item>
   <title>NW Regressionのメモ</title>
@@ -5090,7 +7410,7 @@ font-style: inherit;">)</span> paperless-ngx</span></code></pre></div></div>
 </ul>
 </div>
 <p>リストの要素の出現回数を集計する場合，<code>Dict</code> を用いる場合</p>
-<div id="0b229838" class="cell" data-execution_count="1">
+<div id="45db965f" class="cell" data-execution_count="1">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb1-1">words <span class="op" style="color: #5E5E5E;
@@ -5141,7 +7461,7 @@ font-style: inherit;">print</span>(count_dict)</span></code></pre></div></div>
 </div>
 </div>
 <p><code>Counter</code>を用いることで以下のようにより簡単に集計することが出来ます</p>
-<div id="ad54f64f" class="cell" data-execution_count="2">
+<div id="df2924e4" class="cell" data-execution_count="2">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb3-1"><span class="im" style="color: #00769E;
@@ -5163,7 +7483,7 @@ font-style: inherit;">print</span>(word_counter)</span></code></pre></div></div>
 </div>
 </div>
 <p>また，すべての要素の出現頻度の合計は <code>total()</code> メソッドを用いて表示できます</p>
-<div id="e38102dc" class="cell" data-execution_count="3">
+<div id="28c4f8c1" class="cell" data-execution_count="3">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb5-1"><span class="bu" style="color: null;
@@ -5179,7 +7499,7 @@ font-style: inherit;"># 6 = 3 + 2 + 1</span></span></code></pre></div></div>
 <div id="exm-" class="custom_problem theorem example">
 <p><span class="theorem-title"><strong>Example 1 (単語出現頻度の計測)</strong></span> <br></p>
 <p>ハムレットの一節を内容とする <code>hamlet.txt</code> を例に，出現単語のTop 5の計測を行います．<code>Counter</code> クラスには <code>most_common()</code> メソッドがあり，要素を出現頻度に応じて降順で返してくれます．引数として整数を指定すると，最上位から数えてその個数分だけを出力してくれるので</p>
-<div id="1b1d3ac1" class="cell" data-execution_count="4">
+<div id="1fd0fc7b" class="cell" data-execution_count="4">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb7-1"><span class="im" style="color: #00769E;
@@ -5218,7 +7538,7 @@ font-style: inherit;">5</span>)</span></code></pre></div></div>
 </div>
 </div>
 <p>出現頻度下位Top 3を出力したい場合は</p>
-<div id="4c71bd96" class="cell" data-execution_count="5">
+<div id="2d708405" class="cell" data-execution_count="5">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb9-1">hamlet_counter <span class="op" style="color: #5E5E5E;
@@ -5242,7 +7562,7 @@ font-style: inherit;">1</span>]</span></code></pre></div></div>
 <hr>
 <section id="counter-インスタンスの作成方法" class="level3">
 <h3 class="anchored" data-anchor-id="counter-インスタンスの作成方法"><code>Counter</code> インスタンスの作成方法</h3>
-<div id="fdb59e5d" class="cell" data-execution_count="6">
+<div id="44c7fb40" class="cell" data-execution_count="6">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb11-1"><span class="im" style="color: #00769E;
@@ -5328,7 +7648,7 @@ Counter({'dogs': 8, 'cats': 4})</code></pre>
 <section id="存在しないキーの取り扱い" class="level3">
 <h3 class="anchored" data-anchor-id="存在しないキーの取り扱い">存在しないキーの取り扱い</h3>
 <p><code>Counter</code> では存在しないキーにアクセスしても KeyError にはならず，<code>0</code> が返るのが特徴です</p>
-<div id="8e8df9cc" class="cell" data-execution_count="7">
+<div id="b6b3518a" class="cell" data-execution_count="7">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb13-1"><span class="im" style="color: #00769E;
@@ -5377,7 +7697,7 @@ font-style: inherit;"># 0 ← KeyError にはならない</span></span></code></
 </div>
 <div id="exm-" class="custom_problem theorem example">
 <p><span class="theorem-title"><strong>Example 2 (<code>dict</code> と KeyError)</strong></span> <br></p>
-<div id="f0151c99" class="cell" data-execution_count="8">
+<div id="9aeadc38" class="cell" data-execution_count="8">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb15-1">foods <span class="op" style="color: #5E5E5E;
@@ -5435,7 +7755,7 @@ font-style: inherit;">"</span>)</span></code></pre></div></div>
 <section id="挿入順序の保持" class="level3">
 <h3 class="anchored" data-anchor-id="挿入順序の保持">挿入順序の保持</h3>
 <p>Python 3.7 以降，<code>Counter</code> は内部的には挿入順を保持しています．<code>print</code> などでkey-valueを出力するとvalueに応じた降順でソートされたように見えますが，<code>Counter.keys()</code> などでkeyの順番を確認すると，挿入順となっています</p>
-<div id="2a7a02d8" class="cell" data-execution_count="9">
+<div id="a722f812" class="cell" data-execution_count="9">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb17-1"><span class="im" style="color: #00769E;
@@ -5488,7 +7808,7 @@ dict_keys(['g', 'a', 'l', 'h', 'd'])
 <p><span class="mini-section">演算処理の順番</span></p>
 <p><code>Counter</code> オブジェクトは，<code>+</code> を使った加算処理ができます．このとき，基本的なキーの順番は左オペラントとなり，新しいキーは右オペランドから追加されるという内部処理になります．</p>
 <p>つまり，要素順は，<span class="regmonkey-bold">左オペランドの出現順 → 右オペランドで新規に現れた順</span>で決まります．</p>
-<div id="8770445b" class="cell" data-execution_count="10">
+<div id="83ef367f" class="cell" data-execution_count="10">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb19-1"><span class="im" style="color: #00769E;
@@ -5543,7 +7863,7 @@ dict_keys(['z', 'b', 'c', 'a', 'd'])
 <section id="counter-と算術演算" class="level2">
 <h2 class="anchored" data-anchor-id="counter-と算術演算"><code>Counter</code> と算術演算</h2>
 <p><span class="mini-section">TL;DRs</span></p>
-<div id="3b705512" class="cell" data-execution_count="11">
+<div id="f4d69910" class="cell" data-execution_count="11">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb21-1"><span class="im" style="color: #00769E;
@@ -5695,7 +8015,7 @@ c &gt;= d ? False</code></pre>
 </ul>
 </div>
 <p>基本的な使い方は</p>
-<div id="a97805a6" class="cell" data-execution_count="12">
+<div id="43eea737" class="cell" data-execution_count="12">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb23-1"><span class="im" style="color: #00769E;
@@ -5730,7 +8050,7 @@ font-style: inherit;">print</span>(c1)</span></code></pre></div></div>
 </div>
 <div id="exm-" class="custom_problem theorem example">
 <p><span class="theorem-title"><strong>Example 3 (iterableからの減算)</strong></span> <br></p>
-<div id="e69183e5" class="cell" data-execution_count="13">
+<div id="3402bc4d" class="cell" data-execution_count="13">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb25-1">c <span class="op" style="color: #5E5E5E;
@@ -5755,7 +8075,7 @@ font-style: inherit;">print</span>(c)</span></code></pre></div></div>
 <hr>
 <div id="exm-" class="custom_problem theorem example">
 <p><span class="theorem-title"><strong>Example 4 (値は 0 未満になる場合)</strong></span> <br></p>
-<div id="97bd4648" class="cell" data-execution_count="14">
+<div id="bbebe708" class="cell" data-execution_count="14">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb27-1">c <span class="op" style="color: #5E5E5E;
@@ -5819,7 +8139,7 @@ Caution
 </ul>
 </div>
 </div>
-<div id="cd95700b" class="cell" data-execution_count="15">
+<div id="137699c7" class="cell" data-execution_count="15">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb29-1"><span class="im" style="color: #00769E;
@@ -5907,7 +8227,7 @@ Counter({'a': 5, 'b': 5, 'e': 1, 'c': 1, 'd': 1})</code></pre>
 </div>
 <p><span class="mini-section">ロバストな加算処理</span></p>
 <p>値を置き換えるのではなく，順序ロバストにカウントを加算して計算したい場合は <code>update</code> メソッドを用いるほうが良いかもしれません</p>
-<div id="c019837f" class="cell" data-execution_count="16">
+<div id="cf79b90b" class="cell" data-execution_count="16">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb31-1"><span class="im" style="color: #00769E;
@@ -6210,853 +8530,6 @@ True</code></pre>
   <category>前処理</category>
   <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-11-15-ETL-note/</guid>
   <pubDate>Sat, 15 Nov 2025 00:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>watchコマンドを用いてGPUリソースを確認する</title>
-  <dc:creator>Ryo Nakagami</dc:creator>
-  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-11-14-watch-gpu/</link>
-  <description><![CDATA[ 
-
-
-
-
-
-
-<section id="watch-コマンド" class="level2">
-<h2 class="anchored" data-anchor-id="watch-コマンド"><code>watch</code> コマンド</h2>
-<div id="def-" class="custom_problem blog-custom-border theorem definition">
-<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title">watch コマンド</span></p>
-<ul>
-<li><p><code>watch</code> は，指定したコマンドを 一定間隔で繰り返し実行し，結果をフルスクリーンで表示する Linux コマンド</p></li>
-<li><p>実行中は <code>Ctrl + C</code> で終了できます</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">watch</span> <span class="pp" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">[</span><span class="ss" style="color: #20794D;
-background-color: null;
-font-style: inherit;">オプション</span><span class="pp" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">]</span> コマンド</span></code></pre></div></div></li>
-</ul>
-</div>
-<p>用途として，</p>
-<ul>
-<li>ファイルやプロセスの状態を監視</li>
-<li>GPU 使用率やメモリ使用量などの変化を追跡</li>
-<li>ディレクトリ内の変化を監視</li>
-</ul>
-<p>をTerminal上でリアルタイムで確認することが出来ます．</p>
-<p><span class="mini-section">Options</span></p>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 22%">
-<col style="width: 24%">
-<col style="width: 53%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>短いオプション</th>
-<th>長いオプション</th>
-<th>説明</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>-t</code></td>
-<td><code>--no-title</code></td>
-<td>ヘッダ（実行間隔・コマンド名・開始時刻）を非表示</td>
-</tr>
-<tr class="even">
-<td><code>-e</code></td>
-<td><code>--errexit</code></td>
-<td>実行したコマンドがエラー（0以外）で終了したら watch も終了</td>
-</tr>
-<tr class="odd">
-<td><code>-b</code></td>
-<td><code>--beep</code></td>
-<td>エラー時にビープ音を鳴らす</td>
-</tr>
-<tr class="even">
-<td><code>-d</code></td>
-<td><code>--differences</code></td>
-<td>直前の結果と比較し，変化した箇所をハイライト</td>
-</tr>
-<tr class="odd">
-<td><code>-d=permanent</code></td>
-<td></td>
-<td>初回実行から変化した箇所をハイライト表示</td>
-</tr>
-<tr class="even">
-<td><code>-c</code></td>
-<td><code>--color</code></td>
-<td>ANSI カラー指定を有効にする</td>
-</tr>
-<tr class="odd">
-<td><code>-g</code></td>
-<td><code>--chgexit</code></td>
-<td>実行結果が変化したら watch を終了</td>
-</tr>
-<tr class="even">
-<td><code>-n 秒数</code></td>
-<td><code>--interval 秒数</code></td>
-<td>実行間隔（秒）を指定，最小 0.1 秒</td>
-</tr>
-<tr class="odd">
-<td><code>-p</code></td>
-<td><code>--precise</code></td>
-<td>実行タイミングをより厳密に制御</td>
-</tr>
-<tr class="even">
-<td><code>-x</code></td>
-<td><code>--exec</code></td>
-<td>コマンドを <code>exec</code> で実行（<code>sh -c</code> ではない）</td>
-</tr>
-</tbody>
-</table>
-</div>
-<section id="コマンドパート動作の仕組み" class="level3">
-<h3 class="anchored" data-anchor-id="コマンドパート動作の仕組み">コマンドパート動作の仕組み</h3>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-Note
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 22%">
-<col style="width: 45%">
-<col style="width: 31%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>コマンド</th>
-<th>シェルによる展開のタイミング</th>
-<th>表示される PID</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>watch echo $$</code></td>
-<td>入力した瞬間に展開される</td>
-<td>常に「現在のシェルの PID」 → 変化しない</td>
-</tr>
-<tr class="even">
-<td><code>watch echo '$$'</code></td>
-<td>展開されずに watch に渡る → watch 内の sh が展開</td>
-<td>毎回「新しい sh の PID」 → 変化する</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-</div>
-<p><code>watch</code> で実行されるコマンドは，そのまま実行されるのではな<span class="regmonkey-bold">sh -c &lt;コマンド文字列&gt;として新しいシェルに渡されてから実行</span>されています．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sh</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-c</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"&lt;command&gt;"</span></span></code></pre></div></div>
-<p>このため，指定したコマンドの引数の中で環境変数やシェル変数を参照したいなど，引用符を使いたい場合は，適宜引用符を補う必要があります．</p>
-<div id="exm-" class="custom_problem theorem example">
-<p><span class="theorem-title"><strong>Example 1 (<code>watch echo $$</code>の場合)</strong></span> <br></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">watch</span> echo <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$$</span></span></code></pre></div></div>
-<p>とすると，シェルが先に <code>$$</code> を展開 してしまいます．つまり，実行時のシェルのPIDが1000なら</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">watch</span> echo 1000</span></code></pre></div></div>
-<p>と解釈され実行されます．毎回新しいシェルで展開されることを実現したいならば</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">wtach</span> echo <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">'$$'</span></span></code></pre></div></div>
-<p>とすると</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sh</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-c</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"echo </span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$$</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span></span></code></pre></div></div>
-<p>と解釈され，sh が <code>$$</code> を展開し，実行時の sh の PID が表示されます．</p>
-</div>
-<hr>
-</section>
-</section>
-<section id="watchコマンド実践" class="level2">
-<h2 class="anchored" data-anchor-id="watchコマンド実践">watchコマンド実践</h2>
-<section id="case-1-gpuリソースを監視する" class="level3">
-<h3 class="anchored" data-anchor-id="case-1-gpuリソースを監視する">Case 1: GPUリソースを監視する</h3>
-<p><span class="mini-section">Requirements</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb7-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> gpustat <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--version</span></span>
-<span id="cb7-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">gpustat</span> 1.1.1</span>
-<span id="cb7-3"></span>
-<span id="cb7-4"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> byobu <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--version</span></span>
-<span id="cb7-5"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">byobu</span> version 6.11</span>
-<span id="cb7-6"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">tmux</span> 3.4</span></code></pre></div></div>
-<p><span class="mini-section">コマンド</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">watch</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-n</span> 1 nvidia-smi</span></code></pre></div></div>
-<ul>
-<li>毎秒（1秒間隔）で <code>nvidia-smi</code> を再実行し，GPUの状態を表示するコマンド</li>
-</ul>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">watch</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-n</span> 1 gpustat <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--color</span></span></code></pre></div></div>
-<ul>
-<li>毎秒（1秒間隔）で <code>gpustat</code> を再実行し，GPUの状態をカラー表示で更新するコマンド</li>
-<li><code>nvidia-smi</code>と比べ表示がコンパクト</li>
-</ul>
-<p><span class="mini-section">Tips</span></p>
-<ul>
-<li><code>Byobu</code>を用いている場合は <code>Shift</code> + <code>F2</code> で上下にwindowをsplitして，<code>Alt</code> + <code>Shift</code> + <code>↑</code>/<code>↓</code> で表示を領域をコンパクトにできる</li>
-<li><code>Gnome Terminator</code> の場合は <code>Ctrl</code> + <code>Shift</code> + <code>O</code> で上下split，その後 <code>Ctrl</code> + <code>Shift</code> + <code>↑</code>/<code>↓</code> で表示を領域をresize</li>
-</ul>
-</section>
-<section id="case-2-メモリリソースを監視する" class="level3">
-<h3 class="anchored" data-anchor-id="case-2-メモリリソースを監視する">Case 2: メモリリソースを監視する</h3>
-<div class="reveal_vspace" style="--vspace-height: 0.5em;"></div>
-<p><span class="mini-section">コマンド</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">watch</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-n</span> 1 free <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-h</span></span></code></pre></div></div>
-<ul>
-<li>毎秒（1秒間隔）で <code>free -h</code> を再実行し，メモリとSwapの使用状況を表示するコマンド</li>
-<li>available 列を見ることで，アプリが実際に使えるメモリ量を把握できる</li>
-</ul>
-</section>
-<section id="case-3-dockerの起動状態を確認する" class="level3">
-<h3 class="anchored" data-anchor-id="case-3-dockerの起動状態を確認する">Case 3: Dockerの起動状態を確認する</h3>
-<div class="reveal_vspace" style="--vspace-height: 0.5em;"></div>
-<p><span class="mini-section">コマンド</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">watch</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-n</span> 30 <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-t</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"docker ps"</span></span></code></pre></div></div>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>オプション/コマンド</th>
-<th>説明</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>watch</code></td>
-<td>コマンドを定期実行</td>
-</tr>
-<tr class="even">
-<td><code>-n 30</code></td>
-<td>30秒ごとに実行</td>
-</tr>
-<tr class="odd">
-<td><code>-t</code></td>
-<td>ヘッダーを非表示</td>
-</tr>
-<tr class="even">
-<td><code>docker ps</code></td>
-<td>現在動作中の Docker コンテナを一覧表示</td>
-</tr>
-</tbody>
-</table>
-</div>
-<ul>
-<li>引用符 <code>"</code> はなくても僕の環境では動作しますが，常に安全に動かすには引用符で囲む方が安全とのことです．</li>
-</ul>
-</section>
-<section id="case-4-memory-usageの確認" class="level3">
-<h3 class="anchored" data-anchor-id="case-4-memory-usageの確認">Case 4: Memory Usageの確認</h3>
-<div class="reveal_vspace" style="--vspace-height: 0.5em;"></div>
-<p><span class="mini-section">コマンド</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">watch</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-n</span> 1 free <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-m</span></span></code></pre></div></div>
-<p>表示結果例は以下</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb13-1"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">               total        used        free      shared  buff/cache   available</span></span>
-<span id="cb13-2"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">Mem:           63439        7314       46771         216        9898       56124</span></span>
-<span id="cb13-3"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">Swap:           8191           0        8191</span></span></code></pre></div></div>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 18%">
-<col style="width: 14%">
-<col style="width: 66%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>項目</th>
-<th>サイズ (MB)</th>
-<th>説明</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>total</td>
-<td>63439</td>
-<td>システム全体の物理メモリ量（約63GB）</td>
-</tr>
-<tr class="even">
-<td>used</td>
-<td>7314</td>
-<td>OSやプロセスによって現在使用中のメモリ量（キャッシュ・バッファ含む）</td>
-</tr>
-<tr class="odd">
-<td>free</td>
-<td>46771</td>
-<td>現在まったく使用されていない空きメモリ</td>
-</tr>
-<tr class="even">
-<td>shared</td>
-<td>216</td>
-<td>プロセス間で共有されているメモリ（最近の Linux では重要度低め）</td>
-</tr>
-<tr class="odd">
-<td>buff/cache</td>
-<td>9898</td>
-<td>ファイルキャッシュやバッファとして使われているメモリ（必要なら解放可能）</td>
-</tr>
-<tr class="even">
-<td>available</td>
-<td>56124</td>
-<td>実際に新しいアプリが使えるメモリ（キャッシュ分も含めて計算済み）</td>
-</tr>
-</tbody>
-</table>
-</div>
-<p>メモリの逼迫度や空き容量は基本的には <code>available</code> フィールドの値を見て判断します．</p>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>Cache領域
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>ディスクキャッシュは，最近アクセスしたファイルを RAM に保持する仕組み</li>
-<li>Linuxは未使用のメモリをディスクキャッシュ用に利用する</li>
-<li>キャッシュはアプリからメモリを奪うことはなく，性能向上にだけ使われる</li>
-<li><code>used</code> にはキャッシュも含まれるので，見た目だけでは「メモリ不足」に見えることがあることに注意</li>
-</ul>
-</div>
-</div>
-</section>
-</section>
-<section id="references" class="level2">
-<h2 class="anchored" data-anchor-id="references">References</h2>
-<ul>
-<li><a href="https://www.byobu.org/">Byobu公式ページ</a></li>
-<li><a href="https://askubuntu.com/questions/155768/how-do-i-clean-or-disable-the-memory-cache/155771#155771">How do I clean or disable the memory cache?</a></li>
-</ul>
-
-
-</section>
-
- ]]></description>
-  <category>Linux</category>
-  <category>監視</category>
-  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-11-14-watch-gpu/</guid>
-  <pubDate>Fri, 14 Nov 2025 00:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>自分用VSCodeショートカットシート: Git Rebase Message</title>
-  <dc:creator>Ryo Nakagami</dc:creator>
-  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-11-11-vscode-shortcut-for-git-rebase-message/</link>
-  <description><![CDATA[ 
-
-
-
-
-
-
-<section id="設定内容の全体像" class="level2">
-<h2 class="anchored" data-anchor-id="設定内容の全体像">🔧 設定内容の全体像</h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb1-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">{</span></span>
-<span id="cb1-2">  <span class="er" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">//</span> <span class="er" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">Git</span> <span class="er" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">Rebase</span> <span class="er" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">Message</span></span>
-<span id="cb1-3">  <span class="er" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">{</span></span>
-<span id="cb1-4">    <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"key"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"ctrl+enter"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">,</span></span>
-<span id="cb1-5">    <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"command"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"runCommands"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">,</span></span>
-<span id="cb1-6">    <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"args"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">{</span></span>
-<span id="cb1-7">      <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"commands"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">[</span></span>
-<span id="cb1-8">        <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"workbench.action.files.save"</span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">,</span></span>
-<span id="cb1-9">        <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"workbench.action.closeActiveEditor"</span></span>
-<span id="cb1-10">      <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">]</span></span>
-<span id="cb1-11">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">},</span></span>
-<span id="cb1-12">    <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"when"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"editorTextFocus &amp;&amp; !editorReadonly &amp;&amp; editorLangId == 'git-rebase'"</span></span>
-<span id="cb1-13">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">}</span><span class="er" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">,</span></span>
-<span id="cb1-14"><span class="er" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">}</span></span></code></pre></div></div>
-<p><span class="mini-section">技術スペック</span></p>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 25%">
-<col style="width: 75%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>項目</th>
-<th>内容</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><strong>目的</strong></td>
-<td>Git rebase 用メッセージ編集画面で，Ctrl+Enter により「保存＋エディタを閉じる」操作を自動化する</td>
-</tr>
-<tr class="even">
-<td><strong>キー割り当て</strong></td>
-<td><code>ctrl+enter</code></td>
-</tr>
-<tr class="odd">
-<td><strong>コマンド</strong></td>
-<td><code>runCommands</code>（複数コマンドの連続実行）</td>
-</tr>
-<tr class="even">
-<td><strong>実行コマンド列</strong></td>
-<td>1. <code>workbench.action.files.save</code>（ファイル保存）<br>2. <code>workbench.action.closeActiveEditor</code>（エディタを閉じる）</td>
-</tr>
-<tr class="odd">
-<td><strong>動作条件</strong></td>
-<td><code>editorTextFocus &amp;&amp; !editorReadonly &amp;&amp; editorLangId == 'git-rebase'</code><br>＝ 編集可能な Git rebase メッセージ編集中のみ有効</td>
-</tr>
-<tr class="even">
-<td><strong>適用範囲</strong></td>
-<td>言語モードが <code>git-rebase</code> のファイル（通常 <code>.git/rebase-merge/git-rebase-todo</code>）</td>
-</tr>
-</tbody>
-</table>
-</div>
-<section id="設定詳細" class="level3">
-<h3 class="anchored" data-anchor-id="設定詳細">設定詳細</h3>
-<p><span class="mini-section">when条件</span></p>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 35%">
-<col style="width: 64%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>条件</th>
-<th>意味</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>editorTextFocus</code></td>
-<td>テキストエディタにフォーカスがある（＝テキスト入力できる状態）</td>
-</tr>
-<tr class="even">
-<td><code>!editorReadonly</code></td>
-<td>エディタが読み取り専用でない（＝編集可能）</td>
-</tr>
-<tr class="odd">
-<td><code>editorLangId == 'git-rebase'</code></td>
-<td>開いているファイルの言語モードが <code>"git-rebase"</code>（＝Git rebase メッセージ編集画面）</td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-</section>
-<section id="appendix-vscodeでのmultiple-commandsショートカットの設定" class="level2">
-<h2 class="anchored" data-anchor-id="appendix-vscodeでのmultiple-commandsショートカットの設定">Appendix: VSCodeでのmultiple Commandsショートカットの設定</h2>
-<p>VScodeでは <code>"command": "runCommands",</code> を設定することで，複数のコマンドを<span class="regmonkey-bold">順番に実行</span>するように設定できます．</p>
-<div id="exm-" class="custom_problem theorem example">
-<p><span class="theorem-title"><strong>Example 1 (引数なしで複数のコマンドを実行)</strong></span> <br></p>
-<ol type="1">
-<li>現在の行を下にコピー</li>
-<li>現在の行をコメント化</li>
-<li>コピーした行にカーソルを移動</li>
-</ol>
-<p>という手順を実行するショートカットの場合，以下のように <code>keybindings.json</code> を設定します</p>
-</div>
-<hr>
-<div id="exm-" class="custom_problem theorem example">
-<p><span class="theorem-title"><strong>Example 2 (引数付コマンドの実行)</strong></span> <br></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb2-1">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">{</span></span>
-<span id="cb2-2">    <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"key"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"ctrl+meta+l"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">,</span></span>
-<span id="cb2-3">    <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"command"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"runCommands"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">,</span></span>
-<span id="cb2-4">    <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"args"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">{</span></span>
-<span id="cb2-5">      <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"commands"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">[</span></span>
-<span id="cb2-6">        <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">{</span></span>
-<span id="cb2-7">          <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"command"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"workbench.action.terminal.focus"</span></span>
-<span id="cb2-8">        <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">}</span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">,</span></span>
-<span id="cb2-9">        <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">{</span></span>
-<span id="cb2-10">          <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"command"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"workbench.action.terminal.sendSequence"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">,</span></span>
-<span id="cb2-11">          <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"args"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">{</span></span>
-<span id="cb2-12">            <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"text"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"git lastdiff ${file}</span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">\u000D</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span></span>
-<span id="cb2-13">          <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">}</span></span>
-<span id="cb2-14">        <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">}</span></span>
-<span id="cb2-15">      <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">]</span></span>
-<span id="cb2-16">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">},</span></span>
-<span id="cb2-17">    <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"when"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"editorFocus"</span></span>
-<span id="cb2-18">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">}</span><span class="er" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">,</span></span></code></pre></div></div>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 30%">
-<col style="width: 70%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>項目</th>
-<th>説明</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>"key": "ctrl+meta+l"</code></td>
-<td>このショートカットを押したときに動作</td>
-</tr>
-<tr class="even">
-<td><code>workbench.action.terminal.focus</code></td>
-<td>ターミナルにフォーカスを移す</td>
-</tr>
-<tr class="odd">
-<td><code>workbench.action.terminal.sendSequence</code></td>
-<td>ターミナルに文字列を送信（<code>\u000D</code> は Enter キー）</td>
-</tr>
-<tr class="even">
-<td><code>"when": "editorFocus"</code></td>
-<td>エディタにフォーカスがあるときのみ有効</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-<hr>
-<div id="exm-" class="custom_problem theorem example">
-<p><span class="theorem-title"><strong>Example 3 (複数の引数を渡したい場合)</strong></span> <br></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb3-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">{</span></span>
-<span id="cb3-2">  <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"key"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"ctrl+shift+e"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">,</span></span>
-<span id="cb3-3">  <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"command"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"runCommands"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">,</span></span>
-<span id="cb3-4">  <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"args"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">{</span></span>
-<span id="cb3-5">    <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"commands"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">[</span></span>
-<span id="cb3-6">      <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">{</span></span>
-<span id="cb3-7">        <span class="er" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">//</span> <span class="er" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">command</span> <span class="er" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">invoked</span> <span class="er" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">with</span> <span class="er" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span> <span class="er" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">arguments</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="er" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">vscode.executeCommand(</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"myCommand"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">,</span> <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"arg1"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">,</span> <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"arg2"</span><span class="er" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">)</span></span>
-<span id="cb3-8">        <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"command"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"myCommand"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">,</span></span>
-<span id="cb3-9">        <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"args"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">[</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"arg1"</span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">,</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"arg2"</span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">]</span></span>
-<span id="cb3-10">      <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">}</span></span>
-<span id="cb3-11">    <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">]</span></span>
-<span id="cb3-12">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">}</span></span>
-<span id="cb3-13"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">}</span></span></code></pre></div></div>
-</div>
-<hr>
-</section>
-<section id="references" class="level2">
-<h2 class="anchored" data-anchor-id="references">References</h2>
-<ul>
-<li><a href="https://code.visualstudio.com/docs/configure/keybindings#_running-multiple-commands">Keyboard shortcuts for Visual Studio Code &gt; Running multiple commands</a></li>
-</ul>
-
-
-</section>
-
- ]]></description>
-  <category>環境構築</category>
-  <category>shortcuts</category>
-  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-11-11-vscode-shortcut-for-git-rebase-message/</guid>
-  <pubDate>Tue, 11 Nov 2025 00:00:00 GMT</pubDate>
 </item>
 </channel>
 </rss>
