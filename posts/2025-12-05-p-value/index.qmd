@@ -1,0 +1,182 @@
+---
+title: "P-valueの考え方"
+author: "Ryo Nakagami"
+date: "2025-12-05"
+date-modified: "2025-12-16"
+categories: [統計]
+listing_category: datascience-statistics-series
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## P-valueの定義
+
+::: {#def- .custom_problem .blog-custom-border}
+[P value]{.def-title}
+
+データにばらつきがある場合，ばらつきだけの原因で評価指標が観測された以上の大きな値を取る確率
+
+:::
+
+P値はNHSTの文脈で用いられる指標です．統計的文脈に則した定義を与えるとすると，
+
+$H_o:  \theta \in \Theta_0$ vs $H_o:  \theta \notin \Theta_0$ なるNHSTにおいて，棄却域が
+
+$$
+R = \{\pmb x | W(\pmb x) > c\}
+$$
+
+で与えられる検定を考えます．このとき
+
+$$
+p(\pmb x) = \sup_{\theta \in \Theta_0} P_\theta (W(\pmb X) \geq W(\pmb x))
+$$
+
+をP値もしくは有意確率といいます．
+
+::: {#thm-bound .custom_problem  .blog-custom-border}
+[Type I エラーのバウンド]{.def-title}
+
+すべての $\theta \in \Theta_0$ とすべての $\alpha \in (0, 1)$ について
+
+$$
+P_\theta(p(\pmb X) \leq \alpha) \leq \alpha
+$$
+
+が成り立つ．
+
+:::
+
+::: {.callout-note collapse="false" icon=false}
+## Proof
+
+$\theta \in \Theta_0$ を任意に固定して
+
+$$
+p(\pmb x | \theta) = P_\theta(W(\pmb X) \geq W(\pmb x))
+$$
+
+とおきます．$-W(\pmb X)$ の分布関数を $F_\theta(w)$ とすると
+
+<div class="math display" style="overflow: auto">
+$$
+\begin{align}
+p(\pmb x | \theta)
+  &= P_\theta(-W(\pmb X) \geq -W(\pmb x))\\[5pt]
+  &= F_\theta(-W(\pmb x))
+\end{align}
+$$
+</div>
+
+$F_\theta(-W(\pmb X))$ は分布関数 $F_\theta$ に $-W(\pmb X)$ を代入したものなので，$(0, 1)$ 上に一様分布します．
+したがって，確率測度 $P_\theta$ に対して
+
+$$
+P_\theta(p(\pmb X | \theta) \leq \alpha) = P_\theta(F_\theta(-W(\pmb X))) = \alpha
+$$
+
+定義より
+
+$$
+p(\pmb x) = \sup_{\theta^\prime \in \Theta_0} p(\pmb x | \theta^\prime) \geq p(\pmb x | \theta)
+$$
+
+
+であるので
+
+$$
+P_\theta(p(\pmb X) \leq \alpha) \leq P_\theta(p(\pmb X | \theta) \leq \alpha) = \alpha
+$$
+
+:::
+
+::: {#exm- .custom_problem }
+<br>
+
+$X_1, \cdots. X_n \overset{\mathrm{iid}}{\sim}  N(\mu, \sigma^2_0)$ とし，$\sigma^2_0$ は既知であるとする．
+
+
+- $H_0: \mu = \mu_0$
+- $H_1: \mu =\neq \mu_0$
+
+となる両側検定については，検定統計量は
+
+$$
+W(\bar X) = \sqrt{n}|\bar X - \mu_0|/\sigma_0
+$$
+
+
+となり，有意水準 $\alpha$ について，対応する棄却域は
+
+$$
+R = \{\bar x | W(\bar x) > z_{\alpha/2}\}
+$$
+
+
+このとき，$Z = \sqrt{n}(\bar X - \mu_0)/\sigma_0$ とおくと，$W(\bar X) = |Z|$ になります．また，$H_0$ のもとで $Z \sim N(0, 1)$ であるので
+
+<div class="math display" style="overflow: auto">
+$$
+\begin{align}
+p(\bar x) 
+  &= P_{\mu_0}(W(\bar X) \geq W(\bar x))\\
+  &= P(|Z| \geq \sqrt{n}|\bar x - \mu|/\sigma_0)
+\end{align}
+$$
+</div>
+
+$\bar x \in R$ のときは
+
+<div class="math display" style="overflow: auto">
+$$
+\begin{align}
+p(\bar x) 
+  &= P(|Z| \geq \sqrt{n}|\bar x - \mu_0|/\sigma_0)\\
+  &\leq P(|Z| \geq z_{\alpha/2}) = \alpha
+\end{align}
+$$
+</div>
+
+したがって，定理 @thm-bound より
+
+$$
+P_{\mu_0}(p(\bar X) \leq \alpha) = \alpha
+$$
+
+となります．仮にデータを観測して $p(\bar x) < 0.01$ となるとき．$H_0$ のもとで，P値が0.01より小さくなる確率は 0.01 より小さいことがわかります．
+
+:::
+---
+
+## 統計的判定とドメイン領域判定
+
+医薬品の臨床試験においては、$\text{p-value}<\alpha$ のとき「統計的に有意である」と判定し，帰無仮説（処置効果が存在しない）を棄却する，というプロトコルが用いられます．
+
+しかし，この判定は[あくまで統計的判定であり，医学的に意味のある処置効果が存在することを直接示すものではない]{.regmonnkey-bold}です．P値はあくまで，
+
+- データにばらつきがある場合，ばらつきだけの原因で評価指標が観測された以上の大きな値を取る確率
+
+を表す量であり，
+
+$$
+P_\theta(p(\pmb X) \leq \alpha) \leq \alpha \, \ (\theta \in \Theta_0)
+$$
+
+を用いたNeyman-Pearson流の意思決定フレームワークにおけるType I Error制御にすぎません．「医薬品の効果があった」という医学的判定とは異なります．
+医学的判定において重要なのは，
+
+- 効果量の大きさが臨床的に意味のある水準か
+- 副作用や安全性とのバランスは妥当か
+- 除外すべき患者がデータに含まれていないか？
+
+といったP-valueの枠外の観点と照らし合わせて，結果を解釈して意思決定を行うことです．
+
+統計的判定が得られなければ，医学的判断の対象にはなりえない，といったプロトコルを事前に作成して統計的判定の指標としてP値を用いるのはよいですが，
+P値そのものは医学的有効性や臨床的価値の判断とは切り分けて解釈されるべきです．
+
+References
+----------
+- [久保川 - 現代数理統計学の基礎, 7.5.4](https://www.kyoritsu-pub.co.jp/book/b10003681.html)
