@@ -1,0 +1,2015 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="ja_JP.UTF-8" xml:lang="ja_JP.UTF-8"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.26">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Ryo Nakagami">
+<meta name="dcterms.date" content="2025-12-19">
+
+<title>Fisher’s Exact Test – regmonkey datascience blog</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2" crossorigin="anonymous"></script><script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<link href="../../img/favicon.ico" rel="icon">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-597958c53c93a607afca12fd375c57ed.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark-7ac2f9da8c2617a4fdd15004b4601015.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-597958c53c93a607afca12fd375c57ed.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-c0e475af79fbf9c16b8f3b53f98210ea.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark-25fd3fee18ae2c6d71872735c8b7e3f2.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../site_libs/bootstrap/bootstrap-c0e475af79fbf9c16b8f3b53f98210ea.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script src="../../site_libs/quarto-contrib/pseudocode-2.4.1/pseudocode.min.js"></script>
+<link href="../../site_libs/quarto-contrib/pseudocode-2.4.1/pseudocode.min.css" rel="stylesheet">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script async="" src="https://www.googletagmanager.com/gtag/js?id=G-EX9H7GRLTH"></script>
+
+<script type="text/javascript">
+
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
+</script>
+<style>
+
+      .quarto-title-block .quarto-title-banner h1,
+      .quarto-title-block .quarto-title-banner h2,
+      .quarto-title-block .quarto-title-banner h3,
+      .quarto-title-block .quarto-title-banner h4,
+      .quarto-title-block .quarto-title-banner h5,
+      .quarto-title-block .quarto-title-banner h6
+      {
+        color: #ffffff;
+      }
+
+      .quarto-title-block .quarto-title-banner {
+        color: #ffffff;
+      }
+</style>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-M27Z2BWG');</script>
+    <!-- End Google Tag Manager -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&amp;display=swap" rel="stylesheet">
+<script>
+    MathJax = {
+        tex: {
+            inlineMath: [['$','$'], ['\\(','\\)']],
+            displayMath: [['$$','$$'], ['\\[','\\]']],
+            processEscapes: true,
+            processEnvironments: true,
+            tags: 'all',
+        }
+    }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml-full.js" integrity="sha256-kbAFUDxdHwlYv01zraGjvjNZayxKtdoiJ38bDTFJtaQ=" crossorigin="anonymous">
+</script>
+<script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.min.js" integrity="sha384-c9c+LnTbwQ3aujuU7ULEPVvgLs+Fn6fJUvIGTsuu1ZcCf11fiEubah0ttpca4ntM sha384-6V1/AdqZRWk1KAlWbKBlGhN7VG4iE/yAZcO6NZPMF8od0vukrvr0tg4qY6NSrItx" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+<script type="text/javascript">
+window.PlotlyConfig = {MathJaxConfig: 'local'};
+if (window.MathJax && window.MathJax.Hub && window.MathJax.Hub.Config) {window.MathJax.Hub.Config({SVG: {font: "STIX-Web"}});}
+</script>
+<script type="module">import "https://cdn.plot.ly/plotly-3.1.1.min"</script>
+
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../../styles.css">
+<meta property="og:title" content="Fisher’s Exact Test – regmonkey datascience blog">
+<meta property="og:description" content="日々の徒然勉強日記">
+<meta property="og:image" content="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-12-19-fishers-exact-test/index_files/figure-html/cell-3-output-1.png">
+<meta property="og:site_name" content="regmonkey datascience blog">
+<meta property="og:image:height" content="934">
+<meta property="og:image:width" content="1517">
+</head>
+
+<body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top quarto-banner">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">Home</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-bi-book" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+      <i class="bi bi-book" role="img">
+</i> 
+ <span class="menu-text"></span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-bi-book">    
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/statistics-for-regression-monkey/">
+ <span class="dropdown-text">Statistics Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/python-statisticalpackage-techniques/">
+ <span class="dropdown-text">Python package building Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/regmonkey_datavisualization/">
+ <span class="dropdown-text">Data Visualization Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/regmonkey-presentation/">
+ <span class="dropdown-text">Presentation Blog</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../link_list/link_table.html"> 
+<span class="menu-text">便利リンク集</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../dictionary/dict.html"> 
+<span class="menu-text">備忘録</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../FAQ/faq.html"> 
+<span class="menu-text">FAQ</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../about.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/RyoNakagami/regmonkey-datascience-blog"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="../../index.xml"> <i class="bi bi-rss" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">Fisher’s Exact Test</h1>
+                                <div class="quarto-categories">
+                <div class="quarto-category">統計</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      <div>
+      <div class="quarto-title-meta-heading">Author</div>
+      <div class="quarto-title-meta-contents">
+               <p>Ryo Nakagami </p>
+            </div>
+    </div>
+      
+      <div>
+      <div class="quarto-title-meta-heading">Published</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">2025-12-19</p>
+      </div>
+    </div>
+    
+      <div>
+      <div class="quarto-title-meta-heading">Modified</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date-modified">2025-12-19</p>
+      </div>
+    </div>
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#fishers-exact-testfisherの正確検定" id="toc-fishers-exact-testfisherの正確検定" class="nav-link active" data-scroll-target="#fishers-exact-testfisherの正確検定">Fisher’s exact test(Fisherの正確検定)</a>
+  <ul class="collapse">
+  <li><a href="#nhstフレームワーク" id="toc-nhstフレームワーク" class="nav-link" data-scroll-target="#nhstフレームワーク">NHSTフレームワーク</a></li>
+  <li><a href="#サンプルサイズと周辺度数のバランス" id="toc-サンプルサイズと周辺度数のバランス" class="nav-link" data-scroll-target="#サンプルサイズと周辺度数のバランス">サンプルサイズと周辺度数のバランス</a></li>
+  <li><a href="#table-matrixの転置に対する頑健性" id="toc-table-matrixの転置に対する頑健性" class="nav-link" data-scroll-target="#table-matrixの転置に対する頑健性">Table Matrixの転置に対する頑健性</a></li>
+  </ul></li>
+  <li><a href="#power-analuysis-for-fishers-extact-test" id="toc-power-analuysis-for-fishers-extact-test" class="nav-link" data-scroll-target="#power-analuysis-for-fishers-extact-test">Power Analuysis for Fishers extact test</a>
+  <ul class="collapse">
+  <li><a href="#実装" id="toc-実装" class="nav-link" data-scroll-target="#実装">実装</a></li>
+  </ul></li>
+  <li><a href="#appendix-超幾何分布" id="toc-appendix-超幾何分布" class="nav-link" data-scroll-target="#appendix-超幾何分布">Appendix: 超幾何分布</a></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content">
+
+
+
+
+
+
+<section id="fishers-exact-testfisherの正確検定" class="level2">
+<h2 class="anchored" data-anchor-id="fishers-exact-testfisherの正確検定">Fisher’s exact test(Fisherの正確検定)</h2>
+<p>体外式膜型人工肺（ECMO）は，重度の呼吸不全を抱える新生児を治療するための処置です．</p>
+<p>ある実験<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a>にて</p>
+<ul>
+<li>29人の新生児がECMOで治療</li>
+<li>10人の新生児が従来の内科的治療（CMT）で治療</li>
+</ul>
+<p>が実施された結果，以下のような主要評価項目が得られました．</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th style="text-align: center;">Treatment</th>
+<th>Die</th>
+<th>Live</th>
+<th>total</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;">ECMO</td>
+<td>1</td>
+<td>28</td>
+<td>29</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">CMT</td>
+<td>4</td>
+<td>6</td>
+<td>10</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">total</td>
+<td>5</td>
+<td>34</td>
+<td>39</td>
+</tr>
+</tbody>
+</table>
+<p>このデータに対して，ECMOとCMTで死亡率に差があるかどうかを検定したいという問題を考えます．</p>
+<section id="nhstフレームワーク" class="level3">
+<h3 class="anchored" data-anchor-id="nhstフレームワーク">NHSTフレームワーク</h3>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>検証仮説
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><span class="math display">\[
+H_0: \text{治療法（ECMO or CMT）と結果（Die or Live）は独立である}
+\]</span></p>
+<p>つまり，ECMOで治療しようがCMTで治療しようが，死亡率は同じであるという仮説．</p>
+</div>
+</div>
+<p>このときの対立仮説は，両側検定の場合</p>
+<p><span class="math display">\[
+H_1: \text{治療法と結果は独立ではない（関連がある）}
+\]</span></p>
+<p>片側検定の場合は</p>
+<p><span class="math display">\[
+H_1: \text{CMTと比べECMOは死亡率の低い治療法である}
+\]</span></p>
+<p>となります．</p>
+<p><span class="mini-section"><span class="math inline">\(H_0\)</span> が真のときの分布</span></p>
+<p>Fisher’s exact testでは (ECMOの人数, CMTの人数) = (29, 10) はstudy designによって固定されていると考えます．<span class="math inline">\(H_0\)</span>が真であるとき，39人の患者のうち5人が死亡し34人が生存するという<strong>周辺度数は固定</strong>されていると考えます．</p>
+<p>このとき，ECMO群29人の中で死亡する人数 <span class="math inline">\(X\)</span> は超幾何分布に従うと考え</p>
+<p><span class="math display">\[
+X \sim \text{Hypergeometric}(N=39, M=5, K=29)
+\]</span></p>
+<p>ここで，</p>
+<ul>
+<li><span class="math inline">\(N = 39\)</span>: 全患者数</li>
+<li><span class="math inline">\(M = 5\)</span>: 全死亡者数</li>
+<li><span class="math inline">\(K = 29\)</span>: ECMO群の患者数</li>
+</ul>
+<p><span class="math inline">\(H_0\)</span>の下で，ECMO群の死亡者数 <span class="math inline">\(X = x\)</span> となる確率は</p>
+<p><span class="math display">\[
+P(X = x \mid H_0) = \frac{\binom{5}{x}\binom{34}{29-x}}{\binom{39}{29}}
+\]</span></p>
+<p><span class="mini-section">検定統計量とp値</span></p>
+<p>観測されたECMO群の死亡者数は <span class="math inline">\(x = 1\)</span> です．</p>
+<p><strong>片側検定</strong>（ECMOの方が死亡率が低い）のp値は</p>
+<p><span class="math display">\[
+p_{\text{one-sided}} = P(X \leq 1 \mid H_0) = \sum_{k=0}^{1} \frac{\binom{5}{k}\binom{34}{29-k}}{\binom{39}{29}}
+\]</span></p>
+<p><strong>両側検定</strong>のp値の計算方法はいくつかありますが，<code>scipy.stats.fisher_exact</code>では観測値の確率以下となるすべての<span class="math inline">\(x\)</span>の確率を合計する方法を採用しています：</p>
+<p><span class="math display">\[
+p_{\text{two-sided}} = \sum_{x: P(X=x \mid H_0) \leq P(X=1 \mid H_0)} P(X = x \mid H_0)
+\]</span></p>
+<p>つまり，観測された <span class="math inline">\(x=1\)</span> の確率 <span class="math inline">\(P(X=1 \mid H_0)\)</span> を計算し，それ以下の確率を持つすべての <span class="math inline">\(x\)</span> の値について確率を合計します．</p>
+<div id="d4ad23ef" class="cell" data-execution_count="1">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scipy.stats <span class="im">import</span> hypergeom, fisher_exact</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scipy.stats.contingency <span class="im">import</span> odds_ratio <span class="im">as</span> odds_ratio_ci</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co"># パラメータ</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>N <span class="op">=</span> <span class="dv">39</span>  <span class="co"># 全患者数</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>R <span class="op">=</span> <span class="dv">5</span>   <span class="co"># 全死亡者数</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>K <span class="op">=</span> <span class="dv">29</span>  <span class="co"># ECMO群の患者数</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="co"># P(X &lt;= 1) を計算</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>p_value_left <span class="op">=</span> hypergeom.cdf(<span class="dv">1</span>, N, R, K)</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"P(X &lt;= 1 | H_0) = </span><span class="sc">{</span>p_value_left<span class="sc">:.6f}</span><span class="ss">"</span>)</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="co"># scipy.stats.fisher_exact で確認</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>table <span class="op">=</span> [[<span class="dv">1</span>, <span class="dv">28</span>], [<span class="dv">4</span>, <span class="dv">6</span>]]</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>odds_ratio, p_two_sided <span class="op">=</span> fisher_exact(table, alternative<span class="op">=</span><span class="st">'two-sided'</span>)</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>_, p_less <span class="op">=</span> fisher_exact(table, alternative<span class="op">=</span><span class="st">'less'</span>)</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a><span class="co"># オッズ比の信頼区間（exact method）</span></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>res <span class="op">=</span> odds_ratio_ci(table)</span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>ci_two_sided <span class="op">=</span> res.confidence_interval(confidence_level<span class="op">=</span><span class="fl">0.95</span>)</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>ci_less <span class="op">=</span> res.confidence_interval(confidence_level<span class="op">=</span><span class="fl">0.95</span>, alternative<span class="op">=</span><span class="st">'less'</span>)</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Fisher's exact test (scipy):"</span>)</span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  Odds ratio: </span><span class="sc">{</span>odds_ratio<span class="sc">:.4f}</span><span class="ss">"</span>)</span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  95% CI (two-sided): (</span><span class="sc">{</span>ci_two_sided<span class="sc">.</span>low<span class="sc">:.4f}</span><span class="ss">, </span><span class="sc">{</span>ci_two_sided<span class="sc">.</span>high<span class="sc">:.4f}</span><span class="ss">)"</span>)</span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  95% CI (less): (0, </span><span class="sc">{</span>ci_less<span class="sc">.</span>high<span class="sc">:.4f}</span><span class="ss">)"</span>)</span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  p-value (two-sided): </span><span class="sc">{</span>p_two_sided<span class="sc">:.6f}</span><span class="ss">"</span>)</span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  p-value (less): </span><span class="sc">{</span>p_less<span class="sc">:.6f}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>P(X &lt;= 1 | H_0) = 0.011015
+
+Fisher's exact test (scipy):
+  Odds ratio: 0.0536
+  95% CI (two-sided): (0.0011, 0.7319)
+  95% CI (less): (0, 0.5453)
+  p-value (two-sided): 0.011015
+  p-value (less): 0.011015</code></pre>
+</div>
+</div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>上記のscipyによる計算結果は R における <code>fisher.test()</code> とほぼ同じ計算結果となっています</li>
+<li>one-sided testにおけるOdds ratioのCIは OR &lt; 1 をベースに計算しています</li>
+</ul>
+</div>
+</div>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Example 1 (両側検定で計算される領域)</strong></span> <br></p>
+<p><span class="math inline">\(N=45, M=12, K=30\)</span>, 観測値 <span class="math inline">\(x=5\)</span> における両側検定のp値計算領域を可視化します．</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th style="text-align: center;"></th>
+<th style="text-align: center;">outcome 1</th>
+<th style="text-align: center;">outcome 2</th>
+<th style="text-align: center;">total</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;">group 1</td>
+<td style="text-align: center;">5</td>
+<td style="text-align: center;">25</td>
+<td style="text-align: center;">30</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">group 2</td>
+<td style="text-align: center;">7</td>
+<td style="text-align: center;">8</td>
+<td style="text-align: center;">15</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">total</td>
+<td style="text-align: center;">12</td>
+<td style="text-align: center;">33</td>
+<td style="text-align: center;">45</td>
+</tr>
+</tbody>
+</table>
+<div id="ef6c6afb" class="cell" data-execution_count="2">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scipy.stats <span class="im">import</span> hypergeom</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="co"># パラメータ</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>N, M, K <span class="op">=</span> <span class="dv">45</span>, <span class="dv">12</span>, <span class="dv">30</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>obs <span class="op">=</span> <span class="dv">5</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="co"># x の範囲</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>x_min <span class="op">=</span> <span class="bu">max</span>(<span class="dv">0</span>, K <span class="op">-</span> (N <span class="op">-</span> M))</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>x_max <span class="op">=</span> <span class="bu">min</span>(M, K)</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> np.arange(x_min, x_max <span class="op">+</span> <span class="dv">1</span>)</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="co"># PMF の計算</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>pmf <span class="op">=</span> hypergeom.pmf(x, N, M, K)</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a><span class="co"># 観測値の確率</span></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>p_obs <span class="op">=</span> hypergeom.pmf(obs, N, M, K)</span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a><span class="co"># 両側検定: 観測値の確率以下となる x を特定</span></span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>two_sided_mask <span class="op">=</span> pmf <span class="op">&lt;=</span> p_obs <span class="op">+</span> <span class="fl">1e-10</span>  <span class="co"># 数値誤差を考慮</span></span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a><span class="co"># 色分け</span></span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a>colors <span class="op">=</span> [<span class="st">'red'</span> <span class="cf">if</span> two_sided_mask[i] <span class="cf">else</span> <span class="st">'steelblue'</span> <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="bu">len</span>(x))]</span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">5</span>))</span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a>bars <span class="op">=</span> ax.bar(x, pmf, color<span class="op">=</span>colors, alpha<span class="op">=</span><span class="fl">0.7</span>, edgecolor<span class="op">=</span><span class="st">'black'</span>)</span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a><span class="co"># 観測値にマーカー</span></span>
+<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a>ax.axvline(x<span class="op">=</span>obs, color<span class="op">=</span><span class="st">'darkred'</span>, linestyle<span class="op">=</span><span class="st">'--'</span>, linewidth<span class="op">=</span><span class="dv">2</span>, label<span class="op">=</span><span class="ss">f'Observed x=</span><span class="sc">{</span>obs<span class="sc">}</span><span class="ss">'</span>)</span>
+<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a><span class="co"># P(X=obs) の水平線</span></span>
+<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a>ax.axhline(y<span class="op">=</span>p_obs, color<span class="op">=</span><span class="st">'gray'</span>, linestyle<span class="op">=</span><span class="st">':'</span>, linewidth<span class="op">=</span><span class="fl">1.5</span>, label<span class="op">=</span><span class="ss">f'P(X=</span><span class="sc">{</span>obs<span class="sc">}</span><span class="ss">) = </span><span class="sc">{</span>p_obs<span class="sc">:.4f}</span><span class="ss">'</span>)</span>
+<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a>ax.set_xlabel(<span class="st">'x'</span>, fontsize<span class="op">=</span><span class="dv">12</span>)</span>
+<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a>ax.set_ylabel(<span class="st">'P(X = x)'</span>, fontsize<span class="op">=</span><span class="dv">12</span>)</span>
+<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a>ax.set_title(<span class="ss">f'Hypergeometric Distribution under $H_0$ (N=</span><span class="sc">{</span>N<span class="sc">}</span><span class="ss">, M=</span><span class="sc">{</span>M<span class="sc">}</span><span class="ss">, K=</span><span class="sc">{</span>K<span class="sc">}</span><span class="ss">)</span><span class="ch">\n</span><span class="ss">Red: two-sided p-value region'</span>, fontsize<span class="op">=</span><span class="dv">13</span>)</span>
+<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a>ax.set_xticks(x)</span>
+<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a>ax.legend(loc<span class="op">=</span><span class="st">'upper right'</span>)</span>
+<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a>ax.grid(axis<span class="op">=</span><span class="st">'y'</span>, alpha<span class="op">=</span><span class="fl">0.3</span>)</span>
+<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb3-43"><a href="#cb3-43" aria-hidden="true" tabindex="-1"></a>plt.show()</span>
+<span id="cb3-44"><a href="#cb3-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-45"><a href="#cb3-45" aria-hidden="true" tabindex="-1"></a><span class="co"># p値の計算</span></span>
+<span id="cb3-46"><a href="#cb3-46" aria-hidden="true" tabindex="-1"></a>p_one_sided <span class="op">=</span> hypergeom.cdf(obs, N, M, K)</span>
+<span id="cb3-47"><a href="#cb3-47" aria-hidden="true" tabindex="-1"></a>p_two_sided <span class="op">=</span> pmf[two_sided_mask].<span class="bu">sum</span>()</span>
+<span id="cb3-48"><a href="#cb3-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-49"><a href="#cb3-49" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"P(X=</span><span class="sc">{</span>obs<span class="sc">}</span><span class="ss">) = </span><span class="sc">{</span>p_obs<span class="sc">:.6f}</span><span class="ss">"</span>)</span>
+<span id="cb3-50"><a href="#cb3-50" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Two-sided region: x ∈ </span><span class="sc">{</span><span class="bu">set</span>(<span class="bu">int</span>(xi) <span class="cf">for</span> xi <span class="kw">in</span> x[two_sided_mask])<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb3-51"><a href="#cb3-51" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"p-value (one-sided, less): </span><span class="sc">{</span>p_one_sided<span class="sc">:.6f}</span><span class="ss">"</span>)</span>
+<span id="cb3-52"><a href="#cb3-52" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"p-value (two-sided): </span><span class="sc">{</span>p_two_sided<span class="sc">:.6f}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="index_files/figure-html/cell-3-output-1.png" width="759" height="467" class="figure-img"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>P(X=5) = 0.031885
+Two-sided region: x ∈ {0, 1, 2, 3, 4, 5, 11, 12}
+p-value (one-sided, less): 0.038771
+p-value (two-sided): 0.070269</code></pre>
+</div>
+</div>
+<p>赤色の領域が両側検定のp値に寄与する部分です．観測値 <span class="math inline">\(x=1\)</span> の確率 <span class="math inline">\(P(X=1 \mid H_0)\)</span> 以下の確率を持つすべての <span class="math inline">\(x\)</span> の値（この場合 <span class="math inline">\(x=0, 1, 2, 3, 4, 5, 11, 12\)</span>）の確率を合計します．</p>
+</div>
+<p><span class="mini-section">検定統計量とp値</span></p>
+<p>観測されたECMO群の死亡者数は <span class="math inline">\(x = 1\)</span> である．片側検定（ECMOの方が死亡率が低い）のp値は</p>
+<p><span class="math display">\[
+p = P(X \leq 1 \mid H_0) = \sum_{k=0}^{1} \frac{\binom{5}{k}\binom{34}{29-k}}{\binom{39}{29}}
+\]</span></p>
+<div id="56293f09" class="cell" data-execution_count="3">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scipy.stats <span class="im">import</span> hypergeom, fisher_exact</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scipy.stats.contingency <span class="im">import</span> odds_ratio <span class="im">as</span> odds_ratio_ci</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="co"># パラメータ</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>N <span class="op">=</span> <span class="dv">39</span>  <span class="co"># 全患者数</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>R <span class="op">=</span> <span class="dv">5</span>   <span class="co"># 全死亡者数</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>K <span class="op">=</span> <span class="dv">29</span>  <span class="co"># ECMO群の患者数</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="co"># P(X &lt;= 1) を計算</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>p_value_left <span class="op">=</span> hypergeom.cdf(<span class="dv">1</span>, N, R, K)</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"P(X &lt;= 1 | H_0) = </span><span class="sc">{</span>p_value_left<span class="sc">:.6f}</span><span class="ss">"</span>)</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a><span class="co"># scipy.stats.fisher_exact で確認</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>table <span class="op">=</span> [[<span class="dv">1</span>, <span class="dv">28</span>], [<span class="dv">4</span>, <span class="dv">6</span>]]</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>odds_ratio, p_two_sided <span class="op">=</span> fisher_exact(table, alternative<span class="op">=</span><span class="st">'two-sided'</span>)</span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>_, p_less <span class="op">=</span> fisher_exact(table, alternative<span class="op">=</span><span class="st">'less'</span>)</span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a><span class="co"># オッズ比の信頼区間（exact method）</span></span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>res <span class="op">=</span> odds_ratio_ci(table)</span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>ci_two_sided <span class="op">=</span> res.confidence_interval(confidence_level<span class="op">=</span><span class="fl">0.95</span>)</span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>ci_less <span class="op">=</span> res.confidence_interval(confidence_level<span class="op">=</span><span class="fl">0.95</span>, alternative<span class="op">=</span><span class="st">'less'</span>)</span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Fisher's exact test (scipy):"</span>)</span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  Odds ratio: </span><span class="sc">{</span>odds_ratio<span class="sc">:.4f}</span><span class="ss">"</span>)</span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  95% CI (two-sided): (</span><span class="sc">{</span>ci_two_sided<span class="sc">.</span>low<span class="sc">:.4f}</span><span class="ss">, </span><span class="sc">{</span>ci_two_sided<span class="sc">.</span>high<span class="sc">:.4f}</span><span class="ss">)"</span>)</span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  95% CI (less): (0, </span><span class="sc">{</span>ci_less<span class="sc">.</span>high<span class="sc">:.4f}</span><span class="ss">)"</span>)</span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  p-value (two-sided): </span><span class="sc">{</span>p_two_sided<span class="sc">:.6f}</span><span class="ss">"</span>)</span>
+<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  p-value (less): </span><span class="sc">{</span>p_less<span class="sc">:.6f}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>P(X &lt;= 1 | H_0) = 0.011015
+
+Fisher's exact test (scipy):
+  Odds ratio: 0.0536
+  95% CI (two-sided): (0.0011, 0.7319)
+  95% CI (less): (0, 0.5453)
+  p-value (two-sided): 0.011015
+  p-value (less): 0.011015</code></pre>
+</div>
+</div>
+</section>
+<section id="サンプルサイズと周辺度数のバランス" class="level3">
+<h3 class="anchored" data-anchor-id="サンプルサイズと周辺度数のバランス">サンプルサイズと周辺度数のバランス</h3>
+<p>Fisher’s exact testでは，<strong>サンプルサイズが大きくても周辺度数のバランスが悪いと検出力が下がる</strong>ことがあります．</p>
+<p>以下の2つのテーブルを比較してみます（どちらもオッズ比は同じ0.5）：</p>
+<div id="1153bd32" class="cell" data-execution_count="4">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scipy.stats <span class="im">import</span> fisher_exact</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Case 1: バランスの取れた周辺度数 (N=40)</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>table1 <span class="op">=</span> [[<span class="dv">5</span>, <span class="dv">15</span>], [<span class="dv">8</span>, <span class="dv">12</span>]]</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>or1, p1 <span class="op">=</span> fisher_exact(table1, alternative<span class="op">=</span><span class="st">'less'</span>)</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Case 2: アンバランスな周辺度数 (N=50)</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>table2 <span class="op">=</span> [[<span class="dv">10</span>, <span class="dv">30</span>], [<span class="dv">4</span>, <span class="dv">6</span>]]</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>or2, p2 <span class="op">=</span> fisher_exact(table2, alternative<span class="op">=</span><span class="st">'less'</span>)</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Case 1: バランスの取れた周辺度数"</span>)</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  Table: </span><span class="sc">{</span>table1<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  N = </span><span class="sc">{</span><span class="bu">sum</span>(<span class="bu">sum</span>(row) <span class="cf">for</span> row <span class="kw">in</span> table1)<span class="sc">}</span><span class="ss">, 行比 = 20:20 (50%:50%)"</span>)</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  Odds ratio: </span><span class="sc">{</span>or1<span class="sc">:.4f}</span><span class="ss">"</span>)</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  p-value (less): </span><span class="sc">{</span>p1<span class="sc">:.6f}</span><span class="ss">"</span>)</span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"</span><span class="ch">\n</span><span class="st">Case 2: アンバランスな周辺度数"</span>)</span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  Table: </span><span class="sc">{</span>table2<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  N = </span><span class="sc">{</span><span class="bu">sum</span>(<span class="bu">sum</span>(row) <span class="cf">for</span> row <span class="kw">in</span> table2)<span class="sc">}</span><span class="ss">, 行比 = 40:10 (80%:20%)"</span>)</span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  Odds ratio: </span><span class="sc">{</span>or2<span class="sc">:.4f}</span><span class="ss">"</span>)</span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  p-value (less): </span><span class="sc">{</span>p2<span class="sc">:.6f}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Case 1: バランスの取れた周辺度数
+  Table: [[5, 15], [8, 12]]
+  N = 40, 行比 = 20:20 (50%:50%)
+  Odds ratio: 0.5000
+  p-value (less): 0.250302
+
+Case 2: アンバランスな周辺度数
+  Table: [[10, 30], [4, 6]]
+  N = 50, 行比 = 40:10 (80%:20%)
+  Odds ratio: 0.5000
+  p-value (less): 0.283076</code></pre>
+</div>
+</div>
+<p><strong>なぜCase 2の方がp値が大きい（検出力が低い）のか？</strong></p>
+<p>超幾何分布の観点から説明すると：</p>
+<ul>
+<li><strong>Case 1</strong>: 行2（対照群）が20人いるため，死亡者13人の配分パターンが多様</li>
+<li><strong>Case 2</strong>: 行2（対照群）がわずか10人のため，死亡者14人のうち最大でも10人しか行2に配分できない</li>
+</ul>
+<div id="99e9f333" class="cell" data-execution_count="5">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scipy.stats <span class="im">import</span> hypergeom</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Case 1: N=40, M=13(死亡), K=20(行1)</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>N1, M1, K1 <span class="op">=</span> <span class="dv">40</span>, <span class="dv">13</span>, <span class="dv">20</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>x1_min, x1_max <span class="op">=</span> <span class="bu">max</span>(<span class="dv">0</span>, K1<span class="op">-</span>(N1<span class="op">-</span>M1)), <span class="bu">min</span>(M1, K1)</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>x1 <span class="op">=</span> np.arange(x1_min, x1_max <span class="op">+</span> <span class="dv">1</span>)</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>pmf1 <span class="op">=</span> hypergeom.pmf(x1, N1, M1, K1)</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Case 2: N=50, M=14(死亡), K=40(行1)</span></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>N2, M2, K2 <span class="op">=</span> <span class="dv">50</span>, <span class="dv">14</span>, <span class="dv">40</span></span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>x2_min, x2_max <span class="op">=</span> <span class="bu">max</span>(<span class="dv">0</span>, K2<span class="op">-</span>(N2<span class="op">-</span>M2)), <span class="bu">min</span>(M2, K2)</span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>x2 <span class="op">=</span> np.arange(x2_min, x2_max <span class="op">+</span> <span class="dv">1</span>)</span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>pmf2 <span class="op">=</span> hypergeom.pmf(x2, N2, M2, K2)</span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a><span class="co"># 観測値</span></span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>obs1, obs2 <span class="op">=</span> <span class="dv">5</span>, <span class="dv">10</span></span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="fl">4.5</span>))</span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a><span class="co"># Case 1</span></span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a>colors1 <span class="op">=</span> [<span class="st">'red'</span> <span class="cf">if</span> xi <span class="op">&lt;=</span> obs1 <span class="cf">else</span> <span class="st">'steelblue'</span> <span class="cf">for</span> xi <span class="kw">in</span> x1]</span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">0</span>].bar(x1, pmf1, color<span class="op">=</span>colors1, alpha<span class="op">=</span><span class="fl">0.7</span>, edgecolor<span class="op">=</span><span class="st">'black'</span>)</span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">0</span>].set_title(<span class="st">'Case 1: N=40, group ratio 50:50'</span>, fontsize<span class="op">=</span><span class="dv">12</span>)</span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">0</span>].set_xlabel(<span class="st">'Die in treated'</span>, fontsize<span class="op">=</span><span class="dv">11</span>)</span>
+<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">0</span>].set_ylabel(<span class="st">'P(X=x)'</span>, fontsize<span class="op">=</span><span class="dv">11</span>)</span>
+<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">0</span>].set_xticks(x1)</span>
+<span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">0</span>].grid(axis<span class="op">=</span><span class="st">'y'</span>, alpha<span class="op">=</span><span class="fl">0.3</span>)</span>
+<span id="cb9-30"><a href="#cb9-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-31"><a href="#cb9-31" aria-hidden="true" tabindex="-1"></a><span class="co"># Case 2</span></span>
+<span id="cb9-32"><a href="#cb9-32" aria-hidden="true" tabindex="-1"></a>colors2 <span class="op">=</span> [<span class="st">'red'</span> <span class="cf">if</span> xi <span class="op">&lt;=</span> obs2 <span class="cf">else</span> <span class="st">'steelblue'</span> <span class="cf">for</span> xi <span class="kw">in</span> x2]</span>
+<span id="cb9-33"><a href="#cb9-33" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">1</span>].bar(x2, pmf2, color<span class="op">=</span>colors2, alpha<span class="op">=</span><span class="fl">0.7</span>, edgecolor<span class="op">=</span><span class="st">'black'</span>)</span>
+<span id="cb9-34"><a href="#cb9-34" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">1</span>].set_title(<span class="st">'Case 2: N=50, group ratio 80:20'</span>, fontsize<span class="op">=</span><span class="dv">12</span>)</span>
+<span id="cb9-35"><a href="#cb9-35" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">1</span>].set_xlabel(<span class="st">'Die in treated'</span>, fontsize<span class="op">=</span><span class="dv">11</span>)</span>
+<span id="cb9-36"><a href="#cb9-36" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">1</span>].set_xticks(x2)</span>
+<span id="cb9-37"><a href="#cb9-37" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">1</span>].grid(axis<span class="op">=</span><span class="st">'y'</span>, alpha<span class="op">=</span><span class="fl">0.3</span>)</span>
+<span id="cb9-38"><a href="#cb9-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-39"><a href="#cb9-39" aria-hidden="true" tabindex="-1"></a>fig.suptitle(<span class="st">'hypergeometric distribution under $H_0$'</span>, fontsize<span class="op">=</span><span class="dv">14</span>)</span>
+<span id="cb9-40"><a href="#cb9-40" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb9-41"><a href="#cb9-41" aria-hidden="true" tabindex="-1"></a>plt.show()</span>
+<span id="cb9-42"><a href="#cb9-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-43"><a href="#cb9-43" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Case 1: P(X ≤ </span><span class="sc">{</span>obs1<span class="sc">}</span><span class="ss">) = </span><span class="sc">{</span>hypergeom<span class="sc">.</span>cdf(obs1, N1, M1, K1)<span class="sc">:.6f}</span><span class="ss">"</span>)</span>
+<span id="cb9-44"><a href="#cb9-44" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Case 2: P(X ≤ </span><span class="sc">{</span>obs2<span class="sc">}</span><span class="ss">) = </span><span class="sc">{</span>hypergeom<span class="sc">.</span>cdf(obs2, N2, M2, K2)<span class="sc">:.6f}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="index_files/figure-html/cell-6-output-1.png" width="949" height="427" class="figure-img"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Case 1: P(X ≤ 5) = 0.250302
+Case 2: P(X ≤ 10) = 0.283076</code></pre>
+</div>
+</div>
+<p>Case 2では，分布の取りうる範囲が狭く（<span class="math inline">\(x \in [4, 14]\)</span>），観測値10が分布の中央付近に位置するため，p値が大きくなります．</p>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>実験計画への示唆
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Fisher’s exact testの検出力を高めるには：</p>
+<ol type="1">
+<li><strong>サンプルサイズを増やす</strong>だけでなく</li>
+<li><strong>群間のバランスを取る</strong>（できれば1:1に近づける）ことが重要</li>
+</ol>
+<p>特に対照群のサンプルサイズが小さいと，効果量が同じでも検出力が大幅に低下します．</p>
+</div>
+</div>
+</section>
+<section id="table-matrixの転置に対する頑健性" class="level3">
+<h3 class="anchored" data-anchor-id="table-matrixの転置に対する頑健性">Table Matrixの転置に対する頑健性</h3>
+<p>Fisher’s exact testは<strong>行と列を対称に扱う</strong>ため，テーブルを転置しても検定結果は変わりません．</p>
+<p><span class="math inline">\(2 \times 2\)</span> テーブルを以下のように表記します：</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th style="text-align: center;"></th>
+<th style="text-align: center;"><span class="math inline">\(Y=1\)</span></th>
+<th style="text-align: center;"><span class="math inline">\(Y=2\)</span></th>
+<th style="text-align: center;">sum</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;"><span class="math inline">\(X=1\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(n_{11}\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(n_{12}\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(n_{1+}\)</span></td>
+</tr>
+<tr class="even">
+<td style="text-align: center;"><span class="math inline">\(X=2\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(n_{21}\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(n_{22}\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(n_{2+}\)</span></td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">sum</td>
+<td style="text-align: center;"><span class="math inline">\(n_{+1}\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(n_{+2}\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(n\)</span></td>
+</tr>
+</tbody>
+</table>
+<p>超幾何分布の確率は</p>
+<p><span class="math display">\[
+P(n_{11}) = \frac{\binom{n_{+1}}{n_{11}}\binom{n_{+2}}{n_{12}}}{\binom{n}{n_{1+}}} = \frac{\binom{n_{1+}}{n_{11}}\binom{n_{2+}}{n_{21}}}{\binom{n}{n_{+1}}} = \frac{n_{1+}! \, n_{2+}! \, n_{+1}! \, n_{+2}!}{n! \, n_{11}! \, n_{12}! \, n_{21}! \, n_{22}!}
+\]</span></p>
+<p>と表され，<span class="math inline">\(n_{11}\)</span> セルの値で与えられます．この式は行と列について完全に対称であるため：</p>
+<ul>
+<li><strong>行を入れ替えても</strong>（<span class="math inline">\(X=1 \leftrightarrow X=2\)</span>）</li>
+<li><strong>列を入れ替えても</strong>（<span class="math inline">\(Y=1 \leftrightarrow Y=2\)</span>）</li>
+<li><strong>行と列を転置しても</strong>（<span class="math inline">\(X \leftrightarrow Y\)</span>）</li>
+</ul>
+<p>超幾何分布に基づくPMFの値は変わりません．</p>
+<div id="fd8b0d58" class="cell" data-execution_count="6">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scipy.stats <span class="im">import</span> fisher_exact</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="co"># 元のテーブル</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>table_original <span class="op">=</span> [[<span class="dv">1</span>, <span class="dv">28</span>], [<span class="dv">4</span>, <span class="dv">6</span>]]</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a><span class="co"># 転置したテーブル</span></span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>table_transposed <span class="op">=</span> [[<span class="dv">1</span>, <span class="dv">4</span>], [<span class="dv">28</span>, <span class="dv">6</span>]]</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a><span class="co"># 行を入れ替えたテーブル</span></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>table_row_swap <span class="op">=</span> [[<span class="dv">4</span>, <span class="dv">6</span>], [<span class="dv">1</span>, <span class="dv">28</span>]]</span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a><span class="co"># 列を入れ替えたテーブル</span></span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>table_col_swap <span class="op">=</span> [[<span class="dv">28</span>, <span class="dv">1</span>], [<span class="dv">6</span>, <span class="dv">4</span>]]</span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>tables <span class="op">=</span> [</span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Original"</span>, table_original),</span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Transposed"</span>, table_transposed),</span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Row swapped"</span>, table_row_swap),</span>
+<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Column swapped"</span>, table_col_swap),</span>
+<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> name, table <span class="kw">in</span> tables:</span>
+<span id="cb11-23"><a href="#cb11-23" aria-hidden="true" tabindex="-1"></a>    odds_ratio, p_two_sided <span class="op">=</span> fisher_exact(table, alternative<span class="op">=</span><span class="st">'two-sided'</span>)</span>
+<span id="cb11-24"><a href="#cb11-24" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>name<span class="sc">:15s}</span><span class="ss">: table=</span><span class="sc">{</span>table<span class="sc">}</span><span class="ss">, OR=</span><span class="sc">{</span>odds_ratio<span class="sc">:.4f}</span><span class="ss">, p=</span><span class="sc">{</span>p_two_sided<span class="sc">:.6f}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Original       : table=[[1, 28], [4, 6]], OR=0.0536, p=0.011015
+Transposed     : table=[[1, 4], [28, 6]], OR=0.0536, p=0.011015
+Row swapped    : table=[[4, 6], [1, 28]], OR=18.6667, p=0.011015
+Column swapped : table=[[28, 1], [6, 4]], OR=18.6667, p=0.011015</code></pre>
+</div>
+</div>
+<p>この性質により，Fisher’s exact testは<strong>説明変数と応答変数を区別しない</strong>ため，前向き研究（prospective study）でも後ろ向き研究（retrospective study）でも適用可能です．</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>前向き研究と後ろ向き研究
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 18%">
+<col style="width: 44%">
+<col style="width: 37%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">研究デザイン</th>
+<th style="text-align: left;">説明</th>
+<th style="text-align: left;">例</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><strong>前向き研究</strong><br>(Prospective)</td>
+<td style="text-align: left;">曝露（治療法など）を先に決め，その後の結果（アウトカム）を追跡観察する</td>
+<td style="text-align: left;">ECMO vs CMT の患者を登録し，死亡/生存を追跡</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><strong>後ろ向き研究</strong><br>(Retrospective)</td>
+<td style="text-align: left;">結果（アウトカム）が既に判明している集団から，過去の曝露を調べる</td>
+<td style="text-align: left;">死亡/生存の患者記録から，過去にどの治療を受けたか調査</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Fisher’s exact testは超幾何確率の対称性により，どちらのデザインでも同じ検定が適用できます：</p>
+<ul>
+<li>前向き研究：行（治療群）を固定 → 列（結果）の分布を見る</li>
+<li>後ろ向き研究：列（結果）を固定 → 行（治療群）の分布を見る</li>
+</ul>
+<p>どちらの場合も <span class="math inline">\(n_{11}\)</span> の超幾何確率は同じ値になるため，p値も同一です．</p>
+</div>
+</div>
+</section>
+</section>
+<section id="power-analuysis-for-fishers-extact-test" class="level2">
+<h2 class="anchored" data-anchor-id="power-analuysis-for-fishers-extact-test">Power Analuysis for Fishers extact test</h2>
+<p>Fisher’s exact testのpower analysisは Mainland and Sutcliffe (1953) に基づくと, <span class="math inline">\(N = 2n\)</span>, <span class="math inline">\(M = r\)</span>, <span class="math inline">\(K = n\)</span> と対応する形で</p>
+<p><span class="math display">\[
+\beta(n, p_1, p_2) = \sum_{r=0}^{2n} \sum_{x \in C_r} \binom{n}{x}\binom{n}{r-x} p_1^x(1-p_1)^{n-x} p_2^{r-x}(1-p_2)^{n-r+x}
+\]</span></p>
+<p>で計算することが出来ます．これは2つの独立な二項分布の積，及び同時分布のうち棄却域を満たす事象の総和を取っていると解釈することが出来ます．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>記号</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">\(r\)</span></td>
+<td>両群の成功数の合計（<span class="math inline">\(0〜n1+n2\)</span>）</td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\(x\)</span></td>
+<td>第1群の成功数</td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\(C_r\)</span></td>
+<td>臨界領域（p値 &lt; αとなるxの集合）</td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\(p_1, p_2\)</span></td>
+<td>各群の真の成功確率</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><span class="mini-section">pseudocode</span></p>
+<p>上記のPower analysis計算関数を踏まえると以下のように整理できます</p>
+<div class="pseudocode-container quarto-float" data-line-number="true" data-caption-prefix="Algorithm" data-pseudocode-number="1" data-no-end="false" data-indent-size="1.2em" data-comment-delimiter="$\qquad$ #" data-line-number-punc=":">
+<div class="pseudocode">
+\begin{algorithm} \caption{Power of Fisher's Exact Test} \begin{algorithmic} \Procedure{PowerFisherExact}{$n_1, n_2, p_1, p_2, \alpha$} \State $\beta \gets 0$ \Comment{検出力を初期化} \State $n \gets n_1 + n_2$ \Comment{総サンプルサイズ} \For{$r = 0$ \To $n$} \Comment{両群の成功数の合計} \State $x_{min} \gets \max(0, r - n_2)$ \State $x_{max} \gets \min(n_1, r)$ \For{$x = x_{min}$ \To $x_{max}$} \Comment{群1の成功数} \State $T \gets \begin{pmatrix} x &amp; n_1 - x \\ r - x &amp; n_2 - r + x \end{pmatrix}$ \Comment{2×2分割表} \State $p_{value} \gets$ \Call{FisherExactTest}{$T$} \If{$p_{value} &lt; \alpha$} \Comment{ 臨界領域の判定} \State $P_1 \gets \binom{n_1}{x} p_1^x (1-p_1)^{n_1-x}$ \Comment{群1の二項確率} \State $P_2 \gets \binom{n_2}{r-x} p_2^{r-x} (1-p_2)^{n_2-r+x}$ \Comment{群2の二項確率} \State $\beta \gets \beta + P_1 \cdot P_2$ \Comment{同時確率を加算} \EndIf \EndFor \EndFor \State \Return $\beta$ \EndProcedure \end{algorithmic} \end{algorithm}
+</div>
+</div>
+<p>上記を見てみると，各 <span class="math inline">\(r\)</span> の計算は完全に独立のため，最後に任意の順番で各チャンクの <span class="math inline">\(\beta_{chunk}\)</span> を足すことで最終的な検出力が計算できるので，並列化できることがわかります．</p>
+<section id="実装" class="level3">
+<h3 class="anchored" data-anchor-id="実装">実装</h3>
+<div id="4fc62bc8" class="cell" data-execution_count="7">
+<details open="" class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scipy <span class="im">import</span> stats</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> typing <span class="im">import</span> Literal, Iterable</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> multiprocessing <span class="im">import</span> Pool, cpu_count</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> _power_contribution(</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>    r_values: Iterable[<span class="bu">int</span>],</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>    n1: <span class="bu">int</span>,</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>    n2: <span class="bu">int</span>,</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>    p1: <span class="bu">float</span>,</span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>    p2: <span class="bu">float</span>,</span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>    alpha: <span class="bu">float</span>,</span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>    alternative: <span class="bu">str</span>,</span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> <span class="bu">float</span>:</span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""r の集合に対する検出力寄与を計算"""</span></span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a>    power <span class="op">=</span> <span class="fl">0.0</span></span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Binomial PMF を事前計算</span></span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a>    binom1 <span class="op">=</span> stats.binom(n1, p1)</span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a>    binom2 <span class="op">=</span> stats.binom(n2, p2)</span>
+<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> r <span class="kw">in</span> r_values:</span>
+<span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a>        x_min <span class="op">=</span> <span class="bu">max</span>(<span class="dv">0</span>, r <span class="op">-</span> n2)</span>
+<span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a>        x_max <span class="op">=</span> <span class="bu">min</span>(n1, r)</span>
+<span id="cb13-24"><a href="#cb13-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-25"><a href="#cb13-25" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> x <span class="kw">in</span> <span class="bu">range</span>(x_min, x_max <span class="op">+</span> <span class="dv">1</span>):</span>
+<span id="cb13-26"><a href="#cb13-26" aria-hidden="true" tabindex="-1"></a>            table <span class="op">=</span> [[x, n1 <span class="op">-</span> x], [r <span class="op">-</span> x, n2 <span class="op">-</span> (r <span class="op">-</span> x)]]</span>
+<span id="cb13-27"><a href="#cb13-27" aria-hidden="true" tabindex="-1"></a>            _, p_value <span class="op">=</span> stats.fisher_exact(table, alternative<span class="op">=</span>alternative)</span>
+<span id="cb13-28"><a href="#cb13-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-29"><a href="#cb13-29" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> p_value <span class="op">&lt;</span> alpha:</span>
+<span id="cb13-30"><a href="#cb13-30" aria-hidden="true" tabindex="-1"></a>                power <span class="op">+=</span> binom1.pmf(x) <span class="op">*</span> binom2.pmf(r <span class="op">-</span> x)</span>
+<span id="cb13-31"><a href="#cb13-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-32"><a href="#cb13-32" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> power</span>
+<span id="cb13-33"><a href="#cb13-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-34"><a href="#cb13-34" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> power_fisher_exact(</span>
+<span id="cb13-35"><a href="#cb13-35" aria-hidden="true" tabindex="-1"></a>    p1: <span class="bu">float</span>,</span>
+<span id="cb13-36"><a href="#cb13-36" aria-hidden="true" tabindex="-1"></a>    p2: <span class="bu">float</span>,</span>
+<span id="cb13-37"><a href="#cb13-37" aria-hidden="true" tabindex="-1"></a>    n1: <span class="bu">int</span>,</span>
+<span id="cb13-38"><a href="#cb13-38" aria-hidden="true" tabindex="-1"></a>    n2: <span class="bu">int</span>,</span>
+<span id="cb13-39"><a href="#cb13-39" aria-hidden="true" tabindex="-1"></a>    alpha: <span class="bu">float</span> <span class="op">=</span> <span class="fl">0.05</span>,</span>
+<span id="cb13-40"><a href="#cb13-40" aria-hidden="true" tabindex="-1"></a>    alternative: Literal[<span class="st">"two-sided"</span>, <span class="st">"greater"</span>, <span class="st">"less"</span>] <span class="op">=</span> <span class="st">"two-sided"</span>,</span>
+<span id="cb13-41"><a href="#cb13-41" aria-hidden="true" tabindex="-1"></a>    multi: <span class="bu">bool</span> <span class="op">=</span> <span class="va">False</span>,</span>
+<span id="cb13-42"><a href="#cb13-42" aria-hidden="true" tabindex="-1"></a>    n_workers: <span class="bu">int</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>,</span>
+<span id="cb13-43"><a href="#cb13-43" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> <span class="bu">float</span>:</span>
+<span id="cb13-44"><a href="#cb13-44" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb13-45"><a href="#cb13-45" aria-hidden="true" tabindex="-1"></a><span class="co">    Fisher正確検定の検出力を解析的に計算する。</span></span>
+<span id="cb13-46"><a href="#cb13-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-47"><a href="#cb13-47" aria-hidden="true" tabindex="-1"></a><span class="co">    Mainland and Sutcliffe (1953) の検出力関数に基づき、</span></span>
+<span id="cb13-48"><a href="#cb13-48" aria-hidden="true" tabindex="-1"></a><span class="co">    Thomas and Conlon (1991) のアルゴリズムを使用して効率的に計算します。</span></span>
+<span id="cb13-49"><a href="#cb13-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-50"><a href="#cb13-50" aria-hidden="true" tabindex="-1"></a><span class="co">    検出力は以下の式で計算されます:</span></span>
+<span id="cb13-51"><a href="#cb13-51" aria-hidden="true" tabindex="-1"></a><span class="co">        β(n1, p1, p2) = Σ_{r=0}^{2n} Σ_{x∈C_r} C(n,x) * C(n,r-x) *</span></span>
+<span id="cb13-52"><a href="#cb13-52" aria-hidden="true" tabindex="-1"></a><span class="co">                        p1^x * (1-p1)^{n-x} * p2^{r-x} * (1-p2)^{n-r+x}</span></span>
+<span id="cb13-53"><a href="#cb13-53" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-54"><a href="#cb13-54" aria-hidden="true" tabindex="-1"></a><span class="co">    ここで、rは両群の成功数の合計、xは第1群の成功数、</span></span>
+<span id="cb13-55"><a href="#cb13-55" aria-hidden="true" tabindex="-1"></a><span class="co">    C_rは超幾何分布による臨界領域です。</span></span>
+<span id="cb13-56"><a href="#cb13-56" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-57"><a href="#cb13-57" aria-hidden="true" tabindex="-1"></a><span class="co">    Parameters</span></span>
+<span id="cb13-58"><a href="#cb13-58" aria-hidden="true" tabindex="-1"></a><span class="co">    ----------</span></span>
+<span id="cb13-59"><a href="#cb13-59" aria-hidden="true" tabindex="-1"></a><span class="co">    p1 : float</span></span>
+<span id="cb13-60"><a href="#cb13-60" aria-hidden="true" tabindex="-1"></a><span class="co">        第1群の真の比率 (0 &lt; p1 &lt; 1)</span></span>
+<span id="cb13-61"><a href="#cb13-61" aria-hidden="true" tabindex="-1"></a><span class="co">    p2 : float</span></span>
+<span id="cb13-62"><a href="#cb13-62" aria-hidden="true" tabindex="-1"></a><span class="co">        第2群の真の比率 (0 &lt; p2 &lt; 1)</span></span>
+<span id="cb13-63"><a href="#cb13-63" aria-hidden="true" tabindex="-1"></a><span class="co">    n1 : int</span></span>
+<span id="cb13-64"><a href="#cb13-64" aria-hidden="true" tabindex="-1"></a><span class="co">        第1群のサンプルサイズ</span></span>
+<span id="cb13-65"><a href="#cb13-65" aria-hidden="true" tabindex="-1"></a><span class="co">    n2 : int</span></span>
+<span id="cb13-66"><a href="#cb13-66" aria-hidden="true" tabindex="-1"></a><span class="co">        第2群のサンプルサイズ</span></span>
+<span id="cb13-67"><a href="#cb13-67" aria-hidden="true" tabindex="-1"></a><span class="co">    alpha : float, optional</span></span>
+<span id="cb13-68"><a href="#cb13-68" aria-hidden="true" tabindex="-1"></a><span class="co">        有意水準 (デフォルト: 0.05)</span></span>
+<span id="cb13-69"><a href="#cb13-69" aria-hidden="true" tabindex="-1"></a><span class="co">    alternative : {"two-sided", "greater", "less"}, optional</span></span>
+<span id="cb13-70"><a href="#cb13-70" aria-hidden="true" tabindex="-1"></a><span class="co">        対立仮説の種類 (デフォルト: "two-sided")</span></span>
+<span id="cb13-71"><a href="#cb13-71" aria-hidden="true" tabindex="-1"></a><span class="co">    multi : bool, optional</span></span>
+<span id="cb13-72"><a href="#cb13-72" aria-hidden="true" tabindex="-1"></a><span class="co">        マルチプロセス並列化を使用するかどうか (デフォルト: False)</span></span>
+<span id="cb13-73"><a href="#cb13-73" aria-hidden="true" tabindex="-1"></a><span class="co">    n_workers : int or None, optional</span></span>
+<span id="cb13-74"><a href="#cb13-74" aria-hidden="true" tabindex="-1"></a><span class="co">        ワーカー数 (デフォルト: CPU数)。multi=Trueの場合のみ有効</span></span>
+<span id="cb13-75"><a href="#cb13-75" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-76"><a href="#cb13-76" aria-hidden="true" tabindex="-1"></a><span class="co">    Returns</span></span>
+<span id="cb13-77"><a href="#cb13-77" aria-hidden="true" tabindex="-1"></a><span class="co">    -------</span></span>
+<span id="cb13-78"><a href="#cb13-78" aria-hidden="true" tabindex="-1"></a><span class="co">    float</span></span>
+<span id="cb13-79"><a href="#cb13-79" aria-hidden="true" tabindex="-1"></a><span class="co">        検出力 (0から1の間の値)</span></span>
+<span id="cb13-80"><a href="#cb13-80" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-81"><a href="#cb13-81" aria-hidden="true" tabindex="-1"></a><span class="co">    Examples</span></span>
+<span id="cb13-82"><a href="#cb13-82" aria-hidden="true" tabindex="-1"></a><span class="co">    --------</span></span>
+<span id="cb13-83"><a href="#cb13-83" aria-hidden="true" tabindex="-1"></a><span class="co">    &gt;&gt;&gt; power_fisher_exact(0.5, 0.9, 20, 20)</span></span>
+<span id="cb13-84"><a href="#cb13-84" aria-hidden="true" tabindex="-1"></a><span class="co">    0.7123  # 解析的に計算された検出力</span></span>
+<span id="cb13-85"><a href="#cb13-85" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-86"><a href="#cb13-86" aria-hidden="true" tabindex="-1"></a><span class="co">    &gt;&gt;&gt; power_fisher_exact(0.5, 0.9, 100, 100, multi=True)</span></span>
+<span id="cb13-87"><a href="#cb13-87" aria-hidden="true" tabindex="-1"></a><span class="co">    0.9999  # マルチプロセスで高速化</span></span>
+<span id="cb13-88"><a href="#cb13-88" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-89"><a href="#cb13-89" aria-hidden="true" tabindex="-1"></a><span class="co">    Notes</span></span>
+<span id="cb13-90"><a href="#cb13-90" aria-hidden="true" tabindex="-1"></a><span class="co">    -----</span></span>
+<span id="cb13-91"><a href="#cb13-91" aria-hidden="true" tabindex="-1"></a><span class="co">    - シミュレーションと異なり、正確な値を返します</span></span>
+<span id="cb13-92"><a href="#cb13-92" aria-hidden="true" tabindex="-1"></a><span class="co">    - 計算量は O(n1 * n2) であり、大きなサンプルサイズでも高速です</span></span>
+<span id="cb13-93"><a href="#cb13-93" aria-hidden="true" tabindex="-1"></a><span class="co">    - multi=Trueにすると複数CPUコアを使用して高速化できます</span></span>
+<span id="cb13-94"><a href="#cb13-94" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-95"><a href="#cb13-95" aria-hidden="true" tabindex="-1"></a><span class="co">    References</span></span>
+<span id="cb13-96"><a href="#cb13-96" aria-hidden="true" tabindex="-1"></a><span class="co">    ----------</span></span>
+<span id="cb13-97"><a href="#cb13-97" aria-hidden="true" tabindex="-1"></a><span class="co">    - Mainland, D. and Sutcliffe, M.I. (1953). Statistical methods in</span></span>
+<span id="cb13-98"><a href="#cb13-98" aria-hidden="true" tabindex="-1"></a><span class="co">      medical research. Canadian Journal of Medical Sciences, 31, 406-416.</span></span>
+<span id="cb13-99"><a href="#cb13-99" aria-hidden="true" tabindex="-1"></a><span class="co">    - Thomas, R.G. and Conlon, M. (1991). Algorithm AS 259: Statistical</span></span>
+<span id="cb13-100"><a href="#cb13-100" aria-hidden="true" tabindex="-1"></a><span class="co">      Algorithms. Applied Statistics, 40(1), 258-261.</span></span>
+<span id="cb13-101"><a href="#cb13-101" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb13-102"><a href="#cb13-102" aria-hidden="true" tabindex="-1"></a>    <span class="co"># 入力値の検証</span></span>
+<span id="cb13-103"><a href="#cb13-103" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">not</span> (<span class="dv">0</span> <span class="op">&lt;</span> p1 <span class="op">&lt;</span> <span class="dv">1</span>):</span>
+<span id="cb13-104"><a href="#cb13-104" aria-hidden="true" tabindex="-1"></a>        <span class="cf">raise</span> <span class="pp">ValueError</span>(<span class="ss">f"p1は0より大きく1より小さい値である必要があります: </span><span class="sc">{</span>p1<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb13-105"><a href="#cb13-105" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">not</span> (<span class="dv">0</span> <span class="op">&lt;</span> p2 <span class="op">&lt;</span> <span class="dv">1</span>):</span>
+<span id="cb13-106"><a href="#cb13-106" aria-hidden="true" tabindex="-1"></a>        <span class="cf">raise</span> <span class="pp">ValueError</span>(<span class="ss">f"p2は0より大きく1より小さい値である必要があります: </span><span class="sc">{</span>p2<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb13-107"><a href="#cb13-107" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> n1 <span class="op">&lt;=</span> <span class="dv">0</span>:</span>
+<span id="cb13-108"><a href="#cb13-108" aria-hidden="true" tabindex="-1"></a>        <span class="cf">raise</span> <span class="pp">ValueError</span>(<span class="ss">f"n1は正の整数である必要があります: </span><span class="sc">{</span>n1<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb13-109"><a href="#cb13-109" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> n2 <span class="op">&lt;=</span> <span class="dv">0</span>:</span>
+<span id="cb13-110"><a href="#cb13-110" aria-hidden="true" tabindex="-1"></a>        <span class="cf">raise</span> <span class="pp">ValueError</span>(<span class="ss">f"n2は正の整数である必要があります: </span><span class="sc">{</span>n2<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb13-111"><a href="#cb13-111" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">not</span> (<span class="dv">0</span> <span class="op">&lt;</span> alpha <span class="op">&lt;</span> <span class="dv">1</span>):</span>
+<span id="cb13-112"><a href="#cb13-112" aria-hidden="true" tabindex="-1"></a>        <span class="cf">raise</span> <span class="pp">ValueError</span>(<span class="ss">f"alphaは0より大きく1より小さい値である必要があります: </span><span class="sc">{</span>alpha<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb13-113"><a href="#cb13-113" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> alternative <span class="kw">not</span> <span class="kw">in</span> [<span class="st">"two-sided"</span>, <span class="st">"greater"</span>, <span class="st">"less"</span>]:</span>
+<span id="cb13-114"><a href="#cb13-114" aria-hidden="true" tabindex="-1"></a>        <span class="cf">raise</span> <span class="pp">ValueError</span>(</span>
+<span id="cb13-115"><a href="#cb13-115" aria-hidden="true" tabindex="-1"></a>            <span class="ss">f"alternativeは 'two-sided', 'greater', 'less' のいずれかである必要があります: </span><span class="sc">{</span>alternative<span class="sc">}</span><span class="ss">"</span></span>
+<span id="cb13-116"><a href="#cb13-116" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb13-117"><a href="#cb13-117" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-118"><a href="#cb13-118" aria-hidden="true" tabindex="-1"></a>    n <span class="op">=</span> n1 <span class="op">+</span> n2  <span class="co"># 総サンプルサイズ</span></span>
+<span id="cb13-119"><a href="#cb13-119" aria-hidden="true" tabindex="-1"></a>    M_values <span class="op">=</span> <span class="bu">list</span>(<span class="bu">range</span>(n <span class="op">+</span> <span class="dv">1</span>))</span>
+<span id="cb13-120"><a href="#cb13-120" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-121"><a href="#cb13-121" aria-hidden="true" tabindex="-1"></a>    <span class="co"># --- single process ---</span></span>
+<span id="cb13-122"><a href="#cb13-122" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">not</span> multi:</span>
+<span id="cb13-123"><a href="#cb13-123" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> _power_contribution(</span>
+<span id="cb13-124"><a href="#cb13-124" aria-hidden="true" tabindex="-1"></a>            M_values, n1, n2, p1, p2, alpha, alternative</span>
+<span id="cb13-125"><a href="#cb13-125" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb13-126"><a href="#cb13-126" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-127"><a href="#cb13-127" aria-hidden="true" tabindex="-1"></a>    <span class="co"># --- multi process ---</span></span>
+<span id="cb13-128"><a href="#cb13-128" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> n_workers <span class="kw">is</span> <span class="va">None</span>:</span>
+<span id="cb13-129"><a href="#cb13-129" aria-hidden="true" tabindex="-1"></a>        n_workers <span class="op">=</span> cpu_count()</span>
+<span id="cb13-130"><a href="#cb13-130" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-131"><a href="#cb13-131" aria-hidden="true" tabindex="-1"></a>    chunks <span class="op">=</span> [M_values[i::n_workers] <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(n_workers)]</span>
+<span id="cb13-132"><a href="#cb13-132" aria-hidden="true" tabindex="-1"></a>    args <span class="op">=</span> [</span>
+<span id="cb13-133"><a href="#cb13-133" aria-hidden="true" tabindex="-1"></a>        (chunk, n1, n2, p1, p2, alpha, alternative)</span>
+<span id="cb13-134"><a href="#cb13-134" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> chunk <span class="kw">in</span> chunks</span>
+<span id="cb13-135"><a href="#cb13-135" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> chunk</span>
+<span id="cb13-136"><a href="#cb13-136" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb13-137"><a href="#cb13-137" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-138"><a href="#cb13-138" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> Pool(n_workers) <span class="im">as</span> pool:</span>
+<span id="cb13-139"><a href="#cb13-139" aria-hidden="true" tabindex="-1"></a>        results <span class="op">=</span> pool.starmap(_power_contribution, args)</span>
+<span id="cb13-140"><a href="#cb13-140" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-141"><a href="#cb13-141" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="bu">sum</span>(results)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Example 2 (Power Analysis 動作の確認)</strong></span> <br></p>
+<p>冒頭のECMO vs CMTの例を用いて，<code>power_fisher_exact</code> 関数の動作を確認します．</p>
+<p>観測データは以下の通りです：</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th style="text-align: center;">Treatment</th>
+<th>Die</th>
+<th>Live</th>
+<th>total</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;">ECMO</td>
+<td>1</td>
+<td>28</td>
+<td>29</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">CMT</td>
+<td>4</td>
+<td>6</td>
+<td>10</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">total</td>
+<td>5</td>
+<td>34</td>
+<td>39</td>
+</tr>
+</tbody>
+</table>
+<p>観測された死亡率は ECMO群で <span class="math inline">\(\hat{p}_1 = 1/29 \approx 0.034\)</span>，CMT群で <span class="math inline">\(\hat{p}_2 = 4/10 = 0.4\)</span>．</p>
+<p>この効果量（<span class="math inline">\(p_1 = 0.034, p_2 = 0.4\)</span>）を真の値と仮定した場合，サンプルサイズ <span class="math inline">\((n_1, n_2) = (29, 10)\)</span> でどの程度の検出力が得られるかを計算します．</p>
+<div id="247d9982" class="cell" data-execution_count="8">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 観測された効果量</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>p1_observed <span class="op">=</span> <span class="dv">1</span> <span class="op">/</span> <span class="dv">29</span>  <span class="co"># ECMO群の死亡率</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>p2_observed <span class="op">=</span> <span class="dv">4</span> <span class="op">/</span> <span class="dv">10</span>  <span class="co"># CMT群の死亡率</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a><span class="co"># 実際のサンプルサイズ</span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>n1, n2 <span class="op">=</span> <span class="dv">29</span>, <span class="dv">10</span></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a><span class="co"># 検出力を計算（片側検定：ECMOの方が死亡率が低い）</span></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>power_less <span class="op">=</span> power_fisher_exact(</span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>    p1<span class="op">=</span>p1_observed,</span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a>    p2<span class="op">=</span>p2_observed,</span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a>    n1<span class="op">=</span>n1,</span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a>    n2<span class="op">=</span>n2,</span>
+<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a>    alpha<span class="op">=</span><span class="fl">0.05</span>,</span>
+<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a>    alternative<span class="op">=</span><span class="st">"less"</span></span>
+<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a><span class="co"># 両側検定の検出力</span></span>
+<span id="cb14-19"><a href="#cb14-19" aria-hidden="true" tabindex="-1"></a>power_two_sided <span class="op">=</span> power_fisher_exact(</span>
+<span id="cb14-20"><a href="#cb14-20" aria-hidden="true" tabindex="-1"></a>    p1<span class="op">=</span>p1_observed,</span>
+<span id="cb14-21"><a href="#cb14-21" aria-hidden="true" tabindex="-1"></a>    p2<span class="op">=</span>p2_observed,</span>
+<span id="cb14-22"><a href="#cb14-22" aria-hidden="true" tabindex="-1"></a>    n1<span class="op">=</span>n1,</span>
+<span id="cb14-23"><a href="#cb14-23" aria-hidden="true" tabindex="-1"></a>    n2<span class="op">=</span>n2,</span>
+<span id="cb14-24"><a href="#cb14-24" aria-hidden="true" tabindex="-1"></a>    alpha<span class="op">=</span><span class="fl">0.05</span>,</span>
+<span id="cb14-25"><a href="#cb14-25" aria-hidden="true" tabindex="-1"></a>    alternative<span class="op">=</span><span class="st">"two-sided"</span></span>
+<span id="cb14-26"><a href="#cb14-26" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb14-27"><a href="#cb14-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-28"><a href="#cb14-28" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"観測された効果量: p1=</span><span class="sc">{</span>p1_observed<span class="sc">:.4f}</span><span class="ss">, p2=</span><span class="sc">{</span>p2_observed<span class="sc">:.4f}</span><span class="ss">"</span>)</span>
+<span id="cb14-29"><a href="#cb14-29" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"サンプルサイズ: n1=</span><span class="sc">{</span>n1<span class="sc">}</span><span class="ss">, n2=</span><span class="sc">{</span>n2<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb14-30"><a href="#cb14-30" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">検出力 (α=0.05):"</span>)</span>
+<span id="cb14-31"><a href="#cb14-31" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  片側検定 (less): </span><span class="sc">{</span>power_less<span class="sc">:.4f}</span><span class="ss">"</span>)</span>
+<span id="cb14-32"><a href="#cb14-32" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  両側検定: </span><span class="sc">{</span>power_two_sided<span class="sc">:.4f}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>観測された効果量: p1=0.0345, p2=0.4000
+サンプルサイズ: n1=29, n2=10
+
+検出力 (α=0.05):
+  片側検定 (less): 0.7560
+  両側検定: 0.7560</code></pre>
+</div>
+</div>
+</div>
+<hr>
+</section>
+</section>
+<section id="appendix-超幾何分布" class="level2">
+<h2 class="anchored" data-anchor-id="appendix-超幾何分布">Appendix: 超幾何分布</h2>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title">Hypergeometric Distribution</span></p>
+<ul>
+<li><span class="math inline">\(M\)</span>: ツボの中の赤いボールの個数</li>
+<li><span class="math inline">\(B(= N - M)\)</span>: ツボの中の青いボールの個数</li>
+<li><span class="math inline">\(N\)</span>: ツボの中のボールの個数</li>
+</ul>
+<p>上記のセットアップにおいて，ツボから <span class="math inline">\(K (\leq N)\)</span> 個のボールを無作為に<span class="regmonkey-bold">非復元抽出(sampling without replacement)</span>したところ， 抽出できた赤いボールの個数を表す確率変数を <span class="math inline">\(X\)</span> とする．このとき，PMFは</p>
+<p><span class="math display">\[
+\displaylines P(X= x | N, M, K) = \frac{\left(\begin{array}{c}M\\ x\end{array}\right)\left(\begin{array}{c}N - M\\ K-x\end{array}\right)}{\left(\begin{array}{c}N\\ K\end{array}\right)}
+\]</span></p>
+<p>で与えられる。ただし，</p>
+<p><span class="math display">\[
+\max(0, K - (N - M)) \le x \le \min(M, K)
+\]</span></p>
+<p>であり，それ以外の場合は</p>
+<p><span class="math display">\[
+P(X = x \mid N, M, K) = 0
+\]</span></p>
+<p>と定義する．</p>
+</div>
+<p><span class="mini-section">確率の公理</span></p>
+<p>上記のPMFが確率の公理 <span class="math inline">\(\sum P(X= x | N, M, K) = 1\)</span> を満たすことを確認します．定義より示すべきは</p>
+<p><span class="math display">\[
+\left(\begin{array}{c}N\\ K\end{array}\right) = \sum \left(\begin{array}{c}M\\ x\end{array}\right)\left(\begin{array}{c}N - M\\ K-x\end{array}\right)
+\]</span></p>
+<p>です．ヴァンデルモンドの畳み込みで明らかですが，ここでは組み合わせ的に考えてみます． 上記の式のLHSは赤と青を合わせた <span class="math inline">\(N\)</span> 個のボールから <span class="math inline">\(K\)</span> 個のボールを選ぶ組み合わせとなります． これは赤のボールの組み合わせをまず選び，その後青のボールの組み合わせを計算するという場合の数に相当します．つまり，</p>
+<ol type="1">
+<li>まず赤いボール <span class="math inline">\(M\)</span> 個の中から <span class="math inline">\(x\)</span> 個を選ぶ</li>
+<li>次に残りの <span class="math inline">\(K - x\)</span> 個を，青いボール <span class="math inline">\(N−R\)</span> 個の中から選ぶ</li>
+<li>赤いボールを <span class="math inline">\(x\)</span> 個選ぶすべての場合について和を取る</li>
+</ol>
+<p>つまり，</p>
+<p><span class="math display">\[
+\sum \left(\begin{array}{c}M\\ x\end{array}\right)\left(\begin{array}{c}N - M\\ K-x\end{array}\right)
+\]</span></p>
+<p>これはRHSに相当するので, <span class="math inline">\(\sum P(X= x | N, M, K) = 1\)</span> を満たすことがわかる．</p>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Example 3 (赤ボールを <span class="math inline">\(x\)</span> drawする確率)</strong></span> <br></p>
+<p>赤玉を <span class="math inline">\(X\)</span> 引く状況を <span class="math inline">\(2 \times 2\)</span> tableで整理したものが以下となります</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th></th>
+<th>Red</th>
+<th>Blue</th>
+<th>total</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Drawn</td>
+<td><span class="math inline">\(X\)</span></td>
+<td><span class="math inline">\(K - X\)</span></td>
+<td><span class="math inline">\(K\)</span></td>
+</tr>
+<tr class="even">
+<td>Not Drawn</td>
+<td><span class="math inline">\(M-X\)</span></td>
+<td><span class="math inline">\(B-(K-X)\)</span></td>
+<td><span class="math inline">\(M+B-K\)</span></td>
+</tr>
+<tr class="odd">
+<td>total</td>
+<td><span class="math inline">\(M\)</span></td>
+<td><span class="math inline">\(B\)</span></td>
+<td><span class="math inline">\(N = R+B\)</span></td>
+</tr>
+</tbody>
+</table>
+<p>このとき，<span class="math inline">\(X = x\)</span> となる確率は</p>
+<p><span class="math display">\[
+\displaylines P(X= x | N, M, K) = \frac{\left(\begin{array}{c}M\\ x\end{array}\right)\left(\begin{array}{c}N - M\\ K-x\end{array}\right)}{\left(\begin{array}{c}N\\ K\end{array}\right)}
+\]</span></p>
+<div id="505c7113" class="cell" data-execution_count="9">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> plotly.subplots <span class="im">import</span> make_subplots</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> plotly.graph_objects <span class="im">as</span> go</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scipy.stats <span class="im">import</span> hypergeom</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a><span class="co"># パラメータ設定</span></span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>N <span class="op">=</span> <span class="dv">50</span>  <span class="co"># 全ボール数</span></span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>R <span class="op">=</span> <span class="dv">20</span>  <span class="co"># 赤ボール数</span></span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>K_values <span class="op">=</span> [<span class="dv">15</span>, <span class="dv">31</span>]  <span class="co"># 抽出数</span></span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>fig <span class="op">=</span> make_subplots(rows<span class="op">=</span><span class="dv">1</span>, cols<span class="op">=</span><span class="dv">2</span>, subplot_titles<span class="op">=</span>[<span class="ss">f'K=</span><span class="sc">{</span>K<span class="sc">}</span><span class="ss">'</span> <span class="cf">for</span> K <span class="kw">in</span> K_values], vertical_spacing<span class="op">=</span><span class="fl">0.15</span>)</span>
+<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i, K <span class="kw">in</span> <span class="bu">enumerate</span>(K_values):</span>
+<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a>    <span class="co"># x の範囲</span></span>
+<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a>    x_min <span class="op">=</span> <span class="bu">max</span>(<span class="dv">0</span>, K <span class="op">-</span> (N <span class="op">-</span> R))</span>
+<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a>    x_max <span class="op">=</span> <span class="bu">min</span>(R, K)</span>
+<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a>    x <span class="op">=</span> np.arange(x_min, x_max <span class="op">+</span> <span class="dv">1</span>)</span>
+<span id="cb16-18"><a href="#cb16-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-19"><a href="#cb16-19" aria-hidden="true" tabindex="-1"></a>    <span class="co"># PMF の計算</span></span>
+<span id="cb16-20"><a href="#cb16-20" aria-hidden="true" tabindex="-1"></a>    pmf <span class="op">=</span> hypergeom.pmf(x, N, R, K)</span>
+<span id="cb16-21"><a href="#cb16-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-22"><a href="#cb16-22" aria-hidden="true" tabindex="-1"></a>    fig.add_trace(</span>
+<span id="cb16-23"><a href="#cb16-23" aria-hidden="true" tabindex="-1"></a>        go.Bar(x<span class="op">=</span>x, y<span class="op">=</span>pmf, name<span class="op">=</span><span class="ss">f'K=</span><span class="sc">{</span>K<span class="sc">}</span><span class="ss">'</span>, opacity<span class="op">=</span><span class="fl">0.7</span>),</span>
+<span id="cb16-24"><a href="#cb16-24" aria-hidden="true" tabindex="-1"></a>        row<span class="op">=</span><span class="dv">1</span>, col<span class="op">=</span>i<span class="op">+</span><span class="dv">1</span></span>
+<span id="cb16-25"><a href="#cb16-25" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb16-26"><a href="#cb16-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-27"><a href="#cb16-27" aria-hidden="true" tabindex="-1"></a>fig.update_layout(</span>
+<span id="cb16-28"><a href="#cb16-28" aria-hidden="true" tabindex="-1"></a>    title_text<span class="op">=</span><span class="ss">f'Hypergeometric Distribution PMF (N=</span><span class="sc">{</span>N<span class="sc">}</span><span class="ss">, R=</span><span class="sc">{</span>R<span class="sc">}</span><span class="ss">)'</span>,</span>
+<span id="cb16-29"><a href="#cb16-29" aria-hidden="true" tabindex="-1"></a>    title_font_size<span class="op">=</span><span class="dv">18</span>,</span>
+<span id="cb16-30"><a href="#cb16-30" aria-hidden="true" tabindex="-1"></a>    title_y<span class="op">=</span><span class="fl">0.98</span>,</span>
+<span id="cb16-31"><a href="#cb16-31" aria-hidden="true" tabindex="-1"></a>    margin<span class="op">=</span><span class="bu">dict</span>(t<span class="op">=</span><span class="dv">60</span>),</span>
+<span id="cb16-32"><a href="#cb16-32" aria-hidden="true" tabindex="-1"></a>    showlegend<span class="op">=</span><span class="va">False</span>,</span>
+<span id="cb16-33"><a href="#cb16-33" aria-hidden="true" tabindex="-1"></a>    font<span class="op">=</span><span class="bu">dict</span>(size<span class="op">=</span><span class="dv">14</span>)</span>
+<span id="cb16-34"><a href="#cb16-34" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb16-35"><a href="#cb16-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-36"><a href="#cb16-36" aria-hidden="true" tabindex="-1"></a><span class="co"># サブプロットタイトルのフォントサイズを大きく</span></span>
+<span id="cb16-37"><a href="#cb16-37" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> annotation <span class="kw">in</span> fig[<span class="st">'layout'</span>][<span class="st">'annotations'</span>]:</span>
+<span id="cb16-38"><a href="#cb16-38" aria-hidden="true" tabindex="-1"></a>    annotation[<span class="st">'font'</span>] <span class="op">=</span> <span class="bu">dict</span>(size<span class="op">=</span><span class="dv">16</span>)</span>
+<span id="cb16-39"><a href="#cb16-39" aria-hidden="true" tabindex="-1"></a>fig.update_xaxes(title_text<span class="op">=</span><span class="st">'x (Drawn red ball)'</span>, title_font_size<span class="op">=</span><span class="dv">14</span>)</span>
+<span id="cb16-40"><a href="#cb16-40" aria-hidden="true" tabindex="-1"></a>fig.update_yaxes(title_text<span class="op">=</span><span class="st">'P(X = x)'</span>, col<span class="op">=</span><span class="dv">1</span>, title_font_size<span class="op">=</span><span class="dv">14</span>)</span>
+<span id="cb16-41"><a href="#cb16-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-42"><a href="#cb16-42" aria-hidden="true" tabindex="-1"></a>fig.show()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display">
+<div>            <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_SVG"></script><script type="text/javascript">if (window.MathJax && window.MathJax.Hub && window.MathJax.Hub.Config) {window.MathJax.Hub.Config({SVG: {font: "STIX-Web"}});}</script>                <script type="text/javascript">window.PlotlyConfig = {MathJaxConfig: 'local'};</script>
+        <script charset="utf-8" src="https://cdn.plot.ly/plotly-3.1.1.min.js" integrity="sha256-HUEFyfiTnZJxCxur99FjbKYTvKSzwDaD3/x5TqHpFu4=" crossorigin="anonymous"></script>                <div id="71c2bbf2-7dc8-4173-8611-5005f614ec8d" class="plotly-graph-div" style="height:525px; width:100%;"></div>            <script type="text/javascript">                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("71c2bbf2-7dc8-4173-8611-5005f614ec8d")) {                    Plotly.newPlot(                        "71c2bbf2-7dc8-4173-8611-5005f614ec8d",                        [{"name":"K=15","opacity":0.7,"x":{"dtype":"i1","bdata":"AAECAwQFBgcICQoLDA0ODw=="},"y":{"dtype":"f8","bdata":"ECxU5doQEj+jo76EwCtVPwdgK9wytIQ\u002fCKjZw+Ftpj+rEL+8NRq+Px1MBPh2fco\u002fa04RGyyJzz9vV8ihUs3JPyXSqvniKr0\u002fVdyEF5Svpj9t3nmJzfSHP9wYI2CswGA\u002f+J3M407ILT+hTODnOWvvPs0Pn1ykVaE+Tw0MZJOVPT4="},"type":"bar","xaxis":"x","yaxis":"y"},{"name":"K=31","opacity":0.7,"x":{"dtype":"i1","bdata":"AQIDBAUGBwgJCgsMDQ4PEBESExQ="},"y":{"dtype":"f8","bdata":"04RmdKEkZz3gIZa+x8PpPQULisMRg1E+qR1jWiO1pT6lATntIk7tPlVRvmB8zyc\u002fZT\u002fG5HbNWD+4EArN8kWBPwVQ1FmzjaA\u002fKqorX1pBtj9tInvmYT7FPwmMM93598w\u002fzkYEo9I5zD8tpxYiforDP0jO4niQ+7I\u002fChPZS2tPmT+h4xlwIlV2PzM76k2jhUg\u002fhkBvDPXTDT\u002fRO57xVSS+Pg=="},"type":"bar","xaxis":"x2","yaxis":"y2"}],                        {"template":{"data":{"histogram2dcontour":[{"type":"histogram2dcontour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"choropleth":[{"type":"choropleth","colorbar":{"outlinewidth":0,"ticks":""}}],"histogram2d":[{"type":"histogram2d","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"heatmap":[{"type":"heatmap","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"contourcarpet":[{"type":"contourcarpet","colorbar":{"outlinewidth":0,"ticks":""}}],"contour":[{"type":"contour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"surface":[{"type":"surface","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"mesh3d":[{"type":"mesh3d","colorbar":{"outlinewidth":0,"ticks":""}}],"scatter":[{"fillpattern":{"fillmode":"overlay","size":10,"solidity":0.2},"type":"scatter"}],"parcoords":[{"type":"parcoords","line":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolargl":[{"type":"scatterpolargl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"bar":[{"error_x":{"color":"#2a3f5f"},"error_y":{"color":"#2a3f5f"},"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"scattergeo":[{"type":"scattergeo","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolar":[{"type":"scatterpolar","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"scattergl":[{"type":"scattergl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatter3d":[{"type":"scatter3d","line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermap":[{"type":"scattermap","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermapbox":[{"type":"scattermapbox","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterternary":[{"type":"scatterternary","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattercarpet":[{"type":"scattercarpet","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"carpet":[{"aaxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"baxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"type":"carpet"}],"table":[{"cells":{"fill":{"color":"#EBF0F8"},"line":{"color":"white"}},"header":{"fill":{"color":"#C8D4E3"},"line":{"color":"white"}},"type":"table"}],"barpolar":[{"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"pie":[{"automargin":true,"type":"pie"}]},"layout":{"autotypenumbers":"strict","colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#2a3f5f"},"hovermode":"closest","hoverlabel":{"align":"left"},"paper_bgcolor":"white","plot_bgcolor":"#E5ECF6","polar":{"bgcolor":"#E5ECF6","angularaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"radialaxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"ternary":{"bgcolor":"#E5ECF6","aaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"baxis":{"gridcolor":"white","linecolor":"white","ticks":""},"caxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]]},"xaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"yaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"scene":{"xaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"yaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"zaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2}},"shapedefaults":{"line":{"color":"#2a3f5f"}},"annotationdefaults":{"arrowcolor":"#2a3f5f","arrowhead":0,"arrowwidth":1},"geo":{"bgcolor":"white","landcolor":"#E5ECF6","subunitcolor":"white","showland":true,"showlakes":true,"lakecolor":"white"},"title":{"x":0.05},"mapbox":{"style":"light"},"margin":{"b":0,"l":0,"r":0,"t":30}}},"xaxis":{"anchor":"y","domain":[0.0,0.45],"title":{"font":{"size":14},"text":"x (Drawn red ball)"}},"yaxis":{"anchor":"x","domain":[0.0,1.0],"title":{"font":{"size":14},"text":"P(X = x)"}},"xaxis2":{"anchor":"y2","domain":[0.55,1.0],"title":{"font":{"size":14},"text":"x (Drawn red ball)"}},"yaxis2":{"anchor":"x2","domain":[0.0,1.0]},"annotations":[{"font":{"size":16},"showarrow":false,"text":"K=15","x":0.225,"xanchor":"center","xref":"paper","y":1.0,"yanchor":"bottom","yref":"paper"},{"font":{"size":16},"showarrow":false,"text":"K=31","x":0.775,"xanchor":"center","xref":"paper","y":1.0,"yanchor":"bottom","yref":"paper"}],"title":{"font":{"size":18},"text":"Hypergeometric Distribution PMF (N=50, R=20)","y":0.98},"margin":{"t":60},"font":{"size":14},"showlegend":false},                        {"responsive": true}                    ).then(function(){
+                            
+var gd = document.getElementById('71c2bbf2-7dc8-4173-8611-5005f614ec8d');
+var x = new MutationObserver(function (mutations, observer) {{
+        var display = window.getComputedStyle(gd).display;
+        if (!display || display === 'none') {{
+            console.log([gd, 'removed!']);
+            Plotly.purge(gd);
+            observer.disconnect();
+        }}
+}});
+
+// Listen for the removal of the full notebook cells
+var notebookContainer = gd.closest('#notebook-container');
+if (notebookContainer) {{
+    x.observe(notebookContainer, {childList: true});
+}}
+
+// Listen for the clearing of the current output cell
+var outputEl = gd.closest('.output');
+if (outputEl) {{
+    x.observe(outputEl, {childList: true});
+}}
+
+                        })                };            </script>        </div>
+</div>
+</div>
+</div>
+<hr>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<ul>
+<li><a href="https://docs.scipy.org/doc/scipy/tutorial/stats/hypothesis_fisher_exact.html#hypothesis-fisher-exact">scipy &gt; Fisher’s exact test</a></li>
+</ul>
+
+
+</section>
+
+
+<div id="quarto-appendix" class="default"><section id="footnotes" class="footnotes footnotes-end-of-document" role="doc-endnotes"><h2 class="anchored quarto-appendix-heading">Footnotes</h2>
+
+<ol>
+<li id="fn1"><p>Example 10.4.1 on p.412 in <em>Statistics for the Life Sciences</em> (5ed) by Samuels, Witmer, and Schaffner. Original study by O’Rourke et al.&nbsp;<em>Pediatrics</em>. 1989 Dec;84(6):957-63. PMID: 2685740. See also Ware, J. H. (1989). “Investigating Therapies of Potentially Great Benefit: ECMO”. <em>Statistical Science</em>, 4(4), 298–306. http://www.jstor.org/stable/2245829<a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+</ol>
+</section></div></main> <!-- /main -->
+<script>
+    document.querySelectorAll('.custom_problem .theorem-title').forEach((title) => {
+        let modName = title.innerHTML;
+        modName = modName.replace("Exercise", "Problem");
+        modName = modName.replace("Proposition", "Property");
+        modName = modName.replace("Example", "<strong>&#9654;</strong>&nbsp; Example");
+        title.innerHTML = modName;
+    });
+ </script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/ryonakagami\.github\.io\/regmonkey-datascience-blog");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<script src="https://utteranc.es/client.js" repo="RyoNakagami/regmonkey-datascience-blog" issue-term="title" theme="github-light" crossorigin="anonymous" async="">
+</script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+      &nbsp;
+    </div>   
+    <div class="nav-footer-center">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+ © Copyright RyoNak
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="../../LICENSE">
+<p>License</p>
+</a>
+  </li>  
+</ul>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></div>
+    <div class="nav-footer-right">
+      &nbsp;
+    </div>
+  </div>
+</footer>
+    <script type="text/javascript">
+    (function(d) {
+      d.querySelectorAll(".pseudocode-container").forEach(function(el) {
+        let pseudocodeOptions = {
+          indentSize: el.dataset.indentSize || "1.2em",
+          commentDelimiter: el.dataset.commentDelimiter || "//",
+          lineNumber: el.dataset.lineNumber === "true" ? true : false,
+          lineNumberPunc: el.dataset.lineNumberPunc || ":",
+          noEnd: el.dataset.noEnd === "true" ? true : false,
+          titlePrefix: el.dataset.captionPrefix || "Algorithm"
+        };
+        pseudocode.renderElement(el.querySelector(".pseudocode"), pseudocodeOptions);
+      });
+    })(document);
+    (function(d) {
+      d.querySelectorAll(".pseudocode-container").forEach(function(el) {
+        let captionSpan = el.querySelector(".ps-root > .ps-algorithm > .ps-line > .ps-keyword")
+        if (captionSpan !== null) {
+          let captionPrefix = el.dataset.captionPrefix + " ";
+          let captionNumber = "";
+          if (el.dataset.pseudocodeNumber) {
+            captionNumber = el.dataset.pseudocodeNumber + " ";
+            if (el.dataset.chapterLevel) {
+              captionNumber = el.dataset.chapterLevel + "." + captionNumber;
+            }
+          }
+          captionSpan.innerHTML = captionPrefix + captionNumber;
+        }
+      });
+    })(document);
+    </script>
+  
+
+
+
+
+</body></html>
