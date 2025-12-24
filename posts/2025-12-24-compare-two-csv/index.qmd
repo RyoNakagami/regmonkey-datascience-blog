@@ -1,0 +1,313 @@
+---
+title: "2つcsvファイルのカラムのsumをmarkdown形式で出力する"
+author: "Ryo Nakagami"
+date: "2025-12-24"
+date-modified: "2025-12-24"
+categories: [python, 前処理]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## 概要
+
+`verify_diff.py` は，2つのCSVファイルを比較して差分を表示するPythonスクリプトです．
+グループ別に集計したデータ同士を比較し，マークダウンテーブルまたはCSV形式で出力します．
+
+## 使い方
+
+```bash
+# 基本的な使い方（マークダウン出力）
+uv run python verify_diff.py file1.csv file2.csv
+
+# CSV出力
+uv run python verify_diff.py file1.csv file2.csv -o output.csv
+
+# カラム指定
+uv run python verify_diff.py file1.csv file2.csv \
+  --group-col1 group_col1 \
+  --value-col1 value_col1 \
+  --group-col2 group_col2 \
+  --value-col2 value_col2
+```
+
+## コマンドライン引数
+
+:::: {.no-border-top-table}
+
+| 引数 | 説明 | デフォルト値 |
+|------|------|-------------|
+| `file1` | 1つ目のCSVファイル（詳細データ） | 必須 |
+| `file2` | 2つ目のCSVファイル（集計データ） | 必須 |
+| `--group-col1` | file1のグループカラム名 | `group_col1` |
+| `--value-col1` | file1の値カラム名 | `value_col1` |
+| `--group-col2` | file2のグループカラム名 | 1列目 |
+| `--value-col2` | file2の値カラム名 | 2列目 |
+| `--output`, `-o` | 出力ファイルパス（CSV形式） | なし（マークダウン出力） |
+
+::::
+
+## コード解説
+
+### 1. インポート
+
+```python
+import argparse
+import csv
+from collections import defaultdict
+```
+
+- `argparse`: コマンドライン引数処理
+- `csv`: CSV読み書き
+- `defaultdict`: 存在しないキーにデフォルト値を返す辞書
+
+### 2. マークダウンテーブル生成
+
+```python
+def to_markdown_table(headers, rows):
+    lines = []
+    lines.append("| " + " | ".join(str(h) for h in headers) + " |")
+    lines.append("| " + " | ".join("---" for _ in headers) + " |")
+    for row in rows:
+        lines.append("| " + " | ".join(str(v) for v in row) + " |")
+    return "\n".join(lines)
+```
+
+**出力例:**
+```
+| グループ | file1 | file2 | 差分 |
+| --- | --- | --- | --- |
+| ウエルシア薬局 | 2497 | 2487 | -10 |
+```
+
+### 3. CSV読み込み
+
+```python
+def read_csv(filepath):
+    with open(filepath, encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        return list(reader), reader.fieldnames
+```
+
+- `csv.DictReader`: 各行を辞書として読み込み（キー=ヘッダー名）
+- 戻り値: (行リスト, カラム名リスト)
+
+### 4. file1の読み込みと集計
+
+```python
+rows1, cols1 = read_csv(args.file1)
+file1_sum = defaultdict(int)
+for row in rows1:
+    group = row[args.group_col1]
+    value = int(float(row[args.value_col1]))
+    file1_sum[group] += value
+```
+
+**処理:**
+
+1. CSVを読み込み
+2. `defaultdict(int)`: 未登録キーは0を返す
+3. グループごとに値を合計
+
+**なぜ `int(float(...))`?**
+
+- CSVの値が `"123.0"` の場合、直接 `int()` はエラー
+- `float()` で一度変換してから `int()` に
+
+### 5. file2の読み込み
+
+```python
+rows2, cols2 = read_csv(args.file2)
+group_col2 = args.group_col2 if args.group_col2 else cols2[0]
+value_col2 = args.value_col2 if args.value_col2 else cols2[1]
+file2_data = {}
+for row in rows2:
+    group = row[group_col2]
+    value = int(float(row[value_col2]))
+    file2_data[group] = value
+```
+
+- カラム未指定時は1列目・2列目を使用
+- file2は集計済みデータなので単純な辞書に格納
+
+### 6. マージと差分計算
+
+```python
+all_groups = set(file1_sum.keys()) | set(file2_data.keys())
+
+merged = []
+for group in all_groups:
+    v1 = file1_sum.get(group)
+    v2 = file2_data.get(group)
+    diff = (v2 or 0) - (v1 or 0)
+    merged.append((group, v1, v2, diff))
+```
+
+**処理:**
+
+1. 両ファイルの全グループを集合演算で取得
+2. 各グループの値を取得（存在しなければ `None`）
+3. 差分計算: `None` は 0 として扱う
+
+### 7. ソート
+
+```python
+merged.sort(key=lambda x: (x[1] is None, -(x[1] or 0)))
+```
+
+**ソートキー:**
+
+- `x[1] is None`: `True`=1, `False`=0 → Noneは後ろへ
+- `-(x[1] or 0)`: 値の降順
+
+### 8. データ分類
+
+```python
+both = [(g, v1, v2, d) for g, v1, v2, d in merged
+        if v1 is not None and v2 is not None]
+only_file1 = [(g, v1) for g, v1, v2, d in merged if v2 is None]
+only_file2 = [(g, v2) for g, v1, v2, d in merged if v1 is None]
+diff_only = [(g, v1, v2, d) for g, v1, v2, d in both if d != 0]
+```
+
+| 変数 | 内容 |
+|------|------|
+| `both` | 両方に存在 |
+| `only_file1` | file1のみに存在 |
+| `only_file2` | file2のみに存在 |
+| `diff_only` | 差分があるもの |
+
+### 9. 出力
+
+```python
+if args.output:
+    # CSV出力
+    with open(args.output, "w", encoding="utf-8", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["グループ", "file1", "file2", "差分"])
+        for g, v1, v2, d in merged:
+            writer.writerow([g, v1 or "", v2 or "", d])
+else:
+    # マークダウン出力
+    print("## 両方のファイルに存在するグループ\n")
+    print(to_markdown_table(["グループ", "file1", "file2", "差分"], both))
+    # ...
+```
+
+## 使用している標準ライブラリの機能
+
+| 機能 | 説明 |
+|------|------|
+| `csv.DictReader` | CSVをヘッダー付き辞書として読み込み |
+| `csv.writer` | CSVファイルへの書き込み |
+| `defaultdict(int)` | 未登録キーに0を返す辞書 |
+| `set()` の `\|` | 和集合（両方のキーを取得） |
+| `dict.get()` | キーがなければNoneを返す |
+
+
+## コード
+
+
+```python
+import argparse
+import csv
+from collections import defaultdict
+
+
+def to_markdown_table(headers, rows):
+    lines = []
+    lines.append("| " + " | ".join(str(h) for h in headers) + " |")
+    lines.append("| " + " | ".join("---" for _ in headers) + " |")
+    for row in rows:
+        lines.append("| " + " | ".join(str(v) for v in row) + " |")
+    return "\n".join(lines)
+
+
+def read_csv(filepath):
+    with open(filepath, encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        return list(reader), reader.fieldnames
+
+
+def main():
+    parser = argparse.ArgumentParser(description="2つのCSVファイルを比較して差分を表示します")
+    parser.add_argument("file1", help="1つ目のCSVファイル（詳細データ）")
+    parser.add_argument("file2", help="2つ目のCSVファイル（集計データ）")
+    parser.add_argument("--group-col1", default="group_col1", help="file1のグループカラム名")
+    parser.add_argument("--value-col1", default="value_col1", help="file1の値カラム名")
+    parser.add_argument("--group-col2", default=None, help="file2のグループカラム名 (default: 1列目)")
+    parser.add_argument("--value-col2", default=None, help="file2の値カラム名 (default: 2列目)")
+    parser.add_argument("--output", "-o", default=None, help="出力ファイルパス（CSV形式）")
+    args = parser.parse_args()
+
+    # file1 を読み込み・グループ別に集計
+    rows1, cols1 = read_csv(args.file1)
+    file1_sum = defaultdict(int)
+    for row in rows1:
+        group = row[args.group_col1]
+        value = int(float(row[args.value_col1]))
+        file1_sum[group] += value
+
+    # file2 を読み込み
+    rows2, cols2 = read_csv(args.file2)
+    group_col2 = args.group_col2 if args.group_col2 else cols2[0]
+    value_col2 = args.value_col2 if args.value_col2 else cols2[1]
+    file2_data = {}
+    for row in rows2:
+        group = row[group_col2]
+        value = int(float(row[value_col2]))
+        file2_data[group] = value
+
+    # 全グループを取得
+    all_groups = set(file1_sum.keys()) | set(file2_data.keys())
+
+    # マージして差分計算
+    merged = []
+    for group in all_groups:
+        v1 = file1_sum.get(group)
+        v2 = file2_data.get(group)
+        diff = (v2 or 0) - (v1 or 0)
+        merged.append((group, v1, v2, diff))
+
+    # file1の値で降順ソート（Noneは末尾）
+    merged.sort(key=lambda x: (x[1] is None, -(x[1] or 0)))
+
+    # 分類
+    both = [(g, v1, v2, d) for g, v1, v2, d in merged if v1 is not None and v2 is not None]
+    only_file1 = [(g, v1) for g, v1, v2, d in merged if v2 is None]
+    only_file2 = [(g, v2) for g, v1, v2, d in merged if v1 is None]
+    diff_only = [(g, v1, v2, d) for g, v1, v2, d in both if d != 0]
+
+    # CSV出力
+    if args.output:
+        with open(args.output, "w", encoding="utf-8", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["グループ", "file1", "file2", "差分"])
+            for g, v1, v2, d in merged:
+                writer.writerow([g, v1 or "", v2 or "", d])
+        print(f"CSVファイルを出力しました: {args.output}")
+    else:
+        # マークダウンテーブル生成
+        print("## 両方のファイルに存在するグループ\n")
+        print(to_markdown_table(["グループ", "file1", "file2", "差分"], both))
+
+        if only_file1:
+            print(f"\n## {args.file1}にのみ存在するグループ\n")
+            print(to_markdown_table(["グループ", "file1"], only_file1))
+
+        if only_file2:
+            print(f"\n## {args.file2}にのみ存在するグループ\n")
+            print(to_markdown_table(["グループ", "file2"], only_file2))
+
+        if diff_only:
+            print("\n## 差分があるグループのみ\n")
+            print(to_markdown_table(["グループ", "file1", "file2", "差分"], diff_only))
+
+
+if __name__ == "__main__":
+    main()
+
+```
