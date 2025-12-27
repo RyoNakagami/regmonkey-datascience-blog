@@ -1,0 +1,573 @@
+---
+title: "parquet-toolsコマンド"
+author: "Ryo Nakagami"
+date: "2025-12-27"
+date-modified: "2025-12-27"
+categories: [前処理, parquet]
+listing_category: datascience-preprocess-series
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+::: {.callout-note}
+## 実行例について
+
+- コマンド実行の引数で用いているファイルは[こちらのGoogle Drive](https://drive.google.com/drive/folders/1WiDWRdg_of25CIiVE-kAMS_ykgjwa_gt?usp=sharing)に格納しています
+- コマンドを試す場合は事前にダウンロードしてください
+
+:::
+
+## parquet-toolsとは？
+
+- [parquet-tools](https://github.com/RyoNakagami/parquet-tools)は，Parquetファイルを操作するためのコマンドラインツール
+- Pythonで実装
+
+[主な機能]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| コマンド | 機能 |
+|---|---|
+| `head` | Parquetファイルの先頭N行を表示 |
+| `info` | メタデータとスキーマ情報を表示 |
+| `merge` | 複数のParquetファイルを1つに統合 |
+| `csv2parquet` | CSVファイルをParquet形式に変換 |
+| `query` | DuckDBを使用してSQLクエリを実行 |
+
+: parquet-toolsのコマンド一覧 {tbl-colwidths="[25, 75]"}
+
+::::
+
+[インストール]{.mini-section}
+
+`uv`を使用してインストールすることを想定しています
+
+```bash
+uv tool install https://github.com/RyoNakagami/parquet-tools.git
+```
+
+または、`uvx`を使って直接実行することも可能です．
+
+```bash
+uvx --from git+https://github.com/RyoNakagami/parquet-tools.git parquet-tools <command>
+```
+
+## headコマンド
+
+::: {#def- .custom_problem .blog-custom-border}
+[`head` コマンド]{.def-title}
+
+- Parquetファイルの先頭N行を表示
+- デフォルトでは10行を表示
+- スペース区切り
+- 基本的には簡易的に値を確認するデバッグ用のコマンド
+
+:::
+
+```bash
+# 先頭10行を表示（デフォルト）
+parquet-tools head <parquet-file>
+
+# 先頭5行を表示
+parquet-tools head -n 5 <parquet-file>
+
+# CSVファイルとして出力
+parquet-tools head -n 100 <parquet-file> -o output.csv
+```
+
+[Options]{.mini-section}
+
+| オプション | 説明 |
+|---|---|
+| `-n`, `--rows` | 表示する行数を指定（デフォルト: 10） |
+| `-o`, `--output` | 出力先のCSVファイルパス |
+
+## infoコマンド
+
+::: {#def- .custom_problem .blog-custom-border}
+[`info` コマンド]{.def-title}
+
+- Parquetファイルのメタデータとスキーマ情報を表示
+- yaml, json形式での出力が可能
+
+:::
+
+```bash
+# 基本的な使用方法
+parquet-tools info <parquet-file>
+
+# YAML形式で出力
+parquet-tools info --yaml <parquet-file>
+
+# JSON形式で出力
+parquet-tools info --json <parquet-file>
+```
+
+[options]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| オプション | 説明 |
+|---|---|
+| `--yaml` | YAML形式で出力 |
+| `--json` | JSON形式で出力 |
+
+::::
+
+::: {#exm- .custom_problem }
+### 全国医療施設情報のスキーマ確認
+<br>
+
+以下のコマンドから次のような情報が読み取れます
+
+- Rows = 7,640
+- Columns = 65
+- Row Groups = 1
+  - Parquet ファイルは 1つの Row Group（行グループ） で構成されている
+  - Parquet の物理ストレージ単位(並列処理の単位)
+-  Compression = SNAPPY
+- Apache Arrow C++ v22.0.0 を使って Parquet ファイルが作成
+
+```bash
+$ parquet-tools info 01-1_hospital_facility_info_20251201.parquet 
+=== File Info ===
+Path: 01-1_hospital_facility_info_20251201.parquet
+Rows: 7,640
+Columns: 65
+Row Groups: 1
+Compression: SNAPPY
+Created By: parquet-cpp-arrow version 22.0.0
+
+=== Schema ===
+  ID: string
+  正式名称: string
+  正式名称（フリガナ）: string
+  略称: string
+  略称（フリガナ）: string
+  英語表記（ローマ字表記）: string
+  機関区分: string
+  都道府県コード: string
+  市区町村コード: string
+  所在地: string
+  所在地座標（緯度）: double
+  所在地座標（経度）: double
+  案内用ホームページアドレス: string
+  毎週決まった曜日に休診（月）: bool
+  毎週決まった曜日に休診（火）: bool
+  毎週決まった曜日に休診（水）: bool
+  毎週決まった曜日に休診（木）: bool
+  毎週決まった曜日に休診（金）: bool
+  毎週決まった曜日に休診（土）: bool
+  毎週決まった曜日に休診（日）: bool
+  決まった週に休診（定期週）第1週（月）: bool
+  決まった週に休診（定期週）第1週（火）: bool
+  決まった週に休診（定期週）第1週（水）: bool
+  決まった週に休診（定期週）第1週（木）: bool
+  決まった週に休診（定期週）第1週（金）: bool
+  決まった週に休診（定期週）第1週（土）: bool
+  決まった週に休診（定期週）第1週（日）: bool
+  決まった週に休診（定期週）第2週（月）: bool
+  決まった週に休診（定期週）第2週（火）: bool
+  決まった週に休診（定期週）第2週（水）: bool
+  決まった週に休診（定期週）第2週（木）: bool
+  決まった週に休診（定期週）第2週（金）: bool
+  決まった週に休診（定期週）第2週（土）: bool
+  決まった週に休診（定期週）第2週（日）: bool
+  決まった週に休診（定期週）第3週（月）: bool
+  決まった週に休診（定期週）第3週（火）: bool
+  決まった週に休診（定期週）第3週（水）: bool
+  決まった週に休診（定期週）第3週（木）: bool
+  決まった週に休診（定期週）第3週（金）: bool
+  決まった週に休診（定期週）第3週（土）: bool
+  決まった週に休診（定期週）第3週（日）: bool
+  決まった週に休診（定期週）第4週（月）: bool
+  決まった週に休診（定期週）第4週（火）: bool
+  決まった週に休診（定期週）第4週（水）: bool
+  決まった週に休診（定期週）第4週（木）: bool
+  決まった週に休診（定期週）第4週（金）: bool
+  決まった週に休診（定期週）第4週（土）: bool
+  決まった週に休診（定期週）第4週（日）: bool
+  決まった週に休診（定期週）第5週（月）: bool
+  決まった週に休診（定期週）第5週（火）: bool
+  決まった週に休診（定期週）第5週（水）: bool
+  決まった週に休診（定期週）第5週（木）: bool
+  決まった週に休診（定期週）第5週（金）: bool
+  決まった週に休診（定期週）第5週（土）: bool
+  決まった週に休診（定期週）第5週（日）: bool
+  祝日に休診: bool
+  その他の休診日（gw、お盆等）: string
+  一般病床: int64
+  療養病床: int64
+  療養病床のうち医療保険適用: int64
+  療養病床のうち介護保険適用: int64
+  精神病床: int64
+  結核病床: int64
+  感染症病床: int64
+  一般病床: int64
+```
+
+:::
+---
+
+
+## csv2parquetコマンド
+
+::: {#def- .custom_problem .blog-custom-border}
+[`csv2parquet` コマンド]{.def-title}
+
+- CSVファイルをParquet形式に変換
+- スキーマファイルを指定することで，列の型を明示的に定義可能
+
+:::
+
+```bash
+# 基本的な使用方法（型は自動推論）
+parquet-tools csv2parquet input.csv -o output.parquet
+
+# スキーマファイルを指定
+parquet-tools csv2parquet input.csv -o output.parquet --schema schema.yaml
+
+# 圧縮コーデックを指定
+parquet-tools csv2parquet input.csv -o output.parquet --compression zstd
+```
+
+[Options]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| オプション | 説明 |
+|---|---|
+| `-o`, `--output` | 出力ファイルパス（必須） |
+| `--schema` | スキーマファイルパス（YAML または JSON） |
+| `--compression` | 圧縮コーデック（snappy, zstd, gzip, lz4, none） |
+
+::::
+
+
+[スキーマファイルの例（YAML）]{.mini-section}
+
+```yaml
+fields:
+  - name: id
+    type: int64
+  - name: name
+    type: string
+  - name: price
+    type: float64
+  - name: is_available
+    type: boolean
+  - name: created_at
+    type: timestamp
+  - name: birth_date
+    type: date
+```
+
+[対応する型]{.mini-section}
+
+| 型 | 説明 |
+|---|---|
+| `string` | 文字列型 |
+| `int64` | 64ビット整数型 |
+| `float64` | 64ビット浮動小数点型 |
+| `boolean` | 真偽値型 |
+| `timestamp` | タイムスタンプ型 |
+| `date` | 日付型 |
+
+空文字列，`NA`、`null`などは自動的にnull値に変換されます
+
+
+## queryコマンド
+
+::: {#def- .custom_problem .blog-custom-border}
+[`query` コマンド]{.def-title}
+
+- DuckDBを使用して，ParquetファイルにSQLクエリを実行するコマンド
+- Parquetファイルは `data` というテーブル名で参照
+- ` --sql-file` をつかうことでSQLファイルを実行させることができる
+
+:::
+
+```bash
+# 基本的なクエリ
+parquet-tools query "SELECT * FROM data LIMIT 10" data.parquet
+
+# 条件付きクエリ
+parquet-tools query "SELECT id, name FROM data WHERE value > 100" data.parquet
+
+# 集計クエリ
+parquet-tools query "SELECT category, COUNT(*) as cnt FROM data GROUP BY category" data.parquet
+
+# 結果をCSVに出力
+parquet-tools query "SELECT * FROM data" data.parquet -o result.csv
+```
+
+[Options]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| オプション | 説明 |
+|---|---|
+| `-o`, `--output` | 結果をCSVファイルに出力 |
+| `--sql-file` | 実行するSQLをファイルから読み込む |
+
+::::
+
+::: {#exm- .custom_problem }
+### 全国医療施設情報のデータ確認
+<br>
+
+都道府県ごとに
+
+- 医療施設の数（distinct，クリニックは除く）
+- 病床数の合計
+- 1施設あたり平均病床数
+- 病床数の母標準偏差（施設間のばらつき）
+
+を計算して，都道府県コード順に並べてみたいと思います．
+
+```bash
+$ parquet-tools query 01-1_hospital_facility_info_20251201.parquet "
+SELECT
+  CAST(都道府県コード AS INT) AS prefecture_code,
+  COUNT(DISTINCT ID) AS facility_count,
+  SUM(一般病床) AS total_beds,
+  AVG(一般病床) AS avg_beds_per_facility,
+  STDDEV_POP(一般病床) AS std_beds_per_facility
+FROM data
+GROUP BY 都道府県コード
+
+UNION ALL
+
+-- 全国
+SELECT
+  0 AS prefecture_code,          -- 全国を 0 として表現
+  COUNT(DISTINCT ID) AS facility_count,
+  SUM(一般病床) AS total_beds,
+  AVG(一般病床) AS avg_beds_per_facility,
+  STDDEV_POP(一般病床) AS std_beds_per_facility
+FROM data
+
+ORDER BY prefecture_code
+"
+
+    prefecture_code  facility_count  total_beds  avg_beds_per_facility  std_beds_per_facility
+0                 0            7640    842371.0             132.115903             163.389970
+1                 1             436     41523.0             129.759375             134.619283
+2                 2              83      8942.0             154.172414             151.051731
+3                 3              84      9454.0             113.903614             147.797697
+4                 4             134     14829.0             154.468750             175.811568
+5                 5              63      7699.0             202.605263             158.547941
+6                 6              66      7955.0             122.384615             166.080026
+7                 7             119     14408.0             169.505882             185.842857
+8                 8             164     17379.0             126.854015             148.012257
+9                 9              59      7354.0             222.848485             276.448924
+10               10             127     14097.0             121.525862             128.509792
+11               11             327     37466.0             153.549180             168.478952
+12               12             269     35469.0             177.345000             171.913833
+13               13             592     80034.0             145.781421             197.228695
+14               14             310     45187.0             195.614719             184.881976
+15               15             114     14961.0             170.011364             155.021809
+16               16             102      7759.0             146.396226             158.023564
+17               17              88      9442.0             162.793103             174.859624
+18               18              67      6117.0              91.298507             132.949437
+19               19              60      6216.0             135.130435             129.769965
+20               20             121     14679.0             149.785714             141.969834
+21               21              94     12628.0             134.340426             169.380382
+22               22             167     20819.0             129.310559             183.584301
+23               23             303     39329.0             189.081731             220.297260
+24               24              91     10898.0             167.661538             157.961269
+25               25              57      8946.0             208.046512             173.366926
+26               26             127     19116.0             178.654206             184.586180
+27               27             482     63012.0             130.730290             167.346071
+28               28             332     39045.0             151.337209             154.044638
+29               29              72      9856.0             158.967742             159.517717
+30               30              80      8110.0             128.730159             137.651182
+31               31              39      4401.0             169.269231             156.062748
+32               32              46      4969.0             150.575758             140.275493
+33               33             155     17420.0             113.116883             181.092319
+34               34             224     20617.0             128.856250             141.973318
+35               35             133     10274.0             133.428571             145.708250
+36               36             103      6217.0              60.950980             107.673014
+37               37              86      8477.0             136.725806             149.489148
+38               38             131     11284.0             120.042553             138.629916
+39               39             118      7615.0             101.533333             115.125709
+40               40             444     43096.0              97.063063             149.968137
+41               41              93      6121.0              66.532609             102.199767
+42               42             143     11296.0              80.113475             124.087712
+43               43             199     16210.0              81.457286             120.348017
+44               44             147     11663.0              80.434483              98.114628
+45               45             118      8452.0              73.495652              99.268750
+46               46             207     13721.0              66.931707             106.618743
+47               47              64      7809.0             177.477273             158.422692
+
+```
+
+[結果の解釈]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| 観点 | 結果(数値) |
+|---|---|
+| 施設数が多い都道府県 | 東京（592），大阪（482），福岡（444），北海道（436） |
+| 施設数が少ない都道府県 | 鳥取（39），島根（46），滋賀（57） |
+| 平均一般病床数が多い都道府県 | 栃木（222.8），滋賀（208.0），秋田（202.6） |
+| 平均一般病床数が少ない都道府県 | 徳島（61.0），佐賀（66.5），鹿児島（66.9） |
+| 標準偏差が大きい都道府県 | 栃木（276.4），愛知（220.3），東京（197.2） |
+
+: {tbl-colwidths="[30,70]"}
+
+::::
+
+- 施設数は人口規模に概ね比例しており，東京・大阪・福岡などの大都市圏で多い
+- 平均一般病床数は地域差が大きく，栃木県が最も高い（222.8床/施設）
+- 栃木県（9）は標準偏差が276.4と突出して大きく，施設間格差が大きい
+  - 大規模な急性期病院と中小病院が混在している可能性
+- 九州地方（福岡(40)，佐賀(41)，長崎(42)，熊本(43)，大分(44)，宮崎(45)，鹿児島(46)）は平均一般病床数が低い傾向
+- 北海道（1）は施設数436で全国4位だが，平均一般病床数は129.8床/施設と全国平均（132.1床）を下回る
+- 沖縄（47）は平均一般病床数177.5床/施設と比較的高い
+  - 離島が多く本島の基幹病院に急性期医療が集約されている可能性
+
+:::
+---
+
+::: {#exm- .custom_problem }
+### 都道府県別中心座標からの平均距離及び分散
+<br>
+
+- 各都道府県内の医療施設が地理的にどの程度分散しているかを確認するため，都道府県内の施設座標の重心（centroid）からの平均距離と標準偏差を計算
+- 座標データには異常値が含まれている可能性があるため，日本の緯度経度範囲（緯度: 24〜46度，経度: 122〜154度）でフィルタリング
+  - そのため，施設数について上記の結果と比べ変動あり
+
+```bash
+$ parquet-tools query 01-1_hospital_facility_info_20251201.parquet "
+WITH base AS (
+  SELECT
+    CAST(都道府県コード AS INT) AS prefecture_code,
+    ID,
+    "所在地座標（緯度）" AS lat,
+    "所在地座標（経度）" AS lon
+  FROM data
+  WHERE "所在地座標（緯度）" BETWEEN 24 AND 46   -- 日本の緯度範囲
+    AND "所在地座標（経度）" BETWEEN 122 AND 154 -- 日本の経度範囲
+),
+
+centroid AS (
+  SELECT
+    prefecture_code,
+    AVG(lat) AS mean_lat,
+    AVG(lon) AS mean_lon
+  FROM base
+  GROUP BY prefecture_code
+),
+
+distance_calc AS (
+  SELECT
+    b.prefecture_code,
+    -- Haversine distance (km)
+    6371.0 * 2 * ASIN(
+      SQRT(
+        POWER(SIN(RADIANS(b.lat - c.mean_lat) / 2), 2)
+        + COS(RADIANS(c.mean_lat))
+        * COS(RADIANS(b.lat))
+        * POWER(SIN(RADIANS(b.lon - c.mean_lon) / 2), 2)
+      )
+    ) AS distance_km
+  FROM base b
+  JOIN centroid c
+    ON b.prefecture_code = c.prefecture_code
+)
+
+SELECT
+  prefecture_code,
+  COUNT(1) AS facility_count,
+  ROUND(AVG(distance_km), 2) AS avg_distance_km,
+  ROUND(STDDEV_POP(distance_km), 2) AS std_distance_km
+FROM distance_calc
+GROUP BY prefecture_code
+ORDER BY prefecture_code;"
+
+    prefecture_code  facility_count  avg_distance_km  std_distance_km
+0                 1             290            93.77            60.94
+1                 2              83            38.81            13.98
+2                 3              80            40.96            22.72
+3                 4             134            23.42            16.30
+4                 5              63            37.75            20.52
+5                 6              64            34.52            17.36
+6                 7             119            37.82            19.74
+7                 8             162            31.90            15.44
+8                 9              56            20.43            14.87
+9                10             126            18.65            12.69
+10               11             326            19.11             9.78
+11               12             268            24.78            16.60
+12               13             591            15.57            13.64
+13               14             307            15.80             8.60
+14               15             100            42.09            25.37
+15               16             102            15.35             9.29
+16               17              88            23.06            22.74
+17               18              67            19.22            16.72
+18               19              59            13.29            10.62
+19               20             120            36.25            20.10
+20               21              93            25.78            19.02
+21               22             167            43.71            21.01
+22               23             301            21.03            13.13
+23               24              91            27.51            20.31
+24               25              57            17.71             8.90
+25               26             127            18.87            18.05
+26               27             482            13.63             8.94
+27               28             313            27.50            16.74
+28               29              72            10.69             4.60
+29               30              80            27.67            18.25
+30               31              31            32.39            13.85
+31               32              31            48.39            30.18
+32               33             153            22.29            13.41
+33               34             224            34.46            14.96
+34               35             133            35.52            18.83
+35               36             103            17.86            13.18
+36               37              86            16.33             8.85
+37               38             131            32.28            22.05
+38               39             118            26.81            23.16
+39               40             444            27.91            13.92
+40               41              90            19.54             8.50
+41               42             142            34.57            26.55
+42               43             199            25.12            18.66
+43               44             147            24.79            16.57
+44               45             117            34.82            20.59
+45               46             204            51.76            81.11
+46               47              34            25.00            49.11
+```
+
+[結果の解釈]{.mini-section}
+
+座標フィルタリング後は，各都道府県の地理的特性を反映した妥当な値が得られます．
+
+:::: {.no-border-top-table}
+
+| 観点 | 都道府県（prefecture_code） | 平均距離 |
+|---|---|---|
+| 施設が分散（広域） | 北海道（1），鹿児島（46），島根（32），静岡（22），新潟（15） | 40〜94km |
+| 施設が集中（コンパクト） | 奈良（29），大阪（27），山梨（19），東京（13），富山（16） | 10〜16km |
+
+: {tbl-colwidths="[30,40,30]"}
+
+::::
+
+- 大阪府(27)は府域が狭く施設が密集しているため，平均距離が小さいと思われる
+- 北海道(1)は広大な面積に施設が分散しているため，平均距離が大きいという仮設と整合的
+- 離島を持つ都道府県（沖縄(47)，長崎(42)，鹿児島(46)など）は標準偏差が大きくなる傾向があると思われる
+
+
+:::
+---
+
+
+
+
+
+References
+----------
+
+- [GitHub > RyoNakagami/parquet-tools](https://github.com/RyoNakagami/parquet-tools)
+- [厚生労働省 > 医療情報ネットのオープンデータ](https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/kenkou_iryou/iryou/newpage_43373.html)
