@@ -475,7 +475,7 @@ window.Quarto = {
       <div>
       <div class="quarto-title-meta-heading">Modified</div>
       <div class="quarto-title-meta-contents">
-        <p class="date-modified">2025-09-20</p>
+        <p class="date-modified">2025-12-28</p>
       </div>
     </div>
       
@@ -502,7 +502,8 @@ window.Quarto = {
   </ul></li>
   <li><a href="#easyeffectsの導入" id="toc-easyeffectsの導入" class="nav-link" data-scroll-target="#easyeffectsの導入">🎚️ EasyEffectsの導入</a></li>
   <li><a href="#appendix-1-bluetooth" id="toc-appendix-1-bluetooth" class="nav-link" data-scroll-target="#appendix-1-bluetooth">Appendix 1: Bluetooth</a></li>
-  <li><a href="#appendix-2-0x10000u-のprefixとsuffix" id="toc-appendix-2-0x10000u-のprefixとsuffix" class="nav-link" data-scroll-target="#appendix-2-0x10000u-のprefixとsuffix">Appendix 2: <code>0x10000U</code> のprefixとsuffix</a></li>
+  <li><a href="#appendix-2-bluetoothトラブルシューティング" id="toc-appendix-2-bluetoothトラブルシューティング" class="nav-link" data-scroll-target="#appendix-2-bluetoothトラブルシューティング">Appendix 2: Bluetoothトラブルシューティング</a></li>
+  <li><a href="#appendix-3-0x10000u-のprefixとsuffix" id="toc-appendix-3-0x10000u-のprefixとsuffix" class="nav-link" data-scroll-target="#appendix-3-0x10000u-のprefixとsuffix">Appendix 3: <code>0x10000U</code> のprefixとsuffix</a></li>
   <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
@@ -1328,8 +1329,93 @@ timeline
 </div>
 <p>なお日本国内では「クラス1」といえど10mWが限界のため最大値の1/10が最大出力です．</p>
 </section>
-<section id="appendix-2-0x10000u-のprefixとsuffix" class="level2">
-<h2 class="anchored" data-anchor-id="appendix-2-0x10000u-のprefixとsuffix">Appendix 2: <code>0x10000U</code> のprefixとsuffix</h2>
+<section id="appendix-2-bluetoothトラブルシューティング" class="level2">
+<h2 class="anchored" data-anchor-id="appendix-2-bluetoothトラブルシューティング">Appendix 2: Bluetoothトラブルシューティング</h2>
+<p><span class="mini-section">PipeWire音声サーバの再起動</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb24"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="ex">systemctl</span> <span class="at">--user</span> restart pipewire pipewire-pulse</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<ul>
+<li>「接続済みなのに音が出ない」，「Sink が認識されない」などのトラブルが発生したらまずこれ</li>
+</ul>
+<p><span class="mini-section">Blueetooth deviceの再接続</span></p>
+<p>Blueetooth device接続設定を以下の手順で完全リセット</p>
+<ol type="1">
+<li>Disconnect</li>
+<li>Remove（ペアリング情報クリア）</li>
+<li>Pair（再ペアリング）</li>
+<li>Trust &amp; Connect（自動信頼・再接続）</li>
+</ol>
+<p>ここでいう <code>Trust</code> は指定したデバイスを 信頼済み（Trusted） とマークすることで，信頼済みデバイスは自動接続可能．一方， 信頼していない場合は，毎回ユーザー承認が必要になります．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb25"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/bin/bash</span></span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a><span class="co"># -----------------------------------------------------------------------------</span></span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Author: Ryo Nakagami</span></span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Revised: 2025-12-28</span></span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Script: bt_repair.sh</span></span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Description:</span></span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a><span class="co">#   Bluetooth device re-pairing script for troubleshooting connection issues.</span></span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a><span class="co">#   Completely removes and re-establishes the pairing with a Bluetooth device.</span></span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a><span class="co">#   Steps:</span></span>
+<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a><span class="co">#     1. Disconnect the specified Bluetooth device</span></span>
+<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a><span class="co">#     2. Remove the device (clear pairing information)</span></span>
+<span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a><span class="co">#     3. Re-pair with the device</span></span>
+<span id="cb25-14"><a href="#cb25-14" aria-hidden="true" tabindex="-1"></a><span class="co">#     4. Trust and reconnect to the device</span></span>
+<span id="cb25-15"><a href="#cb25-15" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb25-16"><a href="#cb25-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Arguments:</span></span>
+<span id="cb25-17"><a href="#cb25-17" aria-hidden="true" tabindex="-1"></a><span class="co">#   &lt;MAC_ADDRESS&gt;   Bluetooth device MAC address (e.g., 00:02:3C:8B:88:90)</span></span>
+<span id="cb25-18"><a href="#cb25-18" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb25-19"><a href="#cb25-19" aria-hidden="true" tabindex="-1"></a><span class="co"># Usage:</span></span>
+<span id="cb25-20"><a href="#cb25-20" aria-hidden="true" tabindex="-1"></a><span class="co">#   ./bt_repair.sh &lt;MAC_ADDRESS&gt;        # Re-pair with specified device</span></span>
+<span id="cb25-21"><a href="#cb25-21" aria-hidden="true" tabindex="-1"></a><span class="co">#   ./bt_repair.sh 00:02:3C:8B:88:90    # Example with actual MAC address</span></span>
+<span id="cb25-22"><a href="#cb25-22" aria-hidden="true" tabindex="-1"></a><span class="co">#   ./bt_repair.sh                      # Show usage and available devices</span></span>
+<span id="cb25-23"><a href="#cb25-23" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb25-24"><a href="#cb25-24" aria-hidden="true" tabindex="-1"></a><span class="co"># Notes:</span></span>
+<span id="cb25-25"><a href="#cb25-25" aria-hidden="true" tabindex="-1"></a><span class="co">#   - Requires bluetoothctl (part of bluez package) installed.</span></span>
+<span id="cb25-26"><a href="#cb25-26" aria-hidden="true" tabindex="-1"></a><span class="co">#   - Device must be in pairing mode before running this script.</span></span>
+<span id="cb25-27"><a href="#cb25-27" aria-hidden="true" tabindex="-1"></a><span class="co">#   - AutoEnable=true in /etc/bluetooth/main.conf is recommended.</span></span>
+<span id="cb25-28"><a href="#cb25-28" aria-hidden="true" tabindex="-1"></a><span class="co"># -----------------------------------------------------------------------------</span></span>
+<span id="cb25-29"><a href="#cb25-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-30"><a href="#cb25-30" aria-hidden="true" tabindex="-1"></a><span class="co"># 引数チェック</span></span>
+<span id="cb25-31"><a href="#cb25-31" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="bu">[</span> <span class="ot">-z</span> <span class="st">"</span><span class="va">$1</span><span class="st">"</span> <span class="bu">]</span><span class="kw">;</span> <span class="cf">then</span></span>
+<span id="cb25-32"><a href="#cb25-32" aria-hidden="true" tabindex="-1"></a>    <span class="bu">echo</span> <span class="st">"Usage: </span><span class="va">$0</span><span class="st"> &lt;MAC_ADDRESS&gt;"</span></span>
+<span id="cb25-33"><a href="#cb25-33" aria-hidden="true" tabindex="-1"></a>    <span class="bu">echo</span> <span class="st">"Example: </span><span class="va">$0</span><span class="st"> 00:02:3C:8B:88:90"</span></span>
+<span id="cb25-34"><a href="#cb25-34" aria-hidden="true" tabindex="-1"></a>    <span class="bu">echo</span> <span class="st">""</span></span>
+<span id="cb25-35"><a href="#cb25-35" aria-hidden="true" tabindex="-1"></a>    <span class="bu">echo</span> <span class="st">"Available devices:"</span></span>
+<span id="cb25-36"><a href="#cb25-36" aria-hidden="true" tabindex="-1"></a>    <span class="ex">bluetoothctl</span> devices</span>
+<span id="cb25-37"><a href="#cb25-37" aria-hidden="true" tabindex="-1"></a>    <span class="bu">exit</span> 1</span>
+<span id="cb25-38"><a href="#cb25-38" aria-hidden="true" tabindex="-1"></a><span class="cf">fi</span></span>
+<span id="cb25-39"><a href="#cb25-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-40"><a href="#cb25-40" aria-hidden="true" tabindex="-1"></a><span class="va">DEVICE_MAC</span><span class="op">=</span><span class="st">"</span><span class="va">$1</span><span class="st">"</span></span>
+<span id="cb25-41"><a href="#cb25-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-42"><a href="#cb25-42" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"=== Bluetooth Re-pairing ==="</span></span>
+<span id="cb25-43"><a href="#cb25-43" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"MAC Address: </span><span class="va">${DEVICE_MAC}</span><span class="st">"</span></span>
+<span id="cb25-44"><a href="#cb25-44" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">""</span></span>
+<span id="cb25-45"><a href="#cb25-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-46"><a href="#cb25-46" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. 接続解除</span></span>
+<span id="cb25-47"><a href="#cb25-47" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"[1/4] Disconnecting..."</span></span>
+<span id="cb25-48"><a href="#cb25-48" aria-hidden="true" tabindex="-1"></a><span class="ex">bluetoothctl</span> disconnect <span class="st">"</span><span class="va">${DEVICE_MAC}</span><span class="st">"</span> <span class="dv">2</span><span class="op">&gt;</span>/dev/null</span>
+<span id="cb25-49"><a href="#cb25-49" aria-hidden="true" tabindex="-1"></a><span class="fu">sleep</span> 1</span>
+<span id="cb25-50"><a href="#cb25-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-51"><a href="#cb25-51" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. デバイス削除（ペアリング情報をクリア）</span></span>
+<span id="cb25-52"><a href="#cb25-52" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"[2/4] Removing device..."</span></span>
+<span id="cb25-53"><a href="#cb25-53" aria-hidden="true" tabindex="-1"></a><span class="ex">bluetoothctl</span> remove <span class="st">"</span><span class="va">${DEVICE_MAC}</span><span class="st">"</span> <span class="dv">2</span><span class="op">&gt;</span>/dev/null</span>
+<span id="cb25-54"><a href="#cb25-54" aria-hidden="true" tabindex="-1"></a><span class="fu">sleep</span> 2</span>
+<span id="cb25-55"><a href="#cb25-55" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-56"><a href="#cb25-56" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. 再ペアリング</span></span>
+<span id="cb25-57"><a href="#cb25-57" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"[3/4] Pairing..."</span></span>
+<span id="cb25-58"><a href="#cb25-58" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"※ デバイスがペアリングモードになっていることを確認してください"</span></span>
+<span id="cb25-59"><a href="#cb25-59" aria-hidden="true" tabindex="-1"></a><span class="ex">bluetoothctl</span> pair <span class="st">"</span><span class="va">${DEVICE_MAC}</span><span class="st">"</span></span>
+<span id="cb25-60"><a href="#cb25-60" aria-hidden="true" tabindex="-1"></a><span class="fu">sleep</span> 2</span>
+<span id="cb25-61"><a href="#cb25-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-62"><a href="#cb25-62" aria-hidden="true" tabindex="-1"></a><span class="co"># 4. 接続</span></span>
+<span id="cb25-63"><a href="#cb25-63" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"[4/4] Connecting..."</span></span>
+<span id="cb25-64"><a href="#cb25-64" aria-hidden="true" tabindex="-1"></a><span class="ex">bluetoothctl</span> trust <span class="st">"</span><span class="va">${DEVICE_MAC}</span><span class="st">"</span></span>
+<span id="cb25-65"><a href="#cb25-65" aria-hidden="true" tabindex="-1"></a><span class="ex">bluetoothctl</span> connect <span class="st">"</span><span class="va">${DEVICE_MAC}</span><span class="st">"</span></span>
+<span id="cb25-66"><a href="#cb25-66" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-67"><a href="#cb25-67" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">""</span></span>
+<span id="cb25-68"><a href="#cb25-68" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"=== Complete ==="</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="appendix-3-0x10000u-のprefixとsuffix" class="level2">
+<h2 class="anchored" data-anchor-id="appendix-3-0x10000u-のprefixとsuffix">Appendix 3: <code>0x10000U</code> のprefixとsuffix</h2>
 <p><code>0x10000U</code> には <code>0x</code> というprefixと <code>U</code> というsuffixが付いてます．</p>
 <ul>
 <li><code>0x</code>: 続くdigitsが16進数(hexadecimal number)であることを表す</li>
