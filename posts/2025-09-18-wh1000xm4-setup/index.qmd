@@ -2,7 +2,7 @@
 title: "Sony WH-1000XM4をUbuntu 24.04 LTSで使う"
 author: "Ryo Nakagami"
 date: "2025-09-18"
-date-modified: "2025-09-20"
+date-modified: "2025-12-28"
 categories: [bluetooth]
 listing_category: general
 comments:
@@ -631,7 +631,103 @@ Bluetooth製品の規格で重要なのが「Version」「Class」「Profile」�
 なお日本国内では「クラス1」といえど10mWが限界のため最大値の1/10が最大出力です．
 
 
-## Appendix 2: `0x10000U` のprefixとsuffix
+## Appendix 2: Bluetoothトラブルシューティング
+
+[PipeWire音声サーバの再起動]{.mini-section}
+
+```bash
+systemctl --user restart pipewire pipewire-pulse
+```
+
+- 「接続済みなのに音が出ない」，「Sink が認識されない」などのトラブルが発生したらまずこれ
+
+[Blueetooth deviceの再接続]{.mini-section}
+
+Blueetooth device接続設定を以下の手順で完全リセット
+
+1. Disconnect
+2. Remove（ペアリング情報クリア）
+3. Pair（再ペアリング）
+4. Trust & Connect（自動信頼・再接続）
+
+
+ここでいう `Trust` は指定したデバイスを 信頼済み（Trusted） とマークすることで，信頼済みデバイスは自動接続可能．一方，
+信頼していない場合は，毎回ユーザー承認が必要になります．
+
+
+```bash
+#!/bin/bash
+# -----------------------------------------------------------------------------
+# Author: Ryo Nakagami
+# Revised: 2025-12-28
+# Script: bt_repair.sh
+# Description:
+#   Bluetooth device re-pairing script for troubleshooting connection issues.
+#   Completely removes and re-establishes the pairing with a Bluetooth device.
+#
+#   Steps:
+#     1. Disconnect the specified Bluetooth device
+#     2. Remove the device (clear pairing information)
+#     3. Re-pair with the device
+#     4. Trust and reconnect to the device
+#
+# Arguments:
+#   <MAC_ADDRESS>   Bluetooth device MAC address (e.g., 00:02:3C:8B:88:90)
+#
+# Usage:
+#   ./bt_repair.sh <MAC_ADDRESS>        # Re-pair with specified device
+#   ./bt_repair.sh 00:02:3C:8B:88:90    # Example with actual MAC address
+#   ./bt_repair.sh                      # Show usage and available devices
+#
+# Notes:
+#   - Requires bluetoothctl (part of bluez package) installed.
+#   - Device must be in pairing mode before running this script.
+#   - AutoEnable=true in /etc/bluetooth/main.conf is recommended.
+# -----------------------------------------------------------------------------
+
+# 引数チェック
+if [ -z "$1" ]; then
+    echo "Usage: $0 <MAC_ADDRESS>"
+    echo "Example: $0 00:02:3C:8B:88:90"
+    echo ""
+    echo "Available devices:"
+    bluetoothctl devices
+    exit 1
+fi
+
+DEVICE_MAC="$1"
+
+echo "=== Bluetooth Re-pairing ==="
+echo "MAC Address: ${DEVICE_MAC}"
+echo ""
+
+# 1. 接続解除
+echo "[1/4] Disconnecting..."
+bluetoothctl disconnect "${DEVICE_MAC}" 2>/dev/null
+sleep 1
+
+# 2. デバイス削除（ペアリング情報をクリア）
+echo "[2/4] Removing device..."
+bluetoothctl remove "${DEVICE_MAC}" 2>/dev/null
+sleep 2
+
+# 3. 再ペアリング
+echo "[3/4] Pairing..."
+echo "※ デバイスがペアリングモードになっていることを確認してください"
+bluetoothctl pair "${DEVICE_MAC}"
+sleep 2
+
+# 4. 接続
+echo "[4/4] Connecting..."
+bluetoothctl trust "${DEVICE_MAC}"
+bluetoothctl connect "${DEVICE_MAC}"
+
+echo ""
+echo "=== Complete ==="
+```
+
+
+## Appendix 3: `0x10000U` のprefixとsuffix
 
 `0x10000U` には `0x` というprefixと `U` というsuffixが付いてます．
 
