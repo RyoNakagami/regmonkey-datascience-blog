@@ -1,0 +1,160 @@
+---
+title: "シェルスクリプトにおけるAlias"
+author: "Ryo Nakagami"
+date: "2025-09-04"
+date-modified: "2026-01-08"
+categories: [shell]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## Aliasとは
+
+Aliasは，コマンド及びコマンドとオプションの組み合わせに別名をつける機能です．
+`alias`および`unalias`組み込みコマンドを使用して，alias名と対応する値を設定・解除します．
+
+[Aliasの展開動作]{.mini-section}
+
+1. シェルが適切な位置で引用符で囲まれていない単語を読み取ると，その単語がalias名と一致するかをチェック
+2. 一致する場合，シェルはその単語をalias値に置き換え，元の単語の代わりにその値を読み取ったかのように処理
+
+alias置換を試みるときに，単語の後に続く文字は確認しません．
+
+[Aliasの名前と置換テキストの制約]{.mini-section}
+
+- **名前の制約**: `/`, `$`, `` ` ``, `=`およびシェルのメタキャラクタや引用符文字をalias名に含めることはできません
+- **置換テキスト**: 有効なシェル入力（メタキャラクタを含む）を含めることができます
+- **再帰的展開の防止**: 置換テキストの最初の単語はaliasとしてテストされますが，展開中のaliasと同一の単語は2回展開されません．例えば，`ls`を`ls -F`にaliasしても，Bashは再帰的に展開しようとしません
+
+[連続的なalias展開]{.mini-section}
+
+- alias値の最後の文字が空白の場合，シェルはaliasに続く次のコマンド単語もalias展開の対象として確認します．
+
+[Aliasの制限]{.mini-section}
+
+- **引数の扱い**: cshのように置換テキストに引数を使用するメカニズムはありません
+- **非対話モードでの展開**: シェルが非対話モードの場合，`shopt`を使用して`expand_aliases`オプションを設定しない限り，aliasは展開されません
+
+[Aliasの定義と実行タイミング]{.mini-section}
+
+- aliasは，コマンドが**実行される時**ではなく，**読み取られる時**に展開されます
+- 同じ行に他のコマンドと一緒に記述されたalias定義は，シェルが次の入力行を読み取るまで有効になりません
+- 複合コマンド内のalias定義は，シェルが複合コマンド全体を解析・実行するまで有効になりません
+- alias定義に続くその行のコマンドは，新しいaliasの影響を受けません
+
+## Aliasを一時的に解除する方法
+
+設定されているaliasを一時的に無効化してコマンドを実行したい場合，以下の方法があります：
+
+### 1. バックスラッシュを使用
+
+```bash
+\command
+```
+
+`ls`がaliasされている場合
+
+```bash
+\ls
+```
+
+### 2. commandコマンドを使用
+
+```bash
+command command_name
+```
+
+`ls`がaliasされている場合
+
+```bash
+command ls
+```
+
+## `.bash_aliases`ファイル
+
+- `.bash_aliases`は，ユーザーのホームディレクトリに配置される設定ファイルで，bashのalias定義を管理するために使用
+- `.bashrc`ファイルを直接編集せずにalias設定を整理するために使用
+
+::: {.callout-note}
+### `.bash_aliases`の利点
+
+- **設定の分離**: `.bashrc`とalias定義を分けることで，設定ファイルの管理が容易になる
+- **可読性の向上**: alias定義を専用ファイルにまとめることで，設定を見つけやすくなる
+- **メンテナンス性**: バックアップや他の環境への移行が簡単になる
+
+:::
+
+[使用方法]{.mini-section}
+
+#### 1. `.bash_aliases`ファイルの作成
+
+`.bash_aliases`はデフォルトで存在しないため，必要に応じて作成する必要があります
+
+```bash
+touch ~/.bash_aliases
+```
+
+#### 2. `.bashrc`での読み込み設定
+
+通常，`.bashrc`には以下のような記述が含まれており，`.bash_aliases`が存在する場合は自動的に読み込まれます：
+
+```bash
+# Alias definitions.
+# You may want to put all your additions into a separate file like
+# ~/.bash_aliases, instead of adding them here directly.
+
+if [ -f ~/.bash_aliases ]; then
+    . ~/.bash_aliases
+fi
+```
+
+::: {.callout-note}
+
+- `.bashrc`に読み込みの記述がない場合は，手動で追加する必要があります
+
+:::
+
+
+#### 3. aliasの定義例
+
+`.bash_aliases`ファイル内でaliasを定義します：
+
+```bash
+# ディレクトリ操作
+alias ll='ls -alF'
+alias la='ls -A'
+alias l='ls -CF'
+
+# 安全な操作
+alias rm='rm -i'
+alias cp='cp -i'
+alias mv='mv -i'
+
+# よく使うコマンド
+alias ..='cd ..'
+alias ...='cd ../..'
+alias grep='grep --color=auto'
+```
+
+#### 4. 設定の反映
+
+aliasを追加・変更した後，以下のコマンドで設定を反映します：
+
+```bash
+source ~/.bash_aliases
+```
+
+または
+
+```bash
+source ~/.bashrc
+```
+
+
+References
+----------
+- [gnu bash manual > aliases](https://www.gnu.org/software/bash/manual/html_node/Aliases.html)
