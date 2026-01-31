@@ -1,0 +1,165 @@
+---
+title: "[過去ブログからの転記] Shebangにおける `/bin/bash` と `/usr/bin/bash` の違い"
+author: "Ryo Nakagami"
+date: "2022-08-11"
+date-modified: "2026-01-20"
+categories: [Linux, shell]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## shebangとは？
+
+::: {#def- .custom_problem .blog-custom-border}
+[shebang]{.def-title}
+
+シェルスクリプトの１行目は`#!`で始まり，その後にプログラムを解釈実行するインタプリタのパスを書く．
+これをshebangと呼ぶ．
+
+:::
+
+[shebangと言語]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| インタプリタ | 記法 |
+|--- |--- |
+| Bourne shell | `#!/bin/sh`|
+| bash |`#!/bin/bash`|
+| perl |`#!/usr/bin/perl`|
+| python |`#!/usr/bin/python`|
+
+::::
+
+::: {.callout-note}
+### シェルスクリプト実行と必要権限
+
+- バイナリ形式のファイルは実行権限のみで実行できるが，シェルスクリプトの場合は実行権限 + 読み込み権限が必要
+- `bash <script-path>` とすれば読み込み権限のみで実行可能
+
+:::
+
+### shebangにおける`/bin/bash`と`/usr/bin/bash`の違い
+
+shebangでインタプリタを設定する方法は色々ありますが，
+
+- `#!/bin/bash`
+- `#!/usr/bin/bash`
+
+というパターンをみることがあります (前者のほうがメジャーですが)．
+
+```bash
+$ which bash
+/usr/bin/bash
+```
+
+なので，terminal上で実行するシェルと起動を合わせようと思うと後者のほうが良さそうですが，どちらも実行可能な場合，Linuxにおいては２つの間に挙動上の差はありません．
+
+[ `/bin/`は`/usr/bin`と実体は同じ]{.mini-section}
+
+`ls -il` で `/bin/bash` と `/usr/bin/bash` を比較してみると同じi-node番号なので挙動上差がない事がわかります
+
+```bash
+$ ls -li /usr/bin/bash /bin/bash
+32768586 -rwxr-xr-x 1 root root 1446024 Mar 31  2024 /bin/bash*
+32768586 -rwxr-xr-x 1 root root 1446024 Mar 31  2024 /usr/bin/bash*
+```
+
+Linux環境ならば `/bin/bash` と `/usr/bin/bash` どちらもbashをインタプレタとして利用できますが，Macとかだと
+
+```zsh
+% which bash
+bin/bash
+```
+
+で`/usr/bin/bash`が存在しないケースがあります．そのため，一般的には `#!/bin/bash` のほうが好ましいといえます.
+
+
+## インタプリタの種類
+
+::: {.callout-note}
+### TL:DR;
+
+インタプリタの種類は本質的には以下の２種類
+
+- どのインタプリタが実行するか
+- 子プロセス（サブシェル）か，現在のシェルか
+
+:::: {.no-border-top-table}
+
+| 方法                | 子プロセス | shebang | 環境への影響   |
+| ----------------- | ----- | ------- | -------- |
+| `./hello.sh`      | あり    | 読む      | 影響なし     |
+| `bash hello.sh`   | あり    | 読まない    | 影響なし     |
+| `source hello.sh` | なし    | 読まない    | **影響あり** |
+| `. hello.sh`      | なし    | 読まない    | **影響あり** |
+
+::::
+
+
+:::
+
+カレントディレクトリに`hello.sh`という以下のファイルを作成したとします.
+
+```bash
+#!/bin/bash
+
+echo 'Hello World!'
+date
+```
+
+この`hello.sh`の実行方法として以下の4つがあります:
+
+```bash
+## (1) shebangのインタプリタを利用
+$ ./hello.sh
+
+## (2) ユーザー指定でbash インタプリタを使用（shebangは読まない）
+$ bash ./hello.sh
+
+## (3) 自身のシェルをインタプリタとして使用（shebangは読まない）
+$ source ./hello.sh
+
+## (4) 自身のシェルをインタプリタとして使用（shebangは読まない）
+$ . ./hello.sh
+
+```
+
+[(1) `./hello.sh`]{.mini-section}
+
+```{mermaid}
+sequenceDiagram
+    participant A as シェル
+    participant B as bash
+    participant C as hello.sh
+
+    A->>C: カーネルがインタプリタの読み取り
+    A->>B: shebangに従い<br>子シェルを起動
+    B->>C: スクリプトの読み込み<br>と実行
+```
+
+[(2) `bash ./hello.sh`]{.mini-section}
+
+```{mermaid}
+sequenceDiagram
+    participant A as シェル
+    participant B as bash
+    participant C as hello.sh
+
+    A->>B: インタプリタを起動
+    B->>C: スクリプトの読み込み<br>と実行
+```
+
+[(3) `source ./hello.sh` 及び (4) `. ./hello.sh`]{.mini-section}
+
+```{mermaid}
+sequenceDiagram
+    participant A as シェル
+    participant C as hello.sh
+
+    A->>C: スクリプトの読み込み<br>と実行
+```

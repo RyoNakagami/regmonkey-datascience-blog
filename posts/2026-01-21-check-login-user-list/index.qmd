@@ -1,0 +1,401 @@
+---
+title: "ログインユーザーリストを確認する"
+author: "Ryo Nakagami"
+date: "2026-01-21"
+date-modified: "2026-01-21"
+categories: [Linux]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## `w` コマンドを用いてログインユーザーリストを確認する
+
+- `w` コマンドは，Linux システムに 現在ログインしているユーザーと，各ユーザーんお実行中プロセスをまとめて確認するときに使用するコマンド
+- `who` や `uptime` よりも情報量が多い
+
+::: {#def- .custom_problem .blog-custom-border}
+[`w` コマンド]{.def-title}
+
+- 現在ログイン中のユーザー情報を表示するコマンド
+  - オプションなし: 全ログインユーザーの状況を表示
+  - ユーザー指定: 特定ユーザーのみ表示
+- 現在ログイン中のユーザー情報を保持するバイナリファイルである `/var/run/utmp` やプロセス情報 `/proc` から情報を取得
+- `TTY/pseudo-TTY` に紐付いたログインしか見れない(= vscode経由のsshが見れるわけではない) 
+
+:::
+
+[syntax]{.mini-section}
+
+```bash
+w [options] [user]
+```
+
+[出力内容: ヘッダー]{.mini-section}
+
+`uptime` コマンドと同様に
+
+- 現在時刻
+- システム稼働時間（uptime）
+- ログイン中ユーザー数
+- ロードアベレージ（1 / 5 / 15 分）
+
+を表示します．
+
+```bash
+$ uptime
+ 17:58:44 up 100 days, 23:21, 14 users,  load average: 0.82, 1.07, 0.89
+
+$ % w   
+ 18:00:21 up 100 days, 23:23, 14 users,  load average: 0.29, 0.82, 0.81
+USER     TTY      FROM             LOGIN@   IDLE   JCPU   PCPU WHAT
+...
+```
+
+[options]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| オプション | ロング形式         | 内容                             |
+| ----- | ------------- | ------------------------------ |
+| `-h`  | `--no-header` | ヘッダ行を表示しない                     |
+| `-s`  | `--short`     | 簡易表示（LOGIN@ / JCPU / PCPU を省略） |
+| `-u`  | `--no-current` | 現在ユーザー判定を無視して CPU 時間を計算 |
+| `-f`  | `--from`    | FROM（接続元ホスト）欄を表示／非表示切替    |
+| `-i`  | `--ip-addr` | FROM をホスト名ではなく IP アドレスで表示 |
+
+
+::::
+
+
+[出力内容: ユーザーごとの情報]{.mini-section}
+
+ログインユーザーについて，次の項目が表示されます．
+
+:::: {.no-border-top-table}
+
+| 項目     | 説明                         |
+| ------ | -------------------------- |
+| `USER`   | ログインユーザー名                  |
+| `TTY`    | 利用中の端末（`pts/0` など）           |
+| `FROM`   | 接続元ホスト（SSH の場合など）          |
+| `LOGIN@` | ログイン時刻                     |
+| `IDLE`   | 最後の操作からの経過時間               |
+| `JCPU`   | その TTY に紐づく全プロセスの CPU 使用時間 |
+| `PCPU`   | 現在実行中プロセスの CPU 使用時間        |
+| `WHAT`   | 現在実行しているコマンド               |
+
+::::
+
+```bash
+$ w
+ 17:23:16 up 100 days, 22:46, 14 users,  load average: 0.39, 0.20, 0.31
+USER     TTY      FROM                 LOGIN@   IDLE     JCPU   PCPU WHAT
+user01   pts/0    tmux(session-A)      10Jan26 10days    1:31   0.12s -bash
+user01   pts/1    tmux(session-A)      Sat22   40:46m   0.16s  0.16s -bash
+user02   pts/2    tmux(session-B)      30Oct25  3:34m   0.14s  0.14s /bin/bash
+user01   pts/7    tmux(session-A)      14Jan26  7days   0.04s  0.04s -bash
+user03   pts/8    tmux(session-C)      29Dec25 22days   0.07s  0.07s -bash
+user04   pts/4    remote-ip-A          17:23    2.00s  0.00s  0.00s tmux -u -2 -f /usr/share/by
+user05   :1       local-display        24Oct25 ?xdm?    2days  0.00s /usr/libexec/gdm-x-session
+user01   pts/9    tmux(session-A)      12Nov25 70days   0.06s  0.06s -bash
+user04   pts/12   tmux(session-D)      17:23    1.00s  0.05s  0.01s w
+user03   pts/13   remote-ip-B          16:38   44:12   0.03s  0.03s -bash
+user01   pts/28   tmux(session-A)      14Jan26  5days  0.15s  0.15s -bash
+user03   pts/29   tmux(session-C)      Mon18   47:15m  0.01s  0.01s -bash
+user06   pts/34   remote-ip-C          15:59    1:22m  0.04s  0.04s -bash
+user06   pts/35   remote-ip-C          16:01    1:21m  0.05s  0.05s -bash
+
+```
+
+[`who` コマンドとの違い]{.mini-section}
+
+`who` コマンドはデフォルト動作では `/var/run/utmp` 飲みの情報を参照して，現在のユーザーのログイン情報を表示します．
+
+```bash
+who /var/log/wtmp
+```
+
+とすることで，`last` コマンドのように過去のログイン情報を参照することができるという特色があります．
+
+[`var/run/utmp` のパーミッション]{.mini-section}
+
+`/var/run/utmp` のパーミッションは，システム起動時に `systemd` または `init` によって設定されます．`systemd` の場合は，
+`/usr/lib/tmpfiles.d/systemd.conf` に以下のように設定されています
+
+```bash
+$ cat /usr/lib/tmpfiles.d/systemd.conf | grep "utmp"
+F! /run/utmp 0664 root utmp -
+```
+
+`/usr/lib/tmpfiles.d/systemd.conf` の各レコードは
+
+```ini
+<type> <path> <mode> <user> <group> <age>
+```
+
+で設定が記述されます．`0644` を `0660` とすると一般ユーザーは `read` の権限がなくなります．再起動後，新たな設定に基づいて権限が設定されます．
+ `read` の権限がなくなった場合は，`who` や `w` を叩いても，ユーザー情報が表示されなくなります．
+
+::: {.callout-note}
+### `/usr/lib/tmpfiles.d/systemd.conf` の各項目
+
+:::: {.no-border-top-table}
+
+| 項目        | 説明        | 例                   | 補足                      |
+| --------- | --------- | ------------------- | ----------------------- |
+| **type**  | 作成・管理の種類  | `F!`, `d`, `f`, `Z` | ファイルかディレクトリか，初期化するか等を指定 |
+| **path**  | 対象パス      | `/run/utmp`         | 絶対パスで指定                 |
+| **mode**  | パーミッション   | `0664`              | `chmod` と同じ形式（8進数）      |
+| **user**  | 所有ユーザー    | `root`              | `-` を指定すると変更しない         |
+| **group** | 所有グループ    | `utmp`              | `-` を指定すると変更しない         |
+| **age**   | 有効期限・削除条件 | `-`, `10d`, `1w`    | 古いファイルを自動削除する条件         |
+
+
+::::
+
+
+:::
+
+## `loginctl` を用いてログインセッションを確認する
+
+`w` コマンドは TTY/pseudo-TTY に紐付いたログインしか確認できないため，GUI セッションや RDP 接続などを含めた包括的なログイン情報を取得するには `loginctl` コマンドを使用します．
+
+::: {#def-loginctl .custom_problem .blog-custom-border}
+[`loginctl` コマンド]{.def-title}
+
+- `systemd-logind` が管理するログインセッションを一覧・操作するコマンド
+- TTY だけでなく，GUI（X11/Wayland），SSH，RDP など全てのセッションを表示可能
+- セッション単位で詳細情報（アイドル状態，接続元，プロセスリーダー等）を取得できる
+
+:::
+
+[主要なサブコマンド]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| サブコマンド | 説明 |
+| ------------ | ---- |
+| `list-sessions` | 現在のセッション一覧を表示 |
+| `show-session <ID>` | 指定セッションの詳細情報を表示 |
+| `list-users` | ログイン中のユーザー一覧を表示 |
+| `terminate-session <ID>` | 指定セッションを強制終了 |
+| `lock-session <ID>` | 指定セッションをロック |
+
+::::
+
+```bash
+# セッション一覧を表示
+$ loginctl list-sessions
+SESSION  UID USER   SEAT  TTY
+      1 1000 user01 seat0 tty2
+     12 1001 user02       pts/1
+     15 1000 user01
+
+# 特定セッションの詳細を表示
+$ loginctl show-session 12
+Id=12
+User=1001
+Name=user02
+Timestamp=Thu 2026-01-20 10:30:00 JST
+...
+```
+
+### `w` コマンド風の出力を `loginctl` で実現するスクリプト
+
+以下のスクリプトは `loginctl` の情報を `w` コマンドに似た形式で出力します．GUI セッションや RDP 接続も含めて表示できる点が利点です．
+
+```{.bash filename="loginctl-w.sh"}
+#!/bin/bash
+
+# key=value 形式から値だけ取り出す関数
+get() { awk -F= -v k="$1" '$1==k{print $2}'; }
+
+printf "%-20s %-8s %-8s %-8s %-16s %-8s %s\n" \
+  "USER" "SESSION" "LOGIN" "IDLE" "FROM" "TYPE" "WHAT"
+
+loginctl list-sessions --no-legend | while read -r sid uid user seat tty; do
+  info=$(loginctl show-session "$sid")
+
+  name=$(echo "$info" | get Name)
+  service=$(echo "$info" | get Service)
+  type=$(echo "$info" | get Type)
+  tty_v=$(echo "$info" | get TTY)
+  display=$(echo "$info" | get Display)
+  leader=$(echo "$info" | get Leader)
+  remote=$(echo "$info" | get RemoteHost)
+  ts=$(echo "$info" | get Timestamp)
+  idle_hint=$(echo "$info" | get IdleHint)
+  idle_since=$(echo "$info" | get IdleSinceHint)
+
+  # LOGIN
+  login_time=$(date -d "$ts" "+%H:%M" 2>/dev/null || echo "-")
+
+  # IDLE（w 互換）
+  if [[ "$idle_hint" != "yes" || "$idle_since" -le 0 ]]; then
+    idle_fmt="."
+  else
+    idle_sec=$(( ( $(date +%s) * 1000000 - idle_since ) / 1000000 ))
+
+    if (( idle_sec < 60 )); then
+      idle_fmt="."
+    elif (( idle_sec < 3600 )); then
+      idle_fmt="$((idle_sec/60))m"
+    elif (( idle_sec < 86400 )); then
+      idle_fmt="$(printf "%d:%02d" $((idle_sec/3600)) $((idle_sec%3600/60)))"
+    else
+      idle_fmt="$((idle_sec/86400))days"
+    fi
+  fi
+
+  # FROM
+  from="${remote:--}"
+
+  # TYPE
+  case "$service" in
+    sshd)
+      type_disp="ssh"
+      ;;
+    xrdp-sesman)
+      type_disp="rdp"
+      ;;
+    gdm-password|gdm-wayland-session|gdm-x-session)
+      type_disp="gui"
+      ;;
+    *)
+      if [[ "$type" == "x11" || "$type" == "wayland" ]]; then
+        type_disp="gui"
+      else
+        type_disp="${type:-unknown}"
+      fi
+      ;;
+  esac
+
+  # WHAT
+  if [[ -n "$tty_v" ]]; then
+    what="tty:$tty_v"
+  elif [[ -n "$display" ]]; then
+    what="display:$display"
+  else
+    what="pid:$leader"
+  fi
+
+  printf "%-20s %-8s %-8s %-8s %-16s %-8s %s\n" \
+    "$name" "$sid" "$login_time" "$idle_fmt" "$from" "$type_disp" "$what"
+done
+```
+
+[スクリプトの処理フロー]{.mini-section}
+
+```{mermaid}
+flowchart TD
+    A[loginctl list-sessions] --> B[各セッションIDでループ]
+    B --> C[loginctl show-session でセッション詳細取得]
+    C --> D[get関数で各プロパティを抽出]
+    D --> E[LOGIN: Timestampから時刻を整形]
+    D --> F[IDLE: IdleHint/IdleSinceHintからアイドル時間を計算]
+    D --> G[FROM: RemoteHostを取得]
+    D --> H[TYPE: Serviceからセッション種別を判定]
+    D --> I[WHAT: TTY/Display/Leaderから接続先を決定]
+    E & F & G & H & I --> J[printf で整形出力]
+```
+
+[各処理の詳細解説]{.mini-section}
+
+**1. `get` 関数: key=value 形式のパース**
+
+```bash
+get() { awk -F= -v k="$1" '$1==k{print $2}'; }
+```
+
+`loginctl show-session` の出力は `Key=Value` 形式なので，指定したキーの値を抽出するヘルパー関数を定義しています．
+
+**2. セッション一覧の取得とループ**
+
+```bash
+loginctl list-sessions --no-legend | while read -r sid uid user seat tty; do
+```
+
+- `--no-legend`: ヘッダー行を除外して出力
+- `read -r`: 各フィールドを変数に格納（`sid`=セッションID，`uid`=ユーザーID 等）
+
+**3. IDLE 時間の計算**
+
+```bash
+idle_sec=$(( ( $(date +%s) * 1000000 - idle_since ) / 1000000 ))
+```
+
+- `IdleSinceHint` はマイクロ秒単位の UNIX タイムスタンプ
+- 現在時刻との差分を秒に変換し，`w` コマンド風の形式（`5m`, `1:30`, `2days`）に整形
+
+**4. TYPE の判定ロジック**
+
+```bash
+case "$service" in
+  sshd)           type_disp="ssh" ;;
+  xrdp-sesman)    type_disp="rdp" ;;
+  gdm-password|gdm-wayland-session|gdm-x-session)
+                  type_disp="gui" ;;
+  *)
+    if [[ "$type" == "x11" || "$type" == "wayland" ]]; then
+      type_disp="gui"
+    else
+      type_disp="${type:-unknown}"
+    fi
+    ;;
+esac
+```
+
+`Service` プロパティからセッションの接続方式を判定:
+
+- `sshd` → SSH 接続
+- `xrdp-sesman` → RDP 接続
+- `gdm-*` → GDM 経由の GUI ログイン
+- その他は `Type` プロパティ（`x11`, `wayland`, `tty`）で判定
+
+**5. WHAT の判定**
+
+```bash
+if [[ -n "$tty_v" ]]; then
+  what="tty:$tty_v"
+elif [[ -n "$display" ]]; then
+  what="display:$display"
+else
+  what="pid:$leader"
+fi
+```
+
+接続先の情報を優先度順で表示:
+
+1. TTY が存在すれば `tty:pts/0` のように表示
+2. Display があれば `display::0` のように表示
+3. どちらもなければセッションリーダーの PID を表示
+
+[出力例]{.mini-section}
+
+```bash
+USER                 SESSION  LOGIN    IDLE     FROM             TYPE     WHAT
+user01               1        09:30    .        -                gui      display::1
+user02               12       10:45    15m      192.168.1.100    ssh      tty:pts/1
+user03               15       14:20    2:30     10.0.0.50        rdp      pid:12345
+```
+
+[`w` コマンドとの比較]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| 項目 | `w` コマンド | `loginctl` スクリプト |
+| ---- | ------------ | --------------------- |
+| TTY セッション | ○ | ○ |
+| GUI セッション | △（限定的） | ○ |
+| SSH 接続 | ○ | ○ |
+| RDP 接続 | × | ○ |
+| JCPU/PCPU | ○ | × |
+| 実行中コマンド | ○ | ×（PID のみ） |
+
+::::
+
+`w` コマンドは TTY に紐付いたプロセス情報（CPU 使用時間，実行中コマンド）を詳細に表示できる一方，`loginctl` ベースのスクリプトは GUI や RDP を含む全セッションを統一的に扱える利点があります．

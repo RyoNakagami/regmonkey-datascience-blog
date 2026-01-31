@@ -7,6 +7,14 @@ UbuntuDirectory:
     description: |
       システムの起動に必要なファイル（Linuxカーネル，initrd，GRUBなど）が格納されている．誤って削除するとシステムが起動しなくなるため注意が必要．
 
+  - directory: "`/bin`"
+    description: |
+      `/usr/bin`へのシンボリックリンク．`lrwxrwxrwx 1 root root 8 Jul 15  2025 /bin -> usr/bin/`
+
+  - directory: "`/bin/false`"
+    description: |
+      常に失敗(exit 1)を返すコマンド．スクリプトや条件分岐で使用されることがある．`/etc/passwd`でログインを禁止するためのシェルとして指定されることもある．
+
   - directory: "`/lib`"
     description: |
       `/bin`や`/sbin`の実行ファイルが依存する共有ライブラリ（`*.so`）が格納される．また，カーネルモジュールもこの下に配置される．
@@ -15,9 +23,21 @@ UbuntuDirectory:
     description: |
       仮想的なデバイスファイル（例：`/dev/sda`, `/dev/null`）が格納される．デバイスとファイルの入出力を結びつける仕組み．
 
+  - directory: "`/dev/null`"
+    description: |
+      すべての入力を破棄し，何も出力しない特殊なデバイスファイル．出力を捨てたい場合などに使用される．例：`command > /dev/null 2>&1`
+
+  - directory: "`/dev/pts/`"
+    description: |
+      擬似端末デバイスファイル（＝キャラクタデバイス）が格納されるディレクトリ．tmuxなどのターミナルエミュレータやSSHセッションなどで使用される．
+
   - directory: "`/etc`"
     description: |
-      システム全体に関する設定ファイル（例：`passwd`, `hosts`, `network/`など）を含む．サービスやアプリケーションの設定ファイルもここに置かれる．
+      システム全体に関する設定ファイル（例：`passwd`, `hosts`, `network/`など）を含む．サービスやアプリケーションの設定ファイルもここに置かれる．`root` ユーザーのみが書き込み可能(通常は`root`所有の`755``)．
+  
+  - directory: "`/etc/aliases`"
+    description: |
+      メールエイリアス（メール転送設定）を定義するファイル．特定のメールアドレスに届いたメールを他のアドレスに転送する設定が記述される．`newaliases`コマンドで変更を反映させる必要がある．
   
   - directory: "`/etc/bluetooth/main.conf`"
     description: |
@@ -35,9 +55,21 @@ UbuntuDirectory:
     description: |
       ホスト名とIPアドレスを対応させるためのファイル．主にローカルネットワーク内での名前解決に使用される．ネットワークベースの名前解決はDNSやLDAPなどが担当する．
 
+  - directory: "`/etc/localtime`"
+    description: |
+      システムのタイムゾーン設定を定義するファイル．Linuxシステムインストーラー時に，タイムゾーンデータベースから適切なタイムゾーン情報へのシンボリックリンクが設定される．例：`/usr/share/zoneinfo/Asia/Tokyo`
+
   - directory: "`/etc/lsb-release`"
     description: |
       Linux Standard Base (LSB) のバージョン情報を提供するファイル．ディストリビューションの識別やバージョン管理に使用される．`lsb_release -a`コマンドで内容を確認できる．
+
+  - directory: "`/etc/logrotate.d/`"
+    description: |
+      個別のアプリケーションやサービスごとのログローテーション設定ファイルが格納されるディレクトリ．各ファイルには特定のログファイルのローテーションルールが記述されている．
+
+  - directory: "`/etc/nologin`"
+    description: |
+      システムへの新規ログインを禁止するためのファイル．このファイルが存在する場合，`root` 以外の非特権ユーザーはログインできなくなる．システムメンテナンス時などに使用される．メッセージをファイルに含めると，ログイン試行時にそのメッセージが表示される．
 
   - directory: "`/etc/nsswitch.conf `"
     description: |
@@ -47,9 +79,17 @@ UbuntuDirectory:
     description: |
       「ネットワークサービス名とTCP / UDP のポート番号の対応」を定義しているテキストファイル．例：`http 80/tcp`, `https 443/tcp`, `ssh 22/tcp`など．あくまで目安なので実際にポートが開かれているかは別途確認が必要．
 
+  - directory: "`/etc/shadow`"
+    description: |
+      ユーザーアカウントのパスワード情報を格納するファイル．各ユーザーの暗号化されたパスワード，パスワードの有効期限，アカウントのロック状態などが含まれる．セキュリティ上の理由から，通常は`root`ユーザーのみがアクセス可能．Permissionは`640`（rootが読み書き可能，shadowグループが読み取り可能，その他はアクセス不可）に設定されている．
+
   - directory: "`/etc/samba/smb.conf`"
     description: |
       Sambaの設定ファイル．Windowsとのファイル共有に関する設定が記述される．
+
+  - directory: "`/etc/systemd/timesyncd.conf`"
+    description: |
+      systemd-timesyncdの設定ファイル．NTPサーバーの指定や時刻同期の動作に関する設定が記述される．
 
   - directory: "`/home`"
     description: |
@@ -67,6 +107,10 @@ UbuntuDirectory:
     description: |
       システム管理用のコマンドが置かれる場所（例：`/usr/sbin/ifconfig`, `/usr/sbin/ufw`, `/usr/sbin/mkfs`など）．
 
+  - directory: "`/usr/lib/tmpfiles.d/systemd.conf`"
+    description: |
+      systemdを使用しているシステムで，`/run` や `/tmp` 配下のtmpfilesの設定を定義するファイル．一時ファイルやディレクトリの作成，削除，パーミッション設定などを管理するためのルールが記述される．
+      
   - directory: "`/usr/local/bin`"
     description: |
       ユーザーが手動でインストールしたアプリケーションやコマンドが格納される（例：`/usr/local/bin/aws`, `/usr/local/bin/quarto`など）．また，ソースコードからビルドしたプログラムもここに配置されることが多い．全ユーザーが利用可能．
@@ -82,6 +126,10 @@ UbuntuDirectory:
   - directory: "`/proc`"
     description: |
       仮想ファイルシステム．カーネルや実行中のプロセス情報をファイルやディレクトリの形で参照できる仕組み（例：`/proc/cpuinfo`, `/proc/meminfo`）．
+  
+  - directory: "`/proc/loadavg`"
+    description: |
+      システムの平均負荷（load average）を示す仮想ファイル．1分，5分，15分の平均負荷がスペース区切りで表示される．
 
   - directory: "`/proc/mounts`"
     description: |
@@ -107,10 +155,6 @@ UbuntuDirectory:
     description: |
       `/usr/sbin`へのシンボリックリンク．`lrwxrwxrwx 1 root root 8 Jul 15  2025 /sbin -> usr/sbin/`
 
-  - directory: "`/bin`"
-    description: |
-      `/usr/bin`へのシンボリックリンク．`lrwxrwxrwx 1 root root 8 Jul 15  2025 /bin -> usr/bin/`
-
   - directory: "`/opt`"
     description: |
       サードパーティ製の追加アプリケーション（例：Google Chromeなど）がインストールされることが多い．パッケージマネージャ外での手動インストール先としてよく使われる．
@@ -126,9 +170,33 @@ UbuntuDirectory:
     description: |
       変動するデータ（ログ，キャッシュ，メールスプール，データベースなど）を保存するディレクトリ．永続ストレージを提供する場所でもある．例：`/var/log`, `/var/tmp`, `/var/lib`
 
-  - directory: "`/var/run`"
+  - directory: "`/var/log`"
     description: |
-      `/run` へのシンボリックリンク．`lrwxrwxrwx 1 root root 4 Jul 15  2025 /var/run -> /run/`
+      システムやアプリケーションのログファイルが格納されるディレクトリ．例：`/var/log/syslog`, `/var/log/auth.log`, `/var/log/kern.log`など．
+
+  - directory: "`/var/log/auth.log`"
+    description: |
+      システムの認証関連のログファイル．ユーザーのログイン試行，sudoコマンドの使用，SSH接続などの認証イベントが記録される．
+
+  - directory: "`/var/log/boot.log`"
+    description: |
+      システムの起動プロセスに関するログファイル．ブート時のメッセージやエラー情報が記録される．
+
+  - directory: "`/var/log/dmesg`"
+    description: |
+      カーネルリングバッファの内容を保存するログファイル．システム起動時のハードウェア検出やドライバの初期化に関する情報が含まれる．`dmesg`コマンドで内容を確認できる．
+
+  - directory: "`/var/log/lastlog`"
+    description: |
+      各ユーザーの最後のログイン情報を格納するバイナリファイル．`lastlog`コマンドで内容を確認できる．
+
+  - directory: "`/var/log/kern.log`"
+    description: |
+      カーネル関連のログファイル．カーネルモジュールの読み込み，ハードウェアエラー，その他カーネルレベルのイベントが記録される．
+
+  - directory: "`/var/log/syslog`"
+    description: |
+      システム全体の一般的なログファイル．システムメッセージ，サービスの起動・停止，エラーメッセージなどが記録される．トラブルシューティングの際に重要な情報源となる．
 
   - directory: "`/var/log/dpkg.log`"
     description: |
@@ -137,6 +205,18 @@ UbuntuDirectory:
   - directory: "`/var/log/ufw.log`"
     description: |
       UFW（Uncomplicated Firewall）のログファイル．ファイアウォールのルール適用状況や通信の許可・拒否の記録が保存される．
+
+  - directory: "`/var/log/wtmp`"
+    description: |
+      システムのログイン・ログアウト履歴をバイナリ形式で保存するファイル．`last`コマンドで内容を確認できる．
+
+  - directory: "`/var/run`"
+    description: |
+      `/run` へのシンボリックリンク．`lrwxrwxrwx 1 root root 4 Jul 15  2025 /var/run -> /run/`
+
+  - directory: "`/var/run/utmp`"
+    description: |
+      現在ログイン中のユーザー情報を格納するファイル．`who`や`w`コマンドで表示される情報の元となる．Permissionはシステム起動時にsystemdによって `/usr/lib/tmpfiles.d/systemd.conf` により設定される．
 
   - directory: "`~/.local/bin`"
     description: |

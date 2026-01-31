@@ -1,0 +1,134 @@
+---
+title: "ISOイメージをUSBデバイスに書き込むための `dd` コマンド"
+author: "Ryo Nakagami"
+date: "2026-01-18"
+date-modified: "2026-01-19"
+categories: [Linux]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## ddコマンド
+
+::: {#def- .custom_problem .blog-custom-border}
+[`dd` コマンド]{.def-title}
+
+- `cp` よりもより低レイヤーなコピー・変換ツール
+- 入力と出力にデバイスを指定できるため，フォーマット変換・データ修復・ディスク操作などに使われる
+
+:::
+
+[syntax]{.mini-section}
+
+```bash
+dd [if=入力ファイル名] [of=出力ファイル名] [bs=ブロックサイズ] [count=ブロック数]
+```
+
+:::: {.no-border-top-table}
+
+| オプション | 説明 |
+| -------- | ----------------- | 
+| `if=入力ファイル名` | 入力ファイルの指定 |
+| `of=出力ファイル名` | 出力ファイルの指定 |
+| `bs=ブロックサイズ` | 1回の read/write で使用するブロックサイズの指定 |
+| `count=ブロック数` | 入呂育するブロック数の指定 |
+| `conv=変換オプション` | `noerror`: 読み込みエラー後も継続する <br> `sync`: 入力ブロックを入力バッファサイズになるまで埋める |
+
+::::
+
+`conv=sync` は不足した入力ブロックを NUL（または空白）で埋めるという処理になります．
+
+## ISOファイルをUSBデバイスに書き込む
+
+基本的には
+
+```bash
+dd if=image.iso of=<USBデバイス>
+```
+
+となります．
+
+::: {#exm- .custom_problem }
+### Linux Mint 22.3 Cinnamon インストーラーの作成
+<br>
+
+手順の流れは
+
+1. Linux Mint ISOファイルをダウンロード
+2. ISOをUSBに書き込み
+3. PCを再起動
+4. BIOS/UEFIで起動
+
+まず，ISOファイルは以下のコマンドでダウンロードします
+
+```bash
+## tmp directoryに移動
+$ cd ~/tmp
+
+## ISOイメージファイルのダウンロード
+$ curl -O https://ftp.udx.icscoe.jp/Linux/linuxmint/iso/stable/22.3/linuxmint-22.3-cinnamon-64bit.iso
+```
+
+次に，書き込むデバイスを確認します
+
+```bash
+$ lsblk
+...
+sdc           8:0    1  57.3G  0 disk
+├─sdc1
+...
+```
+
+今回のターゲットは `sdc` となります（注意点として，パーティションされた `sdc1` ではなく，あくまでデバイスとなります）．
+アウトプット先を確認した後，[必ずunmountします]{.regmonkey-bold}
+
+`dd` コマンドはファイルシステムを無視してディスクを直接書き換えるコマンドです．OSがそのデバイスをマウントしたままだと，
+OS側の方でデバイスのファイルシステムを認識しながら，そのファイルシステムがまるっと書き換わってしまうのでエラーが競合が発生してしまうためです．
+
+次に，USBデバイスに書き込みを行います．
+
+```bash
+## ddコマンドを用いた書き込み
+$ sudo dd if=linuxmint-22.3-cinnamon-64bit.iso of=/dev/sdc status=progress oflag=sync bs=4M
+3070230528 bytes (3.1 GB, 2.9 GiB) copied, 120 s, 25.6 MB/s
+737+1 records in
+737+1 records out
+3091660800 bytes (3.1 GB, 2.9 GiB) copied, 121.427 s, 25.5 MB/s
+```
+
+:::: {.no-border-top-table}
+
+| オプション             | 意味                      |
+| ----------------- | ----------------------- |
+| `if=`             | Ubuntu ISO              |
+| `of=/dev/sdc`     | **USB 全体（パーティション番号なし）** |
+| `bs=4M`           | 高速かつ安全                  |
+| `status=progress` | 進捗表示                    |
+| `oflag=sync`      | 書き込み完了を保証               |
+
+::::
+
+::: {.callout-note}
+### ブロックサイズの指定の効果
+
+`bs=4M` を指定することで 4MB単位で read/writeが発生します．これは4MBごとにシステムコールの
+
+- `read()`
+- `write()`
+
+が発生することになります．ブロックサイズが小さすぎると，システムコールの頻度が増大してしまうので，大きいほどその回数を減らすことができます．一方，指定ブロックサイズが大きすぎると，一回のシステムコールで使用するメモリ領域が増えてしまいます．ここらへんのバランスを考えた上で，今回は 4MB と指定しています．
+
+:::
+
+:::
+---
+
+
+References
+----------
+- [IT media > 【dd】コマンド――ブロック単位でファイルをコピー，変換する](https://atmarkit.itmedia.co.jp/ait/articles/1711/30/news027.html)
+- [Ask Ubuntu > Do I have to unmount the drive when using dd command?](https://askubuntu.com/questions/663802/do-i-have-to-unmount-the-drive-when-using-dd-command)
