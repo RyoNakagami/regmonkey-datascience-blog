@@ -62,6 +62,16 @@ class GreekLetterConfig(BaseModel):
     GreekLetter: list[GreekLetterField]
 
 
+class NumberField(BaseModel):
+    number: str
+    genre: str
+    description: str
+
+
+class NumberConfig(BaseModel):
+    numbers: list[NumberField]
+
+
 class UbuntuDirectoryField(BaseModel):
     directory: str
     description: str
@@ -126,6 +136,7 @@ def new_commandconfig(paths_to_config: List[pathlib.Path]) -> CommandConfig:
 
     return config
 
+
 def new_gitcommittag_config(paths_to_config: List[pathlib.Path]) -> GitCommitTagConfig:
     """Generates a Config object from a yaml file.
 
@@ -142,6 +153,7 @@ def new_gitcommittag_config(paths_to_config: List[pathlib.Path]) -> GitCommitTag
     config: GitCommitTagConfig = GitCommitTagConfig.model_validate(merged_config)
 
     return config
+
 
 def new_gnome_tool_config(paths_to_config: List[pathlib.Path]) -> GnomeToolConfig:
     """Generates a Config object from a yaml file.
@@ -183,6 +195,28 @@ def new_greek_letter_config(paths_to_config: List[pathlib.Path]) -> GreekLetterC
             yaml_config = yaml.safe_load(f)
             merged_config.update(yaml_config)
     config: GreekLetterConfig = GreekLetterConfig.model_validate(merged_config)
+
+    return config
+
+
+def new_number_config(paths_to_config: List[pathlib.Path]) -> NumberConfig:
+    """Generates a Config object from a yaml file.
+
+    Args:
+        path_to_config (str): Path to the configuration file.
+
+    Returns:
+        Config: A Config object.
+
+    """
+
+    merged_config = {}
+
+    for path in paths_to_config:
+        with open(path, encoding="utf-8") as f:
+            yaml_config = yaml.safe_load(f)
+            merged_config.update(yaml_config)
+    config: NumberConfig = NumberConfig.model_validate(merged_config)
 
     return config
 
@@ -241,6 +275,7 @@ COMMAND_CONFIG_FILES = [pathlib.Path(__file__).parent / "command_dictionary.yml"
 GITCOMMITTAG_CONFIG_FILES = [pathlib.Path(__file__).parent / "git_commit_tag.yml"]
 GNOME_TOOL_CONFIG_FILES = [pathlib.Path(__file__).parent / "toollist.yml"]
 GREEK_LETTER_CONFIG_FILES = [pathlib.Path(__file__).parent / "greekletter.yml"]
+NUMBER_CONFIG_FILES = [pathlib.Path(__file__).parent / "magic_numbers.yml"]
 UBUNTU_DIRECTORY_CONFIG_FILES = [pathlib.Path(__file__).parent / "ubuntu_directory.yml"]
 UNIT_OF_MEASUREMENT_CONFIG_FILES = [
     pathlib.Path(__file__).parent / "unit_of_measurement.yml"
@@ -270,3 +305,5 @@ UBUNTU_DIRECTORY_CONFIG: UbuntuDirectoryConfig = new_ubuntu_directory_config(
 UNIT_OF_MEASUREMENT_CONFIG: UnitOfMeasurementConfig = new_unit_of_measurement_config(
     paths_to_config=UNIT_OF_MEASUREMENT_CONFIG_FILES
 )
+
+Number_CONFIG: NumberConfig = new_number_config(paths_to_config=NUMBER_CONFIG_FILES)

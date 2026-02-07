@@ -375,25 +375,55 @@ document.getElementById('searchInputGreekLetter').addEventListener('keyup', debo
 
 ::::
 
-### English
+### マジックナンバー
 
-:::: {.no-border-top-table #EnglishTable}
+:::: {.no-border-top-table #NumberTable}
 
+<input type="text" id="searchInputNumber" placeholder="Search... (regex, space-separated AND)" style="width: 50%;">
 
 ```{python}
 # | echo: false
-#| tbl-colwidths: [50,50]
-import yaml
+#| tbl-colwidths: [10,10,80]
+from keyword_dict import Number_CONFIG, NumberField
 
-# --- Load YAML file ---
-with open("english_phrase.yml", "r", encoding="utf-8") as f:
-    data = yaml.safe_load(f)
+# fetch colnames
+cols = list(NumberField.model_json_schema()["properties"].keys())
 
-# --- Convert to DataFrame ---
-df_english = pd.DataFrame(data)
+# define dictionary df
+df_command = (
+    pd.DataFrame(Number_CONFIG.numbers, columns=cols)
+    .map(lambda x: x[1] if x else None)
+)
 
-# --- Display ---
-display(Markdown(df_english.to_markdown(index = False)))
+display(Markdown(df_command.to_markdown(index = False)))
 ```
+
+<script>
+// Reuse the same debounce function
+document.getElementById('searchInputNumber').addEventListener('keyup', debounce(function() {
+  let filter = this.value.trim();
+  let regexes = [];
+
+  // Split search terms by space and create regex for each
+  if (filter) {
+    const terms = filter.split(/\s+/);
+    regexes = terms.map(term => {
+      try {
+        return new RegExp(term, 'i');
+      } catch (e) {
+        console.warn(`Invalid regex: ${term}`);
+        return null;
+      }
+    }).filter(regex => regex !== null);
+  }
+
+  const rows = document.querySelectorAll('#NumberTable tbody tr');
+  rows.forEach(row => {
+    const rowText = row.textContent;
+    const matchesAll = regexes.length === 0 || regexes.every(regex => regex.test(rowText));
+    row.style.display = matchesAll ? '' : 'none';
+  });
+}, 300)); // Wait 300ms after last keypress before searching
+</script>
 
 ::::
