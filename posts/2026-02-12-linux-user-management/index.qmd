@@ -1,0 +1,543 @@
+---
+title: "Linuxにおけるユーザー管理"
+author: "Ryo Nakagami"
+date: "2026-02-12"
+date-modified: "2026-02-13"
+categories: [環境構築, Linux]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## ユーザーアカウントの作成
+
+::: {.callout-note}
+### TL:DR;
+
+- Linuxにおいてユーザーアカウント作成コマンドは `useradd` と `adduser`
+- Debian系では，`adduser` の使用が推奨されています(see `man useradd`)
+  - `On Debian, administrators should usually use adduser(8) instead.`
+
+:::
+
+
+### `useradd` コマンド
+
+::: {#def- .custom_problem .blog-custom-border}
+[`useradd` コマンド]{.def-title}
+
+- 対話なしでユーザを作成するコマンド
+- 同じ名前のユーザーがいる場合は，失敗する
+- デフォルトでは初期パスワードが設定されない(= `sudo passwd <user-account>`によるパスワード設定が必要)
+
+:::
+
+```bash
+sudo useradd testuser
+```
+
+を実行すると `testuser` というユーザーアカウントがシステムに作成されます．このコマンドにより `/etc/passwd` と `/etc/shadow` に以下のようにエントリが作成されます．
+
+```bash
+$ cat /etc/passwd | grep "testuser"
+testuser:x:1001:1001::/home/testuser:/bin/sh
+
+$ sudo cat /etc/shadow | grep "testuser"
+testuser:!:20496:0:99999:7:::
+```
+
+[`useradd` コマンドのオプション]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| オプション        | 長い形式                      | 説明                             |
+| ------------ | ------------------------- | ------------------------------ |
+| `-b DIR`     | `--base-dir`              | ホームディレクトリのベースパスを指定（例 `/home`）  |
+| `-c TEXT`    | `--comment`               | GECOS情報（氏名などの説明）               |
+| `-d DIR`     | `--home-dir`              | ホームディレクトリのパスを指定                |
+| `-g GROUP`   | `--gid`                   | プライマリグループ指定                    |
+| `-G LIST`    | `--groups`                | 追加グループ（カンマ区切り）                 |
+| `-k DIR`     | `--skel`                  | skeletonディレクトリ指定（`-m` と併用）     |
+| `-m`         | `--create-home`           | ホームディレクトリ作成                    |
+| `-M`         | `--no-create-home`        | ホームディレクトリを作成しない                |
+| `-N`         | `--no-user-group`         | 同名グループを作らない                    |
+| `-r`         | `--system`                | システムユーザー作成                     |
+| `-s SHELL`   | `--shell`                 | ログインシェル指定                      |
+| `-u UID`     | `--uid`                   | UID指定                          |
+| `-U`         | `--user-group`            | 同名グループ作成                       |
+
+::::
+
+[`/etc/passwd` のエントリ]{.mini-section}
+
+`/etc/passwd` は ユーザーの基本情報を管理するファイルであり，次の 7 フィールドで構成されています．
+
+```ini
+login:passwd:UID:GID:GECOS:home:shell
+```
+
+:::: {.no-border-top-table}
+
+| フィールド  | 値              | 説明                                   |
+| ------ | -------------- | ------------------------------------ |
+| login  | `testuser`       | ユーザー名                                |
+| passwd | `x`              | パスワード本体は `/etc/shadow` に保存されていることを示す |
+| UID    | `1001`           | ユーザーID                               |
+| GID    | `1001`           | プライマリグループID                          |
+| GECOS  | `(空)`            | コメント欄（氏名など）                          |
+| home   | `/home/testuser` | ホームディレクトリ                            |
+| shell  | `/bin/sh`        | ログインシェル                              |
+
+::::
+
+`/home/testuser` と記述されていますが，`useradd` をオプション無しで実行しただけではホームディレクトリは作成されません．
+`/etc/passwd` に書かれている `home` フィールドは「実在するディレクトリ」を保証するものではなく，あくまで ログイン時に参照されるホームディレクトリのパス情報 を示しているだけ．
+
+実際にホームディレクトリを作成したい場合は
+
+```bash
+sudo useradd -m testuser
+```
+
+と `-m` オプションを付与して実行する必要があります
+
+[`/etc/shadow` のエントリ]{.mini-section}
+
+`sudo useradd testuser` 実行直後に `/etc/shadow` を確認すると 
+
+```bash
+$ sudo cat /etc/shadow | grep "testuser"
+testuser:!:20496:0:99999:7:::
+```
+
+にように 第二フィールドの値が `!` となっています．これは，アカウントロック状態を意味しており，**ログイン出来ない状態**を表しています．ただし，
+
+```bash
+sudo su testuser
+```
+
+にようにswitch userコマンド経由での動作には影響を与えません．
+
+
+::: {.callout-tip}
+### root以外のuid 1000未満のアカウント
+
+root以外のuid 1000未満のアカウントはデーモンやディレクトリの所有者として利用するシステムアカウントとして用意されています．
+
+システムアカウントの大半は，ログインアカウントではないので `/etc/passwd`の 最終フィールドは `/user/sbin/nologin` が設定されている場合が多いです
+
+```bash
+$ getent passwd
+root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+bin:x:2:2:bin:/bin:/usr/sbin/nologin
+sys:x:3:3:sys:/dev:/usr/sbin/nologin
+sync:x:4:65534:sync:/bin:/bin/sync
+games:x:5:60:games:/usr/games:/usr/sbin/nologin
+man:x:6:12:man:/var/cache/man:/usr/sbin/nologin
+lp:x:7:7:lp:/var/spool/lpd:/usr/sbin/nologin
+mail:x:8:8:mail:/var/mail:/usr/sbin/nologin
+news:x:9:9:news:/var/spool/news:/usr/sbin/nologin
+uucp:x:10:10:uucp:/var/spool/uucp:/usr/sbin/nologin
+proxy:x:13:13:proxy:/bin:/usr/sbin/nologin
+...
+```
+
+個人での運用では，分析プロジェクトspecificでnon-humanアカウントを作成することもあり，システムアカウントと分けて管理したいので
+
+:::: {.no-border-top-table}
+
+| 種類      | UID範囲     | 説明 |
+| ------- | ------------ | ------------------------------------ |
+| system  | 0–999     | OS やミドルウェアが内部的に使用するアカウント．手動運用では極力触らない領域．                          |
+| human   | 1000–4999 | 人間がログインして作業するユーザー |
+| project | 5000+     | プロジェクト専用・ジョブ実行・データパイプライン・バッチ処理などのためのアカウント |
+
+この運用を徹底するため，[自動割り当てされる UID/GID の範囲を 1000〜4999 に制限する]{.regmonkey-bold} 運用に変更します．
+この設定を適用するため，`/etc/login.defs` を編集し
+
+- `UID_MAX 4999`
+- `GID_MAX 4999`
+
+の設定へ変更しておきます．
+
+
+::::
+
+
+
+
+:::
+
+::: {#exm- .custom_problem }
+[分析ユーザーの作成]{.def-title}
+
+`ds-analyst` ユーザーアカウントを作成死体場面を考えます．要件は以下
+
+1. `sambashare`，`paperless-ngx`，`docker`グループに加える
+2. home directoryを作成する
+3. ログインシェルを bash に設定
+
+```bash
+sudo useradd -m -s /bin/bash -G docker,sambashare,docker ds-analyst
+```
+
+:::
+***
+
+::: {#exm- .custom_problem }
+[service accountの作成]{.def-title}
+
+system accountやservice accountを作成する場合は，UIDが1000未満であることが望ましいので，
+
+- `-r` オプションの付与 = 1000未満UIDで作成
+- `-s /usr/sbin/nologin` = ログイン不可
+
+を加えて `useradd` コマンドを実行します．例として，
+
+```bash
+sudo useradd -r -s /usr/bin/nologin testservice
+```
+
+特定の分析プロジェクトspecificで作成する場合，システムアカウントとしてではなく作成したい場合もあります．
+
+- UID: 5000
+- GID: 5000
+
+で作成したい場合は，まず5000 GIDを作成してからproject用アカウントを作成します
+
+```bash
+## GID作成
+$ sudo groupadd -g 5000 projectservice
+
+## アカウント作成
+$ sudo useradd -u 5000 -g 5000 -s /usr/sbin/nologin projectservice
+```
+
+
+
+:::
+***
+
+### `adduser` コマンド
+
+::: {#def- .custom_problem .blog-custom-border}
+[`adduser` コマンド]{.def-title}
+
+- `useradd`, `groupadd`, `usermod` コマンドのラッパー
+- Debianポリシー準拠で安全にユーザー管理できるフロントエンドコマンド
+
+:::
+
+```bash
+sudo adduser username
+```
+
+を実行すると，`useradd` コマンドの引数実行と同じことを実施してくれます
+
+:::: {.no-border-top-table}
+
+| 動作 | `useradd` with options |
+| --- | -------- |
+| UID を自動割当 | |
+| 同名グループ作成（usergroup） | |
+| `/etc/skel` をホームにコピー | `useradd -m`|
+| パスワード設定 | `useradd -p <encrypted>` or `passwd` |
+| コメント入力 | `useradd -c '<Full Name>,<Room Number>,<Work Phone>,<Home Phone>,<Other>'` |
+
+::::
+
+::: {#exm- .custom_problem }
+[ `adduser` 実行例]{.def-title}
+
+```bash
+$ sudo adduser test01
+[sudo] password for kirby:
+Adding user `test01' ...
+Adding new group `test01' (1006) ...
+Adding new user `test01' (1006) with group `test01' ...
+Creating home directory `/home/test01' ...
+Copying files from `/etc/skel' ...
+New password:
+BAD PASSWORD: The password fails the dictionary check - it does not contain enough DIFFERENT characters
+Retype new password:
+passwd: password updated successfully
+Changing the user information for test01
+Enter the new value, or press ENTER for the default
+	Full Name []:
+	Room Number []: 01
+	Work Phone []: 02
+	Home Phone []: 03
+	Other []: 04
+Is the information correct? [Y/n] y
+
+$ getent passwd test01
+test011006:1006:,01,02,03,04:/home/test01:/bin/bash
+```
+
+
+:::
+***
+
+
+
+
+[システムユーザー作成]{.mini-section}
+
+サービスやdaemon実行用のユーザーアカウントを作成する場合は
+
+```bash
+sudo adduser --system --no-create-home appuser
+```
+
+とすると，
+
+- UIDはsystemの範囲から割当
+- デフォルト shell = /usr/sbin/nologin
+- アカウントロック状態
+- nogroup(65534)
+
+で作成してくれます．同名のプライマリーグループも同時に作成したい場合は
+
+```bash
+sudo adduser --system --group --no-create-home nginx
+```
+
+とします．
+
+
+## ユーザーアカウントのロック
+
+::: {#def- .custom_problem .blog-custom-border}
+[`passwd -l <username>`]{.def-title}
+
+- ユーザーのパスワードを無効化し，ログインを一時的に禁止する
+- `/etc/shadow` のパスワードハッシュ先頭に ! が付与される
+- アカウント自体は削除しないため，後から復旧可能
+- human user を削除する前の安全措置として推奨
+
+:::
+
+ユーザー認証を行うPAMの `pam_unix.so` モジュールは，`/etc/passwd` の第2フィールドに `x` が入っていた場合には `/etc/shadow` を参照します．
+`/etc/shadow` のパスワードフィールドの１文字目が
+
+- `*`
+- `!`
+
+の場合は，ログインが拒否されます．`passwd -l <username>` を実行すると，`/etc/shadow` のパスワードハッシュ先頭に `!` が付与されます．
+
+::: {.callout-tip}
+### サーバー運用上の注意
+
+- `passwd -l` はパスワードログインのみを無効化する
+- SSH公開鍵ログインは停止しない場合がある
+- 既存セッションも維持されるリスクがある
+
+完全停止が必要な場合は
+
+```bash
+sudo loginctl terminate-user <username>
+```
+
+:::
+
+[ロック状態の確認]{.mini-section}
+
+```bash
+$ sudo passwd -S testuser
+testuser L 2026-02-13 0 99999 7 -1
+```
+
+:::: {.no-border-top-table}
+
+| フラグ  | 意味               |
+| ---- | ---------------- |
+| `L`  | Locked（ロック状態）    |
+| `P`  | Passwordあり（通常状態） |
+| `NP` | Passwd未設定 (`passwd -d <username>` 実行後の状態)
+
+::::
+
+[アカウントロックの解除]{.mini-section}
+
+```bash
+sudo passwd -u <username>
+```
+
+::: {.callout-tip}
+### `passwd` vs `usermod`
+
+:::: {.no-border-top-table}
+
+| 動作 | `passwd` | `usermod` |
+| ------ | ------------------ | ------------------ |
+| アカウントロック | `passwd -l <username>` | `usermod -L <username>` |
+| ロック解除 | `passwd -u <username>` | `usermod -U <username>` |
+
+::::
+
+アカウントロックに関係するコマンドとして，`usermod` もあります．manualを確認すると
+
+```txt
+-L, --lock
+
+    Lock a user's password. 
+    This puts a '!' in front of the encrypted password, 
+    effectively disabling the password. 
+    You can't use this option with -p or -U.
+```
+
+ 
+:::
+
+
+### 対話的なログインを禁止する場合
+
+:::: {.callout-note}
+
+ユーザーアカウント自体は有効なままにして，対話的なログインをできないようにする場合
+
+:::{style="padding-left: 1em;"}
+
+```bash
+## /usr/sbin/nologinを用いる場合
+sudo usermod -s /usr/sbin/nologin <username>
+
+## /bin/falseを用いる場合
+sudo usermod -s /bin/false <username>
+```
+:::
+::::
+
+ログインシェルに `/bin/false` を指定することにより，対話的なログインを禁止することができます．
+`/bin/false` は `false` コマンドの実体で，返り値 `1` を返すコマンドです．
+
+ユーザーはログインすると `false` コマンドが実行されるため，ログアウトサせられます．
+
+基本的には `/usr/sbin/nologin` を設定するほうが賢明と言われます．
+
+
+## ユーザーアカウントの消去
+
+::: {#def- .custom_problem .blog-custom-border}
+[`userdel` コマンド]{.def-title}
+
+- ユーザーを削除するコマンド
+- 削除するユーザーだけが所属していたグループも同時に削除
+
+:::
+
+```bash
+sudo userdel -r testuser
+```
+
+を実行すると `testuser` ユーザーアカウントとそれに紐付いたホームディレクトリを削除することができます．`-r` オプションを付与しないと，アカウントのみの削除になります．
+
+[options]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| オプション            | 説明                                         |
+| ---------------- | ------------------------------------------ |
+| `-r`, `--remove` | ホームディレクトリやメールスプールなど，ユーザーに紐付くファイルも同時に削除する   |
+| `-f`, `--force`  | ログイン中のユーザーや残存ファイルがあっても強制的に削除を試みる
+
+::::
+
+
+
+## Appendix: スケルトンディレクトリ `/etc/skel`
+
+::: {#def- .custom_problem .blog-custom-border}
+[スケルトンディレクトリ]{.def-title}
+
+- 新規ユーザー用の初期ホームディレクトリテンプレート
+- 通常は `/etc/skel` に存在する
+
+:::
+
+[デフォルトのディレクトリエントリ]{.mini-section}q
+
+```bash
+% ls /etc/skel -al
+total 32
+drwxr-xr-x   2 root root  4096 Aug 16 17:49 ./
+drwxr-xr-x 178 root root 12288 Feb 12 10:22 ../
+-rw-r--r--   1 root root   220 Jan  7  2022 .bash_logout
+-rw-r--r--   1 root root  3771 Jan  7  2022 .bashrc
+-rw-r--r--   1 root root  2078 Dec  6  2021 .kshrc
+```
+
+ここに rootで `touch .zshrc` などを実行してファイルなどを作成すると，`adduser` 時に新しい構成でホームディレクトリを作成してくれます．
+新しく作成されるユーザのホームディレクトリにコピーされる際には，**コピーされたファイルとディレクトリの権限は，新しく作成されるユーザの権限になります**
+
+## Appendix: `getent passwd`
+
+::: {#def- .custom_problem .blog-custom-border}
+[`getent` コマンド]{.def-title}
+
+- ネームサービススイッチ(`/etc/nsswitch.conf`)の設定に従い，生き数で指定したデータベースの内容を表示するコマンド
+
+:::{style="padding-left:1em;"}
+
+```bash
+getent <database> <key>
+```
+
+:::
+:::
+
+データベース名の例として，`passwd`, `hosts` など `/etc/nsswitch.conf` のエントリを指定することができます．
+
+- キーを指定しなかった場合は，データベースの全内容を表示
+- キーを指定指定した場合は，データベースの中からキーに対応したレコードを表示
+
+```bash
+getent passwd kirby
+```
+
+と実行すると，`/etc/passwd` からユーザーアカウント `kirby` に対応するレコードを表示してくれます．
+
+```bash
+$ getent passwd kirby
+kirby:x:1001:1001:kirby,,,:/home/kirby:/usr/bin/zsh
+```
+
+
+
+[`/etc/nsswitch.conf`の中身]{.mini-section}
+
+```bash
+$ cat /etc/nsswitch.conf
+# /etc/nsswitch.conf
+#
+# Example configuration of GNU Name Service Switch functionality.
+# If you have the `glibc-doc-reference' and `info' packages installed, try:
+# `info libc "Name Service Switch"' for information about this file.
+
+passwd:         files systemd
+group:          files systemd
+shadow:         files
+gshadow:        files
+
+hosts:          files mdns4_minimal [NOTFOUND=return] dns
+networks:       files
+
+protocols:      db files
+services:       db files
+ethers:         db files
+rpc:            db files
+
+netgroup:       nis
+
+```
+
+`getent passwd` を実行すると `passwd: files systemd` という設定より
+
+1. `/etc/passwd` を確認
+2. 見つからなければsystemd user databaseを確認
+
+という流れになります．
