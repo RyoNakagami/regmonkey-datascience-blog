@@ -1,0 +1,171 @@
+---
+title: "Ubuntuにフォントを追加する"
+author: "Ryo Nakagami"
+date: "2026-02-05"
+date-modified: "2026-02-16"
+categories: [環境構築, Linux, font]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## Ubuntuで日本語表示対応させるには？
+
+
+Ubuntu は UTF-8 を標準採用していますが，日本語フォントが未インストールの場合，日本語表示にあたって `□□□` のような豆腐文字が表示される場合があります．
+
+Linux における文字表示は
+
+1. 文字コード（UTF-8）で文字を解釈
+2. fontconfig が使用するフォントを決定する
+3. フォント内に該当グリフがあれば描画
+
+という流れになります．
+
+### 利用可能日本語フォントの確認
+
+X11, Waylandどちらの環境でも，利用可能な日本語フォントを確認する場合は
+
+```bash
+fc-list :lang=ja
+```
+
+で確認することができます．
+
+## 日本語フォントのインストール
+
+今回は以下の構成を目指します
+
+```bash
+$ ls -l /usr/local/share/fonts/
+
+total 8
+drwxr-sr-x 2 root staff 4096 Oct  2  2015 IPAexfont00301/
+drwxr-sr-x 2 root staff 4096 Feb 14 00:55 Meiryo/
+
+$ tree /usr/local/share/fonts/
+/usr/local/share/fonts/
+├── IPAexfont00301
+│   ├── ipaexg.ttf
+│   ├── ipaexm.ttf
+│   ├── IPA_Font_License_Agreement_v1.0.txt
+│   └── Readme_IPAexfont00301.txt
+└── Meiryo
+    ├── meiryob.ttc
+    └── meiryo.ttc
+```
+
+### フォントディレクトリの種類と設置場所
+
+:::: {.no-border-top-table}
+
+| 置き場所                                  | 適用範囲          | 権限   | 備考                 |
+| ------------------------------------- | ------------- | ---- | ------------------ |
+| `/usr/share/fonts`                    | システム全体        | root | ほとんどのディストリビューション標準 |
+| `/usr/local/share/fonts`              | システム全体（手動追加用） | root | ローカル管理者が追加  |
+| `~/.fonts` または `~/.local/share/fonts` | ログインユーザのみ     | 自分   | root不要．個人用フォント管理用  |
+
+::::
+
+### フォントのインストール
+
+`/usr/local/share/fonts` は root 権限が必要なので，一旦リモートのユーザーhome directory直下で作業し，その後，
+`/usr/local/share` に配置し直す方針で作業します．作業後に `sudo fc-cache -fv` を実施することを忘れずに．
+
+[Meiryoフォントのインストール]{.mini-section}
+
+1. Meiryo fontをもった端末からssh先に転送
+2. リモートで `usr/local/share` 以下に移動
+3. Permissionを変更
+4. font cacheの更新
+
+```bash
+## 1. Meiryo fontをもった端末からssh先に転送
+rsync -av --progress /home/kirby/.local/share/fonts/Meiryo/ pupupu-server:~/tmp/
+
+## 2. リモートで `usr/local/share` 以下に移動
+sudo mkdir -p /usr/local/share/fonts/Meiryo
+sudo mv /home/kirby-remote/tmp/meiryo* /usr/local/share/fonts/Meiryo
+
+
+## 3. Permissionを変更
+sudo chown -R root:staff /usr/local/share/fonts/Meiryo
+sudo find /usr/local/share/fonts/Meiryo -type d -exec chmod 2755 {} \;
+sudo find /usr/local/share/fonts/Meiryo -type f -exec chmod 644 {} \;
+
+## 4. font cacheの更新
+sudo fc-cache -fv
+```
+
+[IPAexフォント Ver.003.01のインストール]{.mini-section}
+
+1. リモートでIPAexフォントのダウンロード + `unzip`
+2. リモートで `usr/local/share` 以下に移動
+3. Permissionを変更
+4. font cacheの更新
+
+
+```bash
+## 0. 作業用ディレクトリに移動
+cd ~/tmp
+
+## 1. リモートでIPAexフォントのダウンロード + `unzip`
+curl -OL https://moji.or.jp/wp-content/ipafont/IPAexfont/IPAexfont00301.zip
+unzip IPAexfont00301.zip
+
+## 2. リモートで `usr/local/share` 以下に移動
+sudo mkdir -p /usr/local/share/fonts/IPAexfont00301
+sudo mv ~/tmp/IPAexfont00301/* /usr/local/share/fonts/IPAexfont00301/
+rm ~/tmp/IPAexfont00301.zip
+
+## 3. Permissionを変更
+sudo chown -R root:staff /usr/local/share/fonts/IPAexfont00301
+sudo find /usr/local/share/fonts/IPAexfont00301 -type d -exec chmod 2755 {} \;
+sudo find /usr/local/share/fonts/IPAexfont00301 -type f -exec chmod 644 {} \;
+
+## 4. font cacheの更新
+sudo fc-cache -fv
+```
+
+## Appendix: Debian系におけるgroup `staff`
+
+::: {#def- .custom_problem .blog-custom-border}
+[`staff` グループ]{.def-title}
+
+- Debian系で古くから存在する「準管理者」的グループ
+- 歴史的には `/usr/local` を書き込み可能にするためのグループ
+
+
+```bash
+$ getent group staff
+staff:x:50:
+```
+
+:::
+
+`staff` グループに所属することで `/usr/local/` 以下を管理者権限なく書き込める用になります．
+特定のユーザーを `staff` グループに加えたい場合は
+
+
+```bash
+sudo usermod -aG staff <username>
+```
+
+:::: {.no-border-top-table}
+
+| オプション | 動作 |
+| ---- | -------------- |
+| `-a` | append specified group．今回は `staff` グループを `<username>` に追加する |
+| `-G` | supplementary groups を指定．`-g` だとprimary groupを変更してしまうので注意 |
+
+::::
+
+
+
+
+References
+----------
+- [ 一般社団法人 文字情報技術促進協議会 > IPAexフォント Ver.003.01](https://moji.or.jp/ipafont/ipaex00301/)
