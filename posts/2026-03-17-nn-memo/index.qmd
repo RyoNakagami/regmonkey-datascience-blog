@@ -1,0 +1,856 @@
+---
+title: "Neural Netと学習"
+author: "Ryo Nakagami"
+date: "2026-03-17"
+date-modified: "2026-03-17"
+categories: [ML, EDA]
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## 周期関数の学習
+
+以下の区分的定数関数 $f$ を考える:
+
+$$
+f(x) = \begin{cases}
+-1 & x < -\frac{\pi}{10} \\
+1 & -\frac{\pi}{10} \leq x < \frac{\pi}{10} \\
+0 & x \geq \frac{\pi}{10}
+\end{cases}
+$$
+
+ただし，$f$ は $[-1, 1)$ 上で定義された関数を周期的に拡張したものとする（$x \mapsto ((x+1) \bmod 2) - 1$ で折り返し）．
+
+### フーリエ級数近似
+
+まず，$f$ のフーリエ級数展開を確認する．区間 $[-\pi, \pi]$ 上で周期 $2\pi$ のフーリエ係数を数値積分で求め，$N = 100$ 項までの部分和で近似する．
+不連続点付近ではギブズ現象（Gibbs phenomenon）によるオーバーシュートが観察される．
+
+```{python}
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+def f_periodic(x):
+    x = ((x + 1) % 2) - 1  # [-1,1) に折り返し
+
+    if x < -np.pi / 10:
+        return -1
+    elif x < np.pi / 10:
+        return 1
+    else:
+        return 0
+
+
+def fourier_coeffs(N=100, M=20000):
+    L = np.pi
+    xs = np.linspace(-L, L, M)
+    dx = xs[1] - xs[0]
+    fx = np.array([f_periodic(x) for x in xs])
+
+    a0 = (1 / L) * np.sum(fx) * dx
+
+    an = []
+    bn = []
+
+    for n in range(1, N + 1):
+        cos_term = np.cos(n * xs)
+        sin_term = np.sin(n * xs)
+
+        an.append((1 / L) * np.sum(fx * cos_term) * dx)
+        bn.append((1 / L) * np.sum(fx * sin_term) * dx)
+
+    return a0, np.array(an), np.array(bn)
+
+
+def fourier_approx(x, a0, an, bn):
+    result = a0 / 2
+    for n in range(1, len(an) + 1):
+        result += an[n - 1] * np.cos(n * x) + bn[n - 1] * np.sin(n * x)
+    return result
+
+
+a0, an, bn = fourier_coeffs(N=100)
+
+xs = np.linspace(-np.pi, np.pi, 2000)
+fx = np.array([f_periodic(x) for x in xs])
+approx = np.array([fourier_approx(x, a0, an, bn) for x in xs])
+
+fig, ax = plt.subplots(figsize=(8, 4))
+ax.plot(xs, fx, label="f(x)", linewidth=2)
+ax.plot(xs, approx, label="Fourier (N=100)", linewidth=1, alpha=0.8)
+ax.set_xlim(-np.pi, np.pi)
+ax.set_xlabel("x")
+ax.set_ylabel("y")
+ax.legend()
+ax.set_title("Fourier Series Approximation")
+plt.tight_layout()
+plt.show()
+```
+
+### Neural Netによる関数近似
+
+フーリエ級数は直交基底の線形結合であり，不連続関数に対しては収束が遅い．
+ここでは，同じ関数 $f$ を小規模なニューラルネットワークで近似することを試みる．
+
+**入力特徴量の設計**
+
+生の $x$ を直接入力とするのではなく，フーリエ特徴量 $\{\sin(k\pi x), \cos(k\pi x)\}_{k=1}^{K}$ を入力として与える．
+これにより，ネットワーク自身が三角関数の非線形変換を学習する必要がなくなり，
+少ないパラメータでも不連続点付近の急峻な変化を捉えやすくなる．
+
+**ネットワーク構成**
+
+| 層 | サイズ |
+|---|---|
+| 入力 | $2K$ （$K=5$ のとき 10次元） |
+| 隠れ層1 | $4K$ + BatchNorm + ReLU |
+| 隠れ層2 | $K$ + BatchNorm + ReLU |
+| 隠れ層3 | 3 + BatchNorm + ReLU |
+| 出力 | 1 |
+
+**学習の工夫**
+
+- **BatchNorm**: 各層の出力を正規化し，勾配の流れを安定化
+- **He初期化**: ReLU活性化に適した重み初期化で収束を早める
+- **AdamW** (weight_decay=$10^{-4}$): L2正則化付きでフラットな最小値へ誘導
+- **OneCycleLR**: warmup → 高学習率 → annealing を1サイクルで行い，少ないepochで効率的に収束させる
+- **ミニバッチ** (batch_size=512): SGDノイズが暗黙の正則化として働く
+- **勾配クリッピング** (max_norm=1.0): 不連続関数の学習で生じる勾配の不安定性を抑制
+
+```{python}
+import torch
+import torch.nn as nn
+import torch.optim as optim
+
+# --- サンプリング ---
+np.random.seed(42)
+
+
+def f_periodic_vec(x):
+    x = ((x + 1) % 2) - 1
+
+    y = np.zeros_like(x)
+    y[x < -np.pi / 10] = -1
+    y[(x >= -np.pi / 10) & (x < np.pi / 10)] = 1
+    y[x >= np.pi / 10] = 0
+
+    noise = np.random.normal(0, 0.1, size=x.shape)
+
+    return y + noise
+
+
+K = 5  # フーリエ特徴量の次数
+
+
+def make_features(x, K=K):
+    """sin(kπx), cos(kπx) for k=1..K → 2K次元の特徴量"""
+    feats = []
+    for k in range(1, K + 1):
+        feats.append(np.sin(k * np.pi * x))
+        feats.append(np.cos(k * np.pi * x))
+    return np.stack(feats, axis=1)
+
+
+x_train = np.random.uniform(-np.pi / 2, np.pi / 2, 10000)
+y_train = f_periodic_vec(x_train)
+
+X = torch.tensor(make_features(x_train), dtype=torch.float32)
+Y = torch.tensor(y_train, dtype=torch.float32).unsqueeze(1)
+
+model = nn.Sequential(
+    nn.Linear(2 * K, 4 * K),
+    nn.BatchNorm1d(4 * K),
+    nn.ReLU(),
+    nn.Linear(4 * K, K),
+    nn.BatchNorm1d(K),
+    nn.ReLU(),
+    nn.Linear(K, 3),
+    nn.BatchNorm1d(3),
+    nn.ReLU(),
+    nn.Linear(3, 1),
+)
+
+for m in model:
+    if isinstance(m, nn.Linear):
+        nn.init.kaiming_normal_(m.weight, nonlinearity="relu")
+        nn.init.zeros_(m.bias)
+
+criterion = nn.MSELoss()
+optimizer = optim.AdamW(model.parameters(), lr=3e-3, weight_decay=1e-4)
+
+# --- ミニバッチ学習 + OneCycleLR ---
+dataset = torch.utils.data.TensorDataset(X, Y)
+loader = torch.utils.data.DataLoader(dataset, batch_size=512, shuffle=True)
+
+n_epochs = 60
+scheduler = optim.lr_scheduler.OneCycleLR(
+    optimizer, max_lr=1e-2, epochs=n_epochs, steps_per_epoch=len(loader)
+)
+
+# --- プロット用の準備 ---
+xs_plot = np.linspace(-np.pi, np.pi, 500)
+fx_plot = np.array([f_periodic(x) for x in xs_plot])
+X_plot_tensor = torch.tensor(make_features(xs_plot), dtype=torch.float32)
+
+
+# --- 学習ループ（各epochのスナップショットを記録） ---
+snapshots = {}
+all_losses = []
+
+for epoch in range(n_epochs):
+    model.train()
+    epoch_loss = 0.0
+    for xb, yb in loader:
+        pred = model(xb)
+        loss = criterion(pred, yb)
+        optimizer.zero_grad()
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        optimizer.step()
+        scheduler.step()
+        epoch_loss += loss.item() * len(xb)
+    epoch_loss /= len(dataset)
+    all_losses.append(epoch_loss)
+
+    model.eval()
+    with torch.no_grad():
+        snap = model(X_plot_tensor).squeeze().cpu().numpy()
+    snapshots[epoch] = snap.copy()
+
+    if epoch % 10 == 0:
+        print(f"epoch {epoch:3d}  loss={epoch_loss:.6f}")
+
+# --- Plotly (frames + slider) ---
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+
+fig = make_subplots(
+    rows=1,
+    cols=2,
+    subplot_titles=["Training Loss", "NN Approximation"],
+    horizontal_spacing=0.12,
+)
+
+# trace 0: loss曲線
+fig.add_trace(
+    go.Scatter(
+        x=list(range(n_epochs)),
+        y=all_losses,
+        mode="lines",
+        name="loss",
+        line=dict(color="#1f77b4"),
+    ),
+    row=1,
+    col=1,
+)
+# trace 1: 現在epochマーカー（赤丸）
+fig.add_trace(
+    go.Scatter(
+        x=[0],
+        y=[all_losses[0]],
+        mode="markers",
+        name="current epoch",
+        marker=dict(color="red", size=12),
+        showlegend=False,
+    ),
+    row=1,
+    col=1,
+)
+# trace 2: f(x)
+fig.add_trace(
+    go.Scatter(
+        x=xs_plot,
+        y=fx_plot,
+        mode="lines",
+        name="f(x)",
+        line=dict(color="black", width=2),
+    ),
+    row=1,
+    col=2,
+)
+# trace 3: NN出力（frameで更新）
+fig.add_trace(
+    go.Scatter(
+        x=xs_plot,
+        y=snapshots[0],
+        mode="lines",
+        name="NN",
+        line=dict(color="#d62728", width=2),
+    ),
+    row=1,
+    col=2,
+)
+
+# --- frames ---
+frames = []
+for ep in range(n_epochs):
+    frames.append(
+        go.Frame(
+            data=[
+                go.Scatter(x=[ep], y=[all_losses[ep]]),
+                go.Scatter(x=xs_plot, y=snapshots[ep]),
+            ],
+            traces=[1, 3],
+            name=str(ep),
+        )
+    )
+fig.frames = frames
+
+# --- slider ---
+sliders = [
+    dict(
+        active=0,
+        currentvalue=dict(prefix="epoch: "),
+        pad=dict(t=30),
+        steps=[
+            dict(
+                args=[
+                    [str(ep)],
+                    dict(mode="immediate", frame=dict(duration=0, redraw=True)),
+                ],
+                method="animate",
+                label=str(ep),
+            )
+            for ep in range(n_epochs)
+        ],
+    )
+]
+
+# --- play / pause ---
+updatemenus = [
+    dict(
+        type="buttons",
+        showactive=False,
+        x=0.0,
+        y=-0.15,
+        xanchor="left",
+        buttons=[
+            dict(
+                label="&#9654;",
+                method="animate",
+                args=[
+                    None,
+                    dict(frame=dict(duration=100, redraw=True), fromcurrent=True),
+                ],
+            ),
+            dict(
+                label="&#9724;",
+                method="animate",
+                args=[
+                    [None],
+                    dict(frame=dict(duration=0, redraw=True), mode="immediate"),
+                ],
+            ),
+        ],
+    )
+]
+
+fig.update_xaxes(title_text="epoch", row=1, col=1)
+fig.update_yaxes(title_text="MSE loss", type="log", row=1, col=1)
+fig.update_xaxes(title_text="x", range=[-np.pi, np.pi], row=1, col=2)
+fig.update_yaxes(title_text="y", range=[-1.5, 1.5], row=1, col=2)
+fig.update_layout(
+    height=500,
+    width=1000,
+    sliders=sliders,
+    updatemenus=updatemenus,
+    margin=dict(t=40, b=80),
+)
+fig.show()
+```
+
+::: {.callout-note}
+
+- 左パネルのloss曲線上でスライダーを動かすと，対応するepochにおけるNNの出力が右パネルに表示される．
+- 初期（epoch 0）ではほぼランダムな出力だが，学習が進むにつれて $f(x)$ の形状を捉えていく様子が確認できる．
+
+
+:::
+
+### モデルアーキテクチャが不十分なケース
+
+```{python}
+X = torch.tensor(x_train, dtype=torch.float32).unsqueeze(1)
+Y = torch.tensor(y_train, dtype=torch.float32).unsqueeze(1)
+
+model = nn.Sequential(
+    nn.Linear(1, 4 * K),
+    nn.BatchNorm1d(4 * K),
+    nn.ReLU(),
+    nn.Linear(4 * K, K),
+    nn.BatchNorm1d(K),
+    nn.ReLU(),
+    nn.Linear(K, 3),
+    nn.BatchNorm1d(3),
+    nn.ReLU(),
+    nn.Linear(3, 1),
+)
+
+for m in model:
+    if isinstance(m, nn.Linear):
+        nn.init.kaiming_normal_(m.weight, nonlinearity="relu")
+        nn.init.zeros_(m.bias)
+
+criterion = nn.MSELoss()
+optimizer = optim.AdamW(model.parameters(), lr=3e-3, weight_decay=1e-4)
+
+# --- ミニバッチ学習 + OneCycleLR ---
+dataset = torch.utils.data.TensorDataset(X, Y)
+loader = torch.utils.data.DataLoader(dataset, batch_size=512, shuffle=True)
+
+n_epochs = 60
+scheduler = optim.lr_scheduler.OneCycleLR(
+    optimizer, max_lr=1e-2, epochs=n_epochs, steps_per_epoch=len(loader)
+)
+
+# --- プロット用の準備 ---
+xs_plot = np.linspace(-np.pi, np.pi, 500)
+fx_plot = np.array([f_periodic(x) for x in xs_plot])
+X_plot_tensor = torch.tensor(xs_plot, dtype=torch.float32).unsqueeze(1)
+
+
+# --- 学習ループ（各epochのスナップショットを記録） ---
+snapshots = {}
+all_losses = []
+
+for epoch in range(n_epochs):
+    model.train()
+    epoch_loss = 0.0
+    for xb, yb in loader:
+        pred = model(xb)
+        loss = criterion(pred, yb)
+        optimizer.zero_grad()
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        optimizer.step()
+        scheduler.step()
+        epoch_loss += loss.item() * len(xb)
+    epoch_loss /= len(dataset)
+    all_losses.append(epoch_loss)
+
+    model.eval()
+    with torch.no_grad():
+        snap = model(X_plot_tensor).squeeze().cpu().numpy()
+    snapshots[epoch] = snap.copy()
+
+    if epoch % 10 == 0:
+        print(f"epoch {epoch:3d}  loss={epoch_loss:.6f}")
+
+# --- Plotly (frames + slider) ---
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+
+fig = make_subplots(
+    rows=1,
+    cols=2,
+    subplot_titles=["Training Loss", "NN Approximation"],
+    horizontal_spacing=0.12,
+)
+
+# trace 0: loss曲線
+fig.add_trace(
+    go.Scatter(
+        x=list(range(n_epochs)),
+        y=all_losses,
+        mode="lines",
+        name="loss",
+        line=dict(color="#1f77b4"),
+    ),
+    row=1,
+    col=1,
+)
+# trace 1: 現在epochマーカー（赤丸）
+fig.add_trace(
+    go.Scatter(
+        x=[0],
+        y=[all_losses[0]],
+        mode="markers",
+        name="current epoch",
+        marker=dict(color="red", size=12),
+        showlegend=False,
+    ),
+    row=1,
+    col=1,
+)
+# trace 2: f(x)
+fig.add_trace(
+    go.Scatter(
+        x=xs_plot,
+        y=fx_plot,
+        mode="lines",
+        name="f(x)",
+        line=dict(color="black", width=2),
+    ),
+    row=1,
+    col=2,
+)
+# trace 3: NN出力（frameで更新）
+fig.add_trace(
+    go.Scatter(
+        x=xs_plot,
+        y=snapshots[0],
+        mode="lines",
+        name="NN",
+        line=dict(color="#d62728", width=2),
+    ),
+    row=1,
+    col=2,
+)
+
+# --- frames ---
+frames = []
+for ep in range(n_epochs):
+    frames.append(
+        go.Frame(
+            data=[
+                go.Scatter(x=[ep], y=[all_losses[ep]]),
+                go.Scatter(x=xs_plot, y=snapshots[ep]),
+            ],
+            traces=[1, 3],
+            name=str(ep),
+        )
+    )
+fig.frames = frames
+
+# --- slider ---
+sliders = [
+    dict(
+        active=0,
+        currentvalue=dict(prefix="epoch: "),
+        pad=dict(t=30),
+        steps=[
+            dict(
+                args=[
+                    [str(ep)],
+                    dict(mode="immediate", frame=dict(duration=0, redraw=True)),
+                ],
+                method="animate",
+                label=str(ep),
+            )
+            for ep in range(n_epochs)
+        ],
+    )
+]
+
+# --- play / pause ---
+updatemenus = [
+    dict(
+        type="buttons",
+        showactive=False,
+        x=0.0,
+        y=-0.15,
+        xanchor="left",
+        buttons=[
+            dict(
+                label="&#9654;",
+                method="animate",
+                args=[
+                    None,
+                    dict(frame=dict(duration=100, redraw=True), fromcurrent=True),
+                ],
+            ),
+            dict(
+                label="&#9724;",
+                method="animate",
+                args=[
+                    [None],
+                    dict(frame=dict(duration=0, redraw=True), mode="immediate"),
+                ],
+            ),
+        ],
+    )
+]
+
+fig.update_xaxes(title_text="epoch", row=1, col=1)
+fig.update_yaxes(title_text="MSE loss", type="log", row=1, col=1)
+fig.update_xaxes(title_text="x", range=[-np.pi, np.pi], row=1, col=2)
+fig.update_yaxes(title_text="y", range=[-1.5, 1.5], row=1, col=2)
+fig.update_layout(
+    height=500,
+    width=1000,
+    sliders=sliders,
+    updatemenus=updatemenus,
+    margin=dict(t=40, b=80),
+)
+fig.show()
+```
+
+## Neural Netとモデルの説明性
+
+
+```{python}
+import numpy as np
+import matplotlib.pyplot as plt
+
+# ----------------------------
+# アトラクター（正三角形）
+# ----------------------------
+attractors = np.array(
+    [
+        [0.5, 0.85],  # 0
+        [0.15, 0.15],  # -1
+        [0.85, 0.15],  # 1
+    ]
+)
+
+labels = [-1, 0, 1]
+
+
+# ----------------------------
+# 分類（最近傍）
+# ----------------------------
+def classify(x, y):
+    dists = np.linalg.norm(attractors - np.array([x, y]), axis=1)
+    return labels[np.argmin(dists)]
+
+
+# ----------------------------
+# グリッド
+# ----------------------------
+N = 400
+xs = np.linspace(0, 1, N)
+ys = np.linspace(0, 1, N)
+
+Z = np.zeros((N, N))
+
+for i, x in enumerate(xs):
+    for j, y in enumerate(ys):
+        Z[j, i] = classify(x, y)
+
+# ----------------------------
+# 可視化
+# ----------------------------
+plt.figure(figsize=(6, 6))
+
+plt.imshow(
+    Z,
+    extent=[0, 1, 0, 1],
+    origin="lower",
+    cmap="bwr",  # 赤→白→青
+    vmin=-1,
+    vmax=1,
+)
+
+plt.colorbar(label="Attractor (-1, 0, 1)")
+plt.scatter(attractors[:, 0], attractors[:, 1], c="black", s=100)
+plt.scatter(attractors[:, 0], attractors[:, 1], c="black", s=100)
+plt.title("Perfectly Symmetric 3 Basins")
+plt.xlabel("x")
+plt.ylabel("y")
+plt.show()
+```
+
+### (2, 4, 3, 1) Neural Netで学習 + 各レイヤーのノード出力を可視化
+
+```{python}
+import numpy as np
+import torch
+import torch.nn as nn
+
+# ----------------------------
+# GDP: Ground truth Data Points
+# ----------------------------
+attractors = np.array([
+    [0.5, 0.85],  # 0
+    [0.15, 0.15], # -1
+    [0.85, 0.15], # 1
+])
+label_values = [-1, 0, 1]
+
+N_grid = 50
+xs = np.linspace(0, 1, N_grid)
+ys = np.linspace(0, 1, N_grid)
+X_np = np.array([[x, y] for x in xs for y in ys], dtype=np.float32)
+y_np = np.array([
+    label_values[np.argmin(np.linalg.norm(attractors - p, axis=1))]
+    for p in X_np
+], dtype=np.float32)
+
+X_train = torch.from_numpy(X_np)
+y_train = torch.from_numpy(y_np).unsqueeze(1)
+
+# ----------------------------
+# Neural Net (2 -> 4 -> 3 -> 1)
+# ----------------------------
+torch.manual_seed(42)
+
+model = nn.Sequential(
+    nn.Linear(2, 4),
+    nn.Tanh(),
+    nn.Linear(4, 3),
+    nn.Tanh(),
+    nn.Linear(3, 1),
+)
+
+optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+loss_fn = nn.MSELoss()
+
+for epoch in range(5001):
+    pred = model(X_train)
+    loss = loss_fn(pred, y_train)
+
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+
+    if epoch % 1000 == 0:
+        print(f"Epoch {epoch:4d} | Loss: {loss.item():.6f}")
+```
+
+
+```{python}
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+
+# ----------------------------
+# 可視化用グリッド
+# ----------------------------
+N_vis = 100
+xs_vis = np.linspace(0, 1, N_vis)
+ys_vis = np.linspace(0, 1, N_vis)
+X_vis = torch.from_numpy(
+    np.array([[x, y] for x in xs_vis for y in ys_vis], dtype=np.float32)
+)
+
+# Forward pass: hook で各レイヤーの出力を取得
+activations = {}
+def make_hook(name):
+    def hook(module, input, output):
+        activations[name] = output.detach().numpy()
+    return hook
+
+hooks = []
+for i, layer in enumerate(model):
+    hooks.append(layer.register_forward_hook(make_hook(f"layer_{i}")))
+
+with torch.no_grad():
+    model(X_vis)
+
+for h in hooks:
+    h.remove()
+
+# activations: layer_0=Linear(2,4), layer_1=Tanh, layer_2=Linear(4,3), layer_3=Tanh, layer_4=Linear(3,1)
+a1_vis = activations["layer_1"]  # Tanh後 (N^2, 4)
+a2_vis = activations["layer_3"]  # Tanh後 (N^2, 3)
+a3_vis = activations["layer_4"]  # Linear出力 (N^2, 1)
+
+layer_info = [
+    ("Layer 1 (Tanh)", a1_vis, 4),
+    ("Layer 2 (Tanh)", a2_vis, 3),
+    ("Layer 3 (Output)", a3_vis, 1),
+]
+max_nodes = max(n for _, _, n in layer_info)
+
+# ----------------------------
+# Plotly subplots: レイヤー単位で一斉表示
+# ----------------------------
+fig = make_subplots(
+    rows=1, cols=max_nodes,
+    subplot_titles=[f"node {i}" for i in range(max_nodes)],
+    horizontal_spacing=0.05,
+)
+
+trace_groups = []
+trace_idx = 0
+
+for layer_name, act_data, n_nodes in layer_info:
+    indices = []
+    for col in range(n_nodes):
+        vals = act_data[:, col].reshape(N_vis, N_vis).T
+        fig.add_trace(go.Heatmap(
+            z=vals, x=xs_vis, y=ys_vis,
+            colorscale="RdBu_r", zmid=0,
+            showscale=(col == n_nodes - 1),
+            name=f"node {col}",
+            visible=False,
+        ), row=1, col=col + 1)
+        indices.append(trace_idx)
+        trace_idx += 1
+    trace_groups.append((layer_name, n_nodes, indices))
+
+# Ground Truth
+y_gt = np.array([
+    label_values[np.argmin(np.linalg.norm(attractors - p, axis=1))]
+    for p in X_vis.numpy()
+]).reshape(N_vis, N_vis).T
+
+fig.add_trace(go.Heatmap(
+    z=y_gt, x=xs_vis, y=ys_vis,
+    colorscale="RdBu_r", zmid=0, showscale=True,
+    name="Ground Truth", visible=False,
+), row=1, col=1)
+trace_groups.insert(0, ("Ground Truth", 1, [trace_idx]))
+trace_idx += 1
+
+total_traces = trace_idx
+
+# ----------------------------
+# ドロップダウンメニュー
+# ----------------------------
+buttons = []
+for group_name, n_nodes, indices in trace_groups:
+    vis = [False] * total_traces
+    for i in indices:
+        vis[i] = True
+    buttons.append(dict(
+        label=group_name,
+        method="update",
+        args=[{"visible": vis}, {"title": f"{group_name} — {n_nodes} nodes"}]
+    ))
+
+# 初期表示: Ground Truth
+for i in trace_groups[0][2]:
+    fig.data[i].visible = True
+
+# 全subplotの軸範囲を固定
+for i in range(1, max_nodes + 1):
+    xkey = f"xaxis{i}" if i > 1 else "xaxis"
+    ykey = f"yaxis{i}" if i > 1 else "yaxis"
+    fig.update_layout(**{
+        xkey: dict(range=[0, 1]),
+        ykey: dict(range=[0, 1]),
+    })
+
+fig.update_layout(
+    updatemenus=[dict(
+        buttons=buttons,
+        direction="down",
+        showactive=True,
+        x=0.0, xanchor="left",
+        y=1.15, yanchor="top",
+    )],
+    title="Ground Truth — 1 nodes",
+    width=250 * max_nodes + 100,
+    height=350,
+)
+
+fig.show()
+```
+
+{{< reveal_vspace 1em >}}
+
+[Layer 1 (Tanh) — 4ノード: 「境界線を引く層」]{.mini-section}
+
+各ノードは入力 $(x, y)$ の**線形結合 → Tanh**なので，空間に1本の直線的な境界を引き，その片側を +1 に，反対側を -1 に飽和させる。4ノードで4本の境界線が得られ，これが後段の「材料」になる
+
+- node 0: 左上↔右下方向の分割
+- node 1: 上↔下方向の分割
+- node 2: 左下↔右上方向の分割
+- node 3: ほぼ全面が正（左下隅のみ負）
+
+[Layer 2 (Tanh) — 3ノード: 「領域を検出する層」]{.mini-section}
+
+Layer 1 の4本の境界線を非線形に組み合わせ，3つのアトラクター領域に対応する**領域検出器**を形成
+
+- node 0: 上部（attractor 0 の領域）で飽和 +1，下部で -1 → **「上 vs 下」検出器**
+- node 1: 右下（attractor 1 の領域）で +1，左側で -1 → **「右 vs 左」検出器**
+- node 2: ほぼゼロ（死にかけノード）→ 学習にほぼ寄与していない
+
+[Layer 3 (Output) — 1ノード: 「スカラー回帰層」]{.mini-section}
+
+Layer 2 の領域検出結果を線形結合して，最終的なスカラー値 $\{-1, 0, 1\}$ を出力
