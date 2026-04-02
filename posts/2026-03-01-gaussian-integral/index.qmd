@@ -1,0 +1,304 @@
+---
+title: "Note: ガウス積分"
+author: "Ryo Nakagami"
+date: "2026-03-01"
+date-modified: "2026-03-31"
+categories: [環境構築]
+listing_category: math-general
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## ガウス積分
+
+::: {#thm- .custom_problem  .blog-custom-border}
+[ガウス積分]{.def-title}
+
+$$
+\int^\infty_{-\infty} \exp(-x^2) \,\mathrm{d}x = \sqrt{\pi}
+$$
+
+:::
+
+:::: {.no-border-top-table}
+
+[証明方針]{.mini-section}
+
+| | 内容 |
+|---|---|
+| 方針 | 1次元積分 $I$ を直接求める代わりに $I^2$ を2次元積分として扱う |
+| 方法 | 極座標変換 $(x,y)\to(r,\theta)$ により2重積分を分離可能な形に変換する |
+| 手段 | ヤコビアン $r$ を用いて $\exp(-r^2)r$ の積分に帰着し，置換 $u=r^2$ で計算する |
+
+: {tbl-colwidths="[25,75]"}
+
+::::
+
+::: {.callout-note collapse="false" icon=false}
+## Proof
+
+$$
+I \coloneqq \int^\infty_{-\infty} \exp(-x^2) \,\mathrm{d}x
+$$
+
+とおく．このとき，
+
+<div class="math display" style="overflow: auto">
+$$
+\begin{align}
+I^2
+  &= I \int^\infty_{-\infty} \exp(-x^2) \,\mathrm{d}x\\
+  &= \int^\infty_{-\infty} I \exp(-x^2) \,\mathrm{d}x\\
+  &= \int^\infty_{-\infty} \left(\int^\infty_{-\infty}\exp(-y^2) \,\mathrm{d}y\right) \exp(-x^2) \,\mathrm{d}x\\
+  &= \int^\infty_{-\infty}\int^\infty_{-\infty} \exp(- (x^2 + y^2)) \,\mathrm{d}x \,\mathrm{d}y
+\end{align}
+$$
+</div>
+
+これは平面全体（x–y平面）での積分なので，極座標変換
+
+$$
+x = r\cos\theta,\quad y = r\sin\theta
+$$
+
+を実施する．ヤコビアン $J$ が
+
+<div class="math display" style="overflow: auto">
+$$
+\begin{align}
+J
+  &= \operatorname{det}\left(
+      \begin{array}{cc}
+      \frac{\partial x}{\partial r} & \frac{\partial x}{\partial \theta}\\
+      \frac{\partial y}{\partial r} & \frac{\partial y}{\partial \theta}
+      \end{array}
+  \right)\\
+  &= r
+\end{align}
+$$
+</div>
+
+であることから
+
+$$
+I^2 = \int^{2\pi}_0\int^\infty_0 \exp(-r^2)r \,\mathrm{d}r\,\mathrm{d}\theta
+$$
+
+ここで積分を分離すると，置換 $r^2 = u$ を利用することで
+
+<div class="math display" style="overflow: auto">
+$$
+\begin{align}
+I^2 
+  &= \left(\int^{2\pi}_0\,\mathrm{d}\theta\right) \left(\int^\infty_0 \exp(-r^2)r \,\mathrm{d}r\right)\\
+  &= 2\pi \times \frac{1}{2} = \pi
+\end{align}
+$$
+</div>
+
+したがって，$I = \sqrt{\pi}$
+
+:::
+
+[ガウス積分のplot]{.mini-section}
+
+$f(x,y) = \exp(-(x^2 + y^2))$ の bell surface を以下にplot
+
+```{python}
+# | code-fold: true
+# | label: fig-bell-curve
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+# グリッド生成
+x = np.linspace(-3, 3, 200)
+y = np.linspace(-3, 3, 200)
+X, Y = np.meshgrid(x, y)
+Z = np.exp(-(X**2 + Y**2))
+
+# Bell surface の描画
+fig = plt.figure(figsize=(10, 8))
+ax = fig.add_subplot(111, projection="3d")
+ax.plot_surface(X, Y, Z, cmap="jet", edgecolor="none", alpha=0.9)
+ax.set_xlabel("x")
+ax.set_ylabel("y")
+ax.set_zlabel(r"$f(x,y)$", labelpad=10)
+ax.set_box_aspect(None, zoom=0.85)
+plt.show()
+```
+
+::: {#exm- .custom_problem }
+[正規分布と規格化]{.def-title}
+
+$$
+I = \int_{-\infty}^\infty \exp\left(-\frac{x^2}{2\sigma^2}\right)\,\mathrm{d}x
+$$
+
+を考える．
+
+$$
+I^2 = \int_{-\infty}^\infty\int_{-\infty}^\infty \exp\left(-\frac{x^2 + y^2}{2\sigma^2}\right)\,\mathrm{d}x\,\mathrm{d}y
+$$
+
+として，同じく極座標変換をすると
+
+<div class="math display" style="overflow: auto">
+$$
+\begin{align}
+I^2 
+  &= \int_{0}^{2\pi}\int_{0}^\infty \exp\left(-\frac{r^2}{2\sigma^2}\right)r\,\mathrm{d}r\,\mathrm{d}y\theta\\
+  &= 2\pi\times \frac{1}{2}\int_{0}^\infty \exp\left(-\frac{u}{2\sigma^2}\right)\,\mathrm{d}u \quad \because r^2 = u\\
+  &= 2\pi \times \frac{1}{2} \times 2\sigma^2\\
+  &= 2\pi\sigma^2
+\end{align}
+$$
+</div>
+
+したがって，$I = \sqrt{2\pi\sigma^2}$
+
+
+:::
+***
+
+## ガウス分布とモード
+
+[1Dガウス分布の場合]{.mini-section}
+
+<div class="blog-custom-border" style="margin-top: 1rem; margin-bottom: 1rem;">
+::: {#prp- .custom_problem }
+<br>
+
+1次元ガウス分布
+
+$$
+\mathcal{N}(x \mid \mu, \sigma^2) = \frac{1}{\sqrt{2\pi\sigma^2}} \exp\left(-\frac{(x - \mu)^2}{2\sigma^2}\right)
+$$
+
+のモード（最頻値）は $\text{mode}(x) = \mu$ である．
+
+:::
+
+</div>
+
+::: {.callout-note collapse="false" icon=false}
+## Proof
+
+確率密度関数 $p(x)$ を最大化する $x$ を求める．$p(x) > 0$ であるから，$p(x)$ の最大化は $\ln p(x)$ の最大化と同値である．
+
+$$
+\ln p(x) = -\frac{1}{2}\ln(2\pi\sigma^2) - \frac{(x - \mu)^2}{2\sigma^2}
+$$
+
+$x$ で微分すると，
+
+$$
+\frac{d}{dx}\ln p(x) = -\frac{x - \mu}{\sigma^2}
+$$
+
+これを $0$ とおくと $x = \mu$ を得る．また，2階微分は
+
+$$
+\frac{d^2}{dx^2}\ln p(x) = -\frac{1}{\sigma^2} < 0
+$$
+
+であるから，$x = \mu$ は極大である．したがって，$\text{mode}(x) = \mu$．$\blacksquare$
+
+:::
+
+[多変量ガウス分布の場合]{.mini-section}
+
+<div class="blog-custom-border" style="margin-top: 1rem; margin-bottom: 1rem;">
+::: {#prp- .custom_problem }
+<br>
+
+$D$ 次元多変量ガウス分布
+
+$$
+\mathcal{N}(\pmb x \mid \pmb \mu, \Sigma) = \frac{1}{(2\pi)^{D/2}|\Sigma|^{1/2}} \exp\left(-\frac{1}{2}(\pmb x - \pmb \mu)^T \Sigma^{-1} (\pmb x - \pmb \mu)\right)
+$$
+
+のモードは $\text{mode}(\pmb x) = \pmb \mu$ である．ただし，$\Sigma$ は $D \times D$ の正定値対称行列とする．
+
+:::
+
+</div>
+
+::: {.callout-note collapse="false" icon=false}
+## Proof
+
+1次元の場合と同様に，$p(\pmb x) > 0$ であるから $\ln p(\pmb x)$ の最大化と同値である．
+
+$$
+\ln p(\pmb x) = -\frac{D}{2}\ln(2\pi) - \frac{1}{2}\ln|\Sigma| - \frac{1}{2}(\pmb x - \pmb \mu)^T \Sigma^{-1} (\pmb x - \pmb \mu)
+$$
+
+$\pmb x$ に依存するのは第3項のみであるから，$\ln p(\pmb x)$ の最大化は
+
+$$
+f(\pmb x) = -\frac{1}{2}(\pmb x - \pmb \mu)^T \Sigma^{-1} (\pmb x - \pmb \mu)
+$$
+
+の最大化と同値である．$\pmb x$ で勾配をとると，
+
+$$
+\nabla_{\pmb x} f = -\Sigma^{-1}(\pmb x - \pmb \mu)
+$$
+
+ここで $\Sigma$ は対称行列であるから $\Sigma^{-1}$ も対称行列であることを用いた．$\nabla_{\pmb x} f = \pmb 0$ とおくと，$\Sigma^{-1}$ は正則であるから
+
+$$
+\pmb x = \pmb \mu
+$$
+
+を得る．次に，ヘシアン行列は
+
+$$
+H = \frac{\partial^2 f}{\partial \pmb x \partial \pmb x^T} = -\Sigma^{-1}
+$$
+
+$\Sigma$ が正定値であるから $\Sigma^{-1}$ も正定値であり，$H = -\Sigma^{-1}$ は負定値である．したがって，$\pmb x = \pmb \mu$ は最大点であり，$\text{mode}(\pmb x) = \pmb \mu$．$\blacksquare$
+
+:::
+
+## Mathmatical Appendix
+
+::: {#def- .custom_problem .blog-custom-border}
+[勾配ベクトル]{.def-title}
+
+スカラー値関数 $f: \mathbb{R}^D \to \mathbb{R}$ に対して，勾配ベクトル（gradient）を
+
+$$
+\nabla_{\pmb x} f = \frac{\partial f}{\partial \pmb x} = \begin{pmatrix} \frac{\partial f}{\partial x_1} \\ \frac{\partial f}{\partial x_2} \\ \vdots \\ \frac{\partial f}{\partial x_D} \end{pmatrix}
+$$
+
+と定義する．
+
+:::
+
+::: {#def- .custom_problem .blog-custom-border}
+[ヘシアン行列]{.def-title}
+
+スカラー値関数 $f: \mathbb{R}^D \to \mathbb{R}$ に対して，ヘシアン行列（Hessian matrix）を
+
+$$
+H = \frac{\partial^2 f}{\partial \pmb x \partial \pmb x^T} = \begin{pmatrix} \frac{\partial^2 f}{\partial x_1^2} & \frac{\partial^2 f}{\partial x_1 \partial x_2} & \cdots & \frac{\partial^2 f}{\partial x_1 \partial x_D} \\ \frac{\partial^2 f}{\partial x_2 \partial x_1} & \frac{\partial^2 f}{\partial x_2^2} & \cdots & \frac{\partial^2 f}{\partial x_2 \partial x_D} \\ \vdots & \vdots & \ddots & \vdots \\ \frac{\partial^2 f}{\partial x_D \partial x_1} & \frac{\partial^2 f}{\partial x_D \partial x_2} & \cdots & \frac{\partial^2 f}{\partial x_D^2} \end{pmatrix}
+$$
+
+と定義する．$f$ が $C^2$ 級ならば $H$ は対称行列である．
+
+:::
+
+::: {#prp- .custom_problem .blog-custom-border}
+[二次形式の勾配]{.def-title}
+
+$A$ を $D \times D$ の対称行列，$\pmb b \in \mathbb{R}^D$ とする．このとき，
+
+$$
+\nabla_{\pmb x} (\pmb x^T A \pmb x) = 2A\pmb x, \quad \nabla_{\pmb x} (\pmb b^T \pmb x) = \pmb b
+$$
+
+:::
