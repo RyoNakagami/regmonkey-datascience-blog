@@ -1,0 +1,159 @@
+---
+title: "gcloud storage rsync の使い方"
+author: "Ryo Nakagami"
+date: "2026-03-04"
+date-modified: "2026-04-13"
+categories: [gcloud]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## `gcloud storage rsync` とは
+
+::: {#def- .custom_problem .blog-custom-border}
+[gcloud storage rsync]{.def-title}
+
+- ローカルディレクトリと Google Cloud Storage (GCS) バケット，あるいは GCS バケット同士の内容を同期するコマンド
+- [差分のみを転送する]{.regmonkey-bold}ため，全件アップロード/ダウンロードに比べて高速かつ低コスト
+- 並列化がデフォルトで効く
+- Unix の `rsync` のクラウド版に近いコマンド
+
+:::
+
+`gcloud storage` は gsutil の後継として整備された CLI で，`rsync` サブコマンドは次のような場面で有効です．
+
+- ローカルで整形した分析用データ (parquet / csv) を GCS にアップロードして共有する
+- ジョブの実行結果をローカルへ引き戻す
+- 開発環境と本番環境のバケット間でデータをミラーする
+
+以前は `gsutil rsync` がよく使われていましたが，現在は `gcloud storage rsync` が推奨されています．
+
+## 基本構文
+
+```bash
+gcloud storage rsync SOURCE DESTINATION [OPTIONS]
+```
+
+`SOURCE` と `DESTINATION` にはローカルパスまたは `gs://<bucket>/<prefix>` を指定します．以下の組み合わせが可能です．
+
+:::: {.no-border-top-table}
+
+| ケース            | SOURCE           | DESTINATION      |
+| -------------- | ---------------- | ---------------- |
+| アップロード         | ローカルディレクトリ       | `gs://bucket/...` |
+| ダウンロード         | `gs://bucket/...` | ローカルディレクトリ       |
+| バケット間コピー       | `gs://a/...`      | `gs://b/...`      |
+
+::::
+
+::: {#exm- .custom_problem }
+### Hive パーティション構造の同期
+<br>
+
+手元の `./data` 配下に以下のようなパーティション構造のファイルがあるとします．
+
+```bash
+./data/
+ ├── version=v001/
+ │    ├── pos_1.parquet
+ │    └── pos_2.parquet
+ ├── version=v002/
+ │    └── pos_3.parquet
+```
+
+これを GCS バケット `gs://project-x/pos` にそのままの構造で同期するには次のように実行します．
+
+```bash
+gcloud storage rsync ./data gs://project-x/pos \
+  --recursive \
+  --delete-unmatched-destination-objects
+```
+
+結果として GCS 側も同じツリー構造になります．
+
+```bash
+gs://project-x/pos/
+ ├── version=v001/
+ │    ├── pos_1.parquet
+ │    └── pos_2.parquet
+ ├── version=v002/
+ │    └── pos_3.parquet
+```
+
+:::
+
+[同期挙動に関わるオプション]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| オプション                                    | 意味                                                                          |
+| ---------------------------------------- | --------------------------------------------------------------------------- |
+| `--recursive` / `-r`                     | サブディレクトリも再帰的に同期                                                             |
+| `--delete-unmatched-destination-objects` | SOURCE 側に無いファイルを DESTINATION から削除し，完全ミラーにする                                 |
+| `--dry-run`                              | 実際の転送は行わず，どのオブジェクトが転送・削除されるかだけを表示                                           |
+| `--exclude`                              | 除外パターン（正規表現）を指定．例: `--exclude="^.*\.tmp$"`                                   |
+
+::::
+
+::: {.callout-warning}
+`--delete-unmatched-destination-objects` は強力なミラーリング用フラグで，**DESTINATION 側の差分ファイルを容赦なく削除**します．バージョニングが無効なバケットに対して誤ったソースディレクトリを指定すると，重要なデータを失う可能性があるため，本番バケットに対しては必ず `--dry-run` で確認してから実行してください．
+:::
+
+## よく使うワークフロー
+
+[1. まず `--dry-run` で差分を確認]{.mini-section}
+
+```bash
+gcloud storage rsync ./data gs://project-x/pos \
+  --recursive \
+  --delete-unmatched-destination-objects \
+  --dry-run
+```
+
+追加/更新/削除の予定が標準出力に一覧されるので，意図しない削除が混ざっていないかをレビューします．
+
+[2. 本実行]{.mini-section}
+
+```bash
+gcloud storage rsync ./data gs://project-x/pos \
+  --recursive \
+  --delete-unmatched-destination-objects
+```
+
+[3. 一時ファイルや不要ファイルを除外したい場合]{.mini-section}
+
+```bash
+gcloud storage rsync ./data gs://project-x/pos \
+  --recursive \
+  --delete-unmatched-destination-objects \
+  --exclude="^.*\.tmp$|^.*\.DS_Store$"
+```
+
+`--exclude` は **SOURCE 側のパターン**に対して適用されます．DESTINATION にのみ存在する除外パターン対象ファイルは，`--delete-unmatched-destination-objects` を付けていても削除対象にならない点に注意してください．
+
+## 更新判定のしくみ
+
+`gcloud storage rsync` はファイル差分を次の優先順位で判定します．
+
+1. ファイルサイズの比較
+2. `mtime` を含むメタデータの比較（アップロード時にメタデータとして保存される）
+3. ハッシュ（CRC32C / MD5）の比較
+
+`--checksums-only` を付けるとサイズや mtime を無視してハッシュで判定します．ローカルと GCS で mtime が揃わないケース（例: CI でダウンロードした直後のファイル）では便利ですが，ハッシュ計算分だけ CPU と I/O を消費します．
+
+## `cp` との使い分け
+
+:::: {.no-border-top-table}
+
+| ユースケース                         | 推奨コマンド                                              |
+| ------------------------------ | --------------------------------------------------- |
+| 1 ファイルだけコピー                    | `gcloud storage cp`                                 |
+| 追記のみで既存オブジェクトは上書きしたくない         | `gcloud storage cp --no-clobber`                    |
+| ディレクトリ全体を差分同期                  | `gcloud storage rsync --recursive`                  |
+| SOURCE を唯一の正とする完全ミラー           | `gcloud storage rsync --delete-unmatched-destination-objects` |
+
+::::
