@@ -1,8 +1,16 @@
 import pathlib
-from typing import Dict, List
 from datetime import date
+from typing import Dict, Type, TypeVar
+
 import yaml
 from pydantic import BaseModel
+
+T = TypeVar("T", bound=BaseModel)
+
+
+def load_config(path: pathlib.Path, model: Type[T]) -> T:
+    with open(path, encoding="utf-8") as f:
+        return model.model_validate(yaml.safe_load(f))
 
 
 class KeywordField(BaseModel):
@@ -81,6 +89,18 @@ class UbuntuDirectoryConfig(BaseModel):
     UbuntuDirectory: list[UbuntuDirectoryField]
 
 
+class UnicodeField(BaseModel):
+    character: str
+    codepoint: str
+    name: str
+    category: str
+    description: str
+
+
+class UnicodeConfig(BaseModel):
+    unicode_list: list[UnicodeField]
+
+
 class UnitofMeasurementField(BaseModel):
     SI_unit: str
     symbol: str
@@ -93,217 +113,18 @@ class UnitOfMeasurementConfig(BaseModel):
     unit_of_measurement: list[UnitofMeasurementField]
 
 
-def new_config(paths_to_config: List[pathlib.Path]) -> Config:
-    """Generates a Config object from a yaml file.
+_HERE = pathlib.Path(__file__).parent
 
-    Args:
-        path_to_config (str): Path to the configuration file.
-
-    Returns:
-        Config: A Config object.
-
-    """
-
-    merged_config = {}
-
-    for path in paths_to_config:
-        with open(path, encoding="utf-8") as f:
-            yaml_config = yaml.safe_load(f)
-            merged_config.update(yaml_config)
-    config: Config = Config.model_validate(merged_config)
-
-    return config
-
-
-def new_commandconfig(paths_to_config: List[pathlib.Path]) -> CommandConfig:
-    """Generates a Config object from a yaml file.
-
-    Args:
-        path_to_config (str): Path to the configuration file.
-
-    Returns:
-        Config: A Config object.
-
-    """
-
-    merged_config = {}
-
-    for path in paths_to_config:
-        with open(path, encoding="utf-8") as f:
-            yaml_config = yaml.safe_load(f)
-            merged_config.update(yaml_config)
-    config: CommandConfig = CommandConfig.model_validate(merged_config)
-
-    return config
-
-
-def new_gitcommittag_config(paths_to_config: List[pathlib.Path]) -> GitCommitTagConfig:
-    """Generates a Config object from a yaml file.
-
-    Args:
-        path_to_config (str): Path to the configuration file.
-
-    """
-    merged_config = {}
-
-    for path in paths_to_config:
-        with open(path, encoding="utf-8") as f:
-            yaml_config = yaml.safe_load(f)
-            merged_config.update(yaml_config)
-    config: GitCommitTagConfig = GitCommitTagConfig.model_validate(merged_config)
-
-    return config
-
-
-def new_gnome_tool_config(paths_to_config: List[pathlib.Path]) -> GnomeToolConfig:
-    """Generates a Config object from a yaml file.
-
-    Args:
-        path_to_config (str): Path to the configuration file.
-
-    Returns:
-        Config: A Config object.
-
-    """
-
-    merged_config = {}
-
-    for path in paths_to_config:
-        with open(path, encoding="utf-8") as f:
-            yaml_config = yaml.safe_load(f)
-            merged_config.update(yaml_config)
-    config: GnomeToolConfig = GnomeToolConfig.model_validate(merged_config)
-
-    return config
-
-
-def new_greek_letter_config(paths_to_config: List[pathlib.Path]) -> GreekLetterConfig:
-    """Generates a Config object from a yaml file.
-
-    Args:
-        path_to_config (str): Path to the configuration file.
-
-    Returns:
-        Config: A Config object.
-
-    """
-
-    merged_config = {}
-
-    for path in paths_to_config:
-        with open(path, encoding="utf-8") as f:
-            yaml_config = yaml.safe_load(f)
-            merged_config.update(yaml_config)
-    config: GreekLetterConfig = GreekLetterConfig.model_validate(merged_config)
-
-    return config
-
-
-def new_number_config(paths_to_config: List[pathlib.Path]) -> NumberConfig:
-    """Generates a Config object from a yaml file.
-
-    Args:
-        path_to_config (str): Path to the configuration file.
-
-    Returns:
-        Config: A Config object.
-
-    """
-
-    merged_config = {}
-
-    for path in paths_to_config:
-        with open(path, encoding="utf-8") as f:
-            yaml_config = yaml.safe_load(f)
-            merged_config.update(yaml_config)
-    config: NumberConfig = NumberConfig.model_validate(merged_config)
-
-    return config
-
-
-def new_ubuntu_directory_config(
-    paths_to_config: List[pathlib.Path],
-) -> UbuntuDirectoryConfig:
-    """Generates a UbuntuDirectoryConfig object from a yaml file.
-
-    Args:
-        path_to_config (str): Path to the configuration file.
-
-    Returns:
-        UbuntuDirectoryConfig: A UbuntuDirectoryConfig object.
-    """
-
-    merged_config = {}
-
-    for path in paths_to_config:
-        with open(path, encoding="utf-8") as f:
-            yaml_config = yaml.safe_load(f)
-            merged_config.update(yaml_config)
-    config: UbuntuDirectoryConfig = UbuntuDirectoryConfig.model_validate(merged_config)
-
-    return config
-
-
-def new_unit_of_measurement_config(
-    paths_to_config: List[pathlib.Path],
-) -> UnitOfMeasurementConfig:
-    """Generates a UnitOfMeasurementConfig object from a yaml file.
-
-    Args:
-        path_to_config (str): Path to the configuration file.
-
-    Returns:
-        UnitOfMeasurementConfig: A UnitOfMeasurementConfig object.
-    """
-
-    merged_config = {}
-
-    for path in paths_to_config:
-        with open(path, encoding="utf-8") as f:
-            yaml_config = yaml.safe_load(f)
-            merged_config.update(yaml_config)
-    config: UnitOfMeasurementConfig = UnitOfMeasurementConfig.model_validate(
-        merged_config
-    )
-
-    return config
-
-
-# Define multiple config paths
-CONFIG_FILES = [pathlib.Path(__file__).parent / "dictionary.yml"]
-COMMAND_CONFIG_FILES = [pathlib.Path(__file__).parent / "command_dictionary.yml"]
-GITCOMMITTAG_CONFIG_FILES = [pathlib.Path(__file__).parent / "git_commit_tag.yml"]
-GNOME_TOOL_CONFIG_FILES = [pathlib.Path(__file__).parent / "toollist.yml"]
-GREEK_LETTER_CONFIG_FILES = [pathlib.Path(__file__).parent / "greekletter.yml"]
-NUMBER_CONFIG_FILES = [pathlib.Path(__file__).parent / "magic_numbers.yml"]
-UBUNTU_DIRECTORY_CONFIG_FILES = [pathlib.Path(__file__).parent / "ubuntu_directory.yml"]
-UNIT_OF_MEASUREMENT_CONFIG_FILES = [
-    pathlib.Path(__file__).parent / "unit_of_measurement.yml"
-]
-
-# Create Config and CommandConfig instances
-CONFIG: Config = new_config(paths_to_config=CONFIG_FILES)
-
-COMMAND_CONFIG: CommandConfig = new_commandconfig(paths_to_config=COMMAND_CONFIG_FILES)
-
-GNOME_TOOL_CONFIG: GnomeToolConfig = new_gnome_tool_config(
-    paths_to_config=GNOME_TOOL_CONFIG_FILES
+CONFIG = load_config(_HERE / "dictionary.yml", Config)
+COMMAND_CONFIG = load_config(_HERE / "command_dictionary.yml", CommandConfig)
+GITCOMMITTAG_CONFIG = load_config(_HERE / "git_commit_tag.yml", GitCommitTagConfig)
+GNOME_TOOL_CONFIG = load_config(_HERE / "toollist.yml", GnomeToolConfig)
+GREEK_LETTER_CONFIG = load_config(_HERE / "greekletter.yml", GreekLetterConfig)
+Number_CONFIG = load_config(_HERE / "magic_numbers.yml", NumberConfig)
+UBUNTU_DIRECTORY_CONFIG = load_config(
+    _HERE / "ubuntu_directory.yml", UbuntuDirectoryConfig
 )
-
-GREEK_LETTER_CONFIG: GreekLetterConfig = new_greek_letter_config(
-    paths_to_config=GREEK_LETTER_CONFIG_FILES
+UNICODE_CONFIG = load_config(_HERE / "unicode_dictionary.yml", UnicodeConfig)
+UNIT_OF_MEASUREMENT_CONFIG = load_config(
+    _HERE / "unit_of_measurement.yml", UnitOfMeasurementConfig
 )
-
-GITCOMMITTAG_CONFIG: GitCommitTagConfig = new_gitcommittag_config(
-    paths_to_config=GITCOMMITTAG_CONFIG_FILES
-)
-
-UBUNTU_DIRECTORY_CONFIG: UbuntuDirectoryConfig = new_ubuntu_directory_config(
-    paths_to_config=UBUNTU_DIRECTORY_CONFIG_FILES
-)
-
-UNIT_OF_MEASUREMENT_CONFIG: UnitOfMeasurementConfig = new_unit_of_measurement_config(
-    paths_to_config=UNIT_OF_MEASUREMENT_CONFIG_FILES
-)
-
-Number_CONFIG: NumberConfig = new_number_config(paths_to_config=NUMBER_CONFIG_FILES)
