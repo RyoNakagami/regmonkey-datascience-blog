@@ -1,0 +1,388 @@
+---
+title: "Walrus Operator 101"
+author: "Ryo Nakagami"
+date: "2026-04-23"
+date-modified: "2026-04-24"
+categories: [python]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+
+::: {.callout-note}
+## Key Takeaways
+
+- 典型的に価値を発揮するのは，`while` による読み取りループ，`re.match` の結果再利用，内包表記内の高コスト計算の一度化の 3 パターン
+- チーム開発では「どこで使い，どこで使わないか」をレビューガイドラインで明文化しておくと混乱が少ない
+
+:::
+
+
+
+## ウォルラス演算子とは
+
+::: {#def- .custom_problem .blog-custom-border}
+[Walrus Operator (`:=`)]{.def-title}
+
+- Python 3.8 (PEP 572, 2019年リリース) で導入された **代入式 (assignment expression)** のための演算子
+- 式の中で変数への代入と値の参照を同時に行える
+- 見た目がセイウチ (walrus) の目と牙に似ていることから「ウォルラス演算子」と呼ばれる
+
+:::
+
+- 通常の `=` は[文 (statement)]{.regmonkey-bold}であり，式 (expression) としては評価できない
+- `:=` は[式 (expression)]{.regmonkey-bold}として評価されるため，`if` / `while` / 内包表記などの条件部分に埋め込める
+
+```{python}
+#| code-overflow: wrap
+#| code-fold: show
+
+import re
+
+text = "status=200"
+
+# `=` は式ではないので if の条件内で代入はできない
+# 一方，`:=` は値を返しつつ変数束縛も行う
+if (m := re.match(r"(\w+)=(\w+)", text)):
+    key, value = m.group(1), m.group(2)
+    print(key, value)
+```
+
+[PEP 572 の設計思想]{.mini-section}
+
+- PEP 572 では「同じ値を式の中で 2 度計算・参照しないこと」「一時変数のスコープを局所化すること」が主な動機として挙げられている
+- Guido van Rossum が BDFL を退く契機となったことでも知られ，導入時にはコミュニティで賛否両論あった
+- Python コミュニティ全体で積極的に推奨されているわけではなく，[「可読性が明確に上がる場面でのみ使う」]{.regmonkey-bold}という控えめな運用が定着している
+
+## 典型的なベストプラクティス
+
+### `while` ループでの読み取りループ
+
+::: {#exm- .custom_problem }
+### ファイルのチャンク読み込み
+<br>
+
+バイナリファイル large.bin を 8192バイト (= 8 KiB) ずつ 読み出し，読み取ったチャンクごとに process() を呼ぶループ処理
+
+
+```python
+# Good: 代入と条件判定を一体化
+with open("large.bin", "rb") as f:
+    while (chunk := f.read(8192)):
+        process(chunk)
+```
+
+- 従来の `while True: chunk = f.read(...); if not chunk: break` という 3 行パターンが 1 行に畳める
+- ループの「進む条件」と「読み取った値」が同じ行にあるため意図が読みやすい
+
+:::
+---
+
+### 正規表現マッチ結果の再利用
+
+::: {#exm- .custom_problem }
+### `if + re.match` のイディオム
+<br>
+
+```{python}
+#| code-overflow: wrap
+#| code-fold: show
+
+import re
+
+def parse_kv(line: str):
+    if (m := re.match(r"(\w+)\s*=\s*(.+)", line)):
+        return m.group(1), m.group(2).strip()
+    return None
+
+print(parse_kv("threshold = 0.95"))
+print(parse_kv("not_a_pair"))
+```
+
+- `m = re.match(...)` と `if m:` を 1 行に統合できる
+- `m` のスコープが `if` ブロック内に自然と局所化されるため，下流で誤って参照するリスクが下がる
+
+:::
+---
+
+### 内包表記内での計算結果の再利用
+
+::: {#exm- .custom_problem }
+### 高コスト計算の 1 回化
+<br>
+
+```{python}
+#| code-overflow: wrap
+#| code-fold: show
+
+def expensive(x: int) -> int | None:
+    # 高コストな計算を想定
+    return x * x if x % 2 == 0 else None
+
+data = range(10)
+
+# Bad: expensive(x) を 2 回呼んでいる
+bad = [expensive(x) for x in data if expensive(x) is not None]
+
+# Good: 1 回だけ計算
+good = [y for x in data if (y := expensive(x)) is not None]
+
+print(good)
+```
+
+- 同じ関数を 2 度呼ばず，計算コストを半分にできる
+- データサイエンス文脈では `transform`, `score`, `predict` など副作用のない重い計算でよく使うパターン
+
+:::
+---
+
+### 条件付き早期リターン
+
+::: {#exm- .custom_problem }
+### ネストしたdictのバリデーション
+<br>
+
+```{python}
+#| code-overflow: wrap
+#| code-fold: show
+
+def get_permissions(data: dict) -> list | None:
+    if (user := data.get("user")) is None:
+        return None
+    if (perms := user.get("permissions")) is None:
+        return None
+    return perms
+
+print(get_permissions({"user": {"permissions": ["read", "write"]}}))
+print(get_permissions({"user": {}}))
+print(get_permissions({}))
+```
+
+- 値の取得と `None` 判定を 1 行でまとめられる
+- 「取れたら使う，取れなかったら抜ける」というガード節パターンと相性が良い
+
+:::
+---
+
+## アンチパターン
+
+### 単純代入での使用
+
+::: {.callout-important}
+### 通常の `=` で書ける場面では使わない
+
+`:=` は「式の中で代入したい」という動機がある場合の道具です．単独の文として使うと，括弧が必要になる分だけ `=` より冗長になります．
+
+:::
+
+```python
+# Bad: 意味なく複雑にしている
+(x := 10)
+print(x := 5)
+
+# Good: 普通の代入で書く
+x = 10
+x = 5
+print(x)
+```
+
+### 1 行に詰め込みすぎ
+
+```python
+# Bad: 読みづらく，デバッグもしにくい
+if (n := len(data)) > 10 and (avg := sum(data) / n) > threshold and (std := statistics.stdev(data)) < 2:
+    ...
+
+# Good: 素直に分ける
+n = len(data)
+avg = sum(data) / n
+std = statistics.stdev(data)
+if n > 10 and avg > threshold and std < 2:
+    ...
+```
+
+- 同じ式内で複数の `:=` を連鎖させると，評価順序の理解に認知コストがかかる
+- 1 行に 2 つ以上の `:=` が出てきたら分解を検討するのが無難
+
+### 内包表記内で副作用目的に使う
+
+```python
+# Bad: 副作用を内包表記に隠す
+_ = [log.append(x) for x in data if (y := process(x))]
+
+# Good: for ループで明示
+for x in data:
+    y = process(x)
+    if y:
+        log.append(x)
+```
+
+- 内包表記は [本来「値のコレクションを作る」ための構文]{.regmonkey-bold}であり，副作用 (ログ書き込みやファイル更新など) を隠蔽すると読み手に意図が伝わらない
+
+### 比較 `==` と誤読される書き方
+
+```python
+# Bad: 代入か比較か，ぱっと見で判別しづらい
+if x := get_value():
+    ...
+
+# Good: 代入の意図を明示
+if (value := get_value()) is not None:
+    ...
+```
+
+- `:=` は括弧で囲む運用にしておくと `==` との混同を防げる
+- `if ... is not None` を明示することで，`0` や空文字列のような Falsy 値との区別が明確になる
+
+### ループ内で毎回同じ値を再代入
+
+```python
+# Bad: ループの度に同じ値に束縛し直している
+for item in items:
+    if (limit := config.max_size) and item.size > limit:
+        ...
+
+# Good: ループ外で一度だけ
+limit = config.max_size
+for item in items:
+    if limit and item.size > limit:
+        ...
+```
+
+- `:=` で変数の有効範囲は狭まらないため，「スコープを絞る」目的で使うのは誤り
+- ループ内の `:=` は「その行に入るたびに再計算されている」と読む必要があり，読解コストが上がる
+
+### f-string / lambda 内での使用
+
+```python
+# Bad: 副作用が f-string 内に隠れる
+print(f"結果: {(total := sum(values))}, 平均: {total / len(values)}")
+
+# Bad: lambda に := を詰め込む
+sorter = lambda x: (n := len(x)) * n
+
+# Good: 変数を先に作る
+total = sum(values)
+print(f"結果: {total}, 平均: {total / len(values)}")
+
+sorter = lambda x: len(x) ** 2
+```
+
+- f-string や lambda は「短く書く」ための構文であり，そこに代入式を混ぜると読み手の注意が分散する
+- 特に f-string 内の `:=` は，ログ・print 文に副作用が紛れる典型例になる
+
+### 内包表記からのスコープリーク
+
+::: {.callout-warning}
+### 内包表記内の `:=` は外側スコープを汚染する
+
+通常の内包表記内で定義したループ変数は外に漏れませんが，`:=` で束縛した変数は[外側のスコープに漏れます]{.regmonkey-bold}．これは PEP 572 の意図的な仕様です．
+
+:::
+
+```{python}
+#| code-overflow: wrap
+#| code-fold: show
+
+# 内包表記内の := はリークする（仕様）
+[y := x * 2 for x in range(5)]
+print(y)  # 8 が出てしまう
+```
+
+- 意図せぬグローバル変数の生成を避けたい場合は `:=` を使わない
+- 逆に「内包表記の最後の値を外で使いたい」という稀なユースケースではこの性質を活用できるが，それ自体が読み手を混乱させるため非推奨
+
+## データサイエンス文脈での運用ルール
+
+データサイエンス/ML コードでは，Jupyter notebook・パイプライン・前処理関数など，`:=` を使いたくなる場面が多くあります．一方，notebook では実行順序に依存するバグが発生しやすく，変数リークも事故につながりやすいため，次のような方針で運用するのが安全です．
+
+::: {.callout-note}
+### Data Science Style Guide: `:=` の利用方針
+
+1. **スクリプトの外部 I/O ループ** (ファイルチャンク読み込み，ストリーム API のページング，DB カーソルの `fetchmany` など) では積極的に利用
+2. **内包表記で同一の重い計算を 2 度書かずに済む場合**のみ内包表記内で利用
+3. **`if (m := re.match(...))` 等の「マッチ結果の条件 + 再利用」**は推奨
+4. **notebook の上方 (EDA・前処理) では原則使わない**. セル間で再実行順序が前後することが多いため，変数束縛は通常の `=` で明示的に書くほうが安全
+5. **pandas / polars / numpy のメソッドチェーン内では使わない**. メソッドチェーンは「副作用のない変換列」であることが可読性の要であり，代入式を混ぜると崩れる
+6. **f-string やログ出力に `:=` を混ぜない**. 観測用コードは最も単純に保つ
+
+:::
+
+::: {#exm- .custom_problem }
+### 推奨: バッチ単位の推論ループ
+<br>
+
+```python
+# Good: ストリーム/ページング API との親和性が高い
+def batch_predict(model, loader, batch_size: int = 256):
+    while (batch := loader.fetch(batch_size)):
+        yield model.predict(batch)
+```
+
+- `loader.fetch` が空配列を返したときに自然にループが止まる
+- `batch` のスコープが `while` ループに閉じるため，下流コードへの意図せぬリークがない
+
+:::
+---
+
+::: {#exm- .custom_problem }
+### 非推奨: メソッドチェーン内での利用
+<br>
+
+```python
+# Bad: 変換列の中に代入式が混ざり，副作用があるように見えてしまう
+result = (
+    df.assign(score=lambda d: (s := d["x"] * d["y"]))
+      .query("score > 0")
+)
+
+# Good: 素直に中間変数を作る
+df2 = df.assign(score=df["x"] * df["y"])
+result = df2.query("score > 0")
+```
+
+- pandas / polars のメソッドチェーンは「宣言的に読む」ことが価値の中心
+- そこに `:=` が混ざると「副作用を伴う手続き的な列」として読まなければならなくなり，読解コストが跳ね上がる
+
+:::
+---
+
+## 利用可否の判断基準
+
+ウォルラス演算子を導入してよいかは，おおむね次の 3 条件を同時に満たすかで判断できます．
+
+1. **同じ値を 2 回以上参照する必要がある** (条件判定 + 本体での利用など)
+2. **スコープが局所的で短い** (`if` ブロック，`while` 条件，内包表記のフィルタ部)
+3. **通常の `=` で書き直すと明らかに冗長になる**
+
+逆に「1 行で書けるから」「かっこよく見えるから」という理由だけで導入するとほぼアンチパターンになります．
+[迷ったら通常の `=` で書くのが無難]{.regmonkey-bold}です．
+
+
+## Appendix
+### フォーマッタ/Linter の扱い
+
+:::: {.no-border-top-table}
+
+| ツール         | `:=` への態度                                       |
+| ------------- | ------------------------------------------------- |
+| Black         | `:=` を他の代入に書き換えない (書き手の判断に委ねる)   |
+| Ruff          | `:=` を自動で削除・導入するルールはデフォルトでは無効   |
+| `flake8-walrus` | `:=` の利用を検出する linter (強制禁止したい現場向け) |
+: {tbl-colwidths="[30,70]"}
+
+::::
+
+- 現状，`:=` は自動変換の対象外であり，チームの合意と code review で運用するのが一般的
+- プロジェクトで Python 3.7 以前のサポートが必要な場合は `:=` 自体を構文エラーとして禁止する必要がある
+
+
+References
+----------
+- [PEP 572 – Assignment Expressions](https://peps.python.org/pep-0572/)
+- [Python 3.8 What's New — Assignment Expressions](https://docs.python.org/3/whatsnew/3.8.html#assignment-expressions)
+- [継承，メソッドオーバーライド，スーパーメソッドの呼び出し](../2025-11-04-python-class-rules/index.html)

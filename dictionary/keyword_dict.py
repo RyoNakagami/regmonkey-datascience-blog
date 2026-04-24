@@ -113,6 +113,17 @@ class UnitOfMeasurementConfig(BaseModel):
     unit_of_measurement: list[UnitofMeasurementField]
 
 
+class RegexField(BaseModel):
+    metachar: str
+    meaning: str
+    pattern_example: str
+    match_example: str
+
+
+class RegexConfig(BaseModel):
+    regex_list: list[RegexField]
+
+
 _HERE = pathlib.Path(__file__).parent
 
 CONFIG = load_config(_HERE / "dictionary.yml", Config)
@@ -128,3 +139,4 @@ UNICODE_CONFIG = load_config(_HERE / "unicode_dictionary.yml", UnicodeConfig)
 UNIT_OF_MEASUREMENT_CONFIG = load_config(
     _HERE / "unit_of_measurement.yml", UnitOfMeasurementConfig
 )
+REGEX_CONFIG = load_config(_HERE / "regex.yml", RegexConfig)
