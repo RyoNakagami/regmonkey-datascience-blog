@@ -1,0 +1,42 @@
+<style>
+.bslib-card:not(.tabset) .bslib-full-screen-enter,
+.bslib-card:not(.tabset) > bslib-tooltip {
+  display: none !important;
+}
+</style>
+<script>
+function debounce(func, wait) {
+  let timeout;
+  return function (...args) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(this, args), wait);
+  };
+}
+
+function setupTableFilter(inputId, tableId) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  input.addEventListener('keyup', debounce(function () {
+    const filter = this.value.trim();
+    let regexes = [];
+    if (filter) {
+      regexes = filter
+        .split(/\s+/)
+        .map((term) => {
+          try {
+            return new RegExp(term, 'i');
+          } catch (e) {
+            console.warn(`Invalid regex: ${term}`);
+            return null;
+          }
+        })
+        .filter((r) => r !== null);
+    }
+    document.querySelectorAll(`#${tableId} tbody tr`).forEach((row) => {
+      const matchesAll =
+        regexes.length === 0 || regexes.every((r) => r.test(row.textContent));
+      row.style.display = matchesAll ? '' : 'none';
+    });
+  }, 300));
+}
+</script>
