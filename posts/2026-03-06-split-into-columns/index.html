@@ -7,9 +7,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Ryo Nakagami">
-<meta name="dcterms.date" content="2025-07-20">
+<meta name="dcterms.date" content="2026-03-06">
 
-<title>実行時間計測デコレーター – regmonkey datascience blog</title>
+<title>リスト型カラムを複数カラムに展開する: pandas / polars / BigQuery – regmonkey datascience blog</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -63,7 +63,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </style>
 
 
-<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2" crossorigin="anonymous"></script><script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
 <script src="../../site_libs/quarto-nav/headroom.min.js"></script>
 <script src="../../site_libs/clipboard/clipboard.min.js"></script>
 <script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
@@ -163,10 +163,13 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 <script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml-full.js" integrity="sha256-kbAFUDxdHwlYv01zraGjvjNZayxKtdoiJ38bDTFJtaQ=" crossorigin="anonymous">
 </script>
 <script type="text/javascript" src="../../js/regmonkey_glossary_generator.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.min.js" integrity="sha384-c9c+LnTbwQ3aujuU7ULEPVvgLs+Fn6fJUvIGTsuu1ZcCf11fiEubah0ttpca4ntM sha384-6V1/AdqZRWk1KAlWbKBlGhN7VG4iE/yAZcO6NZPMF8od0vukrvr0tg4qY6NSrItx" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
 
 <link rel="stylesheet" href="../../styles.css">
-<meta property="og:title" content="実行時間計測デコレーター – regmonkey datascience blog">
+<meta property="og:title" content="リスト型カラムを複数カラムに展開する: pandas / polars / BigQuery – regmonkey datascience blog">
 <meta property="og:description" content="日々の徒然勉強日記">
 <meta property="og:site_name" content="regmonkey datascience blog">
 </head>
@@ -415,10 +418,11 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 <header id="title-block-header" class="quarto-title-block default page-columns page-full">
   <div class="quarto-title-banner page-columns page-full">
     <div class="quarto-title column-body">
-      <h1 class="title">実行時間計測デコレーター</h1>
+      <h1 class="title">リスト型カラムを複数カラムに展開する: pandas / polars / BigQuery</h1>
                                 <div class="quarto-categories">
-                <div class="quarto-category">環境構築</div>
                 <div class="quarto-category">python</div>
+                <div class="quarto-category">SQL</div>
+                <div class="quarto-category">前処理</div>
               </div>
                   </div>
   </div>
@@ -436,14 +440,14 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
       <div>
       <div class="quarto-title-meta-heading">Published</div>
       <div class="quarto-title-meta-contents">
-        <p class="date">2025-07-20</p>
+        <p class="date">2026-03-06</p>
       </div>
     </div>
     
       <div>
       <div class="quarto-title-meta-heading">Modified</div>
       <div class="quarto-title-meta-contents">
-        <p class="date-modified">2025-07-20</p>
+        <p class="date-modified">2026-04-27</p>
       </div>
     </div>
       
@@ -458,9 +462,11 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#実行時間を秒単位で表示するデコレータ" id="toc-実行時間を秒単位で表示するデコレータ" class="nav-link active" data-scroll-target="#実行時間を秒単位で表示するデコレータ">実行時間を秒単位で表示するデコレータ</a></li>
-  <li><a href="#デコレーター自身に引数を読み込ませる場合" id="toc-デコレーター自身に引数を読み込ませる場合" class="nav-link" data-scroll-target="#デコレーター自身に引数を読み込ませる場合">デコレーター自身に引数を読み込ませる場合</a></li>
-  <li><a href="#appendix-args-と-kwargs" id="toc-appendix-args-と-kwargs" class="nav-link" data-scroll-target="#appendix-args-と-kwargs">Appendix: <code>*args</code> と <code>**kwargs</code></a></li>
+  <li><a href="#問題設定-リスト型カラムをワイドに展開する" id="toc-問題設定-リスト型カラムをワイドに展開する" class="nav-link active" data-scroll-target="#問題設定-リスト型カラムをワイドに展開する">問題設定: リスト型カラムをワイドに展開する</a></li>
+  <li><a href="#pattern-1-pandas" id="toc-pattern-1-pandas" class="nav-link" data-scroll-target="#pattern-1-pandas">Pattern 1: pandas</a></li>
+  <li><a href="#pattern-2-polars" id="toc-pattern-2-polars" class="nav-link" data-scroll-target="#pattern-2-polars">Pattern 2: polars</a></li>
+  <li><a href="#pattern-3-bigquery" id="toc-pattern-3-bigquery" class="nav-link" data-scroll-target="#pattern-3-bigquery">Pattern 3: BigQuery</a></li>
+  <li><a href="#appendix-struct-構造体-とは" id="toc-appendix-struct-構造体-とは" class="nav-link" data-scroll-target="#appendix-struct-構造体-とは">Appendix: struct (構造体) とは</a></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
     </div>
@@ -472,163 +478,638 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 
 
 
-<section id="実行時間を秒単位で表示するデコレータ" class="level2">
-<h2 class="anchored" data-anchor-id="実行時間を秒単位で表示するデコレータ">実行時間を秒単位で表示するデコレータ</h2>
-<div id="def-" class="custom_problem blog-custom-border theorem definition">
-<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title">デコレーター</span></p>
-<ul>
-<li>デコレータとは，関数の前後に追加処理（ロギング・計測・バリデーションなど）を組み込む仕組み</li>
-</ul>
-</div>
-<div id="60c71edd" class="cell" data-execution_count="1">
-<details open="" class="code-fold">
-<summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> time <span class="im">import</span> time, sleep</span>
+<section id="問題設定-リスト型カラムをワイドに展開する" class="level2">
+<h2 class="anchored" data-anchor-id="問題設定-リスト型カラムをワイドに展開する">問題設定: リスト型カラムをワイドに展開する</h2>
+<div id="exr-" class="custom_problem blog-custom-border theorem exercise">
+<p><span class="theorem-title"><strong>Exercise 1</strong></span> <br></p>
+<p>各行が<span class="regmonkey-bold">長さ固定のリスト</span>を持つカラムを，要素ごとに別カラムへ展開したい． 入力例は次のようなレコード形式とします．</p>
+<div id="008607e2" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> running_time(func):</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co">    関数の実行時間（秒）を有効桁小数点３桁で表示して、元の関数の戻り値を返すデコレータ</span></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> wrapper(<span class="op">*</span>args, <span class="op">**</span>kwargs):</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>        start <span class="op">=</span> time()</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>        result <span class="op">=</span> func(<span class="op">*</span>args, <span class="op">**</span>kwargs)</span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>        end <span class="op">=</span> time()</span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>        elapsed <span class="op">=</span> end <span class="op">-</span> start</span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"Execution time: </span><span class="sc">{</span>elapsed<span class="sc">:.3f}</span><span class="ss"> seconds"</span>)</span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> result</span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> wrapper</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
-</div>
-<div id="exm-" class="custom_problem theorem example">
-<p><span class="theorem-title"><strong>Example 1</strong></span> <span class="def-title">カントールの対関数の逆関数と実行時間計算</span></p>
-<div id="6f9d86f2" class="cell" data-execution_count="2">
-<details open="" class="code-fold">
-<summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="at">@running_time</span></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> compute_contor_inverse(J: <span class="bu">int</span>):</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Compute the inverse of the Cantor pairing function.</span></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="co">    </span></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="co">    The Cantor pairing function maps pairs of natural numbers to single natural numbers.</span></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="co">    This function computes the inverse mapping, taking a natural number and returning the </span></span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="co">    original pair of numbers.</span></span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="co">    </span></span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="co">    Args:</span></span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="co">        J (int): A natural number that was produced by the Cantor pairing function.</span></span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="co">            Must be non-negative.</span></span>
-<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="co">    </span></span>
-<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="co">    Returns:</span></span>
-<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a><span class="co">        tuple[int, int]: A pair (x, y) of numbers such that their Cantor pairing </span></span>
-<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a><span class="co">        would produce J. The first element x represents the first number in the original </span></span>
-<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a><span class="co">        pair, and y represents the second number.</span></span>
-<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
-<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>    t <span class="op">=</span> <span class="bu">int</span>((np.sqrt(<span class="dv">1</span> <span class="op">+</span> <span class="dv">8</span> <span class="op">*</span> J) <span class="op">-</span> <span class="dv">1</span>) <span class="op">//</span> <span class="dv">2</span>)</span>
-<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>    x <span class="op">=</span> (t <span class="op">**</span> <span class="dv">3</span> <span class="op">+</span> <span class="dv">3</span> <span class="op">*</span> t) <span class="op">//</span> <span class="dv">2</span> <span class="op">-</span> J</span>
-<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>    y <span class="op">=</span> J <span class="op">-</span> (t <span class="op">**</span> <span class="dv">2</span> <span class="op">+</span> t) <span class="op">//</span> <span class="dv">2</span></span>
-<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> x, y</span>
-<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>output <span class="op">=</span> compute_contor_inverse(<span class="dv">100</span>)</span>
-<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(output)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> pd.DataFrame({<span class="st">"teams"</span>: [[<span class="st">"SF"</span>, <span class="st">"NYG"</span>] <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">7</span>)]})</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(df)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Execution time: 0.000 seconds
-(1018, 9)</code></pre>
+<pre><code>       teams
+0  [SF, NYG]
+1  [SF, NYG]
+2  [SF, NYG]
+3  [SF, NYG]
+4  [SF, NYG]
+5  [SF, NYG]
+6  [SF, NYG]</code></pre>
 </div>
 </div>
-</div>
-<hr>
-</section>
-<section id="デコレーター自身に引数を読み込ませる場合" class="level2">
-<h2 class="anchored" data-anchor-id="デコレーター自身に引数を読み込ませる場合">デコレーター自身に引数を読み込ませる場合</h2>
-<p>上記の <code>running_time</code> で小数点桁数を３桁固定としていましたが，これを引数に応じて変化させる場合を考えます．</p>
-<div id="23c9d031" class="cell" data-execution_count="3">
-<details open="" class="code-fold">
-<summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> time <span class="im">import</span> time, sleep</span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> running_time_with_input(decimal: <span class="bu">int</span> <span class="op">=</span> <span class="dv">3</span>):</span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> decorator(func):</span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>        <span class="co">"""</span></span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="co">        関数の実行時間（秒）を有効桁小数点３桁で表示して、元の関数の戻り値を返すデコレータ</span></span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="co">        """</span></span>
-<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>        <span class="kw">def</span> wrapper(<span class="op">*</span>args, <span class="op">**</span>kwargs):</span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>            start <span class="op">=</span> time()</span>
-<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>            result <span class="op">=</span> func(<span class="op">*</span>args, <span class="op">**</span>kwargs)</span>
-<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>            end <span class="op">=</span> time()</span>
-<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>            elapsed <span class="op">=</span> end <span class="op">-</span> start</span>
-<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>            <span class="bu">print</span>(<span class="ss">f"Execution time: </span><span class="sc">{</span>elapsed<span class="sc">:.</span>{decimal}f<span class="sc">}</span><span class="ss"> seconds"</span>)</span>
-<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>            <span class="cf">return</span> result</span>
-<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> wrapper</span>
-<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> decorator</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
-</div>
-<p><span class="mini-section">実行例</span></p>
-<div id="d4ac1414" class="cell" data-execution_count="4">
-<details open="" class="code-fold">
-<summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="at">@running_time_with_input</span>(decimal<span class="op">=</span><span class="dv">10</span>)</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> do_task():</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    sleep(<span class="fl">1.2345</span>)</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>do_task()</span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="co"># =&gt; Execution time: 1.23 seconds</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
-<div class="cell-output cell-output-stdout">
-<pre><code>Execution time: 1.2346105576 seconds</code></pre>
-</div>
-</div>
-</section>
-<section id="appendix-args-と-kwargs" class="level2">
-<h2 class="anchored" data-anchor-id="appendix-args-と-kwargs">Appendix: <code>*args</code> と <code>**kwargs</code></h2>
-<div class="no-border-top-table">
+<p><span class="mini-section">期待する出力</span></p>
 <table class="caption-top table">
-<colgroup>
-<col style="width: 10%">
-<col style="width: 45%">
-<col style="width: 45%">
-</colgroup>
 <thead>
 <tr class="header">
-<th>書き方</th>
-<th>意味</th>
-<th>例</th>
+<th style="text-align: center;">team1</th>
+<th style="text-align: center;">team2</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>*args</code></td>
-<td>タプルとして位置引数を全部受け取る</td>
-<td><code>func(1, 2, 3)</code> → <code>args = (1, 2, 3)</code></td>
+<td style="text-align: center;">SF</td>
+<td style="text-align: center;">NYG</td>
 </tr>
 <tr class="even">
-<td><code>**kwargs</code></td>
-<td>辞書としてキーワード引数を全部受け取る</td>
-<td><code>func(a=10, b=20)</code> → <code>kwargs = {'a': 10, 'b': 20}</code></td>
+<td style="text-align: center;">SF</td>
+<td style="text-align: center;">NYG</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">…</td>
+<td style="text-align: center;">…</td>
 </tr>
 </tbody>
 </table>
 </div>
-<p><span class="mini-section">動作確認</span></p>
-<div id="c3996680" class="cell" data-execution_count="5">
-<details open="" class="code-fold">
-<summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> example(<span class="op">*</span>args, <span class="op">**</span>kwargs):</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"args:"</span>, args)</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"kwargs:"</span>, kwargs)</span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>example(<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>, a<span class="op">=</span><span class="dv">10</span>, b<span class="op">=</span><span class="dv">20</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
-<div class="cell-output cell-output-stdout">
-<pre><code>args: (1, 2, 3)
-kwargs: {'a': 10, 'b': 20}</code></pre>
+<p><span class="mini-section">ポイント</span></p>
+<ul>
+<li>リストの長さは<span class="regmonkey-bold">行ごとに同じ</span>と仮定 (NFL のホーム/アウェイ，緯度/経度など)</li>
+<li>元カラムは<span class="regmonkey-bold">残しても消してもよい</span>が，下流で使わないなら消した方がスキーマがすっきりする</li>
+<li>行ごとに長さが揃わないケース (<code>[SF, NYG, OAK]</code> と <code>[SF]</code> の混在) は別問題で，欠損部分を <code>NaN</code>/<code>null</code> で埋める方針が必要</li>
+</ul>
+</section>
+<section id="pattern-1-pandas" class="level2">
+<h2 class="anchored" data-anchor-id="pattern-1-pandas">Pattern 1: pandas</h2>
+<p>最も高速かつ素直なのは <code>tolist()</code> で 2D 配列に戻してから <code>DataFrame</code> を再構築する方法．</p>
+<div id="e5a953c4" class="cell" data-execution_count="2">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>df[[<span class="st">"team1"</span>, <span class="st">"team2"</span>]] <span class="op">=</span> pd.DataFrame(df[<span class="st">"teams"</span>].tolist(), index<span class="op">=</span>df.index)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>df</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="2">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">teams</th>
+<th data-quarto-table-cell-role="th">team1</th>
+<th data-quarto-table-cell-role="th">team2</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>[SF, NYG]</td>
+<td>SF</td>
+<td>NYG</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>[SF, NYG]</td>
+<td>SF</td>
+<td>NYG</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">2</th>
+<td>[SF, NYG]</td>
+<td>SF</td>
+<td>NYG</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">3</th>
+<td>[SF, NYG]</td>
+<td>SF</td>
+<td>NYG</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">4</th>
+<td>[SF, NYG]</td>
+<td>SF</td>
+<td>NYG</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">5</th>
+<td>[SF, NYG]</td>
+<td>SF</td>
+<td>NYG</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">6</th>
+<td>[SF, NYG]</td>
+<td>SF</td>
+<td>NYG</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p><code>index=df.index</code> を渡すのが<span class="regmonkey-bold">落とし穴回避</span>のポイント．元 DataFrame の index が連番でない場合，これを忘れると代入時に NaN が並ぶ．</p>
+<p><span class="mini-section"><code>apply(pd.Series)</code> 版 (短いが遅い)</span></p>
+<div id="199ed7a8" class="cell" data-execution_count="3">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> pd.DataFrame({<span class="st">"teams"</span>: [[<span class="st">"SF"</span>, <span class="st">"NYG"</span>] <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">7</span>)]})</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>df[[<span class="st">"team1"</span>, <span class="st">"team2"</span>]] <span class="op">=</span> df[<span class="st">"teams"</span>].<span class="bu">apply</span>(pd.Series)</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>df</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="3">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">teams</th>
+<th data-quarto-table-cell-role="th">team1</th>
+<th data-quarto-table-cell-role="th">team2</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>[SF, NYG]</td>
+<td>SF</td>
+<td>NYG</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>[SF, NYG]</td>
+<td>SF</td>
+<td>NYG</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">2</th>
+<td>[SF, NYG]</td>
+<td>SF</td>
+<td>NYG</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">3</th>
+<td>[SF, NYG]</td>
+<td>SF</td>
+<td>NYG</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">4</th>
+<td>[SF, NYG]</td>
+<td>SF</td>
+<td>NYG</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">5</th>
+<td>[SF, NYG]</td>
+<td>SF</td>
+<td>NYG</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">6</th>
+<td>[SF, NYG]</td>
+<td>SF</td>
+<td>NYG</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p><span class="mini-section">文字列カラムの場合は <code>str.split(expand=True)</code></span></p>
+<p>入力が <code>"SF,NYG"</code> のような区切り文字列ならリスト化を経由せず一発で展開できる．</p>
+<div id="4e371af2" class="cell" data-execution_count="4">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>df_str <span class="op">=</span> pd.DataFrame({<span class="st">"teams"</span>: [<span class="st">"SF,NYG"</span>] <span class="op">*</span> <span class="dv">3</span>})</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>df_str[[<span class="st">"team1"</span>, <span class="st">"team2"</span>]] <span class="op">=</span> df_str[<span class="st">"teams"</span>].<span class="bu">str</span>.split(<span class="st">","</span>, expand<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>df_str</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="4">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">teams</th>
+<th data-quarto-table-cell-role="th">team1</th>
+<th data-quarto-table-cell-role="th">team2</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>SF,NYG</td>
+<td>SF</td>
+<td>NYG</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>SF,NYG</td>
+<td>SF</td>
+<td>NYG</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">2</th>
+<td>SF,NYG</td>
+<td>SF</td>
+<td>NYG</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<div style="padding-left: 2em; padding-right: 2em; border-radius: 0em; border-style:solid; border-color:#ffa657;">
+<p><strong style="color:#ffa657">注意点 !</strong> <br></p>
+<ul>
+<li><code>apply(pd.Series)</code> は<span class="regmonkey-bold">各行で <code>Series</code> を新しく作るため遅い</span>．数十万行を超える場合は <code>tolist()</code> 経由に切り替えるべき</li>
+<li>行ごとにリスト長が異なる場合，<code>pd.DataFrame(df["teams"].tolist())</code> は<span class="regmonkey-bold">最大長に合わせて足りない部分を <code>NaN</code> で埋める</span>．これは便利な一方で，型が <code>object</code> に落ちる点に注意</li>
+<li>元カラムを残す必要がなければ <code>df = df.drop(columns="teams")</code> を続ける</li>
+</ul>
+</div>
+</section>
+<section id="pattern-2-polars" class="level2">
+<h2 class="anchored" data-anchor-id="pattern-2-polars">Pattern 2: polars</h2>
+<p>polars は<span class="regmonkey-bold">リスト型がファーストクラス</span>なので，<code>list.to_struct()</code> で構造体に変換してから <code>unnest</code> する</p>
+<div id="5c0eaad2" class="cell" data-execution_count="5">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> polars <span class="im">as</span> pl</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>df_pl <span class="op">=</span> pl.DataFrame({<span class="st">"teams"</span>: [[<span class="st">"SF"</span>, <span class="st">"NYG"</span>] <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">7</span>)]})</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>df_pl.with_columns(</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"teams"</span>).<span class="bu">list</span>.to_struct(fields<span class="op">=</span>[<span class="st">"team1"</span>, <span class="st">"team2"</span>])</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>).unnest(<span class="st">"teams"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="5">
+<div><style>
+.dataframe > thead > tr,
+.dataframe > tbody > tr {
+  text-align: right;
+  white-space: pre-wrap;
+}
+</style>
+<small>shape: (7, 2)</small>
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th">team1</th>
+<th data-quarto-table-cell-role="th">team2</th>
+</tr>
+<tr class="even">
+<td>str</td>
+<td>str</td>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>"SF"</td>
+<td>"NYG"</td>
+</tr>
+<tr class="even">
+<td>"SF"</td>
+<td>"NYG"</td>
+</tr>
+<tr class="odd">
+<td>"SF"</td>
+<td>"NYG"</td>
+</tr>
+<tr class="even">
+<td>"SF"</td>
+<td>"NYG"</td>
+</tr>
+<tr class="odd">
+<td>"SF"</td>
+<td>"NYG"</td>
+</tr>
+<tr class="even">
+<td>"SF"</td>
+<td>"NYG"</td>
+</tr>
+<tr class="odd">
+<td>"SF"</td>
+<td>"NYG"</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<p><span class="mini-section">個別に <code>list.get</code> で取り出す書き方</span></p>
+<p>要素数が少なく，特定インデックスだけ欲しい場合は <code>list.get</code> の方が読みやすい．</p>
+<div id="d57f4286" class="cell" data-execution_count="6">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>df_pl.with_columns(</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"teams"</span>).<span class="bu">list</span>.get(<span class="dv">0</span>).alias(<span class="st">"team1"</span>),</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"teams"</span>).<span class="bu">list</span>.get(<span class="dv">1</span>).alias(<span class="st">"team2"</span>),</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>).drop(<span class="st">"teams"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="6">
+<div><style>
+.dataframe > thead > tr,
+.dataframe > tbody > tr {
+  text-align: right;
+  white-space: pre-wrap;
+}
+</style>
+<small>shape: (7, 2)</small>
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th">team1</th>
+<th data-quarto-table-cell-role="th">team2</th>
+</tr>
+<tr class="even">
+<td>str</td>
+<td>str</td>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>"SF"</td>
+<td>"NYG"</td>
+</tr>
+<tr class="even">
+<td>"SF"</td>
+<td>"NYG"</td>
+</tr>
+<tr class="odd">
+<td>"SF"</td>
+<td>"NYG"</td>
+</tr>
+<tr class="even">
+<td>"SF"</td>
+<td>"NYG"</td>
+</tr>
+<tr class="odd">
+<td>"SF"</td>
+<td>"NYG"</td>
+</tr>
+<tr class="even">
+<td>"SF"</td>
+<td>"NYG"</td>
+</tr>
+<tr class="odd">
+<td>"SF"</td>
+<td>"NYG"</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<p><span class="mini-section">文字列カラムの場合は <code>str.split</code> + <code>list.to_struct</code></span></p>
+<div id="f9c415fa" class="cell" data-execution_count="7">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>df_str_pl <span class="op">=</span> pl.DataFrame({<span class="st">"teams"</span>: [<span class="st">"SF,NYG"</span>] <span class="op">*</span> <span class="dv">3</span>})</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>df_str_pl.with_columns(</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"teams"</span>).<span class="bu">str</span>.split(<span class="st">","</span>).<span class="bu">list</span>.to_struct(fields<span class="op">=</span>[<span class="st">"team1"</span>, <span class="st">"team2"</span>])</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>).unnest(<span class="st">"teams"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="7">
+<div><style>
+.dataframe > thead > tr,
+.dataframe > tbody > tr {
+  text-align: right;
+  white-space: pre-wrap;
+}
+</style>
+<small>shape: (3, 2)</small>
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th">team1</th>
+<th data-quarto-table-cell-role="th">team2</th>
+</tr>
+<tr class="even">
+<td>str</td>
+<td>str</td>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>"SF"</td>
+<td>"NYG"</td>
+</tr>
+<tr class="even">
+<td>"SF"</td>
+<td>"NYG"</td>
+</tr>
+<tr class="odd">
+<td>"SF"</td>
+<td>"NYG"</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<p><span class="mini-section">pandas との対応関係</span></p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 19%">
+<col style="width: 36%">
+<col style="width: 44%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>操作</th>
+<th>pandas</th>
+<th>polars</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>リスト型を複数カラムへ</td>
+<td><code>pd.DataFrame(s.tolist(), index=df.index)</code></td>
+<td><code>pl.col(c).list.to_struct(fields=[...])</code> + <code>unnest</code></td>
+</tr>
+<tr class="even">
+<td>特定要素だけ取り出す</td>
+<td><code>s.str[i]</code></td>
+<td><code>pl.col(c).list.get(i)</code></td>
+</tr>
+<tr class="odd">
+<td>区切り文字列を展開</td>
+<td><code>s.str.split(sep, expand=True)</code></td>
+<td><code>pl.col(c).str.split(sep).list.to_struct(...)</code> + <code>unnest</code></td>
+</tr>
+<tr class="even">
+<td>元カラムを落とす</td>
+<td><code>.drop(columns=c)</code></td>
+<td><code>.drop(c)</code> または <code>unnest</code> 自体が元カラムを置き換える</td>
+</tr>
+</tbody>
+</table>
+<div style="padding-left: 2em; padding-right: 2em; border-radius: 0em; border-style:solid; border-color:#ffa657;">
+<p><strong style="color:#ffa657">注意点 !</strong> <br></p>
+<ul>
+<li><code>list.to_struct()</code> の <code>fields=</code> は<span class="regmonkey-bold">要素数より少ない名前を渡すと残りの要素が捨てられる</span>．意図しない切り捨てを防ぐため，<code>upper_bound=</code> で最大要素数を明示しておくと安全</li>
+<li>行ごとにリスト長が異なる場合，足りない要素は <code>null</code> になる．逆に<span class="regmonkey-bold">最大長を超える要素は <code>to_struct</code> のフィールド数に揃えて切り捨てられる</span></li>
+<li><code>unnest</code> は対象カラムを<span class="regmonkey-bold">新しいカラム群に置き換える</span>ので，元の <code>teams</code> カラムは結果に残らない</li>
+</ul>
+</div>
+</section>
+<section id="pattern-3-bigquery" class="level2">
+<h2 class="anchored" data-anchor-id="pattern-3-bigquery">Pattern 3: BigQuery</h2>
+<p>BigQuery では <code>ARRAY&lt;...&gt;</code> 型を <span class="regmonkey-bold"><code>OFFSET(i)</code> または <code>[i]</code></span>で要素アクセスするのが定石．固定長なら一行で展開できる．</p>
+<p><span class="mini-section">ARRAY 型の固定長アクセス</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode sql code-with-copy"><code class="sourceCode sql"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">WITH</span> src <span class="kw">AS</span> (</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">SELECT</span> teams</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">FROM</span> UNNEST([</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    STRUCT([<span class="st">'SF'</span>, <span class="st">'NYG'</span>] <span class="kw">AS</span> teams),</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    STRUCT([<span class="st">'SF'</span>, <span class="st">'NYG'</span>]),</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>    STRUCT([<span class="st">'SF'</span>, <span class="st">'NYG'</span>])</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>  ])</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>  teams[OFFSET(<span class="dv">0</span>)] <span class="kw">AS</span> team1,</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>  teams[OFFSET(<span class="dv">1</span>)] <span class="kw">AS</span> team2</span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> src;</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>SAFE_OFFSET(i)</code> を使うと<span class="regmonkey-bold">要素数不足時にエラーではなく <code>NULL</code></span>を返す．行ごとにリスト長が揃わない場合の標準パターン．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode sql code-with-copy"><code class="sourceCode sql"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  teams[SAFE_OFFSET(<span class="dv">0</span>)] <span class="kw">AS</span> team1,</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>  teams[SAFE_OFFSET(<span class="dv">1</span>)] <span class="kw">AS</span> team2</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> src;</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><span class="mini-section">文字列カラムから展開: <code>SPLIT</code></span></p>
+<p>入力が <code>"SF,NYG"</code> の形なら <code>SPLIT</code> で一旦 ARRAY にしてから OFFSET アクセスする．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode sql code-with-copy"><code class="sourceCode sql"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="kw">WITH</span> src <span class="kw">AS</span> (</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">SELECT</span> <span class="st">'SF,NYG'</span> <span class="kw">AS</span> teams_str <span class="kw">UNION</span> <span class="kw">ALL</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">SELECT</span> <span class="st">'SF,NYG'</span> <span class="kw">UNION</span> <span class="kw">ALL</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>  <span class="kw">SELECT</span> <span class="st">'SF,NYG'</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span></span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>  <span class="kw">SPLIT</span>(teams_str, <span class="st">','</span>)[SAFE_OFFSET(<span class="dv">0</span>)] <span class="kw">AS</span> team1,</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>  <span class="kw">SPLIT</span>(teams_str, <span class="st">','</span>)[SAFE_OFFSET(<span class="dv">1</span>)] <span class="kw">AS</span> team2</span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> src;</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>同じ <code>SPLIT</code> を2回書きたくない場合は<span class="regmonkey-bold">サブクエリで一度展開する</span>か <code>LATERAL</code> 相当の <code>,UNNEST(...) AS arr WITH OFFSET</code> を使う．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode sql code-with-copy"><code class="sourceCode sql"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  arr[OFFSET(<span class="dv">0</span>)] <span class="kw">AS</span> team1,</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  arr[OFFSET(<span class="dv">1</span>)] <span class="kw">AS</span> team2</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> (</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>  <span class="kw">SELECT</span> <span class="kw">SPLIT</span>(teams_str, <span class="st">','</span>) <span class="kw">AS</span> arr</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>  <span class="kw">FROM</span> src</span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>);</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="callout callout-style-default callout-warning callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Warning
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li><code>OFFSET(i)</code> で要素数が足りないと<span class="regmonkey-bold">クエリ全体がエラー</span>になる．本番運用では <code>SAFE_OFFSET(i)</code> を使うのが基本</li>
+<li><code>OFFSET</code> は0-indexed，<code>ORDINAL</code> は1-indexed．混在させるとバグの温床になるため，どちらかに統一する</li>
+<li>「ロング → ワイド」を行ごとに変えたい場合は <code>PIVOT</code> 句を検討する．固定長 ARRAY なら本記事の OFFSET アクセスの方が高速かつ可読</li>
+</ul>
+</div>
+</div>
+</section>
+<section id="appendix-struct-構造体-とは" class="level2">
+<h2 class="anchored" data-anchor-id="appendix-struct-構造体-とは">Appendix: struct (構造体) とは</h2>
+<ul>
+<li><span class="regmonkey-bold">名前付きフィールドを束ねた1レコード分の値</span>．</li>
+<li>DataFrame の1行を「順序付き」ではなく「フィールド名付き」で取り出した型</li>
+</ul>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 18%">
+<col style="width: 39%">
+<col style="width: 42%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>表現</th>
+<th>例</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>list / array</td>
+<td><code>["SF", "NYG"]</code></td>
+<td>同型の値を順序で並べた列</td>
+</tr>
+<tr class="even">
+<td>tuple</td>
+<td><code>("SF", "NYG")</code></td>
+<td>異型でもよいが，アクセスは位置参照</td>
+</tr>
+<tr class="odd">
+<td><strong>struct</strong></td>
+<td><code>{team1: "SF", team2: "NYG"}</code></td>
+<td>フィールド名でアクセスする record</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>リストやタプルが<span class="regmonkey-bold">「位置」で値を取り出す</span>のに対して，struct は<span class="regmonkey-bold">「名前」で値を取り出す</span>．</li>
+<li><code>list.to_struct(fields=["team1", "team2"])</code> は，list を struct に<span class="regmonkey-bold">ラベル付け</span>している操作．</li>
+</ul>
+<p><span class="mini-section">各ライブラリ/エンジンでの呼び名と表記</span></p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 13%">
+<col style="width: 14%">
+<col style="width: 40%">
+<col style="width: 31%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>言語/エンジン</th>
+<th>型名</th>
+<th>リテラル例</th>
+<th>アクセス方法</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>polars</td>
+<td><code>Struct</code></td>
+<td><code>pl.struct([pl.col("a"), pl.col("b")])</code></td>
+<td><code>pl.col("s").struct.field("a")</code></td>
+</tr>
+<tr class="even">
+<td>BigQuery</td>
+<td><code>STRUCT</code></td>
+<td><code>STRUCT('SF' AS team1, 'NYG' AS team2)</code></td>
+<td><code>s.team1</code></td>
+</tr>
+<tr class="odd">
+<td>Spark SQL</td>
+<td><code>StructType</code></td>
+<td><code>struct(col("a"), col("b"))</code></td>
+<td><code>s.a</code></td>
+</tr>
+<tr class="even">
+<td>Apache Arrow</td>
+<td><code>struct&lt;...&gt;</code></td>
+<td>(型定義のみ)</td>
+<td>child array</td>
+</tr>
+<tr class="odd">
+<td>Python</td>
+<td><code>dict</code> / <code>NamedTuple</code> / <code>dataclass</code></td>
+<td><code>{"team1": "SF", "team2": "NYG"}</code></td>
+<td><code>d["team1"]</code> / <code>d.team1</code></td>
+</tr>
+</tbody>
+</table>
+<p><span class="mini-section"><code>unnest</code> との関係</span></p>
+<p><code>unnest</code> は struct を<span class="regmonkey-bold">フィールドごとに別カラムへ展開する</span>操作． 本記事の polars の流れは次の3段階に分解できる．</p>
+<ol type="1">
+<li><code>pl.col("teams")</code> … list 型カラム (<code>["SF", "NYG"]</code>)</li>
+<li><code>.list.to_struct(fields=["team1", "team2"])</code> … list を struct (<code>{team1: "SF", team2: "NYG"}</code>) に変換</li>
+<li><code>.unnest("teams")</code> … struct を <code>team1</code> / <code>team2</code> の2カラムに展開</li>
+</ol>
+<p>BigQuery の <code>SELECT s.* FROM ... AS s</code> も同等の効果で，struct から個々のフィールドを<span class="regmonkey-bold">ワイドに開く</span>．</p>
+<p><span class="mini-section">なぜ list → struct を経由するのか</span></p>
+<p>list を直接複数カラムに割るには，<span class="regmonkey-bold">「i 番目の要素は何という名前のカラムにすべきか」</span>という情報が必要になる． struct はこの<span class="regmonkey-bold">位置 → 名前のマッピング</span>を型として持つので，</p>
+<pre><code>list  ──[fields=...]──▶  struct  ──[unnest]──▶  multi-columns</code></pre>
+<p>という素直な責務分離が成立する．polars の API はこの分離を正面から表現しており，pandas の <code>pd.DataFrame(s.tolist())</code> よりも<span class="regmonkey-bold">何が起きているかが追いやすい</span>．</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>struct は「異型を許容するレコード」なので，<code>STRUCT(1, 'foo', TRUE)</code> のように<span class="regmonkey-bold">フィールドごとに型が違ってもよい</span>．これが list (同型限定) との最大の違い</li>
+<li>BigQuery の <code>STRUCT</code> はフィールド名を省略すると <code>_field_1</code>, <code>_field_2</code>… が自動で付くが，後段の参照可読性が落ちるので原則 <code>AS field</code> で名前付けする</li>
+<li>polars の <code>Struct</code> 型カラムは Parquet / Arrow にそのまま書き出せるため，<span class="regmonkey-bold">展開せずに保存するのが効率的</span>な場面もある (中間ファイルの段階では struct のまま，可視化や JOIN 直前で <code>unnest</code>)</li>
+</ul>
 </div>
 </div>
 
