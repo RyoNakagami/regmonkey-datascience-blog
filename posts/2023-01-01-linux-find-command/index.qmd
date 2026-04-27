@@ -1,0 +1,184 @@
+---
+title: "[過去記事転記] Linuxでファイルを検索する: findコマンド"
+author: "Ryo Nakagami"
+date: "2023-01-01"
+date-modified: "2026-04-27"
+categories: [Linux]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## 複数パターンのファイルを一括削除する
+
+::: {.callout-note}
+### コマンド
+
+`index.quarto_ipynb` および `index.quarto_ipynb_*`（`_1`, `_2`, ...）に
+マッチする通常ファイルを，カレントディレクトリ以下から再帰的に検索し，まとめて削除する．
+
+```bash
+find . -type f \( -name "index.quarto_ipynb" -o -name "index.quarto_ipynb_*" \) -delete
+```
+
+:::
+
+[各オプションの意味]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| 要素                       | 役割                                                                               |
+| ------------------------ | -------------------------------------------------------------------------------- |
+| `.`                      | 検索の起点となるディレクトリ．カレントディレクトリ以下を再帰的に走査する                                             |
+| `-type f`                | 検索対象を **通常ファイル** に限定．ディレクトリやシンボリックリンクは除外される                                       |
+| `\( ... \)`              | 条件のグルーピング．シェルに括弧として解釈されないようにバックスラッシュでエスケープしている                                   |
+| `-name "..."`            | ファイル名（パスではなく basename）に対するglobパターンマッチ．`*` などのワイルドカードを使う場合はクォートで囲み，シェル展開を防ぐこと        |
+| `-o`                     | OR 条件．デフォルトの結合は AND（暗黙の `-a`）なので，「いずれかにマッチ」を表現するには明示的に `-o` を使う                    |
+| `-delete`                | マッチしたファイルを **その場で削除** するアクション．`-exec rm {} \;` よりも高速で安全（プロセスを起動しない）              |
+
+::::
+
+[評価順序の注意点]{.mini-section}
+
+`find` は `-a`（AND）が `-o`（OR）よりも優先順位が高いため，括弧でグループ化しないと意図しない条件評価になります．
+
+```bash
+## NG: -type f は最初の -name にしか効かず，2つ目の条件は -type f の制約を受けない
+find . -type f -name "index.quarto_ipynb" -o -name "index.quarto_ipynb_*" -delete
+
+## OK: 括弧で OR 条件を1つの式にまとめてから -type f, -delete を適用する
+find . -type f \( -name "index.quarto_ipynb" -o -name "index.quarto_ipynb_*" \) -delete
+```
+
+論理式として読み下すと，前者は
+
+$$
+(\texttt{-type f} \wedge \texttt{-name A}) \vee (\texttt{-name B} \wedge \texttt{-delete})
+$$
+
+となり，`-delete` が条件Bにマッチした **すべてのファイル**（ディレクトリ含む）に対して発動してしまう危険性があります．
+
+[`-delete` を使うときの作法]{.mini-section}
+
+- [ ] `-delete` は **取り消しできない** ため，まず `-delete` を外して `find ...` の出力を目視確認する
+- [ ] `-delete` は `find` のオプション解析の都合上，**コマンドラインの末尾**に置く（`-depth` が暗黙に有効化される）
+- [ ] 大量ファイルの削除では `-print` で件数を確認してから実行する
+
+```bash
+## Step 1: 対象を確認
+find . -type f \( -name "index.quarto_ipynb" -o -name "index.quarto_ipynb_*" \) -print | wc -l
+
+## Step 2: 問題なければ削除
+find . -type f \( -name "index.quarto_ipynb" -o -name "index.quarto_ipynb_*" \) -delete
+```
+
+[`xargs rm` で削除するパターン]{.mini-section}
+
+`-delete` が使えない環境（古い `find` 実装）や，削除前にファイル一覧をパイプで他コマンドに渡したいときは
+`xargs rm` のパターンが使われます．
+
+```bash
+## NG: スペースや改行を含むファイル名で壊れる
+find . -type f \( -name "index.quarto_ipynb" -o -name "index.quarto_ipynb_*" \) | xargs rm
+
+## OK: NUL区切りで安全に渡す
+find . -type f \( -name "index.quarto_ipynb" -o -name "index.quarto_ipynb_*" \) -print0 | xargs -0 rm
+```
+
+:::: {.no-border-top-table}
+
+| オプション         | 役割                                                                                                  |
+| ------------- | --------------------------------------------------------------------------------------------------- |
+| `-print0`     | `find` 側の出力区切りを **改行 (`\n`) ではなく NUL文字 (`\0`)** にする．ファイル名にスペース・改行・引用符が含まれていても安全                       |
+| `xargs -0`    | `xargs` 側の入力区切りを NUL文字として扱う．`-print0` とセットで使う                                                       |
+| `xargs -r`    | 入力が空のときコマンドを実行しない（GNU拡張）．マッチが0件のときに `rm` がエラーになるのを防ぐ                                                |
+| `xargs -n N`  | 1回の `rm` 呼び出しに渡す引数の数を制限．デフォルトでは可能な限りまとめて渡される                                                       |
+
+::::
+
+[`-delete` vs `xargs rm` の使い分け]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| 観点                  | `-delete`                          | `xargs rm`                                                  |
+| ------------------- | ---------------------------------- | ----------------------------------------------------------- |
+| プロセス起動              | `find` 内部で完結                       | `rm` を別プロセスとして起動                                            |
+| 実行速度                | 速い                                 | やや遅い（ただし `xargs` が引数をまとめるので `-exec rm {} \;` よりは速い）        |
+| ファイル名の安全性           | 安全                                 | `-print0` + `-0` でない場合，スペース・改行で破綻する                         |
+| 削除前のフィルタリング         | 不可                                 | 可能（`grep` などを挟める）                                           |
+| 移植性                 | POSIX外（GNU/BSD `find` で利用可）       | POSIX準拠（`-print0`/`-0` はGNU/BSD拡張）                          |
+
+::::
+
+シンプルに削除したいだけなら `-delete` で十分．`grep` でさらに絞り込みたい，削除前後にログを取りたい，など
+パイプライン処理が必要な場合は `xargs rm` を選ぶ，という整理になります．
+
+```bash
+## 例: ファイル名に特定文字列を含むものだけを削除
+find . -type f \( -name "index.quarto_ipynb" -o -name "index.quarto_ipynb_*" \) -print0 \
+  | grep -z '2025-' \
+  | xargs -0 -r rm
+```
+
+***
+
+## Appendix: Linuxのファイル
+
+Linuxで扱われるオブジェクトは大きく分けると４つあります
+
+:::: {.no-border-top-table}
+
+| 種類                           | 説明                       | 代表例                         | 補足                  |
+| ---------------------------- | ------------------------ | --------------------------- | ------------------- |
+| **通常ファイル**     | データそのものを格納するファイル         | `.txt`, `.csv`, `.py`, バイナリ | テキストも実行ファイルも同じ分類    |
+| **ディレクトリ**        | ファイルや他のディレクトリを管理するための入れ物 | `/home`, `/etc`, `/usr`     | 中身は「名前 → inode」の対応表 |
+| **リンクファイル** | 別のファイルやディレクトリへの参照        | `/bin -> /usr/bin`          | ハードリンクやシンボリックリンク            |
+| **特殊ファイル**     | デバイスや IPC（入出力・通信）をファイルとして抽象化したもの（デバイスファイル）  | `/dev/sda`, `/dev/null`     | ブロックデバイス(`b`) や キャラクタデバイス(`c`)など    |
+
+::::
+
+[Linuxでは，すべてをファイルで表します]{.regmonky-bold}．コンピューターに接続されているデバイス（キーボード・モニタ・プリンタなど）は
+それぞれ対応したデバイスファイルで表されます．
+
+`ls` コマンドを `ls -F --color=auto` のように設定した上で実行すると
+
+- 通常ファイル: 白色
+- ディレクトリ: 青色
+- リンクファイル(シンボリックリンク): 水色
+- 特殊ファイル: 黄色
+
+というように表示されます．（他にも圧縮ファイルは赤色，実行ファイルは緑色など）
+
+[Windowsとの差違]{.mini-section}
+
+Windowsでは，`.txt`，`.exe` といった拡張子が意味を持ち，アプリケーションと関連付けられていますが，Linuxではファイル名の一部に過ぎないです．
+Linuxではあくまで中身を見てから判断するという思想で，なにかしらの実行ファイルがどの言語で実行可能なのか？とかはshebang
+
+```bash
+#!/bin/bash
+```
+
+で記述する場面のほうが多いと思います．ただし，拡張子はどんな種類のファイルなのかの目安になるほか，
+
+```bash
+ls -X
+```
+
+のように `ls` コマンドでは `-X` を付与することで拡張子アルファベット順でファイルをソート表示できるので，ディレクトリの整理整頓という観点では
+拡張子を含めファイルに適切な名前を付与することはLinuxでも重要です．
+
+
+
+
+
+
+
+
+
+
+References
+----------
+- [Ryo's Tech Blog > 条件を指定してファイルを検索する](https://ryonakagami.github.io/2023/01/01/Linux-find-command/)
