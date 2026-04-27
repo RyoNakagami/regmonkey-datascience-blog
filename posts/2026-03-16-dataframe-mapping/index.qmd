@@ -1,0 +1,233 @@
+---
+title: "対応関係を渡して値を変換する: pandas / polars / BigQuery"
+author: "Ryo Nakagami"
+date: "2026-03-16"
+date-modified: "2026-04-27"
+categories: [python, SQL, 前処理]
+listing_category: datascience-preprocess-series
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## 問題設定: 文字列カテゴリを数値にマッピングしたい
+
+<div class="blog-custom-border" style="margin-top: 1rem; margin-bottom: 1rem;">
+::: {#exr- .custom_problem }
+<br>
+
+商品グレード (`grade`) が文字列で格納されているテーブルに対し，
+`{C: 1, B: 2, A: 3, S: 4}` という対応関係を使って数値カラム `grade_norm` を追加したい．
+入力例は次のようなレコード形式とします．
+
+```{python}
+#| code-fold: false
+import pandas as pd
+
+df = pd.DataFrame(
+    [
+        (1, "C", 1000),
+        (2, "B", 2500),
+        (3, "A", 5000),
+        (4, "S", 10000),
+    ],
+    columns=["id", "grade", "price"],
+)
+df
+```
+
+[期待する出力]{.mini-section}
+
+| id | grade | price | grade_norm |
+|---:|:-----:|------:|-----------:|
+|  1 |   C   |  1000 |          1 |
+|  2 |   B   |  2500 |          2 |
+|  3 |   A   |  5000 |          3 |
+|  4 |   S   | 10000 |          4 |
+
+:::
+
+</div>
+
+[ポイント]{.mini-section}
+
+- mapping は[「キー → 値」の辞書]{.regmonkey-bold}として与えられているケースを想定する
+- mapping にないキーが入力に出現したときの[挙動 (NaN にする / 元の値を残す / エラー)]{.regmonkey-bold} を意識して書き分ける
+- pandas, polars, BigQuery のいずれも[元のカラムを破壊せずに別名で追加]{.regmonkey-bold}できる書き方が望ましい
+
+```{python}
+#| code-fold: false
+grade_mapping = {"C": 1, "B": 2, "A": 3, "S": 4}
+```
+
+## Pattern 1: pandas
+
+`Series.map(dict)` が王道．元 DataFrame を残したまま新しいカラムとして追加するには `DataFrame.assign` と組み合わせる．
+
+```{python}
+#| code-fold: false
+df.assign(grade_norm=df["grade"].map(grade_mapping))
+```
+
+`map` は[mapping にないキーを `NaN` にする]{.regmonkey-bold}ため，結果のカラム dtype が `float64` に昇格する点に注意．
+整数型のまま持ちたい場合は nullable integer 型 (`Int64`) を使う．
+
+```{python}
+#| code-fold: false
+df.assign(grade_norm=df["grade"].map(grade_mapping).astype("Int64"))
+```
+
+
+::: {.callout-warning}
+
+- `Series.replace(dict)` でも同じ変換は書けるが，[`map` の方が高速かつ意図が明確]{.regmonkey-bold} (`replace` は正規表現マッチも見るためオーバヘッドがある)
+- mapping にないキーをエラーにしたいときは 事前に `set(df["grade"]) - set(grade_mapping)` で差集合を取って assert する
+
+:::
+
+## Pattern 2: polars
+
+polars では `pl.col(...).replace_strict(mapping)` が[最も意図に近い]{.regmonkey-bold}．
+`replace_strict` は mapping にないキーが入力に存在するとエラーになるので，未知カテゴリの混入を取りこぼさない．
+
+```{python}
+#| code-fold: false
+import polars as pl
+
+df_pl = pl.from_pandas(df)
+
+df_pl.with_columns(
+    pl.col("grade").replace_strict(grade_mapping, return_dtype=pl.Int64).alias("grade_norm")
+)
+```
+
+[未知キーを許容したい場合]{.mini-section}
+
+`replace_strict` に `default=` を渡すと，mapping にないキーをエラーにせず指定値で埋められる．
+`null` を fallback にすれば pandas の `Series.map` と同じ挙動になる．
+
+```{python}
+#| code-fold: false
+df_pl.with_columns(
+    pl.col("grade")
+      .replace_strict(grade_mapping, default=None, return_dtype=pl.Int64)
+      .alias("grade_norm")
+)
+```
+
+<div style='padding-left: 2em; padding-right: 2em; border-radius: 0em; border-style:solid; border-color:#ffa657;'>
+<strong style="color:#ffa657">注意点 !</strong> <br>
+
+- polars 1.0 以降，`replace` の[`default=` と `return_dtype=` は deprecated]{.regmonkey-bold}になり `replace_strict` 側に統一された．新規コードは常に `replace_strict` を使うのが安全
+- `replace`(strict なし) は[mapping の対象キーだけを置換し，それ以外は元の値を残す]{.regmonkey-bold}用途に絞られている．dtype も入力と同じになるため，文字列 → 数値のような型変換は表現できない
+
+</div>
+
+[pandas との対応関係]{.mini-section}
+
+| 操作                              | pandas                              | polars                                                      |
+|-----------------------------------|-------------------------------------|-------------------------------------------------------------|
+| 辞書で値を変換 (型変換あり)       | `s.map(mapping)`                    | `pl.col(c).replace_strict(mapping)`                         |
+| 未知キーを `NaN`/`null` にする    | `s.map(mapping)` (デフォルト)       | `pl.col(c).replace_strict(mapping, default=None)`           |
+| 未知キーで元の値を残す (型保持)   | `s.replace(mapping)`                | `pl.col(c).replace(mapping)`                                |
+| 未知キーをエラーにする            | (手動チェック)                      | `pl.col(c).replace_strict(mapping)`                         |
+| 別カラムとして追加                | `df.assign(new=...)`                | `df.with_columns(... .alias("new"))`                        |
+
+<div style='padding-left: 2em; padding-right: 2em; border-radius: 0em; border-style:solid; border-color:#ffa657;'>
+<strong style="color:#ffa657">注意点 !</strong> <br>
+
+- `return_dtype=` を明示しないと polars が[mapping の値から dtype を推論する]{.regmonkey-bold}ため，意図せず `Int32` などになる場合がある．スキーマを固定したいなら明示する
+- 大規模データでは `df_pl.lazy().with_columns(...).collect()` でクエリ最適化が効く
+
+</div>
+
+## Pattern 3: BigQuery
+
+BigQuery では mapping のサイズと再利用性で書き方を選ぶ．
+
+[小さい mapping: `CASE WHEN`]{.mini-section}
+
+数件〜十数件であれば `CASE WHEN` が最もシンプルで読みやすい．
+
+```sql
+SELECT
+  id,
+  grade,
+  price,
+  CASE grade
+    WHEN 'C' THEN 1
+    WHEN 'B' THEN 2
+    WHEN 'A' THEN 3
+    WHEN 'S' THEN 4
+  END AS grade_norm
+FROM `project.dataset.products`;
+```
+
+[中規模 mapping: `UNNEST(ARRAY<STRUCT>)` で inline join]{.mini-section}
+
+mapping を SQL の中に[データとして]{.regmonkey-bold}埋め込みたい場合は `UNNEST` で擬似テーブル化して `LEFT JOIN` する．
+`CASE WHEN` の羅列より見通しが良く，mapping の追加・削除も差分が小さい．
+
+```sql
+WITH grade_map AS (
+  SELECT * FROM UNNEST([
+    STRUCT('C' AS grade, 1 AS grade_norm),
+    STRUCT('B'         , 2),
+    STRUCT('A'         , 3),
+    STRUCT('S'         , 4)
+  ])
+)
+SELECT
+  p.id,
+  p.grade,
+  p.price,
+  m.grade_norm
+FROM `project.dataset.products` AS p
+LEFT JOIN grade_map AS m USING (grade);
+```
+
+[再利用する mapping: 専用テーブル + `LEFT JOIN`]{.mini-section}
+
+複数のクエリで使い回すなら mapping テーブルを永続化する．`LEFT JOIN` にすることで未知キーは `NULL` になり，
+未知キーを検知したい場合は `WHERE m.grade_norm IS NULL` でカウントできる．
+
+```sql
+-- 一度だけ実行
+CREATE OR REPLACE TABLE `project.dataset.grade_map` (
+  grade STRING NOT NULL,
+  grade_norm INT64 NOT NULL
+);
+
+INSERT INTO `project.dataset.grade_map` VALUES
+  ('C', 1), ('B', 2), ('A', 3), ('S', 4);
+
+-- 利用クエリ
+SELECT
+  p.id,
+  p.grade,
+  p.price,
+  m.grade_norm
+FROM `project.dataset.products` AS p
+LEFT JOIN `project.dataset.grade_map` AS m USING (grade);
+```
+
+::: {.callout-warning}
+
+- `CASE WHEN` は[条件式が増えるほどクエリの可読性が落ちる]{.regmonkey-bold}．目安として10件を超えたら `UNNEST` 方式に切り替えた方がよい
+- `INNER JOIN` を使うと未知キーの行が[暗黙に脱落]{.regmonkey-bold}するので，集計値がずれる原因になる．mapping 用途では原則 `LEFT JOIN`
+- mapping テーブルを別データセットに置く場合，クロスリージョン参照は[コスト・レイテンシのペナルティ]{.regmonkey-bold}が発生する点に注意
+
+:::
+
+## まとめ
+
+::: {.callout-tip}
+## 3パターンの使い分け
+
+- **pandas**: notebook での探索的な変換ならこれ．`Series.map(dict)` + `DataFrame.assign` で1行に収まる
+- **polars**: 未知カテゴリを[漏らさず検知したい]{.regmonkey-bold}ETLでは `replace_strict` が便利．`return_dtype=` でスキーマを固定できる点も型安全に寄与する
+- **BigQuery**: mapping のサイズ次第で `CASE WHEN` / `UNNEST(ARRAY<STRUCT>)` / 専用テーブル+`LEFT JOIN` を使い分ける．再利用と運用を考えるなら早めにテーブル化しておくと後の修正コストが小さい
+
+:::
