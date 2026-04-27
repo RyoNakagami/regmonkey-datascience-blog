@@ -1,0 +1,267 @@
+---
+title: "リスト型カラムを複数カラムに展開する: pandas / polars / BigQuery"
+author: "Ryo Nakagami"
+date: "2026-03-06"
+date-modified: "2026-04-27"
+categories: [python, SQL, 前処理]
+listing_category: datascience-preprocess-series
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## 問題設定: リスト型カラムをワイドに展開する
+
+
+::: {#exr- .custom_problem .blog-custom-border}
+<br>
+
+各行が[長さ固定のリスト]{.regmonkey-bold}を持つカラムを，要素ごとに別カラムへ展開したい．
+入力例は次のようなレコード形式とします．
+
+```{python}
+#| code-fold: false
+
+import pandas as pd
+
+df = pd.DataFrame({"teams": [["SF", "NYG"] for _ in range(7)]})
+print(df)
+```
+
+
+[期待する出力]{.mini-section}
+
+| team1 | team2 |
+|:-----:|:-----:|
+|  SF   |  NYG  |
+|  SF   |  NYG  |
+|  ...  |  ...  |
+
+
+:::
+
+
+[ポイント]{.mini-section}
+
+- リストの長さは[行ごとに同じ]{.regmonkey-bold}と仮定 (NFL のホーム/アウェイ，緯度/経度など)
+- 元カラムは[残しても消してもよい]{.regmonkey-bold}が，下流で使わないなら消した方がスキーマがすっきりする
+- 行ごとに長さが揃わないケース (`[SF, NYG, OAK]` と `[SF]` の混在) は別問題で，欠損部分を `NaN`/`null` で埋める方針が必要
+
+## Pattern 1: pandas
+
+最も高速かつ素直なのは `tolist()` で 2D 配列に戻してから `DataFrame` を再構築する方法．
+
+```{python}
+#| code-fold: false
+df[["team1", "team2"]] = pd.DataFrame(df["teams"].tolist(), index=df.index)
+df
+```
+
+`index=df.index` を渡すのが[落とし穴回避]{.regmonkey-bold}のポイント．元 DataFrame の index が連番でない場合，これを忘れると代入時に NaN が並ぶ．
+
+[`apply(pd.Series)` 版 (短いが遅い)]{.mini-section}
+
+```{python}
+#| code-fold: false
+df = pd.DataFrame({"teams": [["SF", "NYG"] for _ in range(7)]})
+df[["team1", "team2"]] = df["teams"].apply(pd.Series)
+df
+```
+
+[文字列カラムの場合は `str.split(expand=True)`]{.mini-section}
+
+入力が `"SF,NYG"` のような区切り文字列ならリスト化を経由せず一発で展開できる．
+
+```{python}
+#| code-fold: false
+df_str = pd.DataFrame({"teams": ["SF,NYG"] * 3})
+df_str[["team1", "team2"]] = df_str["teams"].str.split(",", expand=True)
+df_str
+```
+
+<div style='padding-left: 2em; padding-right: 2em; border-radius: 0em; border-style:solid; border-color:#ffa657;'>
+<strong style="color:#ffa657">注意点 !</strong> <br>
+
+- `apply(pd.Series)` は[各行で `Series` を新しく作るため遅い]{.regmonkey-bold}．数十万行を超える場合は `tolist()` 経由に切り替えるべき
+- 行ごとにリスト長が異なる場合，`pd.DataFrame(df["teams"].tolist())` は[最大長に合わせて足りない部分を `NaN` で埋める]{.regmonkey-bold}．これは便利な一方で，型が `object` に落ちる点に注意
+- 元カラムを残す必要がなければ `df = df.drop(columns="teams")` を続ける
+
+</div>
+
+## Pattern 2: polars
+
+polars は[リスト型がファーストクラス]{.regmonkey-bold}なので，`list.to_struct()` で構造体に変換してから `unnest` する
+
+```{python}
+#| code-fold: false
+import polars as pl
+
+df_pl = pl.DataFrame({"teams": [["SF", "NYG"] for _ in range(7)]})
+
+df_pl.with_columns(
+    pl.col("teams").list.to_struct(fields=["team1", "team2"])
+).unnest("teams")
+```
+
+[個別に `list.get` で取り出す書き方]{.mini-section}
+
+要素数が少なく，特定インデックスだけ欲しい場合は `list.get` の方が読みやすい．
+
+```{python}
+#| code-fold: false
+df_pl.with_columns(
+    pl.col("teams").list.get(0).alias("team1"),
+    pl.col("teams").list.get(1).alias("team2"),
+).drop("teams")
+```
+
+[文字列カラムの場合は `str.split` + `list.to_struct`]{.mini-section}
+
+```{python}
+#| code-fold: false
+df_str_pl = pl.DataFrame({"teams": ["SF,NYG"] * 3})
+df_str_pl.with_columns(
+    pl.col("teams").str.split(",").list.to_struct(fields=["team1", "team2"])
+).unnest("teams")
+```
+
+[pandas との対応関係]{.mini-section}
+
+| 操作                          | pandas                                                   | polars                                                                |
+|-------------------------------|----------------------------------------------------------|-----------------------------------------------------------------------|
+| リスト型を複数カラムへ        | `pd.DataFrame(s.tolist(), index=df.index)`               | `pl.col(c).list.to_struct(fields=[...])` + `unnest`                   |
+| 特定要素だけ取り出す          | `s.str[i]`                                               | `pl.col(c).list.get(i)`                                               |
+| 区切り文字列を展開            | `s.str.split(sep, expand=True)`                          | `pl.col(c).str.split(sep).list.to_struct(...)` + `unnest`             |
+| 元カラムを落とす              | `.drop(columns=c)`                                       | `.drop(c)` または `unnest` 自体が元カラムを置き換える                 |
+
+<div style='padding-left: 2em; padding-right: 2em; border-radius: 0em; border-style:solid; border-color:#ffa657;'>
+<strong style="color:#ffa657">注意点 !</strong> <br>
+
+- `list.to_struct()` の `fields=` は[要素数より少ない名前を渡すと残りの要素が捨てられる]{.regmonkey-bold}．意図しない切り捨てを防ぐため，`upper_bound=` で最大要素数を明示しておくと安全
+- 行ごとにリスト長が異なる場合，足りない要素は `null` になる．逆に[最大長を超える要素は `to_struct` のフィールド数に揃えて切り捨てられる]{.regmonkey-bold}
+- `unnest` は対象カラムを[新しいカラム群に置き換える]{.regmonkey-bold}ので，元の `teams` カラムは結果に残らない
+
+</div>
+
+## Pattern 3: BigQuery
+
+BigQuery では `ARRAY<...>` 型を [`OFFSET(i)` または `[i]`]{.regmonkey-bold}で要素アクセスするのが定石．固定長なら一行で展開できる．
+
+[ARRAY 型の固定長アクセス]{.mini-section}
+
+```sql
+WITH src AS (
+  SELECT teams
+  FROM UNNEST([
+    STRUCT(['SF', 'NYG'] AS teams),
+    STRUCT(['SF', 'NYG']),
+    STRUCT(['SF', 'NYG'])
+  ])
+)
+SELECT
+  teams[OFFSET(0)] AS team1,
+  teams[OFFSET(1)] AS team2
+FROM src;
+```
+
+`SAFE_OFFSET(i)` を使うと[要素数不足時にエラーではなく `NULL`]{.regmonkey-bold}を返す．行ごとにリスト長が揃わない場合の標準パターン．
+
+```sql
+SELECT
+  teams[SAFE_OFFSET(0)] AS team1,
+  teams[SAFE_OFFSET(1)] AS team2
+FROM src;
+```
+
+[文字列カラムから展開: `SPLIT`]{.mini-section}
+
+入力が `"SF,NYG"` の形なら `SPLIT` で一旦 ARRAY にしてから OFFSET アクセスする．
+
+```sql
+WITH src AS (
+  SELECT 'SF,NYG' AS teams_str UNION ALL
+  SELECT 'SF,NYG' UNION ALL
+  SELECT 'SF,NYG'
+)
+SELECT
+  SPLIT(teams_str, ',')[SAFE_OFFSET(0)] AS team1,
+  SPLIT(teams_str, ',')[SAFE_OFFSET(1)] AS team2
+FROM src;
+```
+
+同じ `SPLIT` を2回書きたくない場合は[サブクエリで一度展開する]{.regmonkey-bold}か `LATERAL` 相当の `,UNNEST(...) AS arr WITH OFFSET` を使う．
+
+```sql
+SELECT
+  arr[OFFSET(0)] AS team1,
+  arr[OFFSET(1)] AS team2
+FROM (
+  SELECT SPLIT(teams_str, ',') AS arr
+  FROM src
+);
+```
+
+::: {.callout-warning}
+
+- `OFFSET(i)` で要素数が足りないと[クエリ全体がエラー]{.regmonkey-bold}になる．本番運用では `SAFE_OFFSET(i)` を使うのが基本
+- `OFFSET` は0-indexed，`ORDINAL` は1-indexed．混在させるとバグの温床になるため，どちらかに統一する
+- 「ロング → ワイド」を行ごとに変えたい場合は `PIVOT` 句を検討する．固定長 ARRAY なら本記事の OFFSET アクセスの方が高速かつ可読
+
+:::
+
+## Appendix: struct (構造体) とは
+
+- [名前付きフィールドを束ねた1レコード分の値]{.regmonkey-bold}．
+- DataFrame の1行を「順序付き」ではなく「フィールド名付き」で取り出した型
+
+| 表現           | 例                                | 意味                                |
+|----------------|-----------------------------------|-------------------------------------|
+| list / array   | `["SF", "NYG"]`                   | 同型の値を順序で並べた列            |
+| tuple          | `("SF", "NYG")`                   | 異型でもよいが，アクセスは位置参照  |
+| **struct**     | `{team1: "SF", team2: "NYG"}`     | フィールド名でアクセスする record   |
+
+- リストやタプルが[「位置」で値を取り出す]{.regmonkey-bold}のに対して，struct は[「名前」で値を取り出す]{.regmonkey-bold}．
+- `list.to_struct(fields=["team1", "team2"])` は，list を struct に[ラベル付け]{.regmonkey-bold}している操作．
+
+[各ライブラリ/エンジンでの呼び名と表記]{.mini-section}
+
+| 言語/エンジン  | 型名             | リテラル例                                      | アクセス方法                          |
+|----------------|------------------|-------------------------------------------------|---------------------------------------|
+| polars         | `Struct`         | `pl.struct([pl.col("a"), pl.col("b")])`         | `pl.col("s").struct.field("a")`       |
+| BigQuery       | `STRUCT`         | `STRUCT('SF' AS team1, 'NYG' AS team2)`         | `s.team1`                             |
+| Spark SQL      | `StructType`     | `struct(col("a"), col("b"))`                    | `s.a`                                 |
+| Apache Arrow   | `struct<...>`    | (型定義のみ)                                    | child array                           |
+| Python         | `dict` / `NamedTuple` / `dataclass` | `{"team1": "SF", "team2": "NYG"}` | `d["team1"]` / `d.team1`              |
+
+
+[`unnest` との関係]{.mini-section}
+
+`unnest` は struct を[フィールドごとに別カラムへ展開する]{.regmonkey-bold}操作．
+本記事の polars の流れは次の3段階に分解できる．
+
+1. `pl.col("teams")` … list 型カラム (`["SF", "NYG"]`)
+2. `.list.to_struct(fields=["team1", "team2"])` … list を struct (`{team1: "SF", team2: "NYG"}`) に変換
+3. `.unnest("teams")` … struct を `team1` / `team2` の2カラムに展開
+
+BigQuery の `SELECT s.* FROM ... AS s` も同等の効果で，struct から個々のフィールドを[ワイドに開く]{.regmonkey-bold}．
+
+[なぜ list → struct を経由するのか]{.mini-section}
+
+list を直接複数カラムに割るには，[「i 番目の要素は何という名前のカラムにすべきか」]{.regmonkey-bold}という情報が必要になる．
+struct はこの[位置 → 名前のマッピング]{.regmonkey-bold}を型として持つので，
+
+```
+list  ──[fields=...]──▶  struct  ──[unnest]──▶  multi-columns
+```
+
+という素直な責務分離が成立する．polars の API はこの分離を正面から表現しており，pandas の `pd.DataFrame(s.tolist())` よりも[何が起きているかが追いやすい]{.regmonkey-bold}．
+
+::: {.callout-note}
+
+- struct は「異型を許容するレコード」なので，`STRUCT(1, 'foo', TRUE)` のように[フィールドごとに型が違ってもよい]{.regmonkey-bold}．これが list (同型限定) との最大の違い
+- BigQuery の `STRUCT` はフィールド名を省略すると `_field_1`, `_field_2`... が自動で付くが，後段の参照可読性が落ちるので原則 `AS field` で名前付けする
+- polars の `Struct` 型カラムは Parquet / Arrow にそのまま書き出せるため，[展開せずに保存するのが効率的]{.regmonkey-bold}な場面もある (中間ファイルの段階では struct のまま，可視化や JOIN 直前で `unnest`)
+
+:::
