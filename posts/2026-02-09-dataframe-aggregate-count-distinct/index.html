@@ -7,9 +7,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Ryo Nakagami">
-<meta name="dcterms.date" content="2025-02-27">
+<meta name="dcterms.date" content="2026-02-09">
 
-<title>tangent 75°の図形的計算 – regmonkey datascience blog</title>
+<title>Aggregate with count distinct: pandas / polars / JSON – regmonkey datascience blog</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -63,7 +63,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </style>
 
 
-<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2" crossorigin="anonymous"></script><script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
 <script src="../../site_libs/quarto-nav/headroom.min.js"></script>
 <script src="../../site_libs/clipboard/clipboard.min.js"></script>
 <script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
@@ -163,43 +163,15 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 <script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml-full.js" integrity="sha256-kbAFUDxdHwlYv01zraGjvjNZayxKtdoiJ38bDTFJtaQ=" crossorigin="anonymous">
 </script>
 <script type="text/javascript" src="../../js/regmonkey_glossary_generator.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.min.js" integrity="sha384-c9c+LnTbwQ3aujuU7ULEPVvgLs+Fn6fJUvIGTsuu1ZcCf11fiEubah0ttpca4ntM sha384-6V1/AdqZRWk1KAlWbKBlGhN7VG4iE/yAZcO6NZPMF8od0vukrvr0tg4qY6NSrItx" crossorigin="anonymous"></script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
-<script type="text/javascript">
-const typesetMath = (el) => {
-  if (window.MathJax) {
-    // MathJax Typeset
-    window.MathJax.typeset([el]);
-  } else if (window.katex) {
-    // KaTeX Render
-    var mathElements = el.getElementsByClassName("math");
-    var macros = [];
-    for (var i = 0; i < mathElements.length; i++) {
-      var texText = mathElements[i].firstChild;
-      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
-        window.katex.render(texText.data, mathElements[i], {
-          displayMode: mathElements[i].classList.contains('display'),
-          throwOnError: false,
-          macros: macros,
-          fleqn: false
-        });
-      }
-    }
-  }
-}
-window.Quarto = {
-  typesetMath
-};
-</script>
 
 <link rel="stylesheet" href="../../styles.css">
-<meta property="og:title" content="tangent 75°の図形的計算 – regmonkey datascience blog">
-<meta property="og:image" content="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-02-27-how-to-compute-tan75/index_files/figure-html/cell-2-output-1.png">
+<meta property="og:title" content="Aggregate with count distinct: pandas / polars / JSON – regmonkey datascience blog">
+<meta property="og:description" content="日々の徒然勉強日記">
 <meta property="og:site_name" content="regmonkey datascience blog">
-<meta property="og:image:height" content="970">
-<meta property="og:image:width" content="992">
 </head>
 
 <body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
@@ -446,9 +418,10 @@ window.Quarto = {
 <header id="title-block-header" class="quarto-title-block default page-columns page-full">
   <div class="quarto-title-banner page-columns page-full">
     <div class="quarto-title column-body">
-      <h1 class="title">tangent 75°の図形的計算</h1>
+      <h1 class="title">Aggregate with count distinct: pandas / polars / JSON</h1>
                                 <div class="quarto-categories">
-                <div class="quarto-category">三角関数</div>
+                <div class="quarto-category">python</div>
+                <div class="quarto-category">前処理</div>
               </div>
                   </div>
   </div>
@@ -466,10 +439,16 @@ window.Quarto = {
       <div>
       <div class="quarto-title-meta-heading">Published</div>
       <div class="quarto-title-meta-contents">
-        <p class="date">2025-02-27</p>
+        <p class="date">2026-02-09</p>
       </div>
     </div>
     
+      <div>
+      <div class="quarto-title-meta-heading">Modified</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date-modified">2026-04-27</p>
+      </div>
+    </div>
       
     </div>
     
@@ -477,8 +456,18 @@ window.Quarto = {
   </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
 <!-- sidebar -->
 <!-- margin-sidebar -->
-    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar zindex-bottom">
-        
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#問題設定-日別の合計利用時間とユニークユーザ数" id="toc-問題設定-日別の合計利用時間とユニークユーザ数" class="nav-link active" data-scroll-target="#問題設定-日別の合計利用時間とユニークユーザ数">問題設定: 日別の合計利用時間とユニークユーザ数</a></li>
+  <li><a href="#pattern-1-pandas" id="toc-pattern-1-pandas" class="nav-link" data-scroll-target="#pattern-1-pandas">Pattern 1: pandas</a></li>
+  <li><a href="#pattern-2-polars" id="toc-pattern-2-polars" class="nav-link" data-scroll-target="#pattern-2-polars">Pattern 2: polars</a></li>
+  <li><a href="#pattern-3-json-json-jq" id="toc-pattern-3-json-json-jq" class="nav-link" data-scroll-target="#pattern-3-json-json-jq">Pattern 3: JSON → JSON (jq)</a></li>
+  <li><a href="#まとめ" id="toc-まとめ" class="nav-link" data-scroll-target="#まとめ">まとめ</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
 <main class="content quarto-banner-title-block" id="quarto-document-content">
@@ -488,157 +477,419 @@ window.Quarto = {
 
 
 
+<section id="問題設定-日別の合計利用時間とユニークユーザ数" class="level2">
+<h2 class="anchored" data-anchor-id="問題設定-日別の合計利用時間とユニークユーザ数">問題設定: 日別の合計利用時間とユニークユーザ数</h2>
 <div class="blog-custom-border" style="margin-top: 1rem; margin-bottom: 1rem;">
 <div id="exr-" class="custom_problem theorem exercise">
 <p><span class="theorem-title"><strong>Exercise 1</strong></span> <br></p>
-<p><span class="math inline">\(\tan {75}^\circ\)</span> を求めよ</p>
-</div>
-</div>
-<!--::: {.callout-note collapse="true" icon=false}-->
-<div class="callout callout-style-default callout-note no-icon callout-titled">
-<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-1-contents" aria-controls="callout-1" aria-expanded="true" aria-label="Toggle callout">
-<div class="callout-icon-container">
-<i class="callout-icon no-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>解1: 加法定理を用いる場合
-</div>
-<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
-</div>
-<div id="callout-1" class="callout-1-contents callout-collapse collapse show">
-<div class="callout-body-container callout-body">
-<p><span class="math display">\[
-\begin{align}
-\tan {45}^\circ &amp;= 1\\
-\tan {30}^\circ &amp;= \frac{\sqrt{3}}{3}
-\end{align}
-\]</span></p>
-<p>より，加法定理を用いて</p>
-<p><span class="math display">\[
-\begin{align}
-\tan {75}^\circ
-    &amp;= \frac{\tan{30}^\circ + \tan{45}^\circ}{1 - \tan{30}^\circ\tan{45}^\circ}\\
-    &amp;= \frac{1 + \frac{\sqrt{3}}{3}}{1 - \frac{\sqrt{3}}{3}}\\
-    &amp;= 2 + \sqrt{3}
-\end{align}
-\]</span></p>
-</div>
-</div>
-</div>
-<!--::: {.callout-note collapse="true" icon=false}-->
-<div class="callout callout-style-default callout-note no-icon callout-titled">
-<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-2-contents" aria-controls="callout-2" aria-expanded="true" aria-label="Toggle callout">
-<div class="callout-icon-container">
-<i class="callout-icon no-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>解2: 平面幾何的に求める場合
-</div>
-<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
-</div>
-<div id="callout-2" class="callout-2-contents callout-collapse collapse show">
-<div class="callout-body-container callout-body">
-<p><span class="math inline">\(\angle A = {30}^\circ, \angle B = {90}^\circ, \angle C = {60}^\circ\)</span> の <span class="math inline">\(\triangle ABC\)</span> を考えたとき，<span class="math inline">\(\angle A\)</span> の斜辺 <span class="math inline">\(AC\)</span> を用いて 直角二等辺三角形 <span class="math inline">\(\triangle ACD\)</span> をまず作成します．</p>
-<p>この点 <span class="math inline">\(D\)</span> を通るように <span class="math inline">\(AB\)</span> と平行な線を引き，長方形 <span class="math inline">\(AEFB\)</span> を以下のように作成します．</p>
-<details class="code-fold">
-<summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> shapely.plotting</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> shapely.geometry <span class="im">import</span> Polygon</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>A <span class="op">=</span> (<span class="dv">0</span>, <span class="dv">0</span>)</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>B <span class="op">=</span> (<span class="dv">1</span>, <span class="dv">0</span>)</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>C <span class="op">=</span> (<span class="dv">1</span>, np.sin(np.radians(<span class="dv">30</span>)))</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>D <span class="op">=</span> (np.sqrt(<span class="dv">2</span>) <span class="op">*</span> np.cos(np.radians(<span class="dv">75</span>)), np.sqrt(<span class="dv">2</span>) <span class="op">*</span> np.sin(np.radians(<span class="dv">75</span>)))</span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>E <span class="op">=</span> (<span class="dv">0</span>, np.sqrt(<span class="dv">2</span>) <span class="op">*</span> np.sin(np.radians(<span class="dv">75</span>)))</span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>F <span class="op">=</span> (<span class="dv">1</span>, np.sqrt(<span class="dv">2</span>) <span class="op">*</span> np.sin(np.radians(<span class="dv">75</span>)))</span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>polygon1 <span class="op">=</span> Polygon([A, B, C])</span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>polygon2 <span class="op">=</span> Polygon([A, C, D])</span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>polygon3 <span class="op">=</span> Polygon([A, E, D])</span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>polygon4 <span class="op">=</span> Polygon([C, D, F])</span>
-<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">6</span>, <span class="dv">6</span>))</span>
-<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>shapely.plotting.plot_polygon(polygon1, ax<span class="op">=</span>ax)</span>
-<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>shapely.plotting.plot_polygon(polygon2, alpha<span class="op">=</span><span class="fl">0.5</span>, facecolor<span class="op">=</span><span class="st">'none'</span>, ax<span class="op">=</span>ax)</span>
-<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>shapely.plotting.plot_polygon(polygon3, alpha<span class="op">=</span><span class="fl">0.5</span>, facecolor<span class="op">=</span><span class="st">'red'</span>, ax<span class="op">=</span>ax)</span>
-<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>shapely.plotting.plot_polygon(polygon4, ax<span class="op">=</span>ax)</span>
-<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a><span class="co"># 軸の範囲を設定</span></span>
-<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>plt.xlim(<span class="op">-</span><span class="fl">0.1</span>, <span class="fl">1.45</span>)</span>
-<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>plt.ylim(<span class="op">-</span><span class="fl">0.1</span>, <span class="fl">1.45</span>)</span>
-<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a><span class="co"># add label</span></span>
-<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>plt.text(A[<span class="dv">0</span>], A[<span class="dv">1</span>] <span class="op">-</span> <span class="fl">0.05</span>, <span class="st">'A'</span>)</span>
-<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>plt.text(B[<span class="dv">0</span>]<span class="op">+</span><span class="fl">0.02</span>, B[<span class="dv">1</span>] <span class="op">-</span> <span class="fl">0.05</span>, <span class="st">'B'</span>)</span>
-<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>plt.text(C[<span class="dv">0</span>]<span class="op">+</span><span class="fl">0.02</span>, C[<span class="dv">1</span>], <span class="st">'C'</span>)</span>
-<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>plt.text(D[<span class="dv">0</span>], D[<span class="dv">1</span>] <span class="op">+</span> <span class="fl">0.02</span>, <span class="st">'D'</span>)</span>
-<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>plt.text(E[<span class="dv">0</span>], E[<span class="dv">1</span>] <span class="op">+</span> <span class="fl">0.02</span>, <span class="st">'E'</span>)</span>
-<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>plt.text(F[<span class="dv">0</span>], F[<span class="dv">1</span>] <span class="op">+</span> <span class="fl">0.02</span>, <span class="st">'F'</span>)</span>
-<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a><span class="co"># Add Angles</span></span>
-<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a>ax.text(A[<span class="dv">0</span>] <span class="op">+</span> <span class="fl">0.06</span>, A[<span class="dv">1</span>], <span class="ss">f"</span><span class="sc">{</span><span class="dv">30</span><span class="sc">}</span><span class="ss">°"</span>, fontsize<span class="op">=</span><span class="dv">10</span>)</span>
-<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a>ax.text(A[<span class="dv">0</span>] <span class="op">+</span> <span class="fl">0.06</span>, A[<span class="dv">1</span>] <span class="op">+</span> <span class="fl">0.1</span>, <span class="ss">f"</span><span class="sc">{</span><span class="dv">45</span><span class="sc">}</span><span class="ss">°"</span>, fontsize<span class="op">=</span><span class="dv">10</span>)</span>
-<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a>ax.text(B[<span class="dv">0</span>] <span class="op">-</span> <span class="fl">0.09</span>, B[<span class="dv">1</span>], <span class="ss">f"</span><span class="sc">{</span><span class="dv">90</span><span class="sc">}</span><span class="ss">°"</span>, fontsize<span class="op">=</span><span class="dv">10</span>)</span>
-<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a>ax.text(C[<span class="dv">0</span>] <span class="op">-</span> <span class="fl">0.1</span>, C[<span class="dv">1</span>], <span class="ss">f"</span><span class="sc">{</span><span class="dv">90</span><span class="sc">}</span><span class="ss">°"</span>, fontsize<span class="op">=</span><span class="dv">10</span>)</span>
-<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a>ax.text(C[<span class="dv">0</span>] <span class="op">-</span> <span class="fl">0.1</span>, C[<span class="dv">1</span>] <span class="op">+</span> <span class="fl">0.14</span>, <span class="ss">f"</span><span class="sc">{</span><span class="dv">30</span><span class="sc">}</span><span class="ss">°"</span>, fontsize<span class="op">=</span><span class="dv">10</span>)</span>
-<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a>ax.text(C[<span class="dv">0</span>] <span class="op">-</span> <span class="fl">0.1</span>, C[<span class="dv">1</span>] <span class="op">-</span> <span class="fl">0.1</span>, <span class="ss">f"</span><span class="sc">{</span><span class="dv">60</span><span class="sc">}</span><span class="ss">°"</span>, fontsize<span class="op">=</span><span class="dv">10</span>)</span>
-<span id="cb1-44"><a href="#cb1-44" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-45"><a href="#cb1-45" aria-hidden="true" tabindex="-1"></a><span class="co"># Add length</span></span>
-<span id="cb1-46"><a href="#cb1-46" aria-hidden="true" tabindex="-1"></a>ax.text(<span class="fl">0.5</span>, <span class="op">-</span><span class="fl">0.08</span>, <span class="st">"$</span><span class="er">\</span><span class="st">sqrt</span><span class="sc">{3}</span><span class="st">$"</span>, fontsize<span class="op">=</span><span class="dv">12</span>, color<span class="op">=</span><span class="st">"black"</span>, horizontalalignment<span class="op">=</span><span class="st">"center"</span>)</span>
-<span id="cb1-47"><a href="#cb1-47" aria-hidden="true" tabindex="-1"></a>ax.text(<span class="fl">0.5</span>, <span class="fl">0.3</span>, <span class="st">"2"</span>, fontsize<span class="op">=</span><span class="dv">12</span>, color<span class="op">=</span><span class="st">"black"</span>, horizontalalignment<span class="op">=</span><span class="st">"center"</span>)</span>
-<span id="cb1-48"><a href="#cb1-48" aria-hidden="true" tabindex="-1"></a>ax.text(<span class="fl">0.5</span>, <span class="fl">1.0</span>, <span class="st">"2"</span>, fontsize<span class="op">=</span><span class="dv">12</span>, color<span class="op">=</span><span class="st">"black"</span>, horizontalalignment<span class="op">=</span><span class="st">"center"</span>)</span>
-<span id="cb1-49"><a href="#cb1-49" aria-hidden="true" tabindex="-1"></a>ax.text(<span class="fl">1.05</span>, <span class="fl">0.2</span>, <span class="st">"1"</span>, fontsize<span class="op">=</span><span class="dv">12</span>, color<span class="op">=</span><span class="st">"black"</span>, horizontalalignment<span class="op">=</span><span class="st">"left"</span>)</span>
-<span id="cb1-50"><a href="#cb1-50" aria-hidden="true" tabindex="-1"></a>ax.text(<span class="fl">1.05</span>, <span class="fl">1.0</span>, <span class="st">"$</span><span class="er">\</span><span class="st">sqrt</span><span class="sc">{3}</span><span class="st">$"</span>, fontsize<span class="op">=</span><span class="dv">12</span>, color<span class="op">=</span><span class="st">"black"</span>, horizontalalignment<span class="op">=</span><span class="st">"left"</span>)</span>
-<span id="cb1-51"><a href="#cb1-51" aria-hidden="true" tabindex="-1"></a>ax.text((D[<span class="dv">0</span>] <span class="op">+</span> F[<span class="dv">0</span>])<span class="op">/</span><span class="dv">2</span>, <span class="fl">1.37</span>,  <span class="st">"1"</span>, fontsize<span class="op">=</span><span class="dv">12</span>, color<span class="op">=</span><span class="st">"black"</span>, horizontalalignment<span class="op">=</span><span class="st">"center"</span>)</span>
-<span id="cb1-52"><a href="#cb1-52" aria-hidden="true" tabindex="-1"></a>ax.text((D[<span class="dv">0</span>] <span class="op">+</span> E[<span class="dv">0</span>])<span class="op">/</span><span class="dv">2</span>, <span class="fl">1.37</span>,  <span class="st">"$</span><span class="er">\</span><span class="st">sqrt</span><span class="sc">{3}</span><span class="st"> - 1$"</span>, fontsize<span class="op">=</span><span class="dv">12</span>, color<span class="op">=</span><span class="st">"black"</span>, horizontalalignment<span class="op">=</span><span class="st">"center"</span>)</span>
-<span id="cb1-53"><a href="#cb1-53" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-54"><a href="#cb1-54" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-55"><a href="#cb1-55" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
-<div id="fig-plot" class="center quarto-float quarto-figure quarto-figure-center anchored">
-<figure class="quarto-float quarto-float-fig figure">
-<div aria-describedby="fig-plot-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<div id="061169ea" class="cell" data-execution_count="1">
-<div class="cell-output cell-output-display">
+<p>ユーザのアクティビティログから「日別の合計利用時間 (<code>duration</code> の総和)」と「日別のユニークユーザ数 (<code>user_id</code> のdistinct数)」を一度に集計したい． 入力例は次のようなレコード形式とします．</p>
+<div id="d934c1f9" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> pd.DataFrame(</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    {</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>        <span class="st">"date"</span>: [<span class="st">"2013-04-01"</span>, <span class="st">"2013-04-01"</span>, <span class="st">"2013-04-01"</span>, <span class="st">"2013-04-02"</span>, <span class="st">"2013-04-02"</span>],</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>        <span class="st">"user_id"</span>: [<span class="st">"0001"</span>, <span class="st">"0001"</span>, <span class="st">"0002"</span>, <span class="st">"0002"</span>, <span class="st">"0002"</span>],</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>        <span class="st">"duration"</span>: [<span class="dv">30</span>, <span class="dv">15</span>, <span class="dv">20</span>, <span class="dv">15</span>, <span class="dv">30</span>],</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>df</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
 <div>
-<figure class="figure">
-<p><img src="index_files/figure-html/cell-2-output-1.png" width="496" height="485" class="figure-img"></p>
-</figure>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">date</th>
+<th data-quarto-table-cell-role="th">user_id</th>
+<th data-quarto-table-cell-role="th">duration</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>2013-04-01</td>
+<td>0001</td>
+<td>30</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>2013-04-01</td>
+<td>0001</td>
+<td>15</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">2</th>
+<td>2013-04-01</td>
+<td>0002</td>
+<td>20</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">3</th>
+<td>2013-04-02</td>
+<td>0002</td>
+<td>15</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">4</th>
+<td>2013-04-02</td>
+<td>0002</td>
+<td>30</td>
+</tr>
+</tbody>
+</table>
+
 </div>
 </div>
 </div>
+<p><strong> ▶&nbsp; 期待する出力</strong></p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>date</th>
+<th style="text-align: right;">duration</th>
+<th style="text-align: right;">user_id</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>2013-04-01</td>
+<td style="text-align: right;">65</td>
+<td style="text-align: right;">2</td>
+</tr>
+<tr class="even">
+<td>2013-04-02</td>
+<td style="text-align: right;">45</td>
+<td style="text-align: right;">1</td>
+</tr>
+</tbody>
+</table>
 </div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-plot-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;1
-</figcaption>
-</figure>
 </div>
-<p>このとき， <span class="math inline">\(\triangle CFD  \equiv \triangle ABC\)</span> なので</p>
+<p><span class="mini-section">ポイント</span></p>
 <ul>
-<li><span class="math inline">\(AE = 1 + \sqrt{3}\)</span></li>
-<li><span class="math inline">\(DE = \sqrt{3} - 1\)</span></li>
+<li><code>sum</code> のように単純な集約だけでなく，<span class="regmonkey-bold">同じグループに対して別カラムでdistinct countをかける</span>必要がある</li>
+<li>pandas, polars, <span class="regmonkey-bold"><code>jq</code></span> (= JSON→JSON 変換) のどれで書いても1pass で集計できる</li>
 </ul>
-<p>であることがわかります．<span class="math inline">\(\triangle ACD\)</span> は直角二等辺三角形なので <span class="math inline">\(\angle ADC = {45}^\circ\)</span>．従って，</p>
-<p><span class="math display">\[
-\angle ADE = {75}^\circ
-\]</span></p>
-<p>よって，</p>
-<p><span class="math display">\[
-\begin{align}
-\tan{75}^\circ
-    &amp;= \frac{1 + \sqrt{3}}{\sqrt{3} - 1} \\
-    &amp;= \frac{4 + 2\sqrt{3}}{2}\\
-    &amp;= 2 + \sqrt{3}
-\end{align}
-\]</span></p>
+</section>
+<section id="pattern-1-pandas" class="level2">
+<h2 class="anchored" data-anchor-id="pattern-1-pandas">Pattern 1: pandas</h2>
+<p><code>DataFrame.groupby(...).agg({...})</code> に<span class="regmonkey-bold">カラム→集約関数</span>の辞書を渡すのが最も素直． distinct count は <code>pd.Series.nunique</code> を直接渡すか，<code>lambda x: x.nunique()</code> を渡せばよい．</p>
+<div id="ff2f93e7" class="cell" data-execution_count="2">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>df.groupby(<span class="st">"date"</span>).agg({<span class="st">"duration"</span>: <span class="st">"sum"</span>, <span class="st">"user_id"</span>: pd.Series.nunique})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="2">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">duration</th>
+<th data-quarto-table-cell-role="th">user_id</th>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">date</th>
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">2013-04-01</th>
+<td>65</td>
+<td>2</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">2013-04-02</th>
+<td>45</td>
+<td>1</td>
+</tr>
+</tbody>
+</table>
+
 </div>
+</div>
+</div>
+<p><code>lambda</code> でも同じ結果が得られます．</p>
+<div id="013a6932" class="cell" data-execution_count="3">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>df.groupby(<span class="st">"date"</span>).agg({<span class="st">"duration"</span>: <span class="st">"sum"</span>, <span class="st">"user_id"</span>: <span class="kw">lambda</span> x: x.nunique()})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="3">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">duration</th>
+<th data-quarto-table-cell-role="th">user_id</th>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">date</th>
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">2013-04-01</th>
+<td>65</td>
+<td>2</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">2013-04-02</th>
+<td>45</td>
+<td>1</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<div style="padding-left: 2em; padding-right: 2em; border-radius: 0em; border-style:solid; border-color:#ffa657;">
+<p><strong style="color:#ffa657">注意点 !</strong> <br></p>
+<ul>
+<li><code>np.sum</code> を渡しても動作するが，pandas 2.x 以降では<span class="regmonkey-bold">文字列 <code>"sum"</code> の方が高速かつ FutureWarning を回避できる</span></li>
+<li>出力カラム名を変えたい場合は，<code>.agg(total=("duration", "sum"), n_users=("user_id", "nunique"))</code> のような <strong>named aggregation</strong> が読みやすい</li>
+</ul>
+</div>
+<p><span class="mini-section">出力カラムを明示する書き方</span></p>
+<div id="72c19080" class="cell" data-execution_count="4">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>(</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    df.groupby(<span class="st">"date"</span>)</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>      .agg(total_duration<span class="op">=</span>(<span class="st">"duration"</span>, <span class="st">"sum"</span>),</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>           n_unique_users<span class="op">=</span>(<span class="st">"user_id"</span>, <span class="st">"nunique"</span>))</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>      .reset_index()</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="4">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">date</th>
+<th data-quarto-table-cell-role="th">total_duration</th>
+<th data-quarto-table-cell-role="th">n_unique_users</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>2013-04-01</td>
+<td>65</td>
+<td>2</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>2013-04-02</td>
+<td>45</td>
+<td>1</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</section>
+<section id="pattern-2-polars" class="level2">
+<h2 class="anchored" data-anchor-id="pattern-2-polars">Pattern 2: polars</h2>
+<p>polars では <code>group_by(...).agg([...])</code> の中に<span class="regmonkey-bold">式 (expression)</span>を並べる形になる． distinct count は <code>pl.col(...).n_unique()</code> で表現する．</p>
+<div id="218e8b2a" class="cell" data-execution_count="5">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> polars <span class="im">as</span> pl</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>df_pl <span class="op">=</span> pl.from_pandas(df)</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>df_pl.group_by(<span class="st">"date"</span>).agg(</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"duration"</span>).<span class="bu">sum</span>().alias(<span class="st">"total_duration"</span>),</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"user_id"</span>).n_unique().alias(<span class="st">"n_unique_users"</span>),</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>).sort(<span class="st">"date"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="5">
+<div><style>
+.dataframe > thead > tr,
+.dataframe > tbody > tr {
+  text-align: right;
+  white-space: pre-wrap;
+}
+</style>
+<small>shape: (2, 3)</small>
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th">date</th>
+<th data-quarto-table-cell-role="th">total_duration</th>
+<th data-quarto-table-cell-role="th">n_unique_users</th>
+</tr>
+<tr class="even">
+<td>str</td>
+<td>i64</td>
+<td>u32</td>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>"2013-04-01"</td>
+<td>65</td>
+<td>2</td>
+</tr>
+<tr class="even">
+<td>"2013-04-02"</td>
+<td>45</td>
+<td>1</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<p><span class="mini-section">pandas との対応関係</span></p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 30%">
+<col style="width: 32%">
+<col style="width: 37%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>操作</th>
+<th>pandas</th>
+<th>polars</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>group化</td>
+<td><code>groupby("date")</code></td>
+<td><code>group_by("date")</code></td>
+</tr>
+<tr class="even">
+<td>合計</td>
+<td><code>("duration", "sum")</code></td>
+<td><code>pl.col("duration").sum()</code></td>
+</tr>
+<tr class="odd">
+<td>distinct count</td>
+<td><code>("user_id", "nunique")</code></td>
+<td><code>pl.col("user_id").n_unique()</code></td>
+</tr>
+<tr class="even">
+<td>出力カラム名のリネーム</td>
+<td>named aggregation</td>
+<td><code>.alias(...)</code></td>
+</tr>
+</tbody>
+</table>
+<div style="padding-left: 2em; padding-right: 2em; border-radius: 0em; border-style:solid; border-color:#ffa657;">
+<p><strong style="color:#ffa657">注意点 !</strong> <br></p>
+<ul>
+<li>polars の <code>group_by</code> は<span class="regmonkey-bold">結果の行順を保証しない</span>ため，期待する順序があれば <code>.sort("date")</code> を明示する</li>
+<li>大規模データでは <code>lazy()</code> → <code>.collect()</code> を挟むことでクエリ最適化が効く</li>
+</ul>
+</div>
+</section>
+<section id="pattern-3-json-json-jq" class="level2">
+<h2 class="anchored" data-anchor-id="pattern-3-json-json-jq">Pattern 3: JSON → JSON (jq)</h2>
+<p>ログを直接 JSON で扱いたい場面 (例: BigQuery export, Cloud Logging, fluentd) では <code>jq</code> 1本で同等の集計ができる． <code>group_by</code> → <code>map</code> で「グループごとに新しいオブジェクトを生成」というのが基本パターン．</p>
+<p><span class="mini-section">入力 JSON</span></p>
+<div id="c6592f12" class="cell" data-execution_count="6">
+<div class="cell-output cell-output-stdout">
+<pre><code>[
+  {
+    "date": "2013-04-01",
+    "user_id": "0001",
+    "duration": 30
+  },
+  {
+    "date": "2013-04-01",
+    "user_id": "0001",
+    "duration": 15
+  },
+  {
+    "date": "2013-04-01",
+    "user_id": "0002",
+    "duration": 20
+  },
+  {
+    "date": "2013-04-02",
+    "user_id": "0002",
+    "duration": 15
+  },
+  {
+    "date": "2013-04-02",
+    "user_id": "0002",
+    "duration": 30
+  }
+]</code></pre>
+</div>
+</div>
+<p><span class="mini-section">jq による集計</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">jq</span> <span class="st">'group_by(.date)</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="st">    | map({</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="st">        date: .[0].date,</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="st">        total_duration: (map(.duration) | add),</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="st">        n_unique_users: ([.[].user_id] | unique | length)</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="st">      })'</span> activity.json</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="f403b4a3" class="cell" data-execution_count="7">
+<div class="cell-output cell-output-stdout">
+<pre><code>[
+  {
+    "date": "2013-04-01",
+    "total_duration": 65,
+    "n_unique_users": 2
+  },
+  {
+    "date": "2013-04-02",
+    "total_duration": 45,
+    "n_unique_users": 1
+  }
+]
+</code></pre>
+</div>
+</div>
+<p><span class="mini-section">式の意味</span></p>
+<ul>
+<li><code>group_by(.date)</code> で <code>date</code> ごとの配列の配列に変換する (pandas の <code>groupby</code> 相当)</li>
+<li><code>map({...})</code> でグループごとに新しいオブジェクトを組み立てる</li>
+<li><code>map(.duration) | add</code> で <code>duration</code> の合計を計算 (<code>sum</code> 相当)</li>
+<li><code>[.[].user_id] | unique | length</code> で <code>user_id</code> の distinct count を計算</li>
+</ul>
+<div style="padding-left: 2em; padding-right: 2em; border-radius: 0em; border-style:solid; border-color:#ffa657;">
+<p><strong style="color:#ffa657">注意点 !</strong> <br></p>
+<ul>
+<li><code>unique</code> は<span class="regmonkey-bold">ソート + 重複除去</span>を行うため，要素数が多い場合はメモリを使う．巨大なログでは streaming 系 (<code>--stream</code>, <code>gojq</code>, <code>duckdb</code> の <code>read_json</code> + <code>group by</code>) に切り替えた方が安全</li>
+<li>改行区切り JSON (NDJSON, JSONL) を扱う場合は，先頭で <code>[inputs]</code> + <code>--slurp --null-input</code> を組み合わせて配列化するのが定石</li>
+</ul>
+</div>
+</section>
+<section id="まとめ" class="level2">
+<h2 class="anchored" data-anchor-id="まとめ">まとめ</h2>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>3パターンの使い分け
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li><strong>pandas</strong>: 探索的分析・notebook での集計はこれが第一選択．named aggregation でカラム名まで一気に決められる</li>
+<li><strong>polars</strong>: 数百MB〜数GB級のログを高速に処理したいとき．式ベースなので集約ロジックの再利用がしやすい</li>
+<li><strong>jq</strong>: ファイル/ストリームで JSON が降ってくるシェル前段．DataFrame を経由せずに <code>gh api</code> / <code>bq</code> の出力を整形する場面で強い</li>
+</ul>
 </div>
 </div>
 
 
+</section>
 
 </main> <!-- /main -->
 <script>
@@ -1082,7 +1333,7 @@ Figure&nbsp;1
 </a>
   </li>  
 </ul>
-    <div class="toc-actions"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
       &nbsp;
     </div>
