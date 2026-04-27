@@ -1,0 +1,196 @@
+---
+title: "Aggregate with count distinct: pandas / polars / JSON"
+author: "Ryo Nakagami"
+date: "2026-02-09"
+date-modified: "2026-04-27"
+categories: [python, 前処理]
+listing_category: datascience-preprocess-series
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## 問題設定: 日別の合計利用時間とユニークユーザ数
+
+<div class="blog-custom-border" style="margin-top: 1rem; margin-bottom: 1rem;">
+::: {#exr- .custom_problem }
+<br>
+
+ユーザのアクティビティログから「日別の合計利用時間 (`duration` の総和)」と「日別のユニークユーザ数 (`user_id` のdistinct数)」を一度に集計したい．
+入力例は次のようなレコード形式とします．
+
+```{python}
+#| code-fold: false
+import numpy as np
+import pandas as pd
+
+df = pd.DataFrame(
+    {
+        "date": ["2013-04-01", "2013-04-01", "2013-04-01", "2013-04-02", "2013-04-02"],
+        "user_id": ["0001", "0001", "0002", "0002", "0002"],
+        "duration": [30, 15, 20, 15, 30],
+    }
+)
+df
+```
+
+<strong > &#9654;&nbsp; 期待する出力</strong>
+
+| date       | duration | user_id |
+|------------|---------:|--------:|
+| 2013-04-01 |       65 |       2 |
+| 2013-04-02 |       45 |       1 |
+
+:::
+
+</div>
+
+[ポイント]{.mini-section}
+
+- `sum` のように単純な集約だけでなく，[同じグループに対して別カラムでdistinct countをかける]{.regmonkey-bold}必要がある
+- pandas, polars, [`jq`]{.regmonkey-bold} (= JSON→JSON 変換) のどれで書いても1pass で集計できる
+
+## Pattern 1: pandas
+
+`DataFrame.groupby(...).agg({...})` に[カラム→集約関数]{.regmonkey-bold}の辞書を渡すのが最も素直．
+distinct count は `pd.Series.nunique` を直接渡すか，`lambda x: x.nunique()` を渡せばよい．
+
+```{python}
+#| code-fold: false
+df.groupby("date").agg({"duration": "sum", "user_id": pd.Series.nunique})
+```
+
+`lambda` でも同じ結果が得られます．
+
+```{python}
+#| code-fold: false
+df.groupby("date").agg({"duration": "sum", "user_id": lambda x: x.nunique()})
+```
+
+<div style='padding-left: 2em; padding-right: 2em; border-radius: 0em; border-style:solid; border-color:#ffa657;'>
+<strong style="color:#ffa657">注意点 !</strong> <br>
+
+- `np.sum` を渡しても動作するが，pandas 2.x 以降では[文字列 `"sum"` の方が高速かつ FutureWarning を回避できる]{.regmonkey-bold}
+- 出力カラム名を変えたい場合は，`.agg(total=("duration", "sum"), n_users=("user_id", "nunique"))` のような **named aggregation** が読みやすい
+
+</div>
+
+[出力カラムを明示する書き方]{.mini-section}
+
+```{python}
+#| code-fold: false
+(
+    df.groupby("date")
+      .agg(total_duration=("duration", "sum"),
+           n_unique_users=("user_id", "nunique"))
+      .reset_index()
+)
+```
+
+## Pattern 2: polars
+
+polars では `group_by(...).agg([...])` の中に[式 (expression)]{.regmonkey-bold}を並べる形になる．
+distinct count は `pl.col(...).n_unique()` で表現する．
+
+```{python}
+#| code-fold: false
+import polars as pl
+
+df_pl = pl.from_pandas(df)
+
+df_pl.group_by("date").agg(
+    pl.col("duration").sum().alias("total_duration"),
+    pl.col("user_id").n_unique().alias("n_unique_users"),
+).sort("date")
+```
+
+[pandas との対応関係]{.mini-section}
+
+| 操作                    | pandas                   | polars                       |
+|-------------------------|--------------------------|------------------------------|
+| group化                 | `groupby("date")`        | `group_by("date")`           |
+| 合計                    | `("duration", "sum")`    | `pl.col("duration").sum()`   |
+| distinct count          | `("user_id", "nunique")` | `pl.col("user_id").n_unique()` |
+| 出力カラム名のリネーム  | named aggregation        | `.alias(...)`                |
+
+<div style='padding-left: 2em; padding-right: 2em; border-radius: 0em; border-style:solid; border-color:#ffa657;'>
+<strong style="color:#ffa657">注意点 !</strong> <br>
+
+- polars の `group_by` は[結果の行順を保証しない]{.regmonkey-bold}ため，期待する順序があれば `.sort("date")` を明示する
+- 大規模データでは `lazy()` → `.collect()` を挟むことでクエリ最適化が効く
+
+</div>
+
+## Pattern 3: JSON → JSON (jq)
+
+ログを直接 JSON で扱いたい場面 (例: BigQuery export, Cloud Logging, fluentd) では `jq` 1本で同等の集計ができる．
+`group_by` → `map` で「グループごとに新しいオブジェクトを生成」というのが基本パターン．
+
+[入力 JSON]{.mini-section}
+
+```{python}
+#| echo: false
+import json
+from pathlib import Path
+
+records = df.to_dict(orient="records")
+input_path = Path("activity.json")
+input_path.write_text(json.dumps(records, indent=2, ensure_ascii=False))
+print(input_path.read_text())
+```
+
+[jq による集計]{.mini-section}
+
+```bash
+jq 'group_by(.date)
+    | map({
+        date: .[0].date,
+        total_duration: (map(.duration) | add),
+        n_unique_users: ([.[].user_id] | unique | length)
+      })' activity.json
+```
+
+```{python}
+#| echo: false
+import subprocess
+
+result = subprocess.run(
+    [
+        "jq",
+        'group_by(.date) | map({date: .[0].date, total_duration: (map(.duration) | add), n_unique_users: ([.[].user_id] | unique | length)})',
+        "activity.json",
+    ],
+    capture_output=True,
+    text=True,
+    check=True,
+)
+print(result.stdout)
+```
+
+[式の意味]{.mini-section}
+
+- `group_by(.date)` で `date` ごとの配列の配列に変換する (pandas の `groupby` 相当)
+- `map({...})` でグループごとに新しいオブジェクトを組み立てる
+- `map(.duration) | add` で `duration` の合計を計算 (`sum` 相当)
+- `[.[].user_id] | unique | length` で `user_id` の distinct count を計算
+
+<div style='padding-left: 2em; padding-right: 2em; border-radius: 0em; border-style:solid; border-color:#ffa657;'>
+<strong style="color:#ffa657">注意点 !</strong> <br>
+
+- `unique` は[ソート + 重複除去]{.regmonkey-bold}を行うため，要素数が多い場合はメモリを使う．巨大なログでは streaming 系 (`--stream`, `gojq`, `duckdb` の `read_json` + `group by`) に切り替えた方が安全
+- 改行区切り JSON (NDJSON, JSONL) を扱う場合は，先頭で `[inputs]` + `--slurp --null-input` を組み合わせて配列化するのが定石
+
+</div>
+
+## まとめ
+
+::: {.callout-tip}
+## 3パターンの使い分け
+
+- **pandas**: 探索的分析・notebook での集計はこれが第一選択．named aggregation でカラム名まで一気に決められる
+- **polars**: 数百MB〜数GB級のログを高速に処理したいとき．式ベースなので集約ロジックの再利用がしやすい
+- **jq**: ファイル/ストリームで JSON が降ってくるシェル前段．DataFrame を経由せずに `gh api` / `bq` の出力を整形する場面で強い
+
+:::
