@@ -1051,6 +1051,82 @@ window.Quarto = {
 </div>
 </div>
 </div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>systemctl主要コマンド
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 10%">
+<col style="width: 25%">
+<col style="width: 16%">
+<col style="width: 18%">
+<col style="width: 28%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>コマンド</th>
+<th>役割</th>
+<th>即時影響</th>
+<th>起動時の状態への影響</th>
+<th>主な用途</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>start</code></td>
+<td>サービスを起動</td>
+<td>起動する</td>
+<td>なし</td>
+<td>手動でサービスを立ち上げる</td>
+</tr>
+<tr class="even">
+<td><code>stop</code></td>
+<td>サービスを停止</td>
+<td>停止する</td>
+<td>なし</td>
+<td>一時的にサービスを止める</td>
+</tr>
+<tr class="odd">
+<td><code>restart</code></td>
+<td>サービスを再起動</td>
+<td>停止→起動</td>
+<td>なし</td>
+<td>設定変更後の再起動</td>
+</tr>
+<tr class="even">
+<td><code>reload</code></td>
+<td>設定を再読み込み</td>
+<td>再起動せず反映</td>
+<td>なし</td>
+<td>設定のみ反映（対応サービスのみ）</td>
+</tr>
+<tr class="odd">
+<td><code>enable</code></td>
+<td>自動起動を有効化</td>
+<td>なし</td>
+<td>起動時に自動起動</td>
+<td>サーバー起動時に常に起動させる</td>
+</tr>
+<tr class="even">
+<td><code>disable</code></td>
+<td>自動起動を無効化</td>
+<td>なし</td>
+<td>起動時に起動しない</td>
+<td>常駐不要なサービスを外す</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
 </section>
 <section id="環境構築" class="level2">
 <h2 class="anchored" data-anchor-id="環境構築">環境構築</h2>
@@ -1072,6 +1148,127 @@ window.Quarto = {
 </ul>
 </div>
 </div>
+<div class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>バックアップ
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<div class="reveal_vspace" style="--vspace-height: 1em;"></div>
+<p>バックアップは「<span class="regmonkey-bold">何の単位で</span>・<span class="regmonkey-bold">どこに</span>保存するか」で適切な手段が変わる．分析サーバの運用では3つのレイヤを意識して使い分けるとよい．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>レイヤ</th>
+<th>対象</th>
+<th>ユースケース</th>
+<th>代表コマンド</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>① ファイルシステム単位</td>
+<td>ブロックデバイス全体 / パーティション</td>
+<td>OS 再インストール対策，物理障害からの復旧</td>
+<td><code>dd</code>, <code>dump</code></td>
+</tr>
+<tr class="even">
+<td>② ディレクトリ単位</td>
+<td>プロジェクト，<code>$HOME</code>，特定パス</td>
+<td>日次の差分バックアップ，作業ディレクトリの保全</td>
+<td><code>tar</code>, <code>cp -a</code>, <code>rsync</code>, <code>borg</code>, <code>restic</code></td>
+</tr>
+<tr class="odd">
+<td>③ ネットワーク経由</td>
+<td>リモートホスト / クラウドストレージ</td>
+<td>オフサイト保管，世代管理付きの自動バックアップ</td>
+<td><code>rsync -e ssh</code>, <code>scp</code>, <code>rclone</code>, <code>borg</code>(<code>ssh://</code>), <code>restic</code>(<code>s3:</code>/<code>b2:</code>)</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<p><span class="mini-section">バックアップと復元テスト</span></p>
+<ul>
+<li>バックアップは <span class="regmonkey-bold">リストアできて初めて完成</span>．定期的にダミー環境へ復元テストを行う</li>
+</ul>
+<p><span class="mini-section">バックアップの種類</span></p>
+<p>「いつ何を取るか」という観点では，バックアップは以下の4種類に大別される．運用ではフル + 増分（または差分）の組み合わせが基本で，<span class="regmonkey-bold">復元手順の単純さ</span>と<span class="regmonkey-bold">ストレージ消費・取得時間</span>のトレードオフで設計する．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>種類</th>
+<th>取得対象</th>
+<th>取得時間/容量</th>
+<th>リストア手順</th>
+<th>代表ツール</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>フル (Full)</td>
+<td>対象すべて</td>
+<td>最も長く・大きい</td>
+<td>フル1本だけで復元可</td>
+<td><code>tar</code>, <code>dd</code>, <code>rsync</code>, <code>borg create</code></td>
+</tr>
+<tr class="even">
+<td>増分 (Incremental)</td>
+<td>直前のバックアップからの差分</td>
+<td>最も短く・小さい</td>
+<td>フル + すべての増分を順に適用</td>
+<td><code>tar -g</code>(GNU listed-incremental), <code>rsync --link-dest</code>, <code>borg</code>, <code>restic</code></td>
+</tr>
+<tr class="odd">
+<td>差分 (Differential)</td>
+<td>直近フルからの差分</td>
+<td>増分より大きく・フルより小さい</td>
+<td>フル + 最新の差分1本</td>
+<td><code>rsync --compare-dest</code>, <code>dump -1</code></td>
+</tr>
+<tr class="even">
+<td>スナップショット (Snapshot)</td>
+<td>ある時点のFS/ボリューム状態 (CoW)</td>
+<td>ほぼ瞬時・容量は変化分のみ</td>
+<td>スナップショットをマウント or rollback</td>
+<td><code>LVM snapshot</code>, <code>Btrfs/ZFS snapshot</code>, <code>EBS snapshot</code>, <code>docker volume snapshot</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><span class="mini-section">フル / 増分 / 差分の関係</span></p>
+<ul>
+<li><span class="regmonkey-bold">フル</span>は単独で完結するが容量・時間コストが大きいので，週次や月次など低頻度で取得するのが定石</li>
+<li><span class="regmonkey-bold">増分</span>は前回 (フル or 増分) との差分のみを記録するため最も軽量．ただし <span class="regmonkey-bold">どれか1本でも欠落すると以降の復元が破綻する</span></li>
+<li><span class="regmonkey-bold">差分</span>は常に「最後のフル」との差分を取り続ける．日が経つほど膨らむが，リストアは「フル + 差分1本」だけで済むので運用が単純</li>
+<li><code>borg</code> / <code>restic</code> は内部的に<span class="regmonkey-bold">重複排除 (deduplication)</span>を行うため，ユーザから見ればすべて「フル」だが容量効率は増分相当になる</li>
+</ul>
+<p><span class="mini-section">スナップショットはバックアップではない</span></p>
+<ul>
+<li>LVM/Btrfs/ZFS のスナップショットは <span class="regmonkey-bold">同一ストレージ上のCoW参照</span>であり，物理障害が起きると元データもろとも失われる</li>
+<li>「<span class="regmonkey-bold">作業前のロールバックポイント</span>」や「<span class="regmonkey-bold">整合性のある状態で <code>tar</code>/<code>rsync</code> を走らせるための一時凍結</span>」として使うのが本来の用途</li>
+<li>真のバックアップにするには，スナップショットを別ストレージや別ホストへ転送する必要がある (<code>btrfs send | btrfs receive</code>, <code>zfs send | zfs receive</code>, EBS snapshot copy など)</li>
+</ul>
 <section id="ネットワーク環境" class="level3">
 <h3 class="anchored" data-anchor-id="ネットワーク環境">ネットワーク環境</h3>
 </section>
