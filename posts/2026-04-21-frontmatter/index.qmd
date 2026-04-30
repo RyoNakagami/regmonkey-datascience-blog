@@ -1,0 +1,177 @@
+---
+title: "Frontmatter とは何か: Markdown のメタデータ記法"
+author: "Ryo Nakagami"
+date: "2026-04-21"
+date-modified: "2026-04-30"
+categories: [Markdown, YAML]
+listing_category: general
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## Frontmatter とは
+
+::: {#def- .custom_problem .blog-custom-border}
+[Frontmatter]{.def-title}
+
+- Frontmatter とは，**Markdown ファイルの先頭に置かれるメタデータブロック**のこと．
+- 本文として描画されることを意図しないが，ページ生成時にツール側 (静的サイトジェネレータ，ブログエンジン，ドキュメントビルダー等) から参照される情報を宣言的に記述するために使われる．
+
+:::
+
+
+代表的な用途は次のとおり:
+
+- 記事タイトル (`title`)
+- SEO 用の概要文 (`description`)
+- 記事に紐付くタグ (`tags`)
+- 公開日 / 更新日 (`date`, `date-modified`)
+
+何をキーに置くかはツール側のスキーマで決まるため，「自由に追加できる」と言ってもパーサが解釈できないキーは単に無視される点に注意．
+
+## 書き方: 三本ダッシュで囲む
+
+
+::: {.callout-note}
+## RULE
+
+- ファイル冒頭を `---` で囲んだブロックが Frontmatter として解釈される．
+
+:::
+
+
+```md
+---
+title: "Frontmatter section"
+---
+
+# Markdown section
+```
+
+二つ目の `---` 以降が通常の Markdown 本文として処理される．
+
+::: {.callout-warning}
+
+- ブロック内は **YAML として parse される**．したがって[インデントは半角スペース固定]{.regmonkey-bold}でタブを混ぜない．
+- 多くのパーサは Frontmatter ブロックが**ファイルの 1 行目から始まること**を要求する．
+  - [BOM や先頭の空行があると Frontmatter として認識されず，本文に `---` がそのまま出力される]{.regmonkey-bold}
+- `:` を含む文字列 (例: `title: foo: bar`) はクォートしないと YAML 構文エラーになる．
+
+:::
+
+## 基本の YAML 記法
+
+[スカラー値]{.mini-section}
+
+```yml
+---
+title: 'The document title'
+---
+```
+
+[ブロックスタイルの配列]{.mini-section}
+
+```yml
+---
+tags:
+  - JavaScript
+  - Markdown
+---
+```
+
+[フロースタイル (ブラケット記法) の配列]{.mini-section}
+
+```yml
+---
+tags: ["JavaScript", "Markdown"]
+---
+```
+
+ブロック形式とフロー形式は等価で，`tags[0] == "JavaScript"` となる．要素数が少なくインラインで読みやすい場合はフロー記法，要素が多い・コメントを挟みたい場合はブロック記法が向く．
+
+## ネストした構造
+
+オブジェクトの配列はハイフン (`-`) で要素を区切り，各要素配下のキーをそろえてインデントする．
+
+```yml
+---
+tech:
+  - role: frontend
+    stack: Remix
+  - role: backend
+    stack: Go
+---
+```
+
+::: {.callout-warning}
+
+- 元記事のように `- frontend` と書いてその下に `stack: Remix` を続けると **YAML としては不正**となる (配列要素が文字列 `"frontend"` で確定してしまうため，後続の `stack:` を子キーとして解釈できない)．
+- ネストしたオブジェクトを表現したいときは，[ハイフンの直後に最初のキーを書く]{.regmonkey-bold} (`- role: frontend`) のが一般的．
+
+:::
+
+## 複数行文字列: `>` と `|` の違い
+
+YAML には複数行文字列のためのブロックスカラー記法が 2 種類ある．Frontmatter では特に `description` のような長文フィールドで頻出する．
+
+[Folded 記法 `>`: 改行をスペースに畳み込む]{.mini-section}
+
+```yml
+---
+description: >
+    this is a
+    multiline
+    string
+---
+```
+
+このとき `description` の値は次の 1 行になる:
+
+```
+this is a multiline string
+```
+
+段落として 1 行に整形したい (= ソース上では折り返したいが出力では 1 行) ケースで使う．
+
+[Literal 記法 `|`: 改行を保持する]{.mini-section}
+
+```yml
+---
+description: |
+    this is a
+    multiline
+    string
+---
+```
+
+このとき値は改行込みで保持される:
+
+```
+this is a
+multiline
+string
+```
+
+整形済みテキスト (詩，コードスニペット，事前に改行位置が決まっている文章) を埋め込みたい場合に使う．
+
+::: {.callout-warning}
+
+- `>` も `|` も**末尾の改行の扱いがオプションで変わる**: `>` / `|` (デフォルト・clip) は末尾改行を 1 つだけ残し，`>-` / `|-` (strip) は末尾改行を削除，`>+` / `|+` (keep) は末尾の空行を全部残す．
+- インデントは「ブロック開始行より深い」位置でそろえる．インデント幅を混在させると YAML パーサが文字列の途中で打ち切る．
+
+:::
+
+## まとめ
+
+- Frontmatter は Markdown の先頭に置く YAML メタデータブロックで，`---` で区切る
+- パーサは YAML として読むので，[インデント・クォート・ブロック記法の規則]{.regmonkey-bold}に従う必要がある
+- 配列はブロック / フロー どちらでもよい．ネストしたオブジェクトの配列は `- key: value` の形でハイフン直後に最初のキーを置く
+- 複数行文字列は **`>` で折り畳み，`|` で改行保持**．用途で使い分ける
+
+References
+----------
+- [What exactly is Frontmatter? - Chris Bongers (dev.to)](https://dev.to/dailydevtips1/what-exactly-is-frontmatter-123g)
+- [YAML 1.2.2 Specification - Block Scalar Styles](https://yaml.org/spec/1.2.2/#chapter-8-block-collection-styles)

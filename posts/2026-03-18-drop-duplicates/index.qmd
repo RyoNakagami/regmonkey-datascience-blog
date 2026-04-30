@@ -1,0 +1,174 @@
+---
+title: "重複行を削除する: pandas / polars / BigQuery"
+author: "Ryo Nakagami"
+date: "2026-03-18"
+date-modified: "2026-04-27"
+categories: [python, SQL, 前処理]
+listing_category: datascience-preprocess-series
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## 問題設定: 指定カラムの組で重複している行を1行に丸めたい
+
+::: {#exr- .custom_problem .blog-custom-border}
+<br>
+
+`(a, b)` の組が重複する行を1行に集約したい．
+ただし `c` カラムには[行ごとに異なる情報]{.regmonkey-bold}が入っており，どの行を残すかは別途決められるようにしたい．
+
+```{python}
+#| code-fold: false
+import pandas as pd
+
+df = pd.DataFrame({"a": [1, 1, 2], "b": [2, 2, 3], "c": [1, 2, 3]})
+df
+```
+
+[期待する出力 (`(a, b)` で最初に出現した行を残す)]{.mini-section}
+
+| a | b | c |
+|--:|--:|--:|
+| 1 | 2 | 1 |
+| 2 | 3 | 3 |
+
+:::
+
+[ポイント]{.mini-section}
+
+- `(a, b)` を[キー]{.regmonkey-bold}として扱い，それ以外のカラムは[副次情報]{.regmonkey-bold}として持ち越す
+- どの重複行を残すか (`first` / `last` / 全削除) は明示する．デフォルト挙動に依存するとライブラリ間で結果が変わる
+- 行順は[ライブラリによっては保証されない]{.regmonkey-bold}．並びに意味があるなら明示的にソートする
+
+## Pattern 1: pandas
+
+`DataFrame.drop_duplicates(subset=...)` が王道．`subset` を渡さないと[全カラムで完全一致した行のみ]{.regmonkey-bold}が重複扱いされる点に注意．
+
+```{python}
+#| code-fold: false
+df.drop_duplicates(subset=["a", "b"])
+```
+
+[`keep` で残す行を選ぶ]{.mini-section}
+
+```{python}
+#| code-fold: false
+df.drop_duplicates(subset=["a", "b"], keep="last")
+```
+
+`keep=False` を渡すと[重複した行をすべて削除]{.regmonkey-bold}してユニークな行だけ残せる．
+
+```{python}
+#| code-fold: false
+df.drop_duplicates(subset=["a", "b"], keep=False)
+```
+
+
+::: {.callout-warning}
+
+- pandas では[`NaN == NaN` を真として重複判定する]{.regmonkey-bold}．SQL の `NULL` 比較とは挙動が違うので，BigQuery 移植時にズレる
+- `subset` のカラム順序は判定に影響しない (集合として扱われる)．ただし出力の[行順は元の DataFrame の順序]{.regmonkey-bold}が保たれる
+- 「副次カラム `c` のうち最大値を残したい」のような条件付きの場合は，`drop_duplicates` ではなく `df.sort_values(["a","b","c"]).drop_duplicates(["a","b"], keep="last")` のように[並び替えてから keep を使う]{.regmonkey-bold}
+
+:::
+
+## Pattern 2: polars
+
+polars では[`drop_duplicates` という名前のメソッドはなく]{.regmonkey-bold}，`unique(subset=...)` が正準．
+
+```{python}
+#| code-fold: false
+import polars as pl
+
+df_pl = pl.DataFrame({"a": [1, 1, 2], "b": [2, 2, 3], "c": [1, 2, 3]})
+
+df_pl.unique(subset=["a", "b"], keep="first", maintain_order=True)
+```
+
+`maintain_order=True` を[必ず付ける]{.regmonkey-bold}のが実務上のポイント．polars はデフォルトでは並列処理の都合上[行順を保証しない]{.regmonkey-bold}ため，付け忘れると毎回違う行が残ったように見える事故が起きる．
+
+[`keep` のオプション]{.mini-section}
+
+| `keep`    | 残る行                                       | pandas 対応      |
+|-----------|----------------------------------------------|------------------|
+| `"first"` | 最初に出現した行                             | `keep="first"`   |
+| `"last"`  | 最後に出現した行                             | `keep="last"`    |
+| `"any"`   | どれか1行 (順序保証なし・最速)               | (該当なし)       |
+| `"none"`  | 重複しているグループは[全削除]{.regmonkey-bold} | `keep=False`     |
+
+[pandas との対応関係]{.mini-section}
+
+| 操作                        | pandas                                              | polars                                                 |
+|-----------------------------|-----------------------------------------------------|--------------------------------------------------------|
+| サブセット指定で重複削除    | `df.drop_duplicates(subset=["a","b"])`              | `df.unique(subset=["a","b"], maintain_order=True)`     |
+| 最後の行を残す              | `keep="last"`                                       | `keep="last"`                                          |
+| 重複行をすべて削除          | `keep=False`                                        | `keep="none"`                                          |
+| 順序より速度優先            | (相当なし)                                          | `keep="any"` (順序非保証だが最速)                      |
+| 全カラムでユニーク化        | `df.drop_duplicates()`                              | `df.unique(maintain_order=True)`                       |
+
+<div style='padding-left: 2em; padding-right: 2em; border-radius: 0em; border-style:solid; border-color:#ffa657;'>
+<strong style="color:#ffa657">注意点 !</strong> <br>
+
+- polars の `unique` は[`null` を一意な値として扱う]{.regmonkey-bold} (= 同じ `null` 同士は重複扱い)．pandas の `NaN` 挙動と一致するので移植性は高いが，SQL の `NULL` とは違う
+- 大規模データでは `keep="any"` の方が[ハッシュテーブル走査が打ち切れて速い]{.regmonkey-bold}．順序が要らない集計の前段では使い分けるとよい
+- `lazy()` 経由なら `unique` も Plan 最適化の対象になり，後続の `select` と統合される
+
+</div>
+
+## Pattern 3: BigQuery
+
+BigQuery で「sub-set 指定の重複削除」を一発で書く正準は `QUALIFY ROW_NUMBER()`．
+`SELECT DISTINCT` は[全カラム一致しか扱えない]{.regmonkey-bold}ので別問題になる．
+
+[QUALIFY パターン]{.mini-section}
+
+```sql
+WITH src AS (
+  SELECT * FROM UNNEST([
+    STRUCT(1 AS a, 2 AS b, 1 AS c),
+    STRUCT(1   , 2   , 2),
+    STRUCT(2   , 3   , 3)
+  ])
+)
+SELECT *
+FROM src
+QUALIFY ROW_NUMBER() OVER (PARTITION BY a, b ORDER BY c) = 1;
+```
+
+ポイントは[`PARTITION BY` がキー]{.regmonkey-bold}，[`ORDER BY` が「どの行を残すか」]{.regmonkey-bold}．
+`ORDER BY c` なら `c` 最小の行が残り，`ORDER BY c DESC` なら最大．[`ORDER BY` を省くと結果が非決定的]{.regmonkey-bold}になるので必ず指定する．
+
+[全削除 (`keep=False` 相当)]{.mini-section}
+
+`COUNT(*) OVER` で重複群を識別してから絞り込む．
+
+```sql
+SELECT * EXCEPT (n)
+FROM (
+  SELECT *, COUNT(*) OVER (PARTITION BY a, b) AS n
+  FROM src
+)
+WHERE n = 1;
+```
+
+::: {.callout-warning}
+
+- BigQuery の `NULL` は[`NULL = NULL` が `UNKNOWN`]{.regmonkey-bold}で，`PARTITION BY` ではグループ化キーとして扱われる (= 同じ NULL 同士は同じグループ)．ただし `WHERE a = b` 系の比較では一致扱いされない．pandas / polars との違いに注意
+- `QUALIFY` は[`OVER` 句のあるクエリ専用]{.regmonkey-bold}．通常の `WHERE` と違い，`SELECT` リストに窓関数を出していなくても使える
+- `ORDER BY` のキーが同値で並ぶケースに備えて，[タイブレーク用の列 (`updated_at`, `id` 等) を追加]{.regmonkey-bold}しておくと結果が安定する
+
+:::
+
+## まとめ
+
+::: {.callout-tip}
+## 3パターンの使い分け
+
+- **pandas**: `drop_duplicates(subset=..., keep=...)` の一行で完結．条件付き keep は[`sort_values` → `drop_duplicates(keep="last")` の組合せ]{.regmonkey-bold}が定石
+- **polars**: メソッド名は `unique`．`maintain_order=True` を[忘れない]{.regmonkey-bold}．順序が不要な前処理段では `keep="any"` で速度を取りに行ける
+- **BigQuery**: `QUALIFY ROW_NUMBER() OVER (PARTITION BY ... ORDER BY ...) = 1` が万能．`ORDER BY` の決定性を必ず確保する
+
+:::
