@@ -75,7 +75,8 @@ find . -type f \( -name "index.quarto_ipynb" -o -name "index.quarto_ipynb_*" \) 
 find . -type f \( -name "index.quarto_ipynb" -o -name "index.quarto_ipynb_*" \) -delete
 ```
 
-[`xargs rm` で削除するパターン]{.mini-section}
+::: {#exm- .custom_problem }
+[`xargs rm` で削除するパターン]{.def-title}
 
 `-delete` が使えない環境（古い `find` 実装）や，削除前にファイル一覧をパイプで他コマンドに渡したいときは
 `xargs rm` のパターンが使われます．
@@ -98,6 +99,9 @@ find . -type f \( -name "index.quarto_ipynb" -o -name "index.quarto_ipynb_*" \) 
 | `xargs -n N`  | 1回の `rm` 呼び出しに渡す引数の数を制限．デフォルトでは可能な限りまとめて渡される                                                       |
 
 ::::
+
+:::
+***
 
 [`-delete` vs `xargs rm` の使い分け]{.mini-section}
 
@@ -124,6 +128,96 @@ find . -type f \( -name "index.quarto_ipynb" -o -name "index.quarto_ipynb_*" \) 
 ```
 
 ***
+
+## 複数パターンのファイルを一括削除する with regex
+
+
+::: {.callout-note}
+### 正規表現を用いた検索
+
+`index.quarto_ipynb` および `index.quarto_ipynb_1`，`index.quarto_ipynb_2` のような連番付きファイルを，
+正規表現 1 本でまとめて検索する．
+
+```bash
+find . -type f -regex '.*/index\.quarto_ipynb.*$'
+```
+
+:::
+
+[各オプションの意味]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| 要素                       | 役割                                                                                          |
+| ------------------------ | ------------------------------------------------------------------------------------------- |
+| `-regex PATTERN`         | **パス全体 (basename ではなく `find` の起点からの相対パス全体)** が `PATTERN` に[完全一致]{.regmonkey-bold}するファイルを抽出 |
+| `.*/`                    | 任意の深さのディレクトリ階層に対応する先頭部分．`-regex` はパス全体マッチなので，これが無いと `./index.quarto_ipynb` のような直下のファイルにしかマッチしない |
+| `index\.quarto_ipynb`    | リテラルの `index.quarto_ipynb`．`.` は正規表現のメタ文字なのでバックスラッシュでエスケープする                                |
+| `.*$`                    | 末尾に任意文字列 (`_1`, `_copy` など) が続いてもマッチさせるための部分．完全一致セマンティクスを満たすためにアンカーまで書ききる                  |
+
+::::
+
+::: {.callout-warning}
+
+- `-regex` は `-name` と違って[パス全体への完全一致]{.regmonkey-bold} (= 暗黙に `^` と `$` で囲まれる) として動作する．
+  - `-regex 'index\.quarto_ipynb'` だけでは絶対にマッチしない (パスが `./...` で始まるため)．
+- `.` をエスケープし忘れて `index.quarto_ipynb` と書くと，`indexAquarto_ipynb` のような[別名にも誤マッチ]{.regmonkey-bold}する．
+- `-regex` のデフォルト方言は GNU `find` では `emacs` (BRE 相当) で，`+` や `?`，`|`，`{m,n}` はそのままでは使えない．拡張正規表現を使いたいときは `-regextype posix-extended` を明示する．
+
+:::
+
+[正規表現の方言を切り替える]{.mini-section}
+
+GNU `find` は `-regextype` でバックエンドの正規表現エンジンを選べる．代表的なのは次の 3 つ:
+
+```bash
+## デフォルト (emacs / BRE 相当): + や | はリテラル扱い
+find . -regextype emacs        -regex '.*/index\.quarto_ipynb.*$'
+
+## POSIX 拡張正規表現: +, ?, |, {m,n} がメタ文字として効く
+find . -regextype posix-extended -regex '.*/index\.quarto_ipynb(_[0-9]+)?$'
+
+## POSIX 基本正規表現: + や ? はエスケープしないとリテラル
+find . -regextype posix-basic   -regex '.*/index\.quarto_ipynb.*$'
+```
+
+`-regextype` は[最初の `-regex` / `-iregex` より前]{.regmonkey-bold}に置く必要がある (パース時に方言が確定するため)．
+
+[`-regex` vs `-name` の使い分け]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| 観点               | `-name` (glob)                       | `-regex` (正規表現)                                       |
+| ---------------- | ------------------------------------ | ----------------------------------------------------- |
+| マッチ対象            | basename (ファイル名のみ)                  | パス全体 (起点からの相対パス)                                     |
+| マッチ方式            | glob パターン (`*`, `?`, `[...]`)       | 正規表現 (方言は `-regextype` で指定)                          |
+| 完全一致 / 部分一致      | basename への完全一致                     | パス全体への完全一致 (= 暗黙の `^...$`)                          |
+| OR 条件            | `\( -name A -o -name B \)` で表現      | `(A|B)` を `posix-extended` で 1 本にまとめられる              |
+| 大文字小文字を無視         | `-iname`                             | `-iregex`                                             |
+| 直感性              | 高い (シェルと同じ感覚で書ける)                   | 低め (パス先頭の `.*/` を忘れやすい)                              |
+
+::::
+
+ファイル名だけで判別できるケースは `-name` を選んだほうがシンプル．**ディレクトリ階層も条件に入れたい** (例: `posts/2025-*/index.quarto_ipynb` 系のみ削除) ときに `-regex` の真価が出る．
+
+::: {#exm- .custom_problem }
+[安全な削除手順]{.def-title}
+
+`-regex` 版でも作法は `-name` 版と同じ．まず[マッチ対象を必ず目視確認]{.regmonkey-bold}してから `-delete` する．
+
+```bash
+## Step 1: マッチするパスを確認
+find . -type f -regex '.*/index\.quarto_ipynb.*$' -print
+
+## Step 2: 件数を数える
+find . -type f -regex '.*/index\.quarto_ipynb.*$' -print | wc -l
+
+## Step 3: 問題なければ削除
+find . -type f -regex '.*/index\.quarto_ipynb.*$' -delete
+```
+:::
+***
+
 
 ## Appendix: Linuxのファイル
 
