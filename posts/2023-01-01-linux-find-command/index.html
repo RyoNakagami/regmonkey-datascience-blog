@@ -487,6 +487,7 @@ window.Quarto = {
    
   <ul>
   <li><a href="#複数パターンのファイルを一括削除する" id="toc-複数パターンのファイルを一括削除する" class="nav-link active" data-scroll-target="#複数パターンのファイルを一括削除する">複数パターンのファイルを一括削除する</a></li>
+  <li><a href="#複数パターンのファイルを一括削除する-with-regex" id="toc-複数パターンのファイルを一括削除する-with-regex" class="nav-link" data-scroll-target="#複数パターンのファイルを一括削除する-with-regex">複数パターンのファイルを一括削除する with regex</a></li>
   <li><a href="#appendix-linuxのファイル" id="toc-appendix-linuxのファイル" class="nav-link" data-scroll-target="#appendix-linuxのファイル">Appendix: Linuxのファイル</a></li>
   <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
   </ul>
@@ -580,7 +581,8 @@ window.Quarto = {
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="co">## Step 2: 問題なければ削除</span></span>
 <span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> . <span class="at">-type</span> f <span class="dt">\(</span> <span class="at">-name</span> <span class="st">"index.quarto_ipynb"</span> <span class="at">-o</span> <span class="at">-name</span> <span class="st">"index.quarto_ipynb_*"</span> <span class="dt">\)</span> <span class="at">-delete</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p><span class="mini-section"><code>xargs rm</code> で削除するパターン</span></p>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Example 1</strong></span> <span class="def-title"><code>xargs rm</code> で削除するパターン</span></p>
 <p><code>-delete</code> が使えない環境（古い <code>find</code> 実装）や，削除前にファイル一覧をパイプで他コマンドに渡したいときは <code>xargs rm</code> のパターンが使われます．</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co">## NG: スペースや改行を含むファイル名で壊れる</span></span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> . <span class="at">-type</span> f <span class="dt">\(</span> <span class="at">-name</span> <span class="st">"index.quarto_ipynb"</span> <span class="at">-o</span> <span class="at">-name</span> <span class="st">"index.quarto_ipynb_*"</span> <span class="dt">\)</span> <span class="kw">|</span> <span class="fu">xargs</span> rm</span>
@@ -619,6 +621,8 @@ window.Quarto = {
 </tbody>
 </table>
 </div>
+</div>
+<hr>
 <p><span class="mini-section"><code>-delete</code> vs <code>xargs rm</code> の使い分け</span></p>
 <div class="no-border-top-table">
 <table class="caption-top table">
@@ -668,6 +672,150 @@ window.Quarto = {
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> . <span class="at">-type</span> f <span class="dt">\(</span> <span class="at">-name</span> <span class="st">"index.quarto_ipynb"</span> <span class="at">-o</span> <span class="at">-name</span> <span class="st">"index.quarto_ipynb_*"</span> <span class="dt">\)</span> <span class="at">-print0</span> <span class="dt">\</span></span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">|</span> <span class="fu">grep</span> <span class="at">-z</span> <span class="st">'2025-'</span> <span class="dt">\</span></span>
 <span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  <span class="kw">|</span> <span class="fu">xargs</span> <span class="at">-0</span> <span class="at">-r</span> rm</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<hr>
+</section>
+<section id="複数パターンのファイルを一括削除する-with-regex" class="level2">
+<h2 class="anchored" data-anchor-id="複数パターンのファイルを一括削除する-with-regex">複数パターンのファイルを一括削除する with regex</h2>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>正規表現を用いた検索
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><code>index.quarto_ipynb</code> および <code>index.quarto_ipynb_1</code>，<code>index.quarto_ipynb_2</code> のような連番付きファイルを， 正規表現 1 本でまとめて検索する．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> . <span class="at">-type</span> f <span class="at">-regex</span> <span class="st">'.*/index\.quarto_ipynb.*$'</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</div>
+<p><span class="mini-section">各オプションの意味</span></p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 79%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>要素</th>
+<th>役割</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>-regex PATTERN</code></td>
+<td><strong>パス全体 (basename ではなく <code>find</code> の起点からの相対パス全体)</strong> が <code>PATTERN</code> に<span class="regmonkey-bold">完全一致</span>するファイルを抽出</td>
+</tr>
+<tr class="even">
+<td><code>.*/</code></td>
+<td>任意の深さのディレクトリ階層に対応する先頭部分．<code>-regex</code> はパス全体マッチなので，これが無いと <code>./index.quarto_ipynb</code> のような直下のファイルにしかマッチしない</td>
+</tr>
+<tr class="odd">
+<td><code>index\.quarto_ipynb</code></td>
+<td>リテラルの <code>index.quarto_ipynb</code>．<code>.</code> は正規表現のメタ文字なのでバックスラッシュでエスケープする</td>
+</tr>
+<tr class="even">
+<td><code>.*$</code></td>
+<td>末尾に任意文字列 (<code>_1</code>, <code>_copy</code> など) が続いてもマッチさせるための部分．完全一致セマンティクスを満たすためにアンカーまで書ききる</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="callout callout-style-default callout-warning callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Warning
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li><code>-regex</code> は <code>-name</code> と違って<span class="regmonkey-bold">パス全体への完全一致</span> (= 暗黙に <code>^</code> と <code>$</code> で囲まれる) として動作する．
+<ul>
+<li><code>-regex 'index\.quarto_ipynb'</code> だけでは絶対にマッチしない (パスが <code>./...</code> で始まるため)．</li>
+</ul></li>
+<li><code>.</code> をエスケープし忘れて <code>index.quarto_ipynb</code> と書くと，<code>indexAquarto_ipynb</code> のような<span class="regmonkey-bold">別名にも誤マッチ</span>する．</li>
+<li><code>-regex</code> のデフォルト方言は GNU <code>find</code> では <code>emacs</code> (BRE 相当) で，<code>+</code> や <code>?</code>，<code>|</code>，<code>{m,n}</code> はそのままでは使えない．拡張正規表現を使いたいときは <code>-regextype posix-extended</code> を明示する．</li>
+</ul>
+</div>
+</div>
+<p><span class="mini-section">正規表現の方言を切り替える</span></p>
+<p>GNU <code>find</code> は <code>-regextype</code> でバックエンドの正規表現エンジンを選べる．代表的なのは次の 3 つ:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co">## デフォルト (emacs / BRE 相当): + や | はリテラル扱い</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> . <span class="at">-regextype</span> emacs        <span class="at">-regex</span> <span class="st">'.*/index\.quarto_ipynb.*$'</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="co">## POSIX 拡張正規表現: +, ?, |, {m,n} がメタ文字として効く</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> . <span class="at">-regextype</span> posix-extended <span class="at">-regex</span> <span class="st">'.*/index\.quarto_ipynb(_[0-9]+)?$'</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="co">## POSIX 基本正規表現: + や ? はエスケープしないとリテラル</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> . <span class="at">-regextype</span> posix-basic   <span class="at">-regex</span> <span class="st">'.*/index\.quarto_ipynb.*$'</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>-regextype</code> は<span class="regmonkey-bold">最初の <code>-regex</code> / <code>-iregex</code> より前</span>に置く必要がある (パース時に方言が確定するため)．</p>
+<p><span class="mini-section"><code>-regex</code> vs <code>-name</code> の使い分け</span></p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 15%">
+<col style="width: 34%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>観点</th>
+<th><code>-name</code> (glob)</th>
+<th><code>-regex</code> (正規表現)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>マッチ対象</td>
+<td>basename (ファイル名のみ)</td>
+<td>パス全体 (起点からの相対パス)</td>
+</tr>
+<tr class="even">
+<td>マッチ方式</td>
+<td>glob パターン (<code>*</code>, <code>?</code>, <code>[...]</code>)</td>
+<td>正規表現 (方言は <code>-regextype</code> で指定)</td>
+</tr>
+<tr class="odd">
+<td>完全一致 / 部分一致</td>
+<td>basename への完全一致</td>
+<td>パス全体への完全一致 (= 暗黙の <code>^...$</code>)</td>
+</tr>
+<tr class="even">
+<td>OR 条件</td>
+<td><code>\( -name A -o -name B \)</code> で表現</td>
+<td><code>(A|B)</code> を <code>posix-extended</code> で 1 本にまとめられる</td>
+</tr>
+<tr class="odd">
+<td>大文字小文字を無視</td>
+<td><code>-iname</code></td>
+<td><code>-iregex</code></td>
+</tr>
+<tr class="even">
+<td>直感性</td>
+<td>高い (シェルと同じ感覚で書ける)</td>
+<td>低め (パス先頭の <code>.*/</code> を忘れやすい)</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>ファイル名だけで判別できるケースは <code>-name</code> を選んだほうがシンプル．<strong>ディレクトリ階層も条件に入れたい</strong> (例: <code>posts/2025-*/index.quarto_ipynb</code> 系のみ削除) ときに <code>-regex</code> の真価が出る．</p>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Example 2</strong></span> <span class="def-title">安全な削除手順</span></p>
+<p><code>-regex</code> 版でも作法は <code>-name</code> 版と同じ．まず<span class="regmonkey-bold">マッチ対象を必ず目視確認</span>してから <code>-delete</code> する．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co">## Step 1: マッチするパスを確認</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> . <span class="at">-type</span> f <span class="at">-regex</span> <span class="st">'.*/index\.quarto_ipynb.*$'</span> <span class="at">-print</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="co">## Step 2: 件数を数える</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> . <span class="at">-type</span> f <span class="at">-regex</span> <span class="st">'.*/index\.quarto_ipynb.*$'</span> <span class="at">-print</span> <span class="kw">|</span> <span class="fu">wc</span> <span class="at">-l</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="co">## Step 3: 問題なければ削除</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> . <span class="at">-type</span> f <span class="at">-regex</span> <span class="st">'.*/index\.quarto_ipynb.*$'</span> <span class="at">-delete</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
 <hr>
 </section>
 <section id="appendix-linuxのファイル" class="level2">
@@ -728,9 +876,9 @@ window.Quarto = {
 <p>というように表示されます．（他にも圧縮ファイルは赤色，実行ファイルは緑色など）</p>
 <p><span class="mini-section">Windowsとの差違</span></p>
 <p>Windowsでは，<code>.txt</code>，<code>.exe</code> といった拡張子が意味を持ち，アプリケーションと関連付けられていますが，Linuxではファイル名の一部に過ぎないです． Linuxではあくまで中身を見てから判断するという思想で，なにかしらの実行ファイルがどの言語で実行可能なのか？とかはshebang</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/bin/bash</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/bin/bash</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>で記述する場面のほうが多いと思います．ただし，拡張子はどんな種類のファイルなのかの目安になるほか，</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ls</span> <span class="at">-X</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ls</span> <span class="at">-X</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>のように <code>ls</code> コマンドでは <code>-X</code> を付与することで拡張子アルファベット順でファイルをソート表示できるので，ディレクトリの整理整頓という観点では 拡張子を含めファイルに適切な名前を付与することはLinuxでも重要です．</p>
 </section>
 <section id="references" class="level2">
