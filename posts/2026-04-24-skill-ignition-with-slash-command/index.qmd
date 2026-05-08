@@ -1,0 +1,155 @@
+---
+title: "Slash Command 経由での Skill 自動発火を検証する"
+author: "Ryo Nakagami"
+date: "2026-04-24"
+date-modified: "2026-05-08"
+categories: [claude code, skills]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+::::: {.callout-note}
+## REMARKS
+
+:::{.lh-12}
+
+- `/my-todo-run` のような slash command 経由でタスクを実行する文脈で，[TODO.md に書かれたタスク内容に応じて他の skill (例: `simplify`, `git-branch-from-spec`) が自動的に発火するか]{.regmonkey-bold}を実機で確認
+- 結論: **明示パターン (skill 名をタスク本文に書く)** が最も信頼できる．description マッチも実用に堪えるが，ファイル書込み単独ではトリガにならない
+
+:::
+
+:::::
+
+## 1. 検証パターン
+
+検証対象 slash command は `/my-todo-run`(`TODO.md`を実行するslash command)，検証対象 skill は `simplify` および `git-branch-from-spec`．以下の3パターンを比較する．
+
+:::: {.no-border-top-table}
+
+| 識別子 | パターン名 | 書き方 |
+| ---- | ---- | ---- |
+| T1 | 明示パターン | TODO.md の本文に skill 名 (例: `simplify`) をそのまま書く |
+| T2 | description マッチパターン | skill 名は書かず，skill description の語彙 (例: "review changed code for reuse, quality, and efficiency") を要件として書く |
+| T3 | ファイル内テキストパターン | TODO.md にスキル名や description 語彙を書き込んだ「直後」に，ユーザー追加メッセージ無しで自動発火するか観察(ファイルのREADだけで発火するかの確認) |
+
+: {tbl-colwidths="[10,25,65]"}
+
+::::
+
+## 2. 観察結果一覧
+
+:::: {.no-border-top-table}
+
+| 識別子 | 対象 skill | 発火可否 | 発火経路 / 観察内容 |
+| ---- | ---- | :----: | ---- |
+| T1 | `simplify` | ✅ 発火 | `/my-todo-run` の Code 段階で起動．タスク本文に skill 名を明示 |
+| T2 | `git-branch-from-spec` | ✅ 発火 | description マッチ駆動 (本文に skill 名なし)．「仕様書からブランチを切る」が name と意味的に一致 |
+| T2 | `simplify` | ✅ 発火 | description マッチ駆動 (本文に skill 名なし)．「changed code を reuse / quality / efficiency 観点で review」が description のほぼ直訳 |
+| T3 | (任意 skill) | ❌ 発火せず | TODO.md に skill 関連語彙を書き込んだ直後でも，Skill ツールは自動発火しなかった |
+
+::::
+
+### T1: 明示パターン
+
+- タスク本文に `simplify` skill 名を明示
+- `/my-todo-run` の Plan 段階で「Code 段階で `simplify` を起動する」方針が立ち，Code 段階で `Skill(skill="simplify")` を実際に呼び出した
+- `simplify` 自身は git diff が空 (本リポジトリ未コミット) のため [Phase 2 (3 エージェント並列起動) を省略する判断]{.regmonkey-bold}をした
+
+### T2: description マッチパターン
+
+- skill 名を一切本文に書かず，要件文だけを記述
+- 本文を読んだ瞬間に `git-branch-from-spec` および `simplify` の双方が想起され，Code 段階で順次起動された
+- `git-branch-from-spec` は `ERROR: spec required` を返却 (spec 未指定の正常応答)
+- `simplify` は T1 と同様，変更コード不在のため省略応答
+
+### T3: ファイル内テキストパターン
+
+- 本セッションより前のタスク1 検証で，TODO.md に skill 関連語彙を `Write` した直後にスキル自動発火が起こるかを観察
+- 結果: 発火しなかった
+- 解釈: skill 発火はあくまで [ユーザーメッセージ (slash command 起動 / 自然言語のリクエスト) を起点にした想起]{.regmonkey-bold}．ファイル書込み内容を Read しても，それが「ユーザー意図」として処理されない限り skill 起動には繋がらない
+
+## 3. メタ観察
+
+[1. skill 発火のタイミング]{.mini-section}
+
+`/my-todo-run` の Plan 段階そのものでは skill は呼ばれない (Plan は方針記述に留まる)．発火は [Code 段階で「自然な実装手段の選択」として行われる]{.regmonkey-bold}．
+
+[2. 明示パターンと description マッチパターンの実質差は小さい]{.mini-section}
+
+本実験では両者とも同じ Code 段階で発火した．ただし description マッチは [skill description が要件語彙と意味的に近い]{.regmonkey-bold} ことが前提条件．語彙のすれ違いがあると発火しない可能性がある．
+
+[3. ファイル書込み単独では skill 起動の trigger にならない]{.mini-section}
+
+`Read` / `Write` 経由のテキストは「データ」であり，[ユーザー意図の代替ではない]{.regmonkey-bold}．skill を起動させたい場合は，必ずユーザーメッセージか slash command を介する必要がある．
+
+[4. 言語の壁を越える]{.mini-section}
+
+T2 では日本語要件文に対して英語 skill description が想起された．[意味的マッチであれば言語混在でも発火する]{.regmonkey-bold}．
+
+[5. slash command 自身のロード]{.mini-section}
+
+`/my-todo-run` 自体は「ユーザーが `/<skill-name>` を打鍵した」時点で確実にロードされる．これが [最も信頼性の高い skill 発火形式]{.regmonkey-bold}．
+
+## 4. 結論・推奨パターン
+
+slash command 経由で他 skill を確実に発火させたい場合の推奨度:
+
+:::: {.no-border-top-table}
+
+| 推奨度 | パターン | 適用場面 |
+| :----: | ---- | ---- |
+| ★★★ 最推奨 | **明示パターン** (skill 名をタスク本文に書く) | 必ず特定 skill を呼び出させたい場合．最も確実で曖昧性が無い |
+| ★★ 条件付き推奨 | **description マッチパターン** | skill description が要件語彙と意味的に近いことが既知の場合．skill description を意識して要件文を書くと発火しやすい |
+| ☆ 非推奨 | ファイル内テキストパターン (書込み直後の自動発火) | 発火しない．ユーザーが明示的にトリガとなるアクション (slash command 起動 / メッセージ) を取る必要あり |
+
+: {tbl-colwidths="[20,35,45]"}
+
+::::
+
+### 実用上のガイドライン
+
+- 「TODO.md に書いた要件から自動的に最適な skill を選んで実行してほしい」という UX を実現するには，[明示パターン]{.regmonkey-bold}が現実的に最も信頼できる．要件文の中に skill 名を埋め込むテンプレートを用意するとよい
+- description マッチも実用に堪えるが，[skill description が更新されると挙動が変わる脆さ]{.regmonkey-bold}がある．「特定 skill が必ず発火する」契約を求めるなら，明示パターンを併用すべき
+- skill 自体の挙動 (例: 対象不在の場合の応答) は別問題
+
+## Appendix: 用語解説
+
+:::{.glossary-container}
+
+```yaml
+glossary:
+  - def: slash command
+    description: |
+      Claude Code 上で `/<name>` の形式で呼び出されるユーザートリガ．
+      ユーザーが打鍵した時点で対応する skill (もしくはビルトインコマンド) が
+      確実にロードされ，最も信頼性の高い skill 発火形式となる．
+
+  - def: skill
+    description: |
+      Claude が実行時に呼び出せる再利用可能な機能単位．`SKILL.md` の
+      frontmatter (`name` / `description`) と本文で構成され，description
+      の語彙からモデルが「呼ぶべきか」を判断する．
+
+  - def: description マッチ
+    description: |
+      skill 名を明示せずとも，ユーザーの要件文と skill の `description`
+      フィールドが意味的に一致することで skill が想起されること．
+      日本語と英語が混在していても意味的マッチがあれば発火する．
+
+  - def: 明示パターン
+    description: |
+      タスク本文に skill 名そのもの (例: `simplify`) を埋め込む書き方．
+      曖昧性が無く，最も確実に skill 発火を引き起こせる．
+
+  - def: Plan 段階 / Code 段階
+    description: |
+      `/my-todo-run` の処理フロー．Plan 段階では方針を記述するだけで
+      skill は呼ばれない．skill 発火は Code 段階で「自然な実装手段の選択」
+      として行われる．
+```
+
+:::
