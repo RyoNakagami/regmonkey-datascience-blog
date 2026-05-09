@@ -124,6 +124,18 @@ class RegexConfig(BaseModel):
     regex_list: list[RegexField]
 
 
+class VimCommandField(BaseModel):
+    mode: str
+    category: str
+    command: str
+    description: str
+    example: str
+
+
+class VimCommandConfig(BaseModel):
+    vim_commands: list[VimCommandField]
+
+
 _HERE = pathlib.Path(__file__).parent
 
 CONFIG = load_config(_HERE / "dictionary.yml", Config)
@@ -140,3 +152,4 @@ UNIT_OF_MEASUREMENT_CONFIG = load_config(
     _HERE / "unit_of_measurement.yml", UnitOfMeasurementConfig
 )
 REGEX_CONFIG = load_config(_HERE / "regex.yml", RegexConfig)
+VIM_COMMAND_CONFIG = load_config(_HERE / "vim_commands.yml", VimCommandConfig)
