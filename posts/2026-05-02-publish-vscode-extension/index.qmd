@@ -1,0 +1,238 @@
+---
+title: "VS Code 拡張を Marketplace に公開するまでにハマった全部 — 実録メモ"
+author: "Ryo Nakagami"
+date: "2026-05-02"
+date-modified: "2026-05-09"
+categories: [vscode, 環境構築]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+::::: {.callout-note}
+## REMARKS
+
+:::{.lh-12}
+
+自作 VS Code 拡張 [`lightweight-svg-previewer`](https://github.com/RyoNakagami/lightweight-svg-previewer) を Marketplace に公開する過程で踏んだ 4 つのTrap 
+
+- `EACCES`
+- PATの発行忘れ
+- PAT 設定ミスによる `401`
+- publish 失敗後の `ENOENT`
+
+を，エラー全文と直し方付きで記録
+
+:::
+
+:::::
+
+## 公開までの最短コース (理想)
+
+```bash
+# 0. 一度だけ
+#   - https://marketplace.visualstudio.com/manage で publisher 作成
+#   - https://dev.azure.com で組織作成 → PAT 発行
+npx vsce login <publisher-id>
+
+# 1. 毎回
+npm run typecheck
+npm test
+npx vsce package --no-dependencies        # → <name>-<version>.vsix
+npx vsce publish --no-dependencies        # version 据え置きで公開
+# or:
+npx vsce publish patch --no-dependencies  # 0.0.1 → 0.0.2 に自動 bump
+```
+
+## Trap 1: `npm install -g @vscode/vsce` で `EACCES`
+
+最初に「`vsce` コマンド入れとくか」とノリで `-g` した結果がこれ．
+
+```bash
+npm error code EACCES
+npm error syscall mkdir
+npm error path /usr/local/lib/node_modules/@vscode
+npm error errno -13
+npm error Error: EACCES: permission denied, mkdir '/usr/local/lib/node_modules/@vscode'
+```
+
+`/usr/local` への書き込みは root 権限が要る．`sudo npm i -g …` は権限まわりが歪むので非推奨．
+
+[直し方]{.mini-section}
+
+そもそも [**`-g` する必要が無い**]{.regmonkey-bold}．`@vscode/vsce` を `devDependencies` に入れて `npx vsce …` を使えば十分．
+
+```jsonc
+// package.json
+"devDependencies": {
+  "@vscode/vsce": "^2.24.0"
+}
+```
+
+```bash
+# 以後はこれだけ
+npx vsce login <publisher-id>
+npx vsce publish --no-dependencies
+```
+
+## Trap 2: PATの発行忘れ
+
+[直し方]{.mini-section}
+
+1. dev.azure.com にサインイン → 案内に従って組織を作成 (中身使わないので何でも可)
+2. 「Create a project to get started」が出ても [プロジェクトは作らずスルー]{.regmonkey-bold}
+3. URL に直接アクセスして PAT 画面へ:
+
+```text
+https://dev.azure.com/<your-id>/_usersSettings/tokens
+```
+
+その後，右上アバター → **Personal access tokens**．
+
+## Trap 3: PAT を発行したのに `vsce publish` が `401`
+
+```text
+INFO  Publishing 'RyoNak.lightweight-svg-previewer v0.0.2'...
+ERROR  Failed request: (401)
+```
+
+PAT 自体は発行できているはずなのに 401．原因はだいたい次のどれか:
+
+:::: {.no-border-top-table}
+
+| 症状 | 原因 |
+| ---- | ---- |
+| Organization に **特定の組織** を選んだ | Marketplace API は組織横断で叩くので [All accessible organizations]{.regmonkey-bold} 必須 |
+| Scope に **Marketplace > Acquire** だけチェック | publish には [Marketplace > Manage]{.regmonkey-bold} が必要 |
+| publisher 作成時と別の MS アカウントで PAT 発行 | publisher owner と PAT 発行者が一致しないと 401 |
+| `package.json#publisher` の [大文字小文字が違う]{.regmonkey-bold} | publisher ID は case-sensitive．`RyoNak` と `ryonak` は別物 |
+
+: {tbl-colwidths="[40,60]"}
+
+::::
+
+[切り分け用 curl]{.mini-section}
+
+```bash
+PAT='ここに貼る'
+curl -s -u "anything:$PAT" \
+  "https://marketplace.visualstudio.com/_apis/gallery/publishers/<publisher-id>" \
+  -o /dev/null -w "HTTP %{http_code}\n"
+```
+
+- `200` → PAT は OK．`vsce login` をやり直す
+- `401` → PAT のスコープ/組織が違う．再発行
+- `404` → publisher ID 不一致 or owner 違い
+
+[PAT 発行の正しい設定 (再掲)]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| 項目 | 値 |
+| ---- | ---- |
+| Organization | [All accessible organizations]{.regmonkey-bold} ← 必須 |
+| Expiration | 90 days など任意 |
+| Scopes | Custom defined → [Marketplace]{.regmonkey-bold} → [Manage]{.regmonkey-bold} |
+
+: {tbl-colwidths="[30,70]"}
+
+::::
+
+[Marketplace 上の publisher URL は lowercase]{.mini-section}
+
+`https://marketplace.visualstudio.com/manage/publishers/ryonak` のように URL は小文字に正規化されるが，[publisher ID 本体は大文字小文字を保持]{.regmonkey-bold}している．Manage ページで実際に表示される ID を `package.json#publisher` と完全一致させること．
+
+## Trap 4: `vsce publish` 失敗後，再実行で `ENOENT`
+
+```bash
+npx vsce publish --packagePath lightweight-svg-previewer-0.0.2.vsix --no-dependencies
+```
+
+```text
+ERROR  ENOENT: no such file or directory, open 'lightweight-svg-previewer-0.0.2.vsix'
+```
+
+[**初回の `vsce publish` が失敗していても，`package.json#version` は bump されている**]{.regmonkey-bold}．手元の `.vsix` は v0.0.1 のままなのに publish しようとしているのは v0.0.2 — ファイル名が一致せず ENOENT．
+
+[直し方]{.mini-section}
+
+現バージョンで `.vsix` を作り直す．
+
+```bash
+rm -f *.vsix
+npx vsce package --no-dependencies
+# → lightweight-svg-previewer-0.0.2.vsix が出る
+
+npx vsce publish --packagePath lightweight-svg-previewer-0.0.2.vsix --no-dependencies
+```
+
+`.vsix` のファイル名は [**`<name>-<version>.vsix`**]{.regmonkey-bold} に固定なので，version さえ合っていれば自動的に正しい名前で出力される．
+
+> `vsce publish` (引数なし) は publish のみ．`vsce publish patch` 等は publish 直前にバージョンを bump + commit + tag する．失敗時の挙動の違いをわかってないと混乱しやすい．
+
+
+## チェックリスト (自分用)
+
+公開前に潰しておくと 401 / ENOENT 系で詰まらない:
+
+- [ ] `package.json#publisher` が Marketplace の表示 ID と完全一致 (大文字小文字)
+- [ ] `package.json#repository.url` / `homepage` / `bugs` が実在する GitHub URL
+- [ ] `LICENSE` ファイルがリポジトリルートに存在
+- [ ] `images/icon.png` が 128×128
+- [ ] `npm test && npm run typecheck` がクリーン
+- [ ] `npx vsce package --no-dependencies` の出力 (warning 0)
+- [ ] `npx vsce ls` の同梱物に `node_modules` / テスト / `.github` 等が混入していない
+- [ ] `curl -u "anything:$PAT" .../publishers/<id>` が `200` を返す
+- [ ] 直前の `package.json#version` と手元の `.vsix` のバージョンが一致
+
+公開ワンライナー:
+
+```bash
+npm run typecheck && npm test && npx vsce package --no-dependencies && npx vsce publish --no-dependencies
+```
+
+これで通れば本当に公開完了．詰まったら curl で PAT を，`ls *.vsix` で版を確認．
+
+## Appendix: 用語解説
+
+:::{.glossary-container}
+
+```yaml
+glossary:
+  - def: vsce
+    description: |
+      `@vscode/vsce` (Visual Studio Code Extension manager) — VS Code 拡張を
+      package / publish / unpublish する公式 CLI．`-g` インストールを避けて
+      `devDependencies` に入れ `npx vsce …` で呼ぶのが運用上揉めにくい．
+
+  - def: Marketplace publisher
+    description: |
+      `https://marketplace.visualstudio.com/manage` で作成する出版者
+      アカウント．拡張の `package.json#publisher` フィールドと
+      大文字小文字込みで完全一致している必要がある．
+
+  - def: Azure DevOps PAT
+    description: |
+      Personal Access Token．`https://dev.azure.com/<org>/_usersSettings/tokens`
+      で発行する．Marketplace に publish するには Organization を
+      "All accessible organizations"，Scopes を "Marketplace > Manage"
+      に設定する必要がある．
+
+  - def: .vsix
+    description: |
+      VS Code 拡張のパッケージ形式．`vsce package` で
+      `<name>-<version>.vsix` というファイル名で出力される．
+      publish 失敗で version だけ bump された状態だと，手元の旧
+      `.vsix` ファイル名と一致せず `ENOENT` を引き起こす．
+
+  - def: --no-dependencies
+    description: |
+      `vsce package` / `vsce publish` のフラグ．依存解決を vsce 側で
+      実行せず，現状の `node_modules` を信頼してパッケージング・公開
+      する．モノレポや bundler 利用時の余計な再解決を避けるのに有用．
+```
+
+:::
