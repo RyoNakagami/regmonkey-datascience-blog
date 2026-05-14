@@ -1,0 +1,303 @@
+---
+title: "Ubuntu 24.04 カーネル更新後の起動不能トラブル復旧"
+author: "Ryo Nakagami"
+date: "2026-05-10"
+date-modified: "2026-05-11"
+categories: [Linux, 環境構築]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## 🎯 ゴール
+
+- カーネル更新後に Ubuntu 24.04 が起動しなくなった場合の切り分けと復旧手順を整理
+- `grub>` プロンプトに落ちた状態からの手動復旧と，再発予防のための対策を整理
+
+[対象環境]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| 項目       | 内容                                         |
+| ---------- | -------------------------------------------- |
+| マシン     | HP Desktop PC                                  |
+| OS         | Ubuntu 24.04 LTS                             |
+| ストレージ | NVMe SSD (`/dev/nvme0n1`)                    |
+| 無線チップ | Realtek                                      |
+
+::::
+
+## 問題事象
+
+
+::: {.callout-note}
+
+### 症状
+
+- Wi-Fi が認識しなくなる
+- 有線キーボードを挿しても入力できない（通電はしている）
+- マウスは動作する
+- BIOS 画面ではキーボードが効く
+
+
+:::
+
+
+[根本原因]{.mini-section}
+
+- 直近のカーネル更新により，入力ドライバと Realtek 無線ドライバのロードが失敗していた
+
+
+## 復旧手順
+
+
+### 1. 診断フェーズ(原因の切り分け)
+
+[1.1 ハードウェア生存確認]{.mini-section}
+
+電源 ON 直後，`F10` で BIOS Setup に入る
+
+- **BIOS でキーボードが効く** → ハードは生きている．OS 側の問題
+- **BIOS でも効かない** → ハード故障．修理案件
+
+
+::: {.callout-note}
+### 意思決定
+
+- BIOSではキーボードは動作していたので，ハードの故障はなくkernel moduleまわりのトラブルであると推察
+- 最新ではなく，１つ古いversionのkernelを用いて起動を試みると判断
+
+:::
+
+
+### 2. GRUB プロンプトから手動起動
+
+再起動し，`ESC`を連打して `grub` プロンプトモードへ移動
+
+
+::: {.callout-tip}
+
+- `grub>` プロンプトが出ている前提
+- [TAB キーで補完が効く]{.regmonkey-bold}ので積極的に活用．
+
+:::
+
+[2.1 パーティション確認]{.mini-section}
+
+```
+ls
+```
+
+→ `(hd0)` `(hd0,gpt1)` `(hd0,gpt2)` ... が表示されます．
+
+[2.2 Ubuntu のルートパーティションを特定]{.mini-section}
+
+```
+ls (hd0,gpt2)/
+```
+
+- `boot` `etc` `home` `usr` などが見えればそこがルート
+- 見えなければ `gpt3`，`gpt4` ... と順に試す
+
+
+[2.3 カーネルと initrd のファイル名を確認]{.mini-section}
+
+```
+ls (hd0,gpt2)/boot/
+```
+
+`vmlinuz-6.8.0-XX-generic` と `initrd.img-6.8.0-XX-generic` のバージョン番号を控えます．
+
+[2.4 手動起動]{.mini-section}
+
+```
+set root=(hd0,gpt2)
+linux /boot/vmlinuz-6.8.0-XX-generic root=/dev/nvme0n1p2
+initrd /boot/initrd.img-6.8.0-XX-generic
+boot
+```
+
+
+::: {.callout-note}
+
+- `root=/dev/nvme0n1p2` は NVMe SSD の場合(SATA なら `/dev/sda2`)
+- パーティション番号(末尾の `p2` または `2`)は GRUB の `gpt2` と一致させる
+- カーネルバージョンが複数ある場合，[古いほうから試す]{.regmonkey-bold}(新しいのが壊れている可能性が高いため)
+
+:::
+
+
+### 3. 対策フェーズ
+
+[3.1 GRUB のデフォルトを動作するカーネルに固定]{.mini-section}
+
+現在動いているカーネルバージョンを確認します．
+
+```bash
+uname -r
+```
+
+`/etc/default/grub` を編集:
+
+```bash
+sudo nano /etc/default/grub
+```
+
+以下のように変更:
+
+```
+GRUB_DEFAULT="Advanced options for Ubuntu>Ubuntu, with Linux 6.8.0-XX-generic"
+```
+
+`XX` は `uname -r` の値に合わせます．設定を反映:
+
+```bash
+sudo update-grub
+```
+
+[3.2 GRUB の修復(必要なら)]{.mini-section}
+
+UEFI / BIOS を確認:
+
+```bash
+[ -d /sys/firmware/efi ] && echo "UEFI" || echo "BIOS"
+```
+
+:::: {.no-border-top-table}
+
+| ファームウェア | 対応コマンド                              |
+| -------------- | ----------------------------------------- |
+| UEFI           | `sudo update-grub` のみで十分             |
+| BIOS           | 追加で `sudo grub-install /dev/nvme0n1`   |
+
+::::
+
+::: {.callout-warning}
+パーティション(`nvme0n1p2`)ではなく [ディスク全体]{.regmonkey-bold}(`nvme0n1`)を指定すること．
+:::
+
+[3.3 カーネル自動更新の一時停止(任意)]{.mini-section}
+
+修正版カーネルがリリースされるまで自動更新で再発させたくない場合:
+
+```bash
+sudo apt-mark hold linux-image-generic linux-headers-generic
+```
+
+数週間〜数か月後，解除:
+
+```bash
+sudo apt-mark unhold linux-image-generic linux-headers-generic
+```
+
+[3.4 壊れたカーネルの削除(慎重に)]{.mini-section}
+
+インストール済みカーネル一覧:
+
+```bash
+dpkg --list | grep linux-image
+```
+
+問題のあるカーネルを削除:
+
+```bash
+sudo apt remove linux-image-壊れたバージョン-generic
+sudo update-grub
+```
+
+::: {.callout-warning}
+
+- [現在動いているカーネル(`uname -r` で表示されるもの)は絶対に削除しない]{.regmonkey-bold}．
+
+:::
+
+## Appendix: 用語解説
+
+:::{.glossary-container}
+
+```yaml
+glossary:
+  - def: NVMe (Non-Volatile Memory Express)
+    description: |
+      PCIe バス経由で直接接続する高速 SSD 用の通信プロトコル．
+      Linux 上では `/dev/nvme0n1` のように見え，`nvme0` は 1 台目のコントローラ，
+      `n1` はその上の 1 個目の名前空間 (≒ ディスク本体) を表す．
+      パーティションは `/dev/nvme0n1p1`，`/dev/nvme0n1p2` のように
+      `p<番号>` が付与される．
+
+  - def: SATA / sda
+    description: |
+      SATA は HDD・SSD を接続する従来からの規格．
+      SATA 接続のディスクは Linux 上で `/dev/sda`，`/dev/sdb` ... と
+      アルファベット順に認識され，パーティションは `/dev/sda1`，`/dev/sda2`
+      のように番号のみが付く．NVMe の `nvme0n1p2` に相当するのが SATA の `sda2`．
+
+  - def: GRUB (GRand Unified Bootloader)
+    description: |
+      Linux で広く使われるブートローダ．BIOS/UEFI から呼び出され，
+      カーネルと initramfs をメモリへロードして OS を起動する．
+      設定ファイルは `/etc/default/grub` と `/boot/grub/grub.cfg`．
+      `grub>` プロンプトに落ちるのは `grub.cfg` を読めなかった場合．
+
+  - def: grub> プロンプト
+    description: |
+      GRUB が設定ファイルを発見できなかったときに表示される最小シェル．
+      `ls`，`set root=`，`linux`，`initrd`，`boot` の 5 コマンドだけで
+      手動起動が可能．TAB 補完が効くため，パーティションやファイル名を
+      総当たりせずに済む．
+
+  - def: (initramfs) シェル
+    description: |
+      ルートファイルシステムをマウントできなかったときに落ちる
+      BusyBox ベースの緊急シェル．カーネル自体は起動しているが，
+      その先の OS 環境はまだ立ち上がっていない状態．
+
+  - def: initramfs / initrd
+    description: |
+      カーネル起動直後に展開される一時的なルートファイルシステム．
+      実ディスク上のルートをマウントするのに必要なドライバ (ストレージ，
+      ファイルシステム，暗号化など) を含む．ファイル名は通常
+      `/boot/initrd.img-<カーネルバージョン>`．
+
+  - def: vmlinuz
+    description: |
+      圧縮済みの Linux カーネル本体．`/boot/vmlinuz-<バージョン>-generic`
+      の形で配置される．GRUB の `linux` コマンドで指定する対象．
+
+  - def: UEFI / BIOS
+    description: |
+      PC の電源投入直後に動くファームウェア．UEFI は後継規格で
+      GPT パーティション・大容量ディスク・セキュアブートに対応．
+      Linux からは `/sys/firmware/efi` の有無で判別可能．
+      UEFI なら `update-grub` のみ，旧 BIOS (Legacy) なら
+      追加で `grub-install /dev/<ディスク全体>` が必要になる．
+
+  - def: GPT (GUID Partition Table)
+    description: |
+      UEFI 時代の標準パーティションテーブル形式．GRUB プロンプトでは
+      `(hd0,gpt1)`，`(hd0,gpt2)` のように表示される．`hd0` は 1 台目の
+      ディスク (NVMe/SATA を問わず) を指し，`gpt<N>` がパーティション番号．
+
+  - def: カーネル (kernel)
+    description: |
+      OS の中核となるプログラム．ハードウェア制御・プロセス管理・
+      メモリ管理などを担う．Ubuntu では `linux-image-<バージョン>-generic`
+      パッケージとして配布され，`uname -r` で現在動作中のバージョンを確認できる．
+
+  - def: カーネルモジュール
+    description: |
+      カーネルに後付けで組み込めるドライバなどの拡張機能．
+      Wi-Fi (Realtek)・キーボード入力 (evdev) などもモジュールとして
+      ロードされており，これらが失敗すると OS は起動しても
+      周辺機器が使えない状態になる．
+
+  - def: apt-mark hold
+    description: |
+      指定パッケージを `apt upgrade` 等で更新させないようにする仕組み．
+      壊れたカーネル更新の再発防止に使う．解除は `apt-mark unhold`．
+```
+
+:::

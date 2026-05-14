@@ -1,0 +1,159 @@
+---
+title: "uv tool install で SSH 経由の private GitHub リポジトリからインストールします"
+author: "Ryo Nakagami"
+date: "2026-04-25"
+date-modified: "2026-05-14"
+categories: [uv]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+::: {.callout-note}
+## REMARKS
+
+- `uv tool install` は HTTPS だけでなく [SSH 経由でも Git リポジトリから CLI ツールを直接インストール]{.regmonkey-bold}可能
+- モノレポのように1リポジトリに複数パッケージが入っている場合は [`#subdirectory=` で対象ディレクトリを指定]{.regmonkey-bold}
+- private リポジトリへのアクセスには SSH 鍵の設定が前提
+
+:::
+
+## 前提条件
+
+`uv tool install git+ssh://...` を使うには，以下の3点が揃っている必要がある．
+
+**1. SSH 鍵が存在**
+
+```bash
+ls ~/.ssh/id_ed25519
+```
+
+なければ以下のように生成．
+
+```bash
+ssh-keygen -t ed25519 -C "your_email@example.com"
+```
+
+**2. GitHub に公開鍵を登録済み**
+
+`~/.ssh/id_ed25519.pub` の内容を GitHub → Settings → SSH and GPG keys に追加．
+
+**3. SSH 接続を確認済み**
+
+```bash
+ssh -T git@github.com
+```
+
+成功すれば以下のように返る．
+
+```text
+Hi username! You've successfully authenticated, but GitHub does not provide shell access.
+```
+
+## uv tool installの使い方
+
+```bash
+uv tool install git+ssh://git@github.com/RyoNakagami/yamlcli.git
+```
+
+ブランチ・タグ・コミットハッシュを指定するには `@` を使う．
+
+```bash
+uv tool install "git+ssh://git@github.com/RyoNakagami/yamlcli.git@develop"
+uv tool install "git+ssh://git@github.com/RyoNakagami/yamlcli.git@v1.2.0"
+```
+
+### サブディレクトリを指定してインストールします
+
+1つのリポジトリに複数の Python パッケージが入っているモノレポ構成では，
+`#subdirectory=` フラグメントでインストール対象のディレクトリを指定します．
+
+```bash
+uv tool install git+https://github.com/RyoNakagami/skilltool-infra.git#subdirectory=client
+```
+
+URL の構造を分解すると次のとおり．
+
+| 部分 | 意味 |
+| ---- | ---- |
+| `git+https://` | Git リポジトリを HTTPS で取得するスキーム |
+| `github.com/RyoNakagami/skilltool-infra.git` | リポジトリの場所 |
+| `#subdirectory=client` | `pyproject.toml` が置かれているサブディレクトリ |
+
+ブランチ指定と組み合わせる場合は `@` を URL とフラグメントの間に置く．
+
+```bash
+uv tool install \
+  "git+https://github.com/RyoNakagami/skilltool-infra.git@develop#subdirectory=client"
+```
+
+SSH 経由でも同じフラグメント構文が使える．
+
+```bash
+uv tool install \
+  "git+ssh://git@github.com/RyoNakagami/skilltool-infra.git@develop#subdirectory=client"
+```
+
+## 複数 SSH 鍵を使い分ける場合
+
+会社アカウントと個人アカウントなど，GitHub に複数のアカウントで SSH 接続します場合は
+`~/.ssh/config` でホスト別名を作って鍵を使い分ける．
+
+```text
+# ~/.ssh/config
+
+Host github-work
+  HostName github.com
+  User git
+  IdentityFile ~/.ssh/id_ed25519_work
+```
+
+この設定は「`github-work` という別名で接続したら，`github.com` に `git` ユーザーで
+`id_ed25519_work` を使って接続します」という意味になる．
+
+別名を使ったインストールコマンドは次のとおり．
+
+```bash
+uv tool install \
+  "git+ssh://git@github-work/RyoNakagami/yamlcli.git@develop"
+```
+
+`git@github.com` の `github.com` 部分を `~/.ssh/config` のホスト別名 `github-work` に
+置き換えるだけでよい．
+
+
+## Appendix: 用語解説
+
+:::{.glossary-container}
+
+```yaml
+glossary:
+  - def: SSH鍵
+    description: |
+      公開鍵暗号を使った認証情報のペア．秘密鍵 (~/.ssh/id_ed25519) をローカルに保持し，
+      公開鍵 (~/.ssh/id_ed25519.pub) をサーバ (GitHub 等) に登録することで
+      パスワードなしで認証できる．
+
+  - def: ~/.ssh/config
+    description: |
+      SSH クライアントの接続設定ファイル．Host 別名ごとに HostName・User・IdentityFile
+      などを定義でき，複数アカウントや鍵の使い分けを管理できる．
+
+  - def: uv tool install
+    description: |
+      Python 製 CLI ツールを独立した仮想環境にインストールしますコマンド．
+      PyPI パッケージのほか，git+https:// や git+ssh:// スキームで
+      Git リポジトリから直接インストールしますこともできる．
+
+  - def: #subdirectory=フラグメント
+    description: |
+      Git URL に付加するフラグメント指定子．モノレポなど1リポジトリに複数パッケージが
+      存在する場合に，pyproject.toml があるサブディレクトリを明示．
+      pip / uv の PEP 440 拡張 URL 構文で定義されており，@ によるリビジョン指定と
+      組み合わせて使える (例: repo.git@branch#subdirectory=pkg)．
+```
+
+:::
