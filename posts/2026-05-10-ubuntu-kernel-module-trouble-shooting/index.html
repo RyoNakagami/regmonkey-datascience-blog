@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="ja_JP.UTF-8" xml:lang="ja_JP.UTF-8"><head>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="ja" xml:lang="ja"><head>
 
 <meta charset="utf-8">
 <meta name="generator" content="quarto-1.9.37">
@@ -8,6 +8,7 @@
 
 <meta name="author" content="Ryo Nakagami">
 <meta name="dcterms.date" content="2026-05-10">
+<meta name="description" content="Ubuntu 24.04 でカーネル更新後に Wi-Fi・キーボードが認識しなくなった場合の切り分けと復旧手順">
 
 <title>Ubuntu 24.04 カーネル更新後の起動不能トラブル復旧 – regmonkey datascience blog</title>
 <style>
@@ -82,9 +83,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../../site_libs/quarto-html/quarto-syntax-highlighting-acf12a64177840b8d86f2d4f01b2e9fb.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
 <script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../../site_libs/bootstrap/bootstrap-e5090a397fff1bbd4bfea97905d1e7f6.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="../../site_libs/bootstrap/bootstrap-dark-32f79eb2492c68f518d9b1d46c70ff08.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="../../site_libs/bootstrap/bootstrap-e5090a397fff1bbd4bfea97905d1e7f6.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-6b379e40f999677f4d084c68405f27e9.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark-4c2745e923509853e4a39cc5a6c097a7.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../site_libs/bootstrap/bootstrap-6b379e40f999677f4d084c68405f27e9.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script src="../../site_libs/quarto-contrib/pseudocode-2.4.1/pseudocode.min.js"></script>
 <link href="../../site_libs/quarto-contrib/pseudocode-2.4.1/pseudocode.min.css" rel="stylesheet">
 <script id="quarto-search-options" type="application/json">{
@@ -101,17 +102,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   ],
   "show-item-context": false,
   "language": {
-    "search-no-results-text": "No results",
-    "search-matching-documents-text": "matching documents",
-    "search-copy-link-title": "Copy link to search",
-    "search-hide-matches-text": "Hide additional matches",
-    "search-more-match-text": "more match in this document",
-    "search-more-matches-text": "more matches in this document",
-    "search-clear-button-title": "Clear",
+    "search-no-results-text": "一致なし",
+    "search-matching-documents-text": "一致した文書",
+    "search-copy-link-title": "検索へのリンクをコピー",
+    "search-hide-matches-text": "追加の検索結果を非表示",
+    "search-more-match-text": "追加の検索結果",
+    "search-more-matches-text": "追加の検索結果",
+    "search-clear-button-title": "消去",
     "search-text-placeholder": "",
-    "search-detached-cancel-button-title": "Cancel",
-    "search-submit-button-title": "Submit",
-    "search-label": "Search"
+    "search-detached-cancel-button-title": "取消",
+    "search-submit-button-title": "検索",
+    "search-label": "サーチ"
   }
 }</script>
 <script async="" src="https://www.googletagmanager.com/gtag/js?id=G-EX9H7GRLTH"></script>
@@ -162,12 +163,13 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 </script>
 <script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml-full.js" integrity="sha256-kbAFUDxdHwlYv01zraGjvjNZayxKtdoiJ38bDTFJtaQ=" crossorigin="anonymous">
 </script>
-<script type="text/javascript" src="../../js/regmonkey_glossary_generator.js"></script>
+<link rel="stylesheet" href="../../js/regmonkey_glossary_generator/regmonkey_glossary_generator.css">
+<script type="text/javascript" src="../../js/regmonkey_glossary_generator/regmonkey_glossary_generator.js"></script>
 
 
 <link rel="stylesheet" href="../../styles.css">
 <meta property="og:title" content="Ubuntu 24.04 カーネル更新後の起動不能トラブル復旧 – regmonkey datascience blog">
-<meta property="og:description" content="日々の徒然勉強日記">
+<meta property="og:description" content="Ubuntu 24.04 でカーネル更新後に Wi-Fi・キーボードが認識しなくなった場合の切り分けと復旧手順">
 <meta property="og:site_name" content="regmonkey datascience blog">
 </head>
 
@@ -344,8 +346,8 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
     <span class="navbar-title">Home</span>
     </a>
   </div>
-            <div id="quarto-search" class="" title="Search"></div>
-          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+            <div id="quarto-search" class="" title="サーチ"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="ナビゲーションを切り替える" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
   <span class="navbar-toggler-icon"></span>
 </button>
           <div class="collapse navbar-collapse" id="navbarCollapse">
@@ -406,7 +408,7 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 </ul>
           </div> <!-- /navcollapse -->
             <div class="quarto-navbar-tools">
-  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="ダークモードの切り替え"><i class="bi"></i></a>
 </div>
       </div> <!-- /container-fluid -->
     </nav>
@@ -416,7 +418,12 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
   <div class="quarto-title-banner page-columns page-full">
     <div class="quarto-title column-body">
       <h1 class="title">Ubuntu 24.04 カーネル更新後の起動不能トラブル復旧</h1>
-                                <div class="quarto-categories">
+                  <div>
+        <div class="description">
+          Ubuntu 24.04 でカーネル更新後に Wi-Fi・キーボードが認識しなくなった場合の切り分けと復旧手順
+        </div>
+      </div>
+                          <div class="quarto-categories">
                 <div class="quarto-category">Linux</div>
                 <div class="quarto-category">環境構築</div>
               </div>
@@ -427,21 +434,21 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
   <div class="quarto-title-meta">
 
       <div>
-      <div class="quarto-title-meta-heading">Author</div>
+      <div class="quarto-title-meta-heading">作者</div>
       <div class="quarto-title-meta-contents">
                <p>Ryo Nakagami </p>
             </div>
     </div>
       
       <div>
-      <div class="quarto-title-meta-heading">Published</div>
+      <div class="quarto-title-meta-heading">公開</div>
       <div class="quarto-title-meta-contents">
         <p class="date">2026-05-10</p>
       </div>
     </div>
     
       <div>
-      <div class="quarto-title-meta-heading">Modified</div>
+      <div class="quarto-title-meta-heading">更新日</div>
       <div class="quarto-title-meta-contents">
         <p class="date-modified">2026-05-11</p>
       </div>
@@ -455,7 +462,7 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 <!-- margin-sidebar -->
     <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
         <nav id="TOC" role="doc-toc" class="toc-active">
-    <h2 id="toc-title">On this page</h2>
+    <h2 id="toc-title">目次</h2>
    
   <ul>
   <li><a href="#ゴール" id="toc-ゴール" class="nav-link active" data-scroll-target="#ゴール">🎯 ゴール</a></li>
@@ -468,7 +475,7 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
   </ul></li>
   <li><a href="#appendix-用語解説" id="toc-appendix-用語解説" class="nav-link" data-scroll-target="#appendix-用語解説">Appendix: 用語解説</a></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>問題を報告</a></li></ul></div></nav>
     </div>
 <!-- main -->
 <main class="content quarto-banner-title-block" id="quarto-document-content">
@@ -522,7 +529,7 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>症状
+<span class="screen-reader-only">ノート</span>症状
 </div>
 </div>
 <div class="callout-body-container callout-body">
@@ -555,7 +562,7 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>意思決定
+<span class="screen-reader-only">ノート</span>意思決定
 </div>
 </div>
 <div class="callout-body-container callout-body">
@@ -575,7 +582,7 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-Tip
+ヒント
 </div>
 </div>
 <div class="callout-body-container callout-body">
@@ -608,7 +615,7 @@ boot</code></pre>
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-Note
+ノート
 </div>
 </div>
 <div class="callout-body-container callout-body">
@@ -624,16 +631,16 @@ Note
 <h3 class="anchored" data-anchor-id="対策フェーズ">3. 対策フェーズ</h3>
 <p><span class="mini-section">3.1 GRUB のデフォルトを動作するカーネルに固定</span></p>
 <p>現在動いているカーネルバージョンを確認します．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">uname</span> <span class="at">-r</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">uname</span> <span class="at">-r</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
 <p><code>/etc/default/grub</code> を編集:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> nano /etc/default/grub</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> nano /etc/default/grub</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
 <p>以下のように変更:</p>
 <pre><code>GRUB_DEFAULT="Advanced options for Ubuntu&gt;Ubuntu, with Linux 6.8.0-XX-generic"</code></pre>
 <p><code>XX</code> は <code>uname -r</code> の値に合わせます．設定を反映:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> update-grub</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> update-grub</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
 <p><span class="mini-section">3.2 GRUB の修復(必要なら)</span></p>
 <p>UEFI / BIOS を確認:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="bu">[</span> <span class="ot">-d</span> /sys/firmware/efi <span class="bu">]</span> <span class="kw">&amp;&amp;</span> <span class="bu">echo</span> <span class="st">"UEFI"</span> <span class="kw">||</span> <span class="bu">echo</span> <span class="st">"BIOS"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="bu">[</span> <span class="ot">-d</span> /sys/firmware/efi <span class="bu">]</span> <span class="kw">&amp;&amp;</span> <span class="bu">echo</span> <span class="st">"UEFI"</span> <span class="kw">||</span> <span class="bu">echo</span> <span class="st">"BIOS"</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="no-border-top-table">
 <table class="caption-top table">
 <thead>
@@ -660,7 +667,7 @@ Note
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-Warning
+警告
 </div>
 </div>
 <div class="callout-body-container callout-body">
@@ -669,22 +676,22 @@ Warning
 </div>
 <p><span class="mini-section">3.3 カーネル自動更新の一時停止(任意)</span></p>
 <p>修正版カーネルがリリースされるまで自動更新で再発させたくない場合:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> apt-mark hold linux-image-generic linux-headers-generic</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> apt-mark hold linux-image-generic linux-headers-generic</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
 <p>数週間〜数か月後，解除:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> apt-mark unhold linux-image-generic linux-headers-generic</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> apt-mark unhold linux-image-generic linux-headers-generic</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
 <p><span class="mini-section">3.4 壊れたカーネルの削除(慎重に)</span></p>
 <p>インストール済みカーネル一覧:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="ex">dpkg</span> <span class="at">--list</span> <span class="kw">|</span> <span class="fu">grep</span> linux-image</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="ex">dpkg</span> <span class="at">--list</span> <span class="kw">|</span> <span class="fu">grep</span> linux-image</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
 <p>問題のあるカーネルを削除:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> apt remove linux-image-壊れたバージョン-generic</span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> update-grub</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> update-grub</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="callout callout-style-default callout-warning callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-Warning
+警告
 </div>
 </div>
 <div class="callout-body-container callout-body">
@@ -776,7 +783,7 @@ Warning
 <span id="cb14-76"><a href="#cb14-76" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> apt-mark hold</span></span>
 <span id="cb14-77"><a href="#cb14-77" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
 <span id="cb14-78"><a href="#cb14-78" aria-hidden="true" tabindex="-1"></a>      指定パッケージを `apt upgrade` 等で更新させないようにする仕組み．</span>
-<span id="cb14-79"><a href="#cb14-79" aria-hidden="true" tabindex="-1"></a>      壊れたカーネル更新の再発防止に使う．解除は `apt-mark unhold`．</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb14-79"><a href="#cb14-79" aria-hidden="true" tabindex="-1"></a>      壊れたカーネル更新の再発防止に使う．解除は `apt-mark unhold`．</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 
 
@@ -830,12 +837,12 @@ Warning
       // flash "checked"
       button.classList.add('code-copy-button-checked');
       var currentTitle = button.getAttribute("title");
-      button.setAttribute("title", "Copied!");
+      button.setAttribute("title", "コピーしました");
       let tooltip;
       if (window.bootstrap) {
         button.setAttribute("data-bs-toggle", "tooltip");
         button.setAttribute("data-bs-placement", "left");
-        button.setAttribute("data-bs-title", "Copied!");
+        button.setAttribute("data-bs-title", "コピーしました");
         tooltip = new bootstrap.Tooltip(button, 
           { trigger: "manual", 
             customClass: "code-copy-button-tooltip",
@@ -1224,7 +1231,7 @@ Warning
 </a>
   </li>  
 </ul>
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>問題を報告</a></li></ul></div></div>
     <div class="nav-footer-right">
       &nbsp;
     </div>
