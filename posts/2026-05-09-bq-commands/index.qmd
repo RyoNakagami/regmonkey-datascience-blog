@@ -1,0 +1,139 @@
+---
+title: "bq command Tips"
+author: "Ryo Nakagami"
+date: "2026-05-09"
+date-modified: "2026-05-12"
+categories: [google cloud, BigQuery]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## Datasetの作成
+
+::: {.callout-note}
+### Command
+
+`${PROJECTID}` GCPプロジェクト内に，`${DATASET}` という名前のBigQueryデータセットを、東京リージョンに作成するコマンド
+
+
+```bash
+bq mk --location=asia-northeast1 --dataset --description="hogehoge" ${PROJECTID}:${DATASET}
+```
+
+- `$PROJECTID`: Google Cloud プロジェクトID
+- `$DATASET`: 作成するデータセット名．英数字とアンダースコアのみ使用可，ハイフン不可
+
+:::
+
+[Options]{.mini-section}
+
+:::{.glossary-container}
+
+```yaml
+glossary:
+  - def: bq mk
+    description: |
+      `mk` は `make` の略．BigQuery のリソース（データセット，テーブル，ビューなど）を
+      新規作成するサブコマンド．
+
+  - def: --location=asia-northeast1
+    description: |
+      データセットを配置するリージョンを指定．`asia-northeast1` は東京リージョン．
+      一度設定したらデータセット作成後は変更不可の点に注意．BigQuery はクエリ実行時にデータとジョブが同じリージョンにある必要があるため，
+      ロケーションは慎重に選ぶ．
+
+  - def: --dataset
+    description: |
+      作成するリソースの種類が「データセット」であることを明示．`bq mk` はテーブルやビューも
+      作れるため，何を作るかをフラグで指定する．
+
+  - def: --description="..."
+    description: |
+      データセットの説明文．後から見たときに用途がわかるようメタ情報として付ける．
+
+  - def: ${PROJECTID}:${DATASET}
+    description: |
+      作成するデータセットの完全修飾名．`プロジェクトID:データセットID` の形式．
+```
+
+:::
+
+### Dataset Descriptionの変更
+
+[方法 1: フラグで直接書き換え]{.mini-section}
+
+
+```bash
+bq update --description="新しい説明文をここに" ${PROJECTID}:${DATASET}
+```
+
+[方法 2: JSON 経由で編集]{.mini-section}
+
+長文の説明やラベル等もまとめて編集したい場合は，現在のメタデータを JSON として
+取り出して編集する方法が安全．
+
+```bash
+# 1. 現在の設定をJSONで取得
+bq show --format=prettyjson ${PROJECTID}:${DATASET} > dataset.json
+
+# 2. dataset.json の "description" フィールドを編集
+
+# 3. 更新を反映
+bq update --source dataset.json ${PROJECTID}:${DATASET}
+```
+
+::: {.callout-tip}
+
+- 方法 1 は単純な上書き向け．改行やクオートを含む長文は方法 2 が確実．
+- `bq show` の出力には `lastModifiedTime` などの読み取り専用フィールドも含まれるが，
+  `bq update --source` 側で無視されるためそのまま編集して問題ない．
+
+:::
+
+## テーブルをGCSへエクスポート
+
+::: {.callout-note}
+### Command
+
+BigQuery テーブルを GCS へ Parquet 形式でエクスポートするコマンド
+
+```bash
+bq extract \
+  --destination_format=PARQUET \
+  '${PROJECTID}:${DATASET}.${TABLE}' \
+  'gs://${BUCKET}/${TABLE}/*.parquet'
+```
+
+- `${PROJECTID}:${DATASET}.${TABLE}`: エクスポート元のテーブルの完全修飾名
+- `gs://${BUCKET}/${TABLE}/*.parquet`: 出力先 GCS パス．`*` でシャード分割される
+
+:::
+
+[Options]{.mini-section}
+
+:::{.glossary-container}
+
+```yaml
+glossary:
+  - def: bq extract
+    description: |
+      BigQuery テーブルの内容を GCS へエクスポートするサブコマンド．
+      CSV・JSON・Parquet・Avro などの形式に対応．
+
+  - def: --destination_format=PARQUET
+    description: |
+      出力形式を指定．`PARQUET` のほか `CSV`，`NEWLINE_DELIMITED_JSON`，`AVRO` が使用可能．
+      Parquet はカラム型フォーマットのため，後続の分析処理での読み込みが高速．
+
+  - def: "gs://bucket/path/*.parquet"
+    description: |
+      出力先 GCS URI．`*` を含めるとファイルが複数シャードに分割されて書き出される．
+      テーブルが大きい場合は分割必須（1 ファイルあたり上限 1 GB）．
+      `*` を含めない場合，テーブルサイズが上限を超えるとエラーになる．
+```
+
+:::
