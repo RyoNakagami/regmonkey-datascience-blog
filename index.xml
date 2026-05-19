@@ -10,7 +10,670 @@
 <atom:link href="https://ryonakagami.github.io/regmonkey-datascience-blog/index.xml" rel="self" type="application/rss+xml"/>
 <description>日々の徒然勉強日記</description>
 <generator>quarto-1.9.37</generator>
-<lastBuildDate>Sun, 10 May 2026 00:00:00 GMT</lastBuildDate>
+<lastBuildDate>Mon, 18 May 2026 00:00:00 GMT</lastBuildDate>
+<item>
+  <title>shell scriptをsystemdサービスとして登録・管理する方法</title>
+  <dc:creator>Ryo Nakagami</dc:creator>
+  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-05-18-systemctl-with-shellscript/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+
+<section id="shell-script-setup" class="level2">
+<h2 class="anchored" data-anchor-id="shell-script-setup">0. Shell Script Setup</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#!/bin/bash</span></span>
+<span id="cb1-2"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># /opt/myapp/run.sh</span></span>
+<span id="cb1-3"></span>
+<span id="cb1-4"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">set</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-euo</span> pipefail</span>
+<span id="cb1-5"></span>
+<span id="cb1-6"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">exec</span> python3 /opt/myapp/main.py</span></code></pre></div></div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span><code>exec</code> はプロセスの置き換え
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>shell scriptが子プロセスを起動するとき，bashは生き続けながらforkした子（python3）を管理します．exec を使うと，forkせずにbashプロセス自体がpython3に置き換わります．つまり同じPIDのまま別のプログラムになります</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-05-18-systemctl-with-shellscript/exec_vs_no_exec_process_tree.svg" class="img-fluid figure-img"></p>
+<figcaption>プロセスツリーの違い</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="unit-file-の基本構造" class="level2">
+<h2 class="anchored" data-anchor-id="unit-file-の基本構造">1. Unit file の基本構造</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb2-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">[Unit]</span></span>
+<span id="cb2-2"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">Description</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">My Application</span></span>
+<span id="cb2-3"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">After</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">network.target</span></span>
+<span id="cb2-4"></span>
+<span id="cb2-5"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">[Service]</span></span>
+<span id="cb2-6"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">Type</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">simple</span></span>
+<span id="cb2-7"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">User</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">myapp</span></span>
+<span id="cb2-8"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">Group</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">myapp</span></span>
+<span id="cb2-9"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">WorkingDirectory</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">/opt/myapp</span></span>
+<span id="cb2-10"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">ExecStart</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">/opt/myapp/run.sh</span></span>
+<span id="cb2-11"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">Restart</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">on-failure</span></span>
+<span id="cb2-12"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">RestartSec</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">5s</span></span>
+<span id="cb2-13"></span>
+<span id="cb2-14"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">[Install]</span></span>
+<span id="cb2-15"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">WantedBy</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">multi-user.target</span></span></code></pre></div></div>
+<hr>
+<section id="unit-file-の配置場所" class="level3">
+<h3 class="anchored" data-anchor-id="unit-file-の配置場所">Unit file の配置場所</h3>
+<p>systemd は決まったディレクトリから unit file を読み込む．用途に応じて配置先を使い分ける．</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 30%">
+<col style="width: 30%">
+<col style="width: 40%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>パス</th>
+<th>用途</th>
+<th>優先度</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>/etc/systemd/system/</code></td>
+<td>管理者が手動で配置するサービス．<strong>通常はここに置く</strong></td>
+<td>高（パッケージ提供分を上書き可）</td>
+</tr>
+<tr class="even">
+<td><code>/run/systemd/system/</code></td>
+<td>ランタイム生成された一時的なunit．再起動で消える</td>
+<td>中</td>
+</tr>
+<tr class="odd">
+<td><code>/lib/systemd/system/</code>（<code>/usr/lib/systemd/system/</code>）</td>
+<td>パッケージマネージャ（apt等）が配置するサービス．<strong>手で編集しない</strong></td>
+<td>低</td>
+</tr>
+<tr class="even">
+<td><code>~/.config/systemd/user/</code></td>
+<td>ユーザー単位の <code>systemctl --user</code> 向け</td>
+<td>―</td>
+</tr>
+</tbody>
+</table>
+<p>優先度が高いパスに同名ファイルがあれば上書きされる．自作サービスは <code>/etc/systemd/system/myapp.service</code> に置くのが定石．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 配置例</span></span>
+<span id="cb3-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sudo</span> install <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-m</span> 644 myapp.service /etc/systemd/system/myapp.service</span>
+<span id="cb3-3"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sudo</span> systemctl daemon-reload</span></code></pre></div></div>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ヒント</span>ファイル名 = サービス名
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><code>/etc/systemd/system/myapp.service</code> を配置すれば <code>systemctl start myapp</code> で起動できる．<code>.service</code> 拡張子は省略可能．</p>
+</div>
+</div>
+<hr>
+</section>
+<section id="repository管理時はsymlinkを使う" class="level3">
+<h3 class="anchored" data-anchor-id="repository管理時はsymlinkを使う">repository管理時はsymlinkを使う</h3>
+<p>unit file をGit repositoryで管理する場合，<code>/etc/systemd/system/</code> に<strong>コピー</strong>するのではなく<strong>シンボリックリンク</strong>を張るのが望ましい．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># repository内の実体</span></span>
+<span id="cb4-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">/opt/myapp/deploy/myapp.service</span></span>
+<span id="cb4-3"></span>
+<span id="cb4-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># symlink を作成</span></span>
+<span id="cb4-5"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sudo</span> ln <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-s</span> /opt/myapp/deploy/myapp.service /etc/systemd/system/myapp.service</span>
+<span id="cb4-6"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sudo</span> systemctl daemon-reload</span></code></pre></div></div>
+<p><span class="mini-section">メリット</span></p>
+<ul>
+<li>repository側を編集すれば <code>/etc/systemd/system/</code> に即反映される．<code>cp</code> の再実行や同期忘れが起きない</li>
+<li><code>git pull</code> だけで unit file の更新が完結する</li>
+<li>repositoryが<strong>Single Source of Truth</strong>になり，本番ホスト上で個別に書き換える事故を防げる</li>
+<li><code>systemctl cat myapp</code> でリンク先の実体パスが表示されるので，どのrepositoryのファイルか追跡できる</li>
+</ul>
+<p><span class="mini-section">注意点</span></p>
+<ul>
+<li>リンク元のファイル・親ディレクトリは <code>root</code> から読める権限が必要．<code>/home/&lt;user&gt;/...</code> 配下は他ユーザーから見えないことがあるため <code>/opt/</code> や <code>/srv/</code> 配下を推奨</li>
+<li><code>systemctl enable myapp</code> は <code>[Install]</code> セクションを元に <code>multi-user.target.wants/</code> 配下に<strong>別のsymlink</strong>を作る．自前のsymlinkと混同しないこと</li>
+<li>リンク元を消すと unit が壊れる．<code>systemctl disable --now myapp</code> してから削除する</li>
+</ul>
+<div class="callout callout-style-default callout-warning callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">警告</span><code>daemon-reload</code> を忘れない
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>symlink を張り替えた・実体ファイルを編集した直後は <code>sudo systemctl daemon-reload</code> が必要．これを忘れると古い定義のまま動き続ける．</p>
+</div>
+</div>
+<hr>
+</section>
+<section id="service-フィールド解説" class="level3">
+<h3 class="anchored" data-anchor-id="service-フィールド解説"><code>[Service]</code> フィールド解説</h3>
+<p><span class="mini-section"><code>Type=simple</code></span></p>
+<p>プロセスの起動モデルを指定する．</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 40%">
+<col style="width: 60%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>値</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>simple</code></td>
+<td><code>ExecStart</code> で起動したプロセス自体がメインプロセス．フォアグラウンドで動き続けるデーモンに使う（デフォルト）</td>
+</tr>
+<tr class="even">
+<td><code>forking</code></td>
+<td>起動後に親プロセスがforkして終了し，子プロセスがデーモンとして残る旧来スタイル</td>
+</tr>
+<tr class="odd">
+<td><code>oneshot</code></td>
+<td>一度実行して終了するスクリプト向け．<code>RemainAfterExit=yes</code> と組み合わせることが多い</td>
+</tr>
+<tr class="even">
+<td><code>notify</code></td>
+<td>プロセスが <code>sd_notify()</code> で起動完了を通知する．完了通知まで依存サービスの起動を待てる</td>
+</tr>
+</tbody>
+</table>
+<p>shell script を常駐させる場合は <code>simple</code> が基本．</p>
+<hr>
+<p><span class="mini-section"><code>User=myapp</code> / <code>Group=myapp</code></span></p>
+<p>サービスを実行するOSユーザー・グループを指定する．</p>
+<ul>
+<li>省略すると <code>root</code> で実行される（危険なので必ず指定する）</li>
+<li>専用のシステムユーザーを作成しておくのが定石</li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># システムユーザーの作成例</span></span>
+<span id="cb5-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sudo</span> useradd <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--system</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--no-create-home</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--shell</span> /usr/sbin/nologin myapp</span></code></pre></div></div>
+<p><code>--system</code> はログイン不可のサービス専用ユーザーを作るオプション．</p>
+<hr>
+<p><span class="mini-section"><code>WorkingDirectory=/opt/myapp</code></span></p>
+<p>プロセスのカレントディレクトリを指定する．</p>
+<ul>
+<li>相対パスでファイルを開くスクリプトはここが基点になる</li>
+<li>省略すると <code>/</code> になり，相対パス参照が壊れることがある</li>
+<li><code>~</code> は使えない（<code>User</code> のホームディレクトリに展開されない）</li>
+</ul>
+<hr>
+<p><span class="mini-section"><code>ExecStart=/opt/myapp/run.sh</code></span></p>
+<p>サービス起動時に実行するコマンドを指定する．</p>
+<ul>
+<li><strong>絶対パスが必須</strong>（<code>PATH</code> は限定的なので <code>which</code> で確認すること）</li>
+<li>shell scriptの場合はshebang（<code>#!/bin/bash</code>）が必要</li>
+<li>スクリプトに実行権限が必要（<code>chmod +x run.sh</code>）</li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># よくあるミス：実行権限を忘れる</span></span>
+<span id="cb6-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">chmod</span> +x /opt/myapp/run.sh</span></code></pre></div></div>
+<p><code>exec</code> で子プロセスに置き換えると，PIDがスクリプトではなくアプリ本体になり systemdのシグナル（<code>SIGTERM</code> など）が正しく届く．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#!/bin/bash</span></span>
+<span id="cb7-2"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">exec</span> python3 /opt/myapp/main.py</span></code></pre></div></div>
+<hr>
+<p><span class="mini-section"><code>Restart=on-failure</code></span></p>
+<p>プロセスが終了したときの再起動ポリシーを指定する．</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 19%">
+<col style="width: 80%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>値</th>
+<th>再起動するケース</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>no</code></td>
+<td>再起動しない（デフォルト）</td>
+</tr>
+<tr class="even">
+<td><code>on-success</code></td>
+<td>正常終了（exit 0）時のみ</td>
+</tr>
+<tr class="odd">
+<td><code>on-failure</code></td>
+<td>異常終了・シグナル終了時のみ（<code>systemctl stop</code> は対象外）</td>
+</tr>
+<tr class="even">
+<td><code>on-abnormal</code></td>
+<td>シグナル終了・タイムアウト時のみ</td>
+</tr>
+<tr class="odd">
+<td><code>always</code></td>
+<td><code>systemctl stop</code> 以外のすべての終了で再起動</td>
+</tr>
+</tbody>
+</table>
+<p>本番サービスでは <code>on-failure</code> が標準．<code>always</code> はデバッグ時に便利だが本番には向かない．</p>
+<hr>
+<p><span class="mini-section"><code>RestartSec=5s</code></span></p>
+<p>再起動前の待機時間を指定する．</p>
+<ul>
+<li>デフォルトは <code>100ms</code></li>
+<li>即時再起動ループを防ぐために数秒設けるのが推奨</li>
+<li>時間の単位は <code>s</code>（秒），<code>ms</code>（ミリ秒），<code>min</code>（分）など</li>
+</ul>
+<p>クラッシュループ防止のために <code>StartLimitIntervalSec</code> / <code>StartLimitBurst</code> と組み合わせることもある．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb8-1"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">StartLimitIntervalSec</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">60s</span></span>
+<span id="cb8-2"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">StartLimitBurst</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span></span>
+<span id="cb8-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># → 60秒以内に5回クラッシュしたらそれ以上再起動しない</span></span></code></pre></div></div>
+<hr>
+</section>
+</section>
+<section id="登録管理コマンド" class="level2">
+<h2 class="anchored" data-anchor-id="登録管理コマンド">2. 登録・管理コマンド</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># unit fileを読み込む（編集後は必ず実行）</span></span>
+<span id="cb9-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sudo</span> systemctl daemon-reload</span>
+<span id="cb9-3"></span>
+<span id="cb9-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 自動起動を有効化 + 即時起動</span></span>
+<span id="cb9-5"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sudo</span> systemctl enable <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--now</span> myapp</span>
+<span id="cb9-6"></span>
+<span id="cb9-7"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 停止</span></span>
+<span id="cb9-8"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sudo</span> systemctl stop myapp</span>
+<span id="cb9-9"></span>
+<span id="cb9-10"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 再起動</span></span>
+<span id="cb9-11"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sudo</span> systemctl restart myapp</span>
+<span id="cb9-12"></span>
+<span id="cb9-13"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 状態確認</span></span>
+<span id="cb9-14"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sudo</span> systemctl status myapp</span>
+<span id="cb9-15"></span>
+<span id="cb9-16"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># ログをリアルタイム追跡</span></span>
+<span id="cb9-17"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">journalctl</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-u</span> myapp <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-f</span></span>
+<span id="cb9-18"></span>
+<span id="cb9-19"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 起動時のログのみ表示</span></span>
+<span id="cb9-20"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">journalctl</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-u</span> myapp <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-b</span></span></code></pre></div></div>
+<hr>
+</section>
+<section id="変更時のreload手順" class="level2">
+<h2 class="anchored" data-anchor-id="変更時のreload手順">3. 変更時のreload手順</h2>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>変更内容</th>
+<th>必要な操作</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>.service</code> ファイルを編集</td>
+<td><code>daemon-reload</code> → <code>restart</code></td>
+</tr>
+<tr class="even">
+<td><code>run.sh</code> を編集</td>
+<td><code>restart</code> のみ</td>
+</tr>
+<tr class="odd">
+<td>環境変数ファイル（<code>.env</code>）を編集</td>
+<td><code>restart</code> のみ</td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+<section id="環境変数の渡し方" class="level2">
+<h2 class="anchored" data-anchor-id="環境変数の渡し方">4. 環境変数の渡し方</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb10-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">[Service]</span></span>
+<span id="cb10-2"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 直接書く場合</span></span>
+<span id="cb10-3"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">Environment</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"APP_ENV=production" "PORT=8080"</span></span>
+<span id="cb10-4"></span>
+<span id="cb10-5"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># ファイルから読む場合</span></span>
+<span id="cb10-6"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">EnvironmentFile</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">/opt/myapp/.env</span></span></code></pre></div></div>
+<p><code>.env</code> ファイルは <code>KEY=VALUE</code> 形式で記述する．<code>export</code> は不要で <code>#</code> コメントが使える．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># /opt/myapp/.env</span></span>
+<span id="cb11-2"><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">APP_ENV</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>production</span>
+<span id="cb11-3"><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">PORT</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>8080</span>
+<span id="cb11-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># DATABASE_URL=...</span></span></code></pre></div></div>
+</section>
+<section id="appendix-用語解説" class="level2">
+<h2 class="anchored" data-anchor-id="appendix-用語解説">Appendix: 用語解説</h2>
+<div class="glossary-container">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb12-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">glossary</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span></span>
+<span id="cb12-2"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> systemd</span></span>
+<span id="cb12-3"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb12-4">      Linuxの主要なinitシステム兼サービスマネージャ．PID 1 として起動し，</span>
+<span id="cb12-5">      サービス（unit）の起動順序・依存関係・再起動・ログ収集を一元管理する．</span>
+<span id="cb12-6">      `systemctl` はその制御CLI．</span>
+<span id="cb12-7"></span>
+<span id="cb12-8"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> unit / unit file</span></span>
+<span id="cb12-9"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb12-10">      systemd が管理するリソース定義の単位．`.service`（プロセス），</span>
+<span id="cb12-11">      `.timer`（cron代替），`.socket`（IPC），`.target`（グループ）など</span>
+<span id="cb12-12">      種類がある．本記事の対象は `.service` unit．</span>
+<span id="cb12-13"></span>
+<span id="cb12-14"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> journalctl</span></span>
+<span id="cb12-15"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb12-16">      systemd journal を参照するCLI．`-u myapp` で特定サービスのログ，</span>
+<span id="cb12-17">      `-f` で追跡，`-b` で今回起動分のみ表示．stdout/stderr は自動で</span>
+<span id="cb12-18">      journalに集約される．</span>
+<span id="cb12-19"></span>
+<span id="cb12-20"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> exec（shellビルトイン）</span></span>
+<span id="cb12-21"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb12-22">      bash等のshellで，現在のプロセスを別プログラムに**置き換える**組み込み</span>
+<span id="cb12-23">      コマンド．fork せず同じPIDのまま実行イメージが切り替わる．systemdの</span>
+<span id="cb12-24">      シグナルがアプリ本体に直接届くようにするため，ラッパー shell script の</span>
+<span id="cb12-25">      最後で使うのが一般的．</span></code></pre></div></div>
+</div>
+
+
+</section>
+
+ ]]></description>
+  <category>Linux</category>
+  <category>systemctl</category>
+  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-05-18-systemctl-with-shellscript/</guid>
+  <pubDate>Mon, 18 May 2026 00:00:00 GMT</pubDate>
+</item>
 <item>
   <title>Ubuntu 24.04 カーネル更新後の起動不能トラブル復旧</title>
   <dc:creator>Ryo Nakagami</dc:creator>
@@ -3942,2036 +4605,6 @@ string</code></pre>
   <category>YAML</category>
   <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-04-21-frontmatter/</guid>
   <pubDate>Tue, 21 Apr 2026 00:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>Claude Code Status List</title>
-  <dc:creator>Ryo Nakagami</dc:creator>
-  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-04-01-claude-code-status/</link>
-  <description><![CDATA[ 
-
-
-
-
-
-
-<section id="claude-code-status一覧" class="level2">
-<h2 class="anchored" data-anchor-id="claude-code-status一覧">Claude Code Status一覧</h2>
-<p>全187語（v2.1.105時点）を分類したものを以下にまとめます．</p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 19%">
-<col style="width: 22%">
-<col style="width: 32%">
-<col style="width: 25%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Word</th>
-<th>Phase</th>
-<th>Japanese</th>
-<th>Reason</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>Accomplishing</td>
-<td>実行・生成</td>
-<td>達成・完遂する</td>
-<td>ツール呼び出しや編集を実際に完了させる操作</td>
-</tr>
-<tr class="even">
-<td>Actioning</td>
-<td>実行・生成</td>
-<td>行動に移す</td>
-<td>指示を具体的なツール実行に変換している</td>
-</tr>
-<tr class="odd">
-<td>Actualizing</td>
-<td>実行・生成</td>
-<td>現実のものにする</td>
-<td>計画をコードや出力として具現化する段階</td>
-</tr>
-<tr class="even">
-<td>Architecting</td>
-<td>計画立案</td>
-<td>設計する</td>
-<td>システムやコードの構造を設計している</td>
-</tr>
-<tr class="odd">
-<td>Baking</td>
-<td>実行・生成</td>
-<td>焼き上げる</td>
-<td>コードや回答を最終形に仕上げる生成フェーズ</td>
-</tr>
-<tr class="even">
-<td>Beaming</td>
-<td>その他</td>
-<td>ビームを放つ</td>
-<td>結果を送信するイメージのユーモア表現</td>
-</tr>
-<tr class="odd">
-<td>Beboppin’</td>
-<td>その他</td>
-<td>ビバップする</td>
-<td>ジャズ風のリズミカルなユーモア表現</td>
-</tr>
-<tr class="even">
-<td>Befuddling</td>
-<td>その他</td>
-<td>困惑させる</td>
-<td>複雑な問題に取り組んでいるユーモア表現</td>
-</tr>
-<tr class="odd">
-<td>Billowing</td>
-<td>その他</td>
-<td>うねる</td>
-<td>大量の出力が湧き出すイメージ</td>
-</tr>
-<tr class="even">
-<td>Blanching</td>
-<td>その他</td>
-<td>湯通しする</td>
-<td>料理メタファー・前処理のイメージ</td>
-</tr>
-<tr class="odd">
-<td>Bloviating</td>
-<td>その他</td>
-<td>大げさに話す</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="even">
-<td>Boogieing</td>
-<td>その他</td>
-<td>踊る</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="odd">
-<td>Boondoggling</td>
-<td>その他</td>
-<td>無駄仕事をする</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="even">
-<td>Booping</td>
-<td>その他</td>
-<td>軽くつつく</td>
-<td>軽い補助操作・ユーモア表現</td>
-</tr>
-<tr class="odd">
-<td>Bootstrapping</td>
-<td>実行・生成</td>
-<td>初期化する</td>
-<td>環境や処理の初期セットアップ</td>
-</tr>
-<tr class="even">
-<td>Brewing</td>
-<td>計画立案</td>
-<td>醸造する</td>
-<td>実行前にアイデアや手順を熟成させている</td>
-</tr>
-<tr class="odd">
-<td>Bunning</td>
-<td>その他</td>
-<td>パンを作る</td>
-<td>料理メタファー・ユーモア表現</td>
-</tr>
-<tr class="even">
-<td>Burrowing</td>
-<td>情報収集</td>
-<td>穴を掘る</td>
-<td>コードの深い部分を掘り下げている</td>
-</tr>
-<tr class="odd">
-<td>Calculating</td>
-<td>思考・推論</td>
-<td>計算する</td>
-<td>数値的・論理的な推論を行っている</td>
-</tr>
-<tr class="even">
-<td>Canoodling</td>
-<td>その他</td>
-<td>いちゃつく</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="odd">
-<td>Caramelizing</td>
-<td>その他</td>
-<td>キャラメリゼする</td>
-<td>料理メタファー・仕上げのイメージ</td>
-</tr>
-<tr class="even">
-<td>Cascading</td>
-<td>実行・生成</td>
-<td>連鎖する</td>
-<td>処理が連鎖的に進行している</td>
-</tr>
-<tr class="odd">
-<td>Catapulting</td>
-<td>実行・生成</td>
-<td>射出する</td>
-<td>処理を勢いよく実行している</td>
-</tr>
-<tr class="even">
-<td>Cerebrating</td>
-<td>思考・推論</td>
-<td>脳を働かせる</td>
-<td>複雑な問題について深く考えている</td>
-</tr>
-<tr class="odd">
-<td>Channeling</td>
-<td>情報収集</td>
-<td>チャネルする</td>
-<td>コンテキストや情報を取り込もうとしている</td>
-</tr>
-<tr class="even">
-<td>Channelling</td>
-<td>情報収集</td>
-<td>チャンネルする</td>
-<td>Channelingの英式スペル</td>
-</tr>
-<tr class="odd">
-<td>Choreographing</td>
-<td>計画立案</td>
-<td>振り付けする</td>
-<td>処理の順序を組み立てている</td>
-</tr>
-<tr class="even">
-<td>Churning</td>
-<td>実行・生成</td>
-<td>かき混ぜる</td>
-<td>大量のテキストやコードを処理・生成している</td>
-</tr>
-<tr class="odd">
-<td>Clauding</td>
-<td>その他</td>
-<td>Claudeしている</td>
-<td>自己言及的なユーモア</td>
-</tr>
-<tr class="even">
-<td>Coalescing</td>
-<td>計画立案</td>
-<td>まとめ上げる</td>
-<td>収集した情報を統合してプランを形成している</td>
-</tr>
-<tr class="odd">
-<td>Cogitating</td>
-<td>思考・推論</td>
-<td>熟考する</td>
-<td>問題の本質を深く考えている</td>
-</tr>
-<tr class="even">
-<td>Combobulating</td>
-<td>計画立案</td>
-<td>秩序を作る</td>
-<td>混乱した情報を整理してまとめている</td>
-</tr>
-<tr class="odd">
-<td>Composing</td>
-<td>実行・生成</td>
-<td>構成する</td>
-<td>テキストやコードを組み立てている</td>
-</tr>
-<tr class="even">
-<td>Computing</td>
-<td>思考・推論</td>
-<td>計算する</td>
-<td>推論・演算を実行している</td>
-</tr>
-<tr class="odd">
-<td>Concocting</td>
-<td>計画立案</td>
-<td>調合する</td>
-<td>解決策の材料を組み合わせて計画を作っている</td>
-</tr>
-<tr class="even">
-<td>Considering</td>
-<td>思考・推論</td>
-<td>検討する</td>
-<td>複数の選択肢を吟味している</td>
-</tr>
-<tr class="odd">
-<td>Contemplating</td>
-<td>思考・推論</td>
-<td>瞑想的に熟考する</td>
-<td>問題をあらゆる角度から静かに考えている</td>
-</tr>
-<tr class="even">
-<td>Cooking</td>
-<td>計画立案</td>
-<td>料理する</td>
-<td>実行前に手順やアイデアを仕込んでいる</td>
-</tr>
-<tr class="odd">
-<td>Crafting</td>
-<td>実行・生成</td>
-<td>丁寧に作る</td>
-<td>コードや文章を精緻に生成している</td>
-</tr>
-<tr class="even">
-<td>Creating</td>
-<td>実行・生成</td>
-<td>創造する</td>
-<td>新しいファイル・コード・内容を生成している</td>
-</tr>
-<tr class="odd">
-<td>Crunching</td>
-<td>思考・推論</td>
-<td>データを処理する</td>
-<td>大量の情報を分析・推論している</td>
-</tr>
-<tr class="even">
-<td>Crystallizing</td>
-<td>計画立案</td>
-<td>結晶化する</td>
-<td>曖昧なアイデアを明確な計画に固めている</td>
-</tr>
-<tr class="odd">
-<td>Cultivating</td>
-<td>計画立案</td>
-<td>耕す</td>
-<td>アイデアを育てている</td>
-</tr>
-<tr class="even">
-<td>Deciphering</td>
-<td>情報収集</td>
-<td>解読する</td>
-<td>コードや仕様を読み解いている</td>
-</tr>
-<tr class="odd">
-<td>Deliberating</td>
-<td>思考・推論</td>
-<td>慎重に審議する</td>
-<td>トレードオフを検討している</td>
-</tr>
-<tr class="even">
-<td>Determining</td>
-<td>計画立案</td>
-<td>決定する</td>
-<td>方針・アプローチを定めている</td>
-</tr>
-<tr class="odd">
-<td>Dilly-dallying</td>
-<td>その他</td>
-<td>ぐずぐずする</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="even">
-<td>Discombobulating</td>
-<td>その他</td>
-<td>混乱しながら考える</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="odd">
-<td>Doing</td>
-<td>実行・生成</td>
-<td>実行する</td>
-<td>ツールを呼び出して作業している</td>
-</tr>
-<tr class="even">
-<td>Doodling</td>
-<td>その他</td>
-<td>落書きする</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="odd">
-<td>Drizzling</td>
-<td>その他</td>
-<td>小雨のように降らす</td>
-<td>料理メタファー・ユーモア表現</td>
-</tr>
-<tr class="even">
-<td>Ebbing</td>
-<td>その他</td>
-<td>引いていく</td>
-<td>処理の波が引いていくイメージ</td>
-</tr>
-<tr class="odd">
-<td>Effecting</td>
-<td>実行・生成</td>
-<td>効果的に実行する</td>
-<td>変更や操作を実際に適用している</td>
-</tr>
-<tr class="even">
-<td>Elucidating</td>
-<td>思考・推論</td>
-<td>明確にする</td>
-<td>問題や解答を整理して明快にしている</td>
-</tr>
-<tr class="odd">
-<td>Embellishing</td>
-<td>実行・生成</td>
-<td>装飾する</td>
-<td>出力を仕上げている</td>
-</tr>
-<tr class="even">
-<td>Enchanting</td>
-<td>実行・生成</td>
-<td>魔法をかける</td>
-<td>コードや出力を魔法のように生成するイメージ</td>
-</tr>
-<tr class="odd">
-<td>Envisioning</td>
-<td>計画立案</td>
-<td>ビジョンを描く</td>
-<td>実装前に全体像を構想している</td>
-</tr>
-<tr class="even">
-<td>Evaporating</td>
-<td>その他</td>
-<td>蒸発させる</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="odd">
-<td>Fermenting</td>
-<td>計画立案</td>
-<td>発酵させる</td>
-<td>アイデアを醸成している</td>
-</tr>
-<tr class="even">
-<td>Fiddle-faddling</td>
-<td>その他</td>
-<td>くだらないことをする</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="odd">
-<td>Finagling</td>
-<td>実行・生成</td>
-<td>うまくやり遂げる</td>
-<td>難しい問題を工夫して解決している</td>
-</tr>
-<tr class="even">
-<td>Flambéing</td>
-<td>その他</td>
-<td>フランベする</td>
-<td>料理メタファー・ユーモア表現</td>
-</tr>
-<tr class="odd">
-<td>Flibbertigibbeting</td>
-<td>その他</td>
-<td>おしゃべりに処理</td>
-<td>最長語・ユーモア表現</td>
-</tr>
-<tr class="even">
-<td>Flowing</td>
-<td>実行・生成</td>
-<td>流れるように進む</td>
-<td>処理がスムーズに進行している</td>
-</tr>
-<tr class="odd">
-<td>Flummoxing</td>
-<td>その他</td>
-<td>当惑させる</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="even">
-<td>Fluttering</td>
-<td>その他</td>
-<td>はためく</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="odd">
-<td>Forging</td>
-<td>実行・生成</td>
-<td>鍛造する</td>
-<td>コードや解決策を力強く作り上げている</td>
-</tr>
-<tr class="even">
-<td>Forming</td>
-<td>計画立案</td>
-<td>形作る</td>
-<td>構造・設計を組み立てている</td>
-</tr>
-<tr class="odd">
-<td>Frolicking</td>
-<td>その他</td>
-<td>楽しくはしゃぐ</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="even">
-<td>Frosting</td>
-<td>その他</td>
-<td>フロスティングする</td>
-<td>料理メタファー・仕上げのイメージ</td>
-</tr>
-<tr class="odd">
-<td>Gallivanting</td>
-<td>その他</td>
-<td>遊び回る</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="even">
-<td>Galloping</td>
-<td>その他</td>
-<td>駆ける</td>
-<td>勢いよく処理が進んでいるイメージ</td>
-</tr>
-<tr class="odd">
-<td>Garnishing</td>
-<td>その他</td>
-<td>飾り付ける</td>
-<td>料理メタファー・仕上げのイメージ</td>
-</tr>
-<tr class="even">
-<td>Generating</td>
-<td>実行・生成</td>
-<td>生成する</td>
-<td>テキスト・コード・出力を生成している</td>
-</tr>
-<tr class="odd">
-<td>Gesticulating</td>
-<td>その他</td>
-<td>身振りする</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="even">
-<td>Germinating</td>
-<td>計画立案</td>
-<td>発芽させる</td>
-<td>アイデアの種を育てて計画を作っている</td>
-</tr>
-<tr class="odd">
-<td>Gitifying</td>
-<td>実行・生成</td>
-<td>Git操作する</td>
-<td>Git関連の操作を実行している</td>
-</tr>
-<tr class="even">
-<td>Grooving</td>
-<td>その他</td>
-<td>ノリノリで進む</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="odd">
-<td>Gusting</td>
-<td>その他</td>
-<td>突風が吹く</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="even">
-<td>Harmonizing</td>
-<td>計画立案</td>
-<td>調和させる</td>
-<td>複数の要素を整合させている</td>
-</tr>
-<tr class="odd">
-<td>Hashing</td>
-<td>思考・推論</td>
-<td>ハッシュ化する</td>
-<td>情報を処理・変換している</td>
-</tr>
-<tr class="even">
-<td>Hatching</td>
-<td>計画立案</td>
-<td>孵化させる</td>
-<td>計画を温めて実行可能な形に育てている</td>
-</tr>
-<tr class="odd">
-<td>Herding</td>
-<td>情報収集</td>
-<td>集める</td>
-<td>散在する情報・コンテキストをかき集めている</td>
-</tr>
-<tr class="even">
-<td>Honking</td>
-<td>その他</td>
-<td>クラクションを鳴らす</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="odd">
-<td>Hullaballooing</td>
-<td>その他</td>
-<td>大騒ぎする</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="even">
-<td>Hyperspacing</td>
-<td>その他</td>
-<td>ハイパースペースに入る</td>
-<td>SF風ユーモア表現</td>
-</tr>
-<tr class="odd">
-<td>Ideating</td>
-<td>計画立案</td>
-<td>アイデアを出す</td>
-<td>解決策のアイデアを生み出している</td>
-</tr>
-<tr class="even">
-<td>Imagining</td>
-<td>計画立案</td>
-<td>想像する</td>
-<td>実装のシナリオを思い描いている</td>
-</tr>
-<tr class="odd">
-<td>Improvising</td>
-<td>実行・生成</td>
-<td>即興で作る</td>
-<td>柔軟にアプローチを変えている</td>
-</tr>
-<tr class="even">
-<td>Incubating</td>
-<td>計画立案</td>
-<td>インキュベートする</td>
-<td>計画を実行可能になるまで温めている</td>
-</tr>
-<tr class="odd">
-<td>Inferring</td>
-<td>思考・推論</td>
-<td>推論する</td>
-<td>手がかりから結論を導いている</td>
-</tr>
-<tr class="even">
-<td>Infusing</td>
-<td>計画立案</td>
-<td>注入する</td>
-<td>情報やコンテキストを取り込んでいる</td>
-</tr>
-<tr class="odd">
-<td>Ionizing</td>
-<td>その他</td>
-<td>イオン化する</td>
-<td>科学メタファー・ユーモア表現</td>
-</tr>
-<tr class="even">
-<td>Jitterbugging</td>
-<td>その他</td>
-<td>ジルバを踊る</td>
-<td>ダンス風ユーモア表現</td>
-</tr>
-<tr class="odd">
-<td>Julienning</td>
-<td>その他</td>
-<td>千切りにする</td>
-<td>料理メタファー・ユーモア表現</td>
-</tr>
-<tr class="even">
-<td>Kneading</td>
-<td>計画立案</td>
-<td>こねる</td>
-<td>素材をこねて形にしている</td>
-</tr>
-<tr class="odd">
-<td>Leavening</td>
-<td>計画立案</td>
-<td>膨らませる</td>
-<td>アイデアを膨らませている</td>
-</tr>
-<tr class="even">
-<td>Levitating</td>
-<td>その他</td>
-<td>浮揚する</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="odd">
-<td>Lollygagging</td>
-<td>その他</td>
-<td>だらだらする</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="even">
-<td>Manifesting</td>
-<td>実行・生成</td>
-<td>具現化する</td>
-<td>アイデアを実際の出力として実現している</td>
-</tr>
-<tr class="odd">
-<td>Marinating</td>
-<td>計画立案</td>
-<td>漬け込む</td>
-<td>解決策をじっくり熟成させている</td>
-</tr>
-<tr class="even">
-<td>Meandering</td>
-<td>情報収集</td>
-<td>蛇行しながら進む</td>
-<td>コードベースを広く探索している</td>
-</tr>
-<tr class="odd">
-<td>Metamorphosing</td>
-<td>実行・生成</td>
-<td>変態させる</td>
-<td>コードを大きく変換している</td>
-</tr>
-<tr class="even">
-<td>Misting</td>
-<td>その他</td>
-<td>霧を吹く</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="odd">
-<td>Moonwalking</td>
-<td>その他</td>
-<td>ムーンウォークする</td>
-<td>ダンス風ユーモア表現</td>
-</tr>
-<tr class="even">
-<td>Moseying</td>
-<td>情報収集</td>
-<td>のんびり歩く</td>
-<td>情報をゆっくり丁寧に読み込んでいる</td>
-</tr>
-<tr class="odd">
-<td>Mulling</td>
-<td>思考・推論</td>
-<td>思案する</td>
-<td>問題をあれこれ考えている</td>
-</tr>
-<tr class="even">
-<td>Mustering</td>
-<td>計画立案</td>
-<td>集結させる</td>
-<td>必要なリソース・情報を集めて準備している</td>
-</tr>
-<tr class="odd">
-<td>Musing</td>
-<td>思考・推論</td>
-<td>物思いにふける</td>
-<td>問題を自由に考えている</td>
-</tr>
-<tr class="even">
-<td>Nebulizing</td>
-<td>その他</td>
-<td>霧状にする</td>
-<td>科学メタファー・ユーモア表現</td>
-</tr>
-<tr class="odd">
-<td>Nesting</td>
-<td>情報収集</td>
-<td>入れ子にする</td>
-<td>ネスト構造を探索・構築している</td>
-</tr>
-<tr class="even">
-<td>Newspapering</td>
-<td>その他</td>
-<td>新聞配達する</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="odd">
-<td>Noodling</td>
-<td>思考・推論</td>
-<td>こねくり回す</td>
-<td>アイデアをぐるぐる考えている</td>
-</tr>
-<tr class="even">
-<td>Nucleating</td>
-<td>その他</td>
-<td>核形成する</td>
-<td>科学メタファー・ユーモア表現</td>
-</tr>
-<tr class="odd">
-<td>Orbiting</td>
-<td>その他</td>
-<td>軌道を回る</td>
-<td>SF風ユーモア表現</td>
-</tr>
-<tr class="even">
-<td>Orchestrating</td>
-<td>計画立案</td>
-<td>指揮する</td>
-<td>複数の処理を協調させている</td>
-</tr>
-<tr class="odd">
-<td>Osmosing</td>
-<td>その他</td>
-<td>浸透する</td>
-<td>科学メタファー・ユーモア表現</td>
-</tr>
-<tr class="even">
-<td>Perambulating</td>
-<td>情報収集</td>
-<td>歩き回る</td>
-<td>コードベースを探索している</td>
-</tr>
-<tr class="odd">
-<td>Percolating</td>
-<td>計画立案</td>
-<td>滲み出す</td>
-<td>アイデアが少しずつ形になっている</td>
-</tr>
-<tr class="even">
-<td>Perusing</td>
-<td>情報収集</td>
-<td>精読する</td>
-<td>ファイルやコードをじっくり読んでいる</td>
-</tr>
-<tr class="odd">
-<td>Philosophising</td>
-<td>思考・推論</td>
-<td>哲学的に考える</td>
-<td>根本的な設計方針を深く考えている</td>
-</tr>
-<tr class="even">
-<td>Photosynthesizing</td>
-<td>その他</td>
-<td>光合成する</td>
-<td>科学メタファー・ユーモア表現</td>
-</tr>
-<tr class="odd">
-<td>Pollinating</td>
-<td>その他</td>
-<td>受粉させる</td>
-<td>科学メタファー・ユーモア表現</td>
-</tr>
-<tr class="even">
-<td>Pondering</td>
-<td>思考・推論</td>
-<td>深く考える</td>
-<td>問題の本質を考えている</td>
-</tr>
-<tr class="odd">
-<td>Pontificating</td>
-<td>思考・推論</td>
-<td>断定的に述べる</td>
-<td>確信をもって推論している</td>
-</tr>
-<tr class="even">
-<td>Pouncing</td>
-<td>実行・生成</td>
-<td>飛びかかる</td>
-<td>素早く実行に移している</td>
-</tr>
-<tr class="odd">
-<td>Precipitating</td>
-<td>その他</td>
-<td>沈殿させる</td>
-<td>科学メタファー・ユーモア表現</td>
-</tr>
-<tr class="even">
-<td>Prestidigitating</td>
-<td>その他</td>
-<td>手品をする</td>
-<td>マジック風ユーモア表現</td>
-</tr>
-<tr class="odd">
-<td>Processing</td>
-<td>思考・推論</td>
-<td>処理する</td>
-<td>情報を内部的に処理・推論している</td>
-</tr>
-<tr class="even">
-<td>Proofing</td>
-<td>計画立案</td>
-<td>校正する</td>
-<td>出力を検証している</td>
-</tr>
-<tr class="odd">
-<td>Propagating</td>
-<td>実行・生成</td>
-<td>伝播させる</td>
-<td>変更を波及させている</td>
-</tr>
-<tr class="even">
-<td>Puttering</td>
-<td>実行・生成</td>
-<td>こつこつ取り組む</td>
-<td>細かい編集や修正を地道に行っている</td>
-</tr>
-<tr class="odd">
-<td>Puzzling</td>
-<td>思考・推論</td>
-<td>パズルを解く</td>
-<td>難しい問題を解こうとしている</td>
-</tr>
-<tr class="even">
-<td>Quantumizing</td>
-<td>その他</td>
-<td>量子化する</td>
-<td>科学メタファー・ユーモア表現</td>
-</tr>
-<tr class="odd">
-<td>Razzle-dazzling</td>
-<td>その他</td>
-<td>ド派手にする</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="even">
-<td>Razzmatazzing</td>
-<td>その他</td>
-<td>華やかにする</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="odd">
-<td>Recombobulating</td>
-<td>計画立案</td>
-<td>再整理する</td>
-<td>情報を再度整理し直している</td>
-</tr>
-<tr class="even">
-<td>Reticulating</td>
-<td>その他</td>
-<td>網目状に処理</td>
-<td>The Simsのパロディ・ユーモア</td>
-</tr>
-<tr class="odd">
-<td>Roosting</td>
-<td>その他</td>
-<td>ねぐらに止まる</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="even">
-<td>Ruminating</td>
-<td>思考・推論</td>
-<td>反芻する</td>
-<td>問題を繰り返し深く考えている</td>
-</tr>
-<tr class="odd">
-<td>Sautéing</td>
-<td>その他</td>
-<td>ソテーする</td>
-<td>料理メタファー・ユーモア表現</td>
-</tr>
-<tr class="even">
-<td>Scampering</td>
-<td>その他</td>
-<td>駆け回る</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="odd">
-<td>Schlepping</td>
-<td>実行・生成</td>
-<td>運搬する</td>
-<td>重い処理を地道にこなしている</td>
-</tr>
-<tr class="even">
-<td>Scurrying</td>
-<td>その他</td>
-<td>急いで走る</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="odd">
-<td>Seasoning</td>
-<td>その他</td>
-<td>味付けする</td>
-<td>料理メタファー・仕上げのイメージ</td>
-</tr>
-<tr class="even">
-<td>Shenaniganing</td>
-<td>その他</td>
-<td>いたずらする</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="odd">
-<td>Shimmying</td>
-<td>実行・生成</td>
-<td>軽やかに動く</td>
-<td>スムーズにタスクを処理している</td>
-</tr>
-<tr class="even">
-<td>Simmering</td>
-<td>計画立案</td>
-<td>コトコト煮込む</td>
-<td>解決策を急がずゆっくり形成している</td>
-</tr>
-<tr class="odd">
-<td>Skedaddling</td>
-<td>その他</td>
-<td>逃げ出す</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="even">
-<td>Sketching</td>
-<td>計画立案</td>
-<td>スケッチする</td>
-<td>大まかな設計を描いている</td>
-</tr>
-<tr class="odd">
-<td>Slithering</td>
-<td>その他</td>
-<td>滑るように動く</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="even">
-<td>Smooshing</td>
-<td>実行・生成</td>
-<td>まとめる</td>
-<td>複数の要素を一つに統合している</td>
-</tr>
-<tr class="odd">
-<td>Sock-hopping</td>
-<td>その他</td>
-<td>ソックホップする</td>
-<td>1950年代ダンス風ユーモア表現</td>
-</tr>
-<tr class="even">
-<td>Spelunking</td>
-<td>情報収集</td>
-<td>洞窟探検する</td>
-<td>深くネストしたコード・構造を探索している</td>
-</tr>
-<tr class="odd">
-<td>Spinning</td>
-<td>実行・生成</td>
-<td>回転させる</td>
-<td>処理を回している</td>
-</tr>
-<tr class="even">
-<td>Sprouting</td>
-<td>計画立案</td>
-<td>芽を出す</td>
-<td>アイデアが育ち始めている</td>
-</tr>
-<tr class="odd">
-<td>Stewing</td>
-<td>思考・推論</td>
-<td>くよくよ考える</td>
-<td>問題を何度も検討している</td>
-</tr>
-<tr class="even">
-<td>Sublimating</td>
-<td>その他</td>
-<td>昇華させる</td>
-<td>科学メタファー・ユーモア表現</td>
-</tr>
-<tr class="odd">
-<td>Swirling</td>
-<td>その他</td>
-<td>渦を巻く</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="even">
-<td>Swooping</td>
-<td>その他</td>
-<td>急降下する</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="odd">
-<td>Symbioting</td>
-<td>その他</td>
-<td>共生する</td>
-<td>科学メタファー・ユーモア表現</td>
-</tr>
-<tr class="even">
-<td>Synthesizing</td>
-<td>計画立案</td>
-<td>統合する</td>
-<td>情報を組み合わせて解決策を作っている</td>
-</tr>
-<tr class="odd">
-<td>Tempering</td>
-<td>実行・生成</td>
-<td>焼き戻す</td>
-<td>出力を調整している</td>
-</tr>
-<tr class="even">
-<td>Thinking</td>
-<td>思考・推論</td>
-<td>考える</td>
-<td>シンプルな思考フェーズ</td>
-</tr>
-<tr class="odd">
-<td>Thundering</td>
-<td>その他</td>
-<td>雷鳴を轟かせる</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="even">
-<td>Tinkering</td>
-<td>実行・生成</td>
-<td>いじくる</td>
-<td>コードを少しずつ修正している</td>
-</tr>
-<tr class="odd">
-<td>Tomfoolering</td>
-<td>その他</td>
-<td>ふざける</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="even">
-<td>Topsy-turvying</td>
-<td>その他</td>
-<td>ひっくり返す</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="odd">
-<td>Transfiguring</td>
-<td>実行・生成</td>
-<td>変容させる</td>
-<td>コードを大きく変換している</td>
-</tr>
-<tr class="even">
-<td>Transmuting</td>
-<td>実行・生成</td>
-<td>変換する</td>
-<td>入力を別の形式・構造に変換している</td>
-</tr>
-<tr class="odd">
-<td>Twisting</td>
-<td>その他</td>
-<td>ねじる</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="even">
-<td>Undulating</td>
-<td>その他</td>
-<td>うねる</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="odd">
-<td>Unfurling</td>
-<td>実行・生成</td>
-<td>展開する</td>
-<td>コードや計画を展開している</td>
-</tr>
-<tr class="even">
-<td>Unravelling</td>
-<td>情報収集</td>
-<td>解きほぐす</td>
-<td>複雑な問題をほどいている</td>
-</tr>
-<tr class="odd">
-<td>Vibing</td>
-<td>その他</td>
-<td>感覚で進む</td>
-<td>直感的に処理しているユーモア表現</td>
-</tr>
-<tr class="even">
-<td>Waddling</td>
-<td>その他</td>
-<td>よちよち歩く</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="odd">
-<td>Wandering</td>
-<td>情報収集</td>
-<td>さまよう</td>
-<td>コードベースを広く探索している</td>
-</tr>
-<tr class="even">
-<td>Warping</td>
-<td>その他</td>
-<td>ワープする</td>
-<td>SF風ユーモア表現</td>
-</tr>
-<tr class="odd">
-<td>Whatchamacalliting</td>
-<td>その他</td>
-<td>なんとかかんとかする</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="even">
-<td>Whirlpooling</td>
-<td>その他</td>
-<td>渦巻く</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="odd">
-<td>Whirring</td>
-<td>その他</td>
-<td>ブンブン回る</td>
-<td>機械的な処理音のイメージ</td>
-</tr>
-<tr class="even">
-<td>Whisking</td>
-<td>その他</td>
-<td>泡立てる</td>
-<td>料理メタファー・ユーモア表現</td>
-</tr>
-<tr class="odd">
-<td>Wibbling</td>
-<td>その他</td>
-<td>ふらふらする</td>
-<td>ユーモア表現</td>
-</tr>
-<tr class="even">
-<td>Working</td>
-<td>実行・生成</td>
-<td>作業する</td>
-<td>実際のタスクを実行している</td>
-</tr>
-<tr class="odd">
-<td>Wrangling</td>
-<td>実行・生成</td>
-<td>格闘する</td>
-<td>複雑な処理に取り組んでいる</td>
-</tr>
-<tr class="even">
-<td>Zesting</td>
-<td>その他</td>
-<td>皮を剥く</td>
-<td>料理メタファー・ユーモア表現</td>
-</tr>
-<tr class="odd">
-<td>Zigzagging</td>
-<td>その他</td>
-<td>ジグザグに進む</td>
-<td>ユーモア表現</td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="status-wordの表示ロジック" class="level2">
-<h2 class="anchored" data-anchor-id="status-wordの表示ロジック">Status Wordの表示ロジック</h2>
-<p>Claude Codeはprocessing中にstatus lineへランダムなverb（例: <code>Thinking</code>, <code>Pondering</code>, <code>Brewing</code>）を表示します． これらのステータスコードはClaude CodeのELFバイナリに直接埋め込まれています．</p>
-<p><span class="mini-section">表示ロジック</span></p>
-<p>バイナリ解析の結果，status wordの選択・表示ロジックは以下のように整理できます:</p>
-<ol type="1">
-<li><strong>全187語は単一のフラット配列</strong> <code>Ie8</code> に格納されている（状況別マッピングは存在しない）</li>
-<li><strong>選択関数 <code>iw()</code></strong> が配列からランダムに1語を選ぶ（<code>iw</code> は汎用的なrandom pick関数）</li>
-<li><strong>選択タイミングはセッション開始時に1度だけ</strong> — <code>useState(()=&gt;iw(AjH()))</code> で初期値として固定される（処理中に動的に変化しない）</li>
-<li><strong>タスク完了後は別の過去形配列</strong> <code>KRH</code> からランダムに選ばれる（<code>"Baked"</code>, <code>"Brewed"</code>, <code>"Churned"</code>, <code>"Cogitated"</code>, <code>"Cooked"</code>, <code>"Crunched"</code>, <code>"Sautéed"</code>, <code>"Worked"</code> の8語のみ）</li>
-</ol>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb1-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">// 疑似コード（バイナリからの逆コンパイル結果を整理）</span></span>
-<span id="cb1-2"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">// ① verbリストの取得</span></span>
-<span id="cb1-3"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">AjH</span>() {</span>
-<span id="cb1-4">  <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">let</span> config <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">getSettings</span>()<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">.</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">spinnerVerbs</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">;</span></span>
-<span id="cb1-5">  <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">if</span> (<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">!</span>config) <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">return</span> Ie8<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">;</span>                         <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">// デフォルトの187語</span></span>
-<span id="cb1-6">  <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">if</span> (config<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">.</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">mode</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">===</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"replace"</span>)</span>
-<span id="cb1-7">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">return</span> config<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">.</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">verbs</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">.</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">length</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">?</span> config<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">.</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">verbs</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span> Ie8<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">;</span></span>
-<span id="cb1-8">  <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">return</span> [<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">...</span>Ie8<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">,</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">...</span>config<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">.</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">verbs</span>]<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">;</span>                <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">// append: デフォルト + ユーザー語</span></span>
-<span id="cb1-9">}</span>
-<span id="cb1-10"></span>
-<span id="cb1-11"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">// ② ステータス表示テキストの決定（React component内）</span></span>
-<span id="cb1-12"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">const</span> [spinnerVerb] <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">useState</span>(() <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">=&gt;</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">iw</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">AjH</span>()))<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">;</span>   <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">// セッション開始時に1度だけ選択</span></span>
-<span id="cb1-13"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">const</span> displayText <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span></span>
-<span id="cb1-14">  activeTask<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">?.</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">activeForm</span>                            <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">// ツール実行中ならツール名</span></span>
-<span id="cb1-15">  <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">??</span> activeTask<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">?.</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">subject</span>                            <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">// タスク名があればそれ</span></span>
-<span id="cb1-16">  <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">??</span> spinnerVerb<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">;</span>                                   <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">// fallbackとしてランダムverb</span></span>
-<span id="cb1-17"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">const</span> statusLine <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> displayText <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"…"</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">;</span></span>
-<span id="cb1-18"></span>
-<span id="cb1-19"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">// ③ subagent生成時</span></span>
-<span id="cb1-20">{</span>
-<span id="cb1-21">  <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">spinnerVerb</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">iw</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">AjH</span>())<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">,</span>     <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">// agent毎に独立して1語選択</span></span>
-<span id="cb1-22">  <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">pastTenseVerb</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">iw</span>(KRH)<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">,</span>     <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">// 完了表示用: 8語から選択</span></span>
-<span id="cb1-23">}</span></code></pre></div></div>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>状況別のステータス表示
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>実際には，status wordが表示されるのは <strong>ツール実行でもタスク実行でもない空白期間のfallback</strong> のとき</li>
-<li>ツール実行中は <code>activeForm</code>（例: <code>"Reading file"</code>, <code>"Running command"</code>）が表示</li>
-<li>タスク実行中は <code>subject</code>（例: タスクの説明文）が表示</li>
-<li>あくまで，<strong>187語の中から特定の状況に応じて語が選ばれるわけではなく，常にランダム選択</strong></li>
-</ul>
-</div>
-</div>
-<p><span class="mini-section">ユーザーによるカスタマイズ</span></p>
-<p><code>settings.json</code> の <code>spinnerVerbs</code> フィールドで，status wordをカスタマイズできます:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb2-1"><span class="er" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">//</span> <span class="er" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">~/.claude/settings.json</span></span>
-<span id="cb2-2"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">{</span></span>
-<span id="cb2-3">  <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"spinnerVerbs"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">{</span></span>
-<span id="cb2-4">    <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"mode"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"append"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">,</span></span>
-<span id="cb2-5">    <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"verbs"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">[</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Meditating"</span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">,</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Philosophizing"</span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">]</span></span>
-<span id="cb2-6">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">}</span></span>
-<span id="cb2-7"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">}</span></span></code></pre></div></div>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 50%">
-<col style="width: 50%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>mode</th>
-<th>挙動</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>"append"</code></td>
-<td>デフォルト187語にユーザー指定語を追加</td>
-</tr>
-<tr class="even">
-<td><code>"replace"</code></td>
-<td>デフォルトをすべて置換（空配列の場合はデフォルトにfallback）</td>
-</tr>
-</tbody>
-</table>
-<p><span class="mini-section">Status Wordの抽出コマンド</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">## Claude Codeバイナリのパスを特定</span></span>
-<span id="cb3-2"><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">CLAUDE_BIN</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$(</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">readlink</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-f</span> <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$(</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">which</span> claude<span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">))</span></span>
-<span id="cb3-3"></span>
-<span id="cb3-4"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">## status wordを抽出（32-byte aligned で連続格納されている）</span></span>
-<span id="cb3-5"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">strings</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$CLAUDE_BIN</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span> <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">\</span></span>
-<span id="cb3-6">  <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">awk</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">'/^Accomplishing$/,/^Zigzagging$/'</span> <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">\</span></span>
-<span id="cb3-7">  <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sort</span></span></code></pre></div></div>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-ノート
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li><code>Sautéing</code>, <code>Flambéing</code> などの非ASCII文字を含むwordは <code>strings</code> のデフォルト設定では途中で切れることがあります</li>
-<li>バイナリ内でstatus wordはアルファベット順にoffset <code>32</code> byte刻みで連続配置されているため，<code>awk</code> の範囲パターンで抽出できます</li>
-</ul>
-</div>
-</div>
-</section>
-<section id="appendix-バイナリ解析手順" class="level2">
-<h2 class="anchored" data-anchor-id="appendix-バイナリ解析手順">Appendix: バイナリ解析手順</h2>
-<p>本記事のロジック解説は，Claude Code v2.1.105のELFバイナリに対する静的解析に基づいています．</p>
-<section id="step-1-バイナリの特定" class="level3">
-<h3 class="anchored" data-anchor-id="step-1-バイナリの特定">Step 1: バイナリの特定</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">## claude コマンドの実体パスを取得</span></span>
-<span id="cb4-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">$</span> which claude</span>
-<span id="cb4-3"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">/home/user/.local/bin/claude</span></span>
-<span id="cb4-4"></span>
-<span id="cb4-5"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">$</span> readlink <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-f</span> <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$(</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">which</span> claude<span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">)</span></span>
-<span id="cb4-6"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">/home/user/.local/share/claude/versions/2.1.105</span></span>
-<span id="cb4-7"></span>
-<span id="cb4-8"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">$</span> file /home/user/.local/share/claude/versions/2.1.105</span>
-<span id="cb4-9"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">ELF</span> 64-bit LSB executable, x86-64, ...</span></code></pre></div></div>
-<p>Claude Codeはminifyされた<strong>JavaScript</strong>をBunでコンパイルした<strong>single-binary executable</strong>です． ELFバイナリ内にJavaScriptのソースが文字列として埋め込まれているため，<code>strings</code> コマンドで読み出せます．</p>
-</section>
-<section id="step-2-既知の単語でオフセットを特定" class="level3">
-<h3 class="anchored" data-anchor-id="step-2-既知の単語でオフセットを特定">Step 2: 既知の単語でオフセットを特定</h3>
-<p>status wordとして確実に存在する語（例: <code>Pondering</code>）を <code>strings -t d</code>（10進オフセット付き）で検索し， バイナリ内の格納位置を特定します:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">$</span> CLAUDE_BIN=<span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$(</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">readlink</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-f</span> <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$(</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">which</span> claude<span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">))</span></span>
-<span id="cb5-2"></span>
-<span id="cb5-3"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">## オフセット付きで検索</span></span>
-<span id="cb5-4"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">$</span> strings <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-t</span> d <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$CLAUDE_BIN</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">grep</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-w</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Pondering$"</span></span>
-<span id="cb5-5"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">209773344</span> Pondering</span></code></pre></div></div>
-</section>
-<section id="step-3-周辺オフセットをダンプして配列境界を確認" class="level3">
-<h3 class="anchored" data-anchor-id="step-3-周辺オフセットをダンプして配列境界を確認">Step 3: 周辺オフセットをダンプして配列境界を確認</h3>
-<p>特定したオフセットの前後を表示し，status wordが連続格納されている領域の先頭と末尾を探します:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">## Pondering (209773344) の周辺 ±4000 byte を表示</span></span>
-<span id="cb6-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">$</span> strings <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-t</span> d <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$CLAUDE_BIN</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span> <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">\</span></span>
-<span id="cb6-3">  <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">awk</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">'$1 &gt; 209769300 &amp;&amp; $1 &lt; 209775400 &amp;&amp; $2 ~ /^[A-Z]/'</span></span>
-<span id="cb6-4"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">209769376</span> Accomplishing     <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># &lt;-- 先頭</span></span>
-<span id="cb6-5"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">209769408</span> Actioning</span>
-<span id="cb6-6"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">209769440</span> Actualizing</span>
-<span id="cb6-7"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">...</span></span>
-<span id="cb6-8"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">209775344</span> Zesting</span>
-<span id="cb6-9"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">209775376</span> Zigzagging        <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># &lt;-- 末尾</span></span></code></pre></div></div>
-<p>この結果から:</p>
-<ul>
-<li>先頭: <code>Accomplishing</code> (offset <code>209769376</code>)</li>
-<li>末尾: <code>Zigzagging</code> (offset <code>209775376</code>)</li>
-<li>各エントリ間隔: <code>32</code> byte（固定長のポインタ配列と推測される）</li>
-<li>語数: <code>(209775376 - 209769376) / 32 + 1 = 188</code> → 実際に数えると187語（一部が32byte超のため）</li>
-</ul>
-</section>
-<section id="step-4-javascriptソースの文字列検索でロジック特定" class="level3">
-<h3 class="anchored" data-anchor-id="step-4-javascriptソースの文字列検索でロジック特定">Step 4: JavaScriptソースの文字列検索でロジック特定</h3>
-<p><code>strings</code> は文字列リテラルだけでなく，minifyされたJavaScriptコードも抽出します． status wordを含むコード断片を検索し，選択ロジックを読み解きます:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">## "Accomplishing" を含むJSコード断片を検索</span></span>
-<span id="cb7-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">$</span> strings <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$CLAUDE_BIN</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span> <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">\</span></span>
-<span id="cb7-3">  <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">grep</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-oP</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">'.{0,200}Accomplishing.{0,200}'</span> <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">\</span></span>
-<span id="cb7-4">  <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">grep</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-v</span> geographical    <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># 無関係な文字列を除外</span></span></code></pre></div></div>
-<p>出力（minifyされたJS）:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb8-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">// verbリスト取得関数</span></span>
-<span id="cb8-2"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">AjH</span>(){</span>
-<span id="cb8-3">  <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">let</span> $<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">J6</span>()<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">.</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">spinnerVerbs</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">;</span></span>
-<span id="cb8-4">  <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">if</span>(<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">!</span>$) <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">return</span> Ie8<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">;</span></span>
-<span id="cb8-5">  <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">if</span>($<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">.</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">mode</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">===</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"replace"</span>) <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">return</span> $<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">.</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">verbs</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">.</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">length</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">?</span>$<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">.</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">verbs</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span>Ie8<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">;</span></span>
-<span id="cb8-6">  <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">return</span>[<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">...</span>Ie8<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">,...</span>$<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">.</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">verbs</span>]</span>
-<span id="cb8-7">}</span>
-<span id="cb8-8"></span>
-<span id="cb8-9"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">// デフォルトのverbリスト定義</span></span>
-<span id="cb8-10"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">var</span> Ie8<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">;</span></span>
-<span id="cb8-11"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">var</span> GQ$<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">T</span>(()<span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">=&gt;</span>{</span>
-<span id="cb8-12">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">n8</span>()<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">;</span></span>
-<span id="cb8-13">  Ie8<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span>[<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Accomplishing"</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">,</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Actioning"</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">,</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Actualizing"</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">,...,</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Zigzagging"</span>]</span>
-<span id="cb8-14">})<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">;</span></span></code></pre></div></div>
-</section>
-<section id="step-5-呼び出し元を追跡して表示ロジックを確認" class="level3">
-<h3 class="anchored" data-anchor-id="step-5-呼び出し元を追跡して表示ロジックを確認">Step 5: 呼び出し元を追跡して表示ロジックを確認</h3>
-<p><code>AjH()</code> の呼び出し元を検索し，選択タイミングと表示優先度を特定します:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">## AjH() の呼び出しコンテキストを検索</span></span>
-<span id="cb9-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">$</span> strings <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$CLAUDE_BIN</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">grep</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-oP</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">'.{0,100}iw\(AjH\(\)\).{0,100}'</span></span></code></pre></div></div>
-<p>出力から読み取れるロジック:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb10-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">// メインspinner: セッション開始時に1度だけ選択</span></span>
-<span id="cb10-2"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">const</span> [h] <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">useState</span>(() <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">=&gt;</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">iw</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">AjH</span>()))<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">;</span></span>
-<span id="cb10-3"></span>
-<span id="cb10-4"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">// 表示テキストの優先順位</span></span>
-<span id="cb10-5">F <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> activeTask<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">?.</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">activeForm</span>   <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">// ① ツール実行中の表示名</span></span>
-<span id="cb10-6">  <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">??</span> activeTask<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">?.</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">subject</span>     <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">// ② タスクの説明文</span></span>
-<span id="cb10-7">  <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">??</span> h<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">;</span>                      <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">// ③ fallback: ランダムverb</span></span>
-<span id="cb10-8">g <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> (V <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&amp;&amp;</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">!</span>V<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">.</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">isIdle</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">?</span> V<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">.</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">spinnerVerb</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">??</span> h <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span> F) <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"…"</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">;</span></span></code></pre></div></div>
-</section>
-<section id="step-6-過去形verb完了表示用の特定" class="level3">
-<h3 class="anchored" data-anchor-id="step-6-過去形verb完了表示用の特定">Step 6: 過去形verb（完了表示用）の特定</h3>
-<p>同様に <code>iw(KRH)</code> の <code>KRH</code> を検索し，完了時に表示される過去形verbを特定します:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">$</span> strings <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$CLAUDE_BIN</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">grep</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-oP</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">'.{0,80}var KRH.{0,300}'</span></span></code></pre></div></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb12-1"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">var</span> KRH<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">;</span></span>
-<span id="cb12-2"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">var</span> IQ$<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">T</span>(()<span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">=&gt;</span>{</span>
-<span id="cb12-3">  KRH<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span>[<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Baked"</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">,</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Brewed"</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">,</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Churned"</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">,</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Cogitated"</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">,</span></span>
-<span id="cb12-4">       <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Cooked"</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">,</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Crunched"</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">,</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Sautéed"</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">,</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Worked"</span>]</span>
-<span id="cb12-5">})<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">;</span></span></code></pre></div></div>
-<div class="callout callout-style-default callout-tip callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ヒント</span>解析のポイント
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li><strong><code>strings</code> + <code>grep -oP</code>（Perl正規表現）の組み合わせ</strong>がminified JSの解析に有効</li>
-<li><code>-oP</code> でマッチ部分のみ抽出し，<code>.{0,N}</code> で前後のコンテキストを取得可能</li>
-<li><strong>変数名はminify済み</strong>（<code>Ie8</code>, <code>AjH</code>, <code>iw</code>, <code>KRH</code> など）のため，既知の文字列リテラル（<code>"Accomplishing"</code>, <code>"spinnerVerbs"</code> など）を起点に周辺コードを辿る必要があり</li>
-<li>Bunでコンパイルされたバイナリは<strong>ソースマップを含まない</strong>ため，完全な復元はできないが，文字列リテラルと制御フロー（<code>if</code>, <code>return</code>, <code>??</code>）は可読な形で残る</li>
-</ul>
-</div>
-</div>
-
-
-</section>
-</section>
-
- ]]></description>
-  <category>環境構築</category>
-  <category>claude</category>
-  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-04-01-claude-code-status/</guid>
-  <pubDate>Wed, 01 Apr 2026 00:00:00 GMT</pubDate>
 </item>
 </channel>
 </rss>
