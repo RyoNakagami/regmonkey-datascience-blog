@@ -1,0 +1,829 @@
+---
+title: "シェルワンライナープログラミング"
+author: "Ryo Nakagami"
+date: "2026-05-20"
+date-modified: "2026-05-20"
+categories: [シェル]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## 似てるけど違う挙動: `grep` 
+
+::: {.callout-note}
+### `grep` コマンドと除外
+
+行頭が数字で始まらない行を表示するが，「空行」についての挙動が異なるコマンド
+
+```bash
+## 空行も出力
+grep -v '^[0-9]' file
+
+## 空行は出力されない
+grep '^[^0-9]' file
+```
+
+:::
+
+[正規表現の観点]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| パターン      | 要求                    |
+| --------- | --------------------- |
+| `^[0-9]`  | 行頭に数字が **ある**         |
+| `^[^0-9]` | 行頭に数字以外の文字が **1文字ある** |
+
+::::
+
+空行は正規表現では `^$` なので，「行頭に数字以外の文字が **1文字ある**」という条件には引っかからないため，挙動差が生まれます．
+
+実務では，「数字で始まらない行 = 空行も該当する」というケースのほうが多いと思うので，基本は `grep -v '^[0-9]' file` のほうが良いと思われる．
+
+::: {#exm- .custom_problem }
+
+```bash
+$ cat file1.txt
+123abc
+abc123
+
+# 空行あり
+9xyz
+```
+
+のとき，
+
+```bash
+$ grep -v '^[0-9]' file1.txt
+abc123
+
+# 空行あり
+```
+
+一方，
+
+```bash
+$ grep '^[^0-9]' file1.txt
+abc123
+# 空行あり
+```
+
+
+:::
+***
+
+## 13日の金曜日を見つける
+
+::: {.callout-note}
+### コマンド
+
+2020年から2025年までの期間で「13日の金曜日」を見つけるコマンド
+
+```bash
+printf "%s\n" {2020..2025}/{1..12}/13 | xargs -I{} date -d {} | grep Fri
+```
+
+:::
+
+基礎に忠実に実行するならば
+
+```bash
+$ for i in $(seq 2020 2025) ;do for j in $(seq 1 12) ;do date -d $i/$j/13;done;done| grep Fri
+Fri Mar 13 12:00:00 AM JST 2020
+Fri Nov 13 12:00:00 AM JST 2020
+Fri Aug 13 12:00:00 AM JST 2021
+Fri May 13 12:00:00 AM JST 2022
+Fri Jan 13 12:00:00 AM JST 2023
+Fri Oct 13 12:00:00 AM JST 2023
+Fri Sep 13 12:00:00 AM JST 2024
+Fri Dec 13 12:00:00 AM JST 2024
+Fri Jun 13 12:00:00 AM JST 2025
+```
+
+となりますが，より短く，二重ループをわかりやすくしたのが上記となります．
+
+[1. ブレース展開（Brace Expansion）]{.mini-section}
+
+```bash
+{2020..2025}/{1..12}/13
+```
+
+- `{2020..2025}` は `2020`, `2021`, `2022`, `2023`, `2024`, `2025` に展開
+- `{1..12}` は `1`, `2`, `3`, ..., `12` に展開
+- 結果として `2020/1/13`, `2020/2/13`, ..., `2025/12/13` のような日付文字列が生成
+
+::: {.callout-tip}
+### ブレース展開とワイルドカードの違い
+
+- **ブレース展開**: `{...}` で指定されたパターンを展開（シェルが実行前に展開）
+- **ワイルドカード**: `*`, `?`, `[...]` などでファイル名のパターンマッチング（グロビング）
+
+:::
+
+
+[2. printf で改行区切りで出力]{.mini-section}
+
+```bash
+printf "%s\n" {展開結果}
+```
+
+- 各日付文字列を改行（`\n`）付きで出力
+- 例: `2020/1/13`, `2020/2/13`, ...が各行に出力
+
+[3. xargs でdate コマンドに渡す]{.mini-section}
+
+```bash
+xargs -I{} date -d {}
+```
+
+- `-I{}` は置換文字列を定義（`{}`が標準入力の各行に置き換わります）
+- `date -d` は日付文字列をパースして標準形式で出力
+- 例: `Fri Jan 13 00:00:00 JST 2023`
+
+[4. grep で金曜日のみを抽出]{.mini-section}
+
+```bash
+grep Fri
+```
+
+- 出力から「Fri」（金曜日）を含む行のみを抽出
+
+## loginctlセッション情報を整形して表示
+
+::: {.callout-note}
+### コマンド
+
+Linuxのログインセッション情報を詳細に整形して表示するコマンド
+
+```bash
+printf "%-8s %-8s %-18s %-8s %-8s %-6s %-10s %-10s\n" "SESSION" "UID" "USER" "TYPE" "SERVICE" "REMOTE" "SEAT" "TTY"; loginctl list-sessions --no-legend | while read -r sid uid user seat tty; do eval "$(loginctl show-session "$sid" -p Type -p Service -p Remote -p Seat -p TTY --value | awk '{print "v[++i]=\""$0"\""}')"; printf "%-8s %-8s %-18s %-8s %-8s %-6s %-10s %-10s\n" "$sid" "$uid" "$user" "${v[1]:--}" "${v[2]:--}" "${v[3]:--}" "${v[4]:--}" "${v[5]:--}"; unset v i; done
+```
+
+**処理の流れ**
+
+1. ヘッダー行を表示
+2. `loginctl list-sessions` でセッション一覧を取得
+3. 各セッションについて：
+   - 基本情報（SESSION, UID, USER）を取得
+   - `loginctl show-session` で詳細情報を取得
+   - `awk` と `eval` で情報を配列に格納
+   - 整形して1行ずつ表示
+   - 変数をクリーンアップ
+
+
+**改行を入れた読みやすい形式:**
+
+```bash
+# ヘッダー行を出力
+printf "%-8s %-8s %-18s %-8s %-8s %-6s %-10s %-10s\n" \
+  "SESSION" "UID" "USER" "TYPE" "SERVICE" "REMOTE" "SEAT" "TTY"
+
+# セッション一覧を取得してループ処理
+loginctl list-sessions --no-legend | while read -r sid uid user seat tty; do
+  # セッション詳細情報を取得して配列に格納
+  eval "$(loginctl show-session "$sid" \
+    -p Type -p Service -p Remote -p Seat -p TTY --value | \
+    awk '{print "v[++i]=\""$0"\""}')"
+
+  # 整形して出力
+  printf "%-8s %-8s %-18s %-8s %-8s %-6s %-10s %-10s\n" \
+    "$sid" "$uid" "$user" \
+    "${v[1]:--}" "${v[2]:--}" "${v[3]:--}" "${v[4]:--}" "${v[5]:--}"
+
+  # 変数をクリーンアップ
+  unset v i
+done
+```
+
+:::
+
+このコマンドは `loginctl` を使用して，現在のシステムにログインしているセッション情報を表形式で見やすく表示します
+
+```bash
+SESSION  UID      USER               TYPE     SERVICE  REMOTE SEAT       TTY
+1        1000     kirby       tty      login    -      seat0      tty1
+2        1000     kirby       x11      gdm-x    -      seat0      -
+c1       1000     kirby       wayland  -        -      -          -
+```
+
+[1. ヘッダー行の出力]{.mini-section}
+
+```bash
+printf "%-8s %-8s %-18s %-8s %-8s %-6s %-10s %-10s\n" "SESSION" "UID" "USER" "TYPE" "SERVICE" "REMOTE" "SEAT" "TTY"
+```
+
+- `printf` で左揃え（`-`），固定幅のカラムヘッダーを表示
+- `%-8s` は8文字幅で左揃えの文字列を意味します
+
+[2. セッションリストの取得]{.mini-section}
+
+```bash
+loginctl list-sessions --no-legend
+```
+
+- `loginctl list-sessions`: systemdのログインセッション一覧を取得
+- `--no-legend`: ヘッダー行を表示しない（パイプ処理しやすくするため）
+
+出力例:
+
+```bash
+1  1000 kirby seat0 tty1
+2  1000 kirby seat0 -
+```
+
+[3. while readループで各セッションを処理]{.mini-section}
+
+```bash
+while read -r sid uid user seat tty; do
+  # 処理内容
+done
+```
+
+- `read -r`: バックスラッシュをエスケープ文字として扱わない
+- 各行を5つの変数（`sid`, `uid`, `user`, `seat`, `tty`）に分割して読み込み
+
+[4. loginctl show-sessionの実行]{.mini-section}
+
+```bash
+loginctl show-session "$sid" -p Type -p Service -p Remote -p Seat -p TTY --value
+```
+
+- `-p`: 特定のプロパティのみを取得
+- `--value`: プロパティ名を省略し，値のみを出力
+
+出力例:
+
+```bash
+tty
+login
+no
+seat0
+tty1
+```
+
+[5. awkで配列代入文を生成]{.mini-section}
+
+```bash
+awk '{print "v[++i]=\""$0"\""}'
+```
+
+- 各行を配列代入文に変換
+- `++i` で配列インデックスを1から順に増やす
+
+出力例:
+```bash
+v[1]="tty"
+v[2]="login"
+v[3]="no"
+v[4]="seat0"
+v[5]="tty1"
+```
+
+[6. evalで配列代入を実行]{.mini-section}
+
+```bash
+eval "$(上記の出力)"
+```
+
+- `eval` で生成された代入文を実際に実行
+- 結果として配列 `v[1]`, `v[2]`, ..., `v[5]` に値が格納
+
+::: {.callout-tip}
+### evalの使用について
+
+- `eval` は文字列をシェルコマンドとして実行する強力なコマンドですが，セキュリティリスクもあります
+- 信頼できる入力（この場合は `loginctl` の出力）に対してのみ使用してください。
+
+:::
+
+[7. フォーマット済み出力]{.mini-section}
+
+```bash
+printf "%-8s %-8s %-18s %-8s %-8s %-6s %-10s %-10s\n" "$sid" "$uid" "$user" "${v[1]:--}" "${v[2]:--}" "${v[3]:--}" "${v[4]:--}" "${v[5]:--}"
+```
+
+- 取得した情報を整形して表示
+- `${v[1]:--}`: 変数が空または未定義の場合は `-` を表示（デフォルト値置換）
+
+[8. 変数のクリーンアップ]{.mini-section}
+
+```bash
+unset v i
+```
+
+- ループの次の反復のために配列 `v` とカウンタ `i` をクリア
+- これにより次のセッション処理時に前の値が残らないようにする
+
+
+### 応用例
+
+特定のユーザーのセッションのみ表示:
+
+```bash
+printf "%-8s %-8s %-18s %-8s %-8s %-6s %-10s %-10s\n" "SESSION" "UID" "USER" "TYPE" "SERVICE" "REMOTE" "SEAT" "TTY"; loginctl list-sessions --no-legend | grep dedede_daioh | while read -r sid uid user seat tty; do eval "$(loginctl show-session "$sid" -p Type -p Service -p Remote -p Seat -p TTY --value | awk '{print "v[++i]=\""$0"\""}')"; printf "%-8s %-8s %-18s %-8s %-8s %-6s %-10s %-10s\n" "$sid" "$uid" "$user" "${v[1]:--}" "${v[2]:--}" "${v[3]:--}" "${v[4]:--}" "${v[5]:--}"; unset v i; done
+```
+
+TSV形式で出力（表計算ソフトで使いやすい）:
+
+```bash
+echo -e "SESSION\tUID\tUSER\tTYPE\tSERVICE\tREMOTE\tSEAT\tTTY"; loginctl list-sessions --no-legend | while read -r sid uid user seat tty; do eval "$(loginctl show-session "$sid" -p Type -p Service -p Remote -p Seat -p TTY --value | awk '{print "v[++i]=\""$0"\""}')"; echo -e "$sid\t$uid\t$user\t${v[1]:--}\t${v[2]:--}\t${v[3]:--}\t${v[4]:--}\t${v[5]:--}"; unset v i; done
+```
+
+## 期間内の日付・曜日・週番号をCSV出力
+
+::: {.callout-note}
+### コマンド
+
+指定期間の日付情報（日付，年始からの経過日数，曜日番号，ISO週番号）をCSV形式で出力するコマンド
+
+```bash
+start=2026-02-01 end=2026-02-10; for d in $(seq 0 $((($(date -d "$end" +%s)-$(date -d "$start" +%s))/86400))); do date -d "$start +$d day" +'%F,%j,%u,%V'; done
+```
+
+**出力例:**
+
+```csv
+2026-02-01,032,7,05
+2026-02-02,033,1,06
+2026-02-03,034,2,06
+2026-02-04,035,3,06
+2026-02-05,036,4,06
+2026-02-06,037,5,06
+2026-02-07,038,6,06
+2026-02-08,039,7,06
+2026-02-09,040,1,07
+2026-02-10,041,2,07
+```
+
+**改行を入れた読みやすい形式:**
+
+```bash
+start=2026-02-01
+end=2026-02-10
+
+for d in $(seq 0 $((($(date -d "$end" +%s) - $(date -d "$start" +%s)) / 86400))); do
+  date -d "$start +$d day" +'%F,%j,%u,%V'
+done
+```
+
+:::
+
+このコマンドは指定した期間の各日付について，日付・年始からの経過日数（通日）・曜日番号・ISO週番号を取得します。
+
+[1. 開始日と終了日の設定]{.mini-section}
+
+```bash
+start=2026-02-01
+end=2026-02-10
+```
+
+- 変数に開始日と終了日を設定
+- `date` コマンドが認識できる形式であれば任意の日付が使用可能
+
+[2. 期間の日数を計算]{.mini-section}
+
+```bash
+$((($(date -d "$end" +%s) - $(date -d "$start" +%s)) / 86400))
+```
+
+- `date -d "$end" +%s`: 終了日をUnixエポック秒に変換
+- `date -d "$start" +%s`: 開始日をUnixエポック秒に変換
+- 差分を計算し，86400（1日の秒数）で割ることで日数を取得
+
+[3. seq で日数分のループ]{.mini-section}
+
+```bash
+for d in $(seq 0 日数); do
+```
+
+- `seq 0 日数`: 0から日数までの連番を生成
+- 各数値をループ変数 `d` に代入
+
+[4. 日付の計算と整形]{.mini-section}
+
+```bash
+date -d "$start +$d day" +'%F,%j,%u,%V'
+```
+
+- `date -d "$start +$d day"`: 開始日から `d` 日後の日付を計算
+- `+%F`: 日付（YYYY-MM-DD形式）
+- `+%j`: 年始からの経過日数（001-366，通日・Day of Year）
+- `+%u`: 曜日番号（1=月曜日 ... 7=日曜日）
+- `+%V`: ISO週番号（年の第何週か）
+- カンマ区切りでCSV形式として出力
+
+::: {.callout-tip}
+### date コマンドの便利なオプション
+
+- `%F`: 日付（YYYY-MM-DD）
+- `%j`: 年始からの経過日数（001-366，通日）
+- `%u`: 曜日番号（1-7，月曜始まり）
+- `%w`: 曜日番号（0-6，日曜始まり）
+- `%V`: ISO週番号
+- `%A`: 曜日名（full name）
+- `%a`: 曜日名（abbreviated）
+
+:::
+
+### 応用例
+
+[ヘッダー付きCSV出力]{.mini-section}
+
+```bash
+echo "日付,通日,曜日番号,週番号"; start=2026-02-01 end=2026-02-10; for d in $(seq 0 $((($(date -d "$end" +%s)-$(date -d "$start" +%s))/86400))); do date -d "$start +$d day" +'%F,%j,%u,%V'; done
+```
+
+[曜日名を含めた出力]{.mini-section}
+
+```bash
+start=2026-02-01 end=2026-02-10; for d in $(seq 0 $((($(date -d "$end" +%s)-$(date -d "$start" +%s))/86400))); do date -d "$start +$d day" +'%F,%j,%A,%V'; done
+```
+
+出力例：
+```
+2026-02-01,032,Sunday,05
+2026-02-02,033,Monday,06
+```
+
+[平日のみを抽出]{.mini-section}
+
+```bash
+start=2026-02-01 end=2026-02-10; for d in $(seq 0 $((($(date -d "$end" +%s)-$(date -d "$start" +%s))/86400))); do x=$(date -d "$start +$d day"); u=$(date -d "$x" +%u); [ "$u" -le 5 ] && date -d "$x" +'%F,%j,%u,%V'; done
+```
+
+[タブ区切りで出力（TSV形式）]{.mini-section}
+
+```bash
+## ANSI-C quotingを使用
+start=2026-02-01 end=2026-02-10; for d in $(seq 0 $((($(date -d "$end" +%s)-$(date -d "$start" +%s))/86400))); do date -d "$start +$d day" +$'%F\t%j\t%u\t%V'; done
+```
+
+[先頭のゼロを削除して整数形式で出力]{.mini-section}
+
+通日（036）を整数（36）として出力する方法：
+
+**方法1: 算術展開を使用**
+
+```bash
+start=2026-02-01 end=2026-02-10; for d in $(seq 0 $((($(date -d "$end" +%s)-$(date -d "$start" +%s))/86400))); do x=$(date -d "$start +$d day"); printf "%s,%d,%d,%d\n" "$(date -d "$x" +%F)" "$((10#$(date -d "$x" +%j)))" "$((10#$(date -d "$x" +%u)))" "$((10#$(date -d "$x" +%V)))"; done
+```
+
+出力例：
+```
+2026-02-01,32,7,5
+2026-02-02,33,1,6
+2026-02-03,34,2,6
+```
+
+- `$((10#変数))`: 10進数として解釈し，先頭のゼロを削除
+- `printf "%d"`: 整数フォーマットで出力（すべての数値フィールドに適用）
+
+**方法2: AWKを使用**
+
+```bash
+start=2026-02-01 end=2026-02-10; for d in $(seq 0 $((($(date -d "$end" +%s)-$(date -d "$start" +%s))/86400))); do date -d "$start +$d day" +'%F,%j,%u,%V'; done | awk -F',' '{printf "%s,%d,%d,%d\n", $1, $2, $3, $4}'
+```
+
+- AWKの`%d`フォーマット指定子が自動的に先頭のゼロを削除
+- `-F','`: カンマ区切りで入力を分割
+
+## リモートサーバーのログをクリップボードにコピー
+
+::: {.callout-note}
+### コマンド
+
+SSHでリモートサーバーに接続し，aptのインストール履歴をローカルのクリップボードにコピーするコマンド
+
+```bash
+ssh <username>@<remote-server> "cat /var/log/apt/history.log" | xclip -selection clipboard
+```
+
+:::
+
+
+このコマンドは，リモートサーバー（`<remote-server>`）上のapt履歴ログファイルをローカルマシンのクリップボードに直接コピーします
+
+[1. SSH でリモートサーバーにアクセス]{.mini-section}
+
+```bash
+ssh <username>@<remote-server> "cat /var/log/apt/history.log"
+```
+
+- `ssh <username>@<remote-server>`: リモートホスト「`<username>@<remote-server>`」にSSH接続
+- `"cat /var/log/apt/history.log"`: リモートサーバー上でaptの履歴ログを表示
+- `/var/log/apt/history.log`: パッケージのインストール・削除・アップグレードの履歴が記録されているファイル
+
+::: {.callout-tip}
+### /var/log/apt/history.log について
+
+このファイルには以下の情報が記録されています：
+
+- パッケージのインストール（`apt install`）
+- パッケージの削除（`apt remove`）
+- パッケージのアップグレード（`apt upgrade`）
+- 実行日時とコマンドラインオプション
+
+:::
+
+[2. xclip でクリップボードにコピー]{.mini-section}
+
+```bash
+| xclip -selection clipboard
+```
+
+- `xclip`: X Window Systemのクリップボード操作ツール
+- `-selection clipboard`: 標準的なクリップボード（Ctrl+Vで貼り付け可能）を使用
+- パイプ（`|`）でSSHの出力をxclipに渡す
+
+::: {.callout-tip}
+### xclip のセレクションオプション
+
+- `clipboard`: 標準クリップボード（Ctrl+C/V）
+- `primary`: プライマリセレクション（マウス中ボタンで貼り付け）
+- `secondary`: セカンダリセレクション（あまり使用されない）
+
+:::
+
+### 応用例
+
+[dpkg.log を取得]{.mini-section}
+
+```bash
+ssh <username>@<remote-server> "cat /var/log/dpkg.log" | xclip -selection clipboard
+```
+
+- dpkgのより詳細なログを取得
+
+[最新N行のみをコピー]{.mini-section}
+
+```bash
+ssh <username>@<remote-server> "tail -n 50 /var/log/apt/history.log" | xclip -selection clipboard
+```
+
+- 最新50行のみをクリップボードにコピー
+
+[複数のログファイルを結合]{.mini-section}
+
+```bash
+ssh <username>@<remote-server> "cat /var/log/apt/history.log /var/log/apt/history.log.1.gz | zcat" | xclip -selection clipboard
+```
+
+- 現在のログとローテーションされた圧縮ログを結合
+
+[特定期間のログを抽出]{.mini-section}
+
+```bash
+ssh <username>@<remote-server> "grep -A 5 'Start-Date: 2026-02' /var/log/apt/history.log" | xclip -selection clipboard
+```
+
+- 2026年2月のインストール履歴のみを抽出
+
+[ローカルファイルに保存しつつクリップボードにもコピー]{.mini-section}
+
+```bash
+ssh <username>@<remote-server> "cat /var/log/apt/history.log" | tee apt-history-backup.log | xclip -selection clipboard
+```
+
+- `tee`コマンドを使用して，ローカルファイルへの保存とクリップボードへのコピーを同時に実行
+
+::: {.callout-warning}
+### 注意事項
+
+- `xclip`がインストールされていない場合は `sudo apt install xclip` でインストールが必要です
+- Waylandを使用している場合は，`wl-clipboard`パッケージの`wl-copy`を使用します：
+  ```bash
+  ssh <username>@<remote-server> "cat /var/log/apt/history.log" | wl-copy
+  ```
+- SSHの公開鍵認証を設定しておくと，パスワード入力が不要で便利です
+
+:::
+
+## テキストファイルの小文字を大文字に変換
+
+::: {.callout-note}
+### コマンド
+
+ファイルの内容を小文字から大文字に変換して表示するコマンド
+
+```bash
+tr a-z A-Z < fileA
+```
+
+**例:**
+
+入力ファイル（fileA）:
+
+```txt
+hello world
+this is a test
+```
+
+出力:
+
+```txt
+HELLO WORLD
+THIS IS A TEST
+```
+
+:::
+
+このコマンドは `tr`（translate）コマンドを使用して，ファイル内のすべての小文字を大文字に変換します
+
+[1. tr コマンド（translate characters）]{.mini-section}
+
+```bash
+tr a-z A-Z
+```
+
+- `tr`: 文字を変換（translate）または削除するコマンド
+- 第1引数（`a-z`）: 変換元の文字セット（小文字 a から z）
+- 第2引数（`A-Z`）: 変換先の文字セット（大文字 A から Z）
+- 標準入力から読み込んだ文字列の各文字を，小文字なら対応する大文字に1対1で変換
+
+::: {.callout-tip}
+### tr コマンドの特徴
+
+- 標準入力からのみデータを読み込む（ファイル名を直接引数に取れない）
+- そのため，リダイレクトやパイプを使用する必要があります
+- 文字単位で処理（単語や行単位ではない）
+
+:::
+
+[2. リダイレクト（`<`）で入力]{.mini-section}
+
+```bash
+< fileA
+```
+
+- `<`: 入力リダイレクト演算子
+- `fileA` の内容を `tr` コマンドの標準入力にリダイレクト
+- これにより，ファイルの内容が `tr` コマンドに渡される
+
+::: {.callout-tip}
+### リダイレクトとパイプの違い
+
+**リダイレクト (`<`)**:
+```bash
+tr a-z A-Z < fileA
+```
+
+**パイプ (`|`) + `cat`**:
+```bash
+cat fileA | tr a-z A-Z
+```
+
+どちらも同じ結果を得られますが，リダイレクトの方が効率的です（`cat` プロセスが不要）
+
+:::
+
+### 応用例
+
+[大文字を小文字に変換]{.mini-section}
+
+```bash
+tr A-Z a-z < fileA
+```
+
+- 逆方向の変換（大文字→小文字）
+
+[数字を削除]{.mini-section}
+
+```bash
+tr -d 0-9 < fileA
+```
+
+- `-d`: delete オプション
+- すべての数字（0-9）を削除
+
+[連続する空白を1つにまとめる]{.mini-section}
+
+```bash
+tr -s ' ' < fileA
+```
+
+- `-s`: squeeze オプション
+- 連続する空白を1つにまとめる
+
+[改行をスペースに変換（1行にまとめる）]{.mini-section}
+
+```bash
+tr '\n' ' ' < fileA
+```
+
+- 改行文字をスペースに変換
+- 複数行のテキストを1行にまとめる
+
+[特定の文字を置換]{.mini-section}
+
+```bash
+tr ',' '\t' < fileA
+```
+
+- カンマをタブに変換
+- CSV → TSV 変換に使用可能
+
+[補集合を使用した変換]{.mini-section}
+
+```bash
+tr -c 'a-zA-Z0-9\n' '_' < fileA
+```
+
+- `-c`: complement（補集合）オプション
+- 英数字と改行以外のすべての文字をアンダースコアに変換
+- ファイル名の正規化などに便利
+
+[文字列の削除と圧縮を組み合わせ]{.mini-section}
+
+```bash
+tr -cd 'a-zA-Z ' < fileA | tr -s ' '
+```
+
+- 英字とスペース以外を削除（`-cd`）
+- その後，連続するスペースを1つにまとめる（`-s`）
+
+::: {.callout-warning}
+### 注意事項
+
+- `tr` コマンドは基本的な文字変換に特化しており，正規表現は使用できない
+- マルチバイト文字（日本語など）の処理には制限があり
+- 複雑なパターンマッチングには `sed` や `awk` の使用推奨
+
+:::
+
+## for loopとモデル評価
+
+::: {.callout-note}
+### コマンド
+
+`model` ディレクトリにある全モデルを順番に評価してログを保存するコマンド
+
+```bash
+mkdir -p logs
+
+for MODEL_PATH in models/*.pkl
+do
+   NAME=$(basename "$MODEL_PATH" .pkl)
+
+   poetry run python evaluate_cli.py \
+      --model_path "$MODEL_PATH" \
+      --target cv \
+      --make_pdp \
+      > "logs/eval_${NAME}.log" 2>&1
+done
+```
+
+:::
+
+[for loopの基本]{.mini-section}
+
+```bash
+for シェル変数 in 値のリスト
+do
+  コマンド
+done
+```
+
+- `in` の後のリストの要素が順番に `for` の後のシェル変数に格納され，そのたびにコマンドが実行
+
+[`evaluate_cli.py` の実装方針]{.mini-section}
+
+Typer CLIを用いる場合を想定しています．pakcage構成はsrc layoutを採用し，以下のような構成にします．
+
+```bash
+project/
+│
+├─ cli/
+│   ├─ evaluate_cli.py
+│   └─ ...
+├─ src/
+│   └─ package/
+│       ├─ __init__.py
+│       └─ evaluate.py  ← ロジック
+├─ models/
+└─ pyproject.toml
+```
+
+このとき，`evaluate_cli.py` の例として以下
+
+```python
+import typer
+from package.evaluate import run_evaluation
+
+app = typer.Typer()
+
+@app.command()
+def evaluate(
+    model_path: str,
+    target: str = "cv",
+    make_pdp: bool = False,
+):
+    result = run_evaluation(model_path, target, make_pdp)
+    print(result)
+
+if __name__ == "__main__":
+    app()
+```
