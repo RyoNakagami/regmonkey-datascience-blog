@@ -487,6 +487,125 @@ font-style: inherit;">)</span>.json</span></code></pre></div></div>
 
 
 
+<section id="実行可能スクリプトファイルをワンライナーで用意する" class="level2">
+<h2 class="anchored" data-anchor-id="実行可能スクリプトファイルをワンライナーで用意する">実行可能スクリプトファイルをワンライナーで用意する</h2>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>コマンド
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><code>bin/run_analysis.sh</code> という実行可能な空ファイルを，ディレクトリ作成・ファイル作成・パーミッション設定までまとめて一発で用意するコマンド</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">install</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-Dm755</span> /dev/null bin/run_analysis.sh</span></code></pre></div></div>
+</div>
+</div>
+<p>素直にに書くと，3つのコマンドを順に実行する必要があります．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mkdir</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-p</span> bin</span>
+<span id="cb2-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">touch</span> bin/run_analysis.sh</span>
+<span id="cb2-3"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">chmod</span> 755 bin/run_analysis.sh</span></code></pre></div></div>
+<ul>
+<li><code>mkdir -p bin</code>: <code>bin</code> ディレクトリが無ければ作成（あってもエラーにならない）</li>
+<li><code>touch bin/run_analysis.sh</code>: 空ファイルを作成</li>
+<li><code>chmod 755 bin/run_analysis.sh</code>: 所有者に rwx，グループ・その他に r-x を付与</li>
+</ul>
+<p>これを <code>install</code> コマンド1つで置き換えられます．</p>
+<p><span class="mini-section">1. <code>install</code> コマンドとは</span></p>
+<p><code>install</code> はファイルのコピーとパーミッション・所有者設定を同時に行うためのコマンドです．<code>cp</code> + <code>chmod</code> + <code>chown</code> + <code>mkdir</code> を1ステップで実行できます．</p>
+<p><span class="mini-section">2. オプションの意味</span></p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 16%">
+<col style="width: 83%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>オプション</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>-D</code></td>
+<td>コピー先の親ディレクトリが無ければ作成する（<code>mkdir -p</code> に相当）</td>
+</tr>
+<tr class="even">
+<td><code>-m755</code></td>
+<td>コピー後のファイルのモードを <code>755</code> に設定する（<code>chmod 755</code> に相当）</td>
+</tr>
+<tr class="odd">
+<td><code>/dev/null</code></td>
+<td>コピー元．空の特殊ファイルなので，結果として「空ファイル」が作成される</td>
+</tr>
+</tbody>
+</table>
+<p><span class="mini-section">3. なぜ <code>/dev/null</code> を渡すのか</span></p>
+<p><code>install</code> は本来「ファイルをコピーするコマンド」なので，コピー元のファイルが必要です．「空ファイルを作りたいだけ」のときに毎回ダミーファイルを用意するのは面倒なので，常に空である <code>/dev/null</code> をコピー元に指定することで，空ファイルを生成できます．</p>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ヒント</span><code>touch</code> + <code>chmod</code> との違い
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li><code>touch</code> は既存ファイルがあるとタイムスタンプだけ更新する（内容は保持）</li>
+<li><code>install -Dm755 /dev/null</code> は <strong>既存ファイルを空ファイルで上書きする</strong></li>
+</ul>
+<p>既存のスクリプトを意図せず空にしてしまわないよう，新規作成のときに使うのが安全です．</p>
+</div>
+</div>
+<section id="応用例" class="level3">
+<h3 class="anchored" data-anchor-id="応用例">応用例</h3>
+<p><span class="mini-section">実行権限なしで空ファイルを作成</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">install</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-Dm644</span> /dev/null path/to/config.yaml</span></code></pre></div></div>
+<ul>
+<li>設定ファイルなど，実行権限が不要なファイルに対して <code>644</code> を指定</li>
+</ul>
+<p><span class="mini-section">ディレクトリだけを作成</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">install</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-d</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-m755</span> path/to/new/dir</span></code></pre></div></div>
+<ul>
+<li><code>-d</code>: ディレクトリを作成するモード（<code>mkdir -p</code> 相当）</li>
+</ul>
+<p><span class="mini-section">既存ファイルを別の場所にコピーしてパーミッションも設定</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">install</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-Dm755</span> scripts/run_analysis.sh /usr/local/bin/run_analysis.sh</span></code></pre></div></div>
+<ul>
+<li>ローカルのスクリプトを <code>/usr/local/bin</code> 配下に配置する用途で，Makefile などでもよく使われる書き方</li>
+</ul>
+</section>
 <section id="似てるけど違う挙動-grep" class="level2">
 <h2 class="anchored" data-anchor-id="似てるけど違う挙動-grep">似てるけど違う挙動: <code>grep</code></h2>
 <div class="callout callout-style-default callout-note callout-titled">
@@ -500,21 +619,21 @@ font-style: inherit;">)</span>.json</span></code></pre></div></div>
 </div>
 <div class="callout-body-container callout-body">
 <p>行頭が数字で始まらない行を表示するが，「空行」についての挙動が異なるコマンド</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><span class="co" style="color: #5E5E5E;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><span class="co" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">## 空行も出力</span></span>
-<span id="cb1-2"><span class="fu" style="color: #4758AB;
+<span id="cb6-2"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">grep</span> <span class="at" style="color: #657422;
 background-color: null;
 font-style: inherit;">-v</span> <span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">'^[0-9]'</span> file</span>
-<span id="cb1-3"></span>
-<span id="cb1-4"><span class="co" style="color: #5E5E5E;
+<span id="cb6-3"></span>
+<span id="cb6-4"><span class="co" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">## 空行は出力されない</span></span>
-<span id="cb1-5"><span class="fu" style="color: #4758AB;
+<span id="cb6-5"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">grep</span> <span class="st" style="color: #20794D;
 background-color: null;
@@ -546,47 +665,47 @@ font-style: inherit;">'^[^0-9]'</span> file</span></code></pre></div></div>
 <p>実務では，「数字で始まらない行 = 空行も該当する」というケースのほうが多いと思うので，基本は <code>grep -v '^[0-9]' file</code> のほうが良いと思われる．</p>
 <div id="exm-" class="custom_problem theorem example">
 <p><span class="theorem-title"><strong>例 1</strong></span> &nbsp;</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><span class="ex" style="color: null;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">$</span> cat file1.txt</span>
-<span id="cb2-2"><span class="ex" style="color: null;
+<span id="cb7-2"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">123abc</span></span>
-<span id="cb2-3"><span class="ex" style="color: null;
+<span id="cb7-3"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">abc123</span></span>
-<span id="cb2-4"></span>
-<span id="cb2-5"><span class="co" style="color: #5E5E5E;
+<span id="cb7-4"></span>
+<span id="cb7-5"><span class="co" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;"># 空行あり</span></span>
-<span id="cb2-6"><span class="ex" style="color: null;
+<span id="cb7-6"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">9xyz</span></span></code></pre></div></div>
 <p>のとき，</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><span class="ex" style="color: null;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">$</span> grep <span class="at" style="color: #657422;
 background-color: null;
 font-style: inherit;">-v</span> <span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">'^[0-9]'</span> file1.txt</span>
-<span id="cb3-2"><span class="ex" style="color: null;
+<span id="cb8-2"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">abc123</span></span>
-<span id="cb3-3"></span>
-<span id="cb3-4"><span class="co" style="color: #5E5E5E;
+<span id="cb8-3"></span>
+<span id="cb8-4"><span class="co" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;"># 空行あり</span></span></code></pre></div></div>
 <p>一方，</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><span class="ex" style="color: null;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">$</span> grep <span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">'^[^0-9]'</span> file1.txt</span>
-<span id="cb4-2"><span class="ex" style="color: null;
+<span id="cb9-2"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">abc123</span></span>
-<span id="cb4-3"><span class="co" style="color: #5E5E5E;
+<span id="cb9-3"><span class="co" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;"># 空行あり</span></span></code></pre></div></div>
 </div>
@@ -605,7 +724,7 @@ font-style: inherit;"># 空行あり</span></span></code></pre></div></div>
 </div>
 <div class="callout-body-container callout-body">
 <p>2020年から2025年までの期間で「13日の金曜日」を見つけるコマンド</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><span class="bu" style="color: null;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><span class="bu" style="color: null;
 background-color: null;
 font-style: inherit;">printf</span> <span class="st" style="color: #20794D;
 background-color: null;
@@ -637,7 +756,7 @@ font-style: inherit;">grep</span> Fri</span></code></pre></div></div>
 </div>
 </div>
 <p>基礎に忠実に実行するならば</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><span class="ex" style="color: null;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">$</span> for i in <span class="va" style="color: #111111;
 background-color: null;
@@ -695,36 +814,36 @@ font-weight: bold;
 font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">grep</span> Fri</span>
-<span id="cb6-2"><span class="ex" style="color: null;
+<span id="cb11-2"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">Fri</span> Mar 13 12:00:00 AM JST 2020</span>
-<span id="cb6-3"><span class="ex" style="color: null;
+<span id="cb11-3"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">Fri</span> Nov 13 12:00:00 AM JST 2020</span>
-<span id="cb6-4"><span class="ex" style="color: null;
+<span id="cb11-4"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">Fri</span> Aug 13 12:00:00 AM JST 2021</span>
-<span id="cb6-5"><span class="ex" style="color: null;
+<span id="cb11-5"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">Fri</span> May 13 12:00:00 AM JST 2022</span>
-<span id="cb6-6"><span class="ex" style="color: null;
+<span id="cb11-6"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">Fri</span> Jan 13 12:00:00 AM JST 2023</span>
-<span id="cb6-7"><span class="ex" style="color: null;
+<span id="cb11-7"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">Fri</span> Oct 13 12:00:00 AM JST 2023</span>
-<span id="cb6-8"><span class="ex" style="color: null;
+<span id="cb11-8"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">Fri</span> Sep 13 12:00:00 AM JST 2024</span>
-<span id="cb6-9"><span class="ex" style="color: null;
+<span id="cb11-9"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">Fri</span> Dec 13 12:00:00 AM JST 2024</span>
-<span id="cb6-10"><span class="ex" style="color: null;
+<span id="cb11-10"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">Fri</span> Jun 13 12:00:00 AM JST 2025</span></code></pre></div></div>
 <p>となりますが，より短く，二重ループをわかりやすくしたのが上記となります．</p>
 <p><span class="mini-section">1. ブレース展開（Brace Expansion）</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><span class="dt" style="color: #AD0000;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><span class="dt" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">{</span><span class="dv" style="color: #AD0000;
 background-color: null;
@@ -771,7 +890,7 @@ font-style: inherit;">/13</span></span></code></pre></div></div>
 </div>
 </div>
 <p><span class="mini-section">2. printf で改行区切りで出力</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><span class="bu" style="color: null;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb13-1"><span class="bu" style="color: null;
 background-color: null;
 font-style: inherit;">printf</span> <span class="st" style="color: #20794D;
 background-color: null;
@@ -781,7 +900,7 @@ font-style: inherit;">"%s\n"</span> {展開結果}</span></code></pre></div></di
 <li>例: <code>2020/1/13</code>, <code>2020/2/13</code>, …が各行に出力</li>
 </ul>
 <p><span class="mini-section">3. xargs でdate コマンドに渡す</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><span class="fu" style="color: #4758AB;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb14-1"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">xargs</span> <span class="at" style="color: #657422;
 background-color: null;
@@ -794,7 +913,7 @@ font-style: inherit;">-d</span> {}</span></code></pre></div></div>
 <li>例: <code>Fri Jan 13 00:00:00 JST 2023</code></li>
 </ul>
 <p><span class="mini-section">4. grep で金曜日のみを抽出</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><span class="fu" style="color: #4758AB;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb15-1"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">grep</span> Fri</span></code></pre></div></div>
 <ul>
@@ -814,7 +933,7 @@ font-style: inherit;">grep</span> Fri</span></code></pre></div></div>
 </div>
 <div class="callout-body-container callout-body">
 <p>Linuxのログインセッション情報を詳細に整形して表示するコマンド</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><span class="bu" style="color: null;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb16-1"><span class="bu" style="color: null;
 background-color: null;
 font-style: inherit;">printf</span> <span class="st" style="color: #20794D;
 background-color: null;
@@ -1029,17 +1148,17 @@ font-style: inherit;">done</span></span></code></pre></div></div>
 </ul></li>
 </ol>
 <p><strong>改行を入れた読みやすい形式:</strong></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><span class="co" style="color: #5E5E5E;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb17-1"><span class="co" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;"># ヘッダー行を出力</span></span>
-<span id="cb12-2"><span class="bu" style="color: null;
+<span id="cb17-2"><span class="bu" style="color: null;
 background-color: null;
 font-style: inherit;">printf</span> <span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"%-8s %-8s %-18s %-8s %-8s %-6s %-10s %-10s\n"</span> <span class="dt" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">\</span></span>
-<span id="cb12-3">  <span class="st" style="color: #20794D;
+<span id="cb17-3">  <span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"SESSION"</span> <span class="st" style="color: #20794D;
 background-color: null;
@@ -1056,11 +1175,11 @@ background-color: null;
 font-style: inherit;">"SEAT"</span> <span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"TTY"</span></span>
-<span id="cb12-4"></span>
-<span id="cb12-5"><span class="co" style="color: #5E5E5E;
+<span id="cb17-4"></span>
+<span id="cb17-5"><span class="co" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;"># セッション一覧を取得してループ処理</span></span>
-<span id="cb12-6"><span class="ex" style="color: null;
+<span id="cb17-6"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">loginctl</span> list-sessions <span class="at" style="color: #657422;
 background-color: null;
@@ -1091,10 +1210,10 @@ font-style: inherit;">;</span> <span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">do</span></span>
-<span id="cb12-7">  <span class="co" style="color: #5E5E5E;
+<span id="cb17-7">  <span class="co" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;"># セッション詳細情報を取得して配列に格納</span></span>
-<span id="cb12-8">  <span class="bu" style="color: null;
+<span id="cb17-8">  <span class="bu" style="color: null;
 background-color: null;
 font-style: inherit;">eval</span> <span class="st" style="color: #20794D;
 background-color: null;
@@ -1111,7 +1230,7 @@ background-color: null;
 font-style: inherit;">"</span> <span class="dt" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">\</span></span>
-<span id="cb12-9">    <span class="at" style="color: #657422;
+<span id="cb17-9">    <span class="at" style="color: #657422;
 background-color: null;
 font-style: inherit;">-p</span> Type <span class="at" style="color: #657422;
 background-color: null;
@@ -1129,7 +1248,7 @@ font-weight: bold;
 font-style: inherit;">|</span> <span class="dt" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">\</span></span>
-<span id="cb12-10">    <span class="fu" style="color: #4758AB;
+<span id="cb17-10">    <span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">awk</span> <span class="st" style="color: #20794D;
 background-color: null;
@@ -1138,18 +1257,18 @@ background-color: null;
 font-style: inherit;">)</span><span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"</span></span>
-<span id="cb12-11"></span>
-<span id="cb12-12">  <span class="co" style="color: #5E5E5E;
+<span id="cb17-11"></span>
+<span id="cb17-12">  <span class="co" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;"># 整形して出力</span></span>
-<span id="cb12-13">  <span class="bu" style="color: null;
+<span id="cb17-13">  <span class="bu" style="color: null;
 background-color: null;
 font-style: inherit;">printf</span> <span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"%-8s %-8s %-18s %-8s %-8s %-6s %-10s %-10s\n"</span> <span class="dt" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">\</span></span>
-<span id="cb12-14">    <span class="st" style="color: #20794D;
+<span id="cb17-14">    <span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"</span><span class="va" style="color: #111111;
 background-color: null;
@@ -1170,7 +1289,7 @@ background-color: null;
 font-style: inherit;">"</span> <span class="dt" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">\</span></span>
-<span id="cb12-15">    <span class="st" style="color: #20794D;
+<span id="cb17-15">    <span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"</span><span class="va" style="color: #111111;
 background-color: null;
@@ -1241,40 +1360,40 @@ background-color: null;
 font-style: inherit;">}</span><span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"</span></span>
-<span id="cb12-16"></span>
-<span id="cb12-17">  <span class="co" style="color: #5E5E5E;
+<span id="cb17-16"></span>
+<span id="cb17-17">  <span class="co" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;"># 変数をクリーンアップ</span></span>
-<span id="cb12-18">  <span class="bu" style="color: null;
+<span id="cb17-18">  <span class="bu" style="color: null;
 background-color: null;
 font-style: inherit;">unset</span> <span class="va" style="color: #111111;
 background-color: null;
 font-style: inherit;">v</span> <span class="va" style="color: #111111;
 background-color: null;
 font-style: inherit;">i</span></span>
-<span id="cb12-19"><span class="cf" style="color: #003B4F;
+<span id="cb17-19"><span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">done</span></span></code></pre></div></div>
 </div>
 </div>
 <p>このコマンドは <code>loginctl</code> を使用して，現在のシステムにログインしているセッション情報を表形式で見やすく表示します</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb13-1"><span class="ex" style="color: null;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb18-1"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">SESSION</span>  UID      USER               TYPE     SERVICE  REMOTE SEAT       TTY</span>
-<span id="cb13-2"><span class="ex" style="color: null;
+<span id="cb18-2"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">1</span>        1000     kirby       tty      login    <span class="at" style="color: #657422;
 background-color: null;
 font-style: inherit;">-</span>      seat0      tty1</span>
-<span id="cb13-3"><span class="ex" style="color: null;
+<span id="cb18-3"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">2</span>        1000     kirby       x11      gdm-x    <span class="at" style="color: #657422;
 background-color: null;
 font-style: inherit;">-</span>      seat0      <span class="at" style="color: #657422;
 background-color: null;
 font-style: inherit;">-</span></span>
-<span id="cb13-4"><span class="ex" style="color: null;
+<span id="cb18-4"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">c1</span>       1000     kirby       wayland  <span class="at" style="color: #657422;
 background-color: null;
@@ -1286,7 +1405,7 @@ font-style: inherit;">-</span>          <span class="at" style="color: #657422;
 background-color: null;
 font-style: inherit;">-</span></span></code></pre></div></div>
 <p><span class="mini-section">1. ヘッダー行の出力</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb14-1"><span class="bu" style="color: null;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb19-1"><span class="bu" style="color: null;
 background-color: null;
 font-style: inherit;">printf</span> <span class="st" style="color: #20794D;
 background-color: null;
@@ -1312,7 +1431,7 @@ font-style: inherit;">"TTY"</span></span></code></pre></div></div>
 <li><code>%-8s</code> は8文字幅で左揃えの文字列を意味します</li>
 </ul>
 <p><span class="mini-section">2. セッションリストの取得</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb15-1"><span class="ex" style="color: null;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb20-1"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">loginctl</span> list-sessions <span class="at" style="color: #657422;
 background-color: null;
@@ -1322,16 +1441,16 @@ font-style: inherit;">--no-legend</span></span></code></pre></div></div>
 <li><code>--no-legend</code>: ヘッダー行を表示しない（パイプ処理しやすくするため）</li>
 </ul>
 <p>出力例:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb16-1"><span class="ex" style="color: null;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb21-1"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">1</span>  1000 kirby seat0 tty1</span>
-<span id="cb16-2"><span class="ex" style="color: null;
+<span id="cb21-2"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">2</span>  1000 kirby seat0 <span class="at" style="color: #657422;
 background-color: null;
 font-style: inherit;">-</span></span></code></pre></div></div>
 <p><span class="mini-section">3. while readループで各セッションを処理</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb17-1"><span class="cf" style="color: #003B4F;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb22" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb22-1"><span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">while</span> <span class="bu" style="color: null;
@@ -1355,10 +1474,10 @@ font-style: inherit;">;</span> <span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">do</span></span>
-<span id="cb17-2">  <span class="co" style="color: #5E5E5E;
+<span id="cb22-2">  <span class="co" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;"># 処理内容</span></span>
-<span id="cb17-3"><span class="cf" style="color: #003B4F;
+<span id="cb22-3"><span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">done</span></span></code></pre></div></div>
@@ -1367,7 +1486,7 @@ font-style: inherit;">done</span></span></code></pre></div></div>
 <li>各行を5つの変数（<code>sid</code>, <code>uid</code>, <code>user</code>, <code>seat</code>, <code>tty</code>）に分割して読み込み</li>
 </ul>
 <p><span class="mini-section">4. loginctl show-sessionの実行</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb18-1"><span class="ex" style="color: null;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb23" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb23-1"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">loginctl</span> show-session <span class="st" style="color: #20794D;
 background-color: null;
@@ -1393,23 +1512,23 @@ font-style: inherit;">--value</span></span></code></pre></div></div>
 <li><code>--value</code>: プロパティ名を省略し，値のみを出力</li>
 </ul>
 <p>出力例:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb19-1"><span class="fu" style="color: #4758AB;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb24" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb24-1"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">tty</span></span>
-<span id="cb19-2"><span class="fu" style="color: #4758AB;
+<span id="cb24-2"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">login</span></span>
-<span id="cb19-3"><span class="ex" style="color: null;
+<span id="cb24-3"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">no</span></span>
-<span id="cb19-4"><span class="ex" style="color: null;
+<span id="cb24-4"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">seat0</span></span>
-<span id="cb19-5"><span class="ex" style="color: null;
+<span id="cb24-5"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">tty1</span></span></code></pre></div></div>
 <p><span class="mini-section">5. awkで配列代入文を生成</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb20-1"><span class="fu" style="color: #4758AB;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb25" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb25-1"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">awk</span> <span class="st" style="color: #20794D;
 background-color: null;
@@ -1419,7 +1538,7 @@ font-style: inherit;">'{print "v[++i]=\""$0"\""}'</span></span></code></pre></di
 <li><code>++i</code> で配列インデックスを1から順に増やす</li>
 </ul>
 <p>出力例:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb21-1"><span class="va" style="color: #111111;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb26" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb26-1"><span class="va" style="color: #111111;
 background-color: null;
 font-style: inherit;">v</span><span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -1430,7 +1549,7 @@ background-color: null;
 font-style: inherit;">]=</span><span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"tty"</span></span>
-<span id="cb21-2"><span class="va" style="color: #111111;
+<span id="cb26-2"><span class="va" style="color: #111111;
 background-color: null;
 font-style: inherit;">v</span><span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -1441,7 +1560,7 @@ background-color: null;
 font-style: inherit;">]=</span><span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"login"</span></span>
-<span id="cb21-3"><span class="va" style="color: #111111;
+<span id="cb26-3"><span class="va" style="color: #111111;
 background-color: null;
 font-style: inherit;">v</span><span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -1452,7 +1571,7 @@ background-color: null;
 font-style: inherit;">]=</span><span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"no"</span></span>
-<span id="cb21-4"><span class="va" style="color: #111111;
+<span id="cb26-4"><span class="va" style="color: #111111;
 background-color: null;
 font-style: inherit;">v</span><span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -1463,7 +1582,7 @@ background-color: null;
 font-style: inherit;">]=</span><span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"seat0"</span></span>
-<span id="cb21-5"><span class="va" style="color: #111111;
+<span id="cb26-5"><span class="va" style="color: #111111;
 background-color: null;
 font-style: inherit;">v</span><span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -1475,7 +1594,7 @@ font-style: inherit;">]=</span><span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"tty1"</span></span></code></pre></div></div>
 <p><span class="mini-section">6. evalで配列代入を実行</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb22" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb22-1"><span class="bu" style="color: null;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb27" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb27-1"><span class="bu" style="color: null;
 background-color: null;
 font-style: inherit;">eval</span> <span class="st" style="color: #20794D;
 background-color: null;
@@ -1509,7 +1628,7 @@ font-style: inherit;">"</span></span></code></pre></div></div>
 </div>
 </div>
 <p><span class="mini-section">7. フォーマット済み出力</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb23" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb23-1"><span class="bu" style="color: null;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb28" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb28-1"><span class="bu" style="color: null;
 background-color: null;
 font-style: inherit;">printf</span> <span class="st" style="color: #20794D;
 background-color: null;
@@ -1607,7 +1726,7 @@ font-style: inherit;">"</span></span></code></pre></div></div>
 <li><code>${v[1]:--}</code>: 変数が空または未定義の場合は <code>-</code> を表示（デフォルト値置換）</li>
 </ul>
 <p><span class="mini-section">8. 変数のクリーンアップ</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb24" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb24-1"><span class="bu" style="color: null;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb29" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb29-1"><span class="bu" style="color: null;
 background-color: null;
 font-style: inherit;">unset</span> <span class="va" style="color: #111111;
 background-color: null;
@@ -1618,10 +1737,10 @@ font-style: inherit;">i</span></span></code></pre></div></div>
 <li>ループの次の反復のために配列 <code>v</code> とカウンタ <code>i</code> をクリア</li>
 <li>これにより次のセッション処理時に前の値が残らないようにする</li>
 </ul>
-<section id="応用例" class="level3">
-<h3 class="anchored" data-anchor-id="応用例">応用例</h3>
+<section id="応用例-1" class="level3">
+<h3 class="anchored" data-anchor-id="応用例-1">応用例</h3>
 <p>特定のユーザーのセッションのみ表示:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb25" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb25-1"><span class="bu" style="color: null;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb30" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb30-1"><span class="bu" style="color: null;
 background-color: null;
 font-style: inherit;">printf</span> <span class="st" style="color: #20794D;
 background-color: null;
@@ -1828,7 +1947,7 @@ background-color: null;
 font-weight: bold;
 font-style: inherit;">done</span></span></code></pre></div></div>
 <p>TSV形式で出力（表計算ソフトで使いやすい）:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb26" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb26-1"><span class="bu" style="color: null;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb31" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb31-1"><span class="bu" style="color: null;
 background-color: null;
 font-style: inherit;">echo</span> <span class="at" style="color: #657422;
 background-color: null;
@@ -2016,7 +2135,7 @@ font-style: inherit;">done</span></span></code></pre></div></div>
 </div>
 <div class="callout-body-container callout-body">
 <p>指定期間の日付情報（日付，年始からの経過日数，曜日番号，ISO週番号）をCSV形式で出力するコマンド</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb27" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb27-1"><span class="va" style="color: #111111;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb32" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb32-1"><span class="va" style="color: #111111;
 background-color: null;
 font-style: inherit;">start</span><span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -2116,18 +2235,18 @@ font-style: inherit;">done</span></span></code></pre></div></div>
 2026-02-09,040,1,07
 2026-02-10,041,2,07</code></pre>
 <p><strong>改行を入れた読みやすい形式:</strong></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb29" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb29-1"><span class="va" style="color: #111111;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb34" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb34-1"><span class="va" style="color: #111111;
 background-color: null;
 font-style: inherit;">start</span><span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span>2026-02-01</span>
-<span id="cb29-2"><span class="va" style="color: #111111;
+<span id="cb34-2"><span class="va" style="color: #111111;
 background-color: null;
 font-style: inherit;">end</span><span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span>2026-02-10</span>
-<span id="cb29-3"></span>
-<span id="cb29-4"><span class="cf" style="color: #003B4F;
+<span id="cb34-3"></span>
+<span id="cb34-4"><span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">for</span> d <span class="kw" style="color: #003B4F;
@@ -2182,7 +2301,7 @@ font-style: inherit;">;</span> <span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">do</span></span>
-<span id="cb29-5">  <span class="fu" style="color: #4758AB;
+<span id="cb34-5">  <span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">date</span> <span class="at" style="color: #657422;
 background-color: null;
@@ -2199,7 +2318,7 @@ background-color: null;
 font-style: inherit;"> day"</span> +<span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">'%F,%j,%u,%V'</span></span>
-<span id="cb29-6"><span class="cf" style="color: #003B4F;
+<span id="cb34-6"><span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">done</span></span></code></pre></div></div>
@@ -2207,12 +2326,12 @@ font-style: inherit;">done</span></span></code></pre></div></div>
 </div>
 <p>このコマンドは指定した期間の各日付について，日付・年始からの経過日数（通日）・曜日番号・ISO週番号を取得します。</p>
 <p><span class="mini-section">1. 開始日と終了日の設定</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb30" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb30-1"><span class="va" style="color: #111111;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb35" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb35-1"><span class="va" style="color: #111111;
 background-color: null;
 font-style: inherit;">start</span><span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span>2026-02-01</span>
-<span id="cb30-2"><span class="va" style="color: #111111;
+<span id="cb35-2"><span class="va" style="color: #111111;
 background-color: null;
 font-style: inherit;">end</span><span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -2222,7 +2341,7 @@ font-style: inherit;">=</span>2026-02-10</span></code></pre></div></div>
 <li><code>date</code> コマンドが認識できる形式であれば任意の日付が使用可能</li>
 </ul>
 <p><span class="mini-section">2. 期間の日数を計算</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb31" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb31-1"><span class="va" style="color: #111111;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb36" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb36-1"><span class="va" style="color: #111111;
 background-color: null;
 font-style: inherit;">$((</span>(<span class="va" style="color: #111111;
 background-color: null;
@@ -2267,7 +2386,7 @@ font-style: inherit;">))</span></span></code></pre></div></div>
 <li>差分を計算し，86400（1日の秒数）で割ることで日数を取得</li>
 </ul>
 <p><span class="mini-section">3. seq で日数分のループ</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb32" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb32-1"><span class="cf" style="color: #003B4F;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb37" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb37-1"><span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">for</span> d <span class="kw" style="color: #003B4F;
@@ -2291,7 +2410,7 @@ font-style: inherit;">do</span></span></code></pre></div></div>
 <li>各数値をループ変数 <code>d</code> に代入</li>
 </ul>
 <p><span class="mini-section">4. 日付の計算と整形</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb33" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb33-1"><span class="fu" style="color: #4758AB;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb38" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb38-1"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">date</span> <span class="at" style="color: #657422;
 background-color: null;
@@ -2337,10 +2456,10 @@ font-style: inherit;">'%F,%j,%u,%V'</span></span></code></pre></div></div>
 </ul>
 </div>
 </div>
-<section id="応用例-1" class="level3">
-<h3 class="anchored" data-anchor-id="応用例-1">応用例</h3>
+<section id="応用例-2" class="level3">
+<h3 class="anchored" data-anchor-id="応用例-2">応用例</h3>
 <p><span class="mini-section">ヘッダー付きCSV出力</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb34" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb34-1"><span class="bu" style="color: null;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb39" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb39-1"><span class="bu" style="color: null;
 background-color: null;
 font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
 background-color: null;
@@ -2436,7 +2555,7 @@ background-color: null;
 font-weight: bold;
 font-style: inherit;">done</span></span></code></pre></div></div>
 <p><span class="mini-section">曜日名を含めた出力</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb35" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb35-1"><span class="va" style="color: #111111;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb40" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb40-1"><span class="va" style="color: #111111;
 background-color: null;
 font-style: inherit;">start</span><span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -2528,7 +2647,7 @@ font-style: inherit;">done</span></span></code></pre></div></div>
 <pre><code>2026-02-01,032,Sunday,05
 2026-02-02,033,Monday,06</code></pre>
 <p><span class="mini-section">平日のみを抽出</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb37" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb37-1"><span class="va" style="color: #111111;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb42" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb42-1"><span class="va" style="color: #111111;
 background-color: null;
 font-style: inherit;">start</span><span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -2674,10 +2793,10 @@ background-color: null;
 font-weight: bold;
 font-style: inherit;">done</span></span></code></pre></div></div>
 <p><span class="mini-section">タブ区切りで出力（TSV形式）</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb38" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb38-1"><span class="co" style="color: #5E5E5E;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb43" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb43-1"><span class="co" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">## ANSI-C quotingを使用</span></span>
-<span id="cb38-2"><span class="va" style="color: #111111;
+<span id="cb43-2"><span class="va" style="color: #111111;
 background-color: null;
 font-style: inherit;">start</span><span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -2780,7 +2899,7 @@ font-style: inherit;">done</span></span></code></pre></div></div>
 <p><span class="mini-section">先頭のゼロを削除して整数形式で出力</span></p>
 <p>通日（036）を整数（36）として出力する方法：</p>
 <p><strong>方法1: 算術展開を使用</strong></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb39" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb39-1"><span class="va" style="color: #111111;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb44" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb44-1"><span class="va" style="color: #111111;
 background-color: null;
 font-style: inherit;">start</span><span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -2974,7 +3093,7 @@ font-style: inherit;">done</span></span></code></pre></div></div>
 <li><code>printf "%d"</code>: 整数フォーマットで出力（すべての数値フィールドに適用）</li>
 </ul>
 <p><strong>方法2: AWKを使用</strong></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb41" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb41-1"><span class="va" style="color: #111111;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb46" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb46-1"><span class="va" style="color: #111111;
 background-color: null;
 font-style: inherit;">start</span><span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -3092,7 +3211,7 @@ font-style: inherit;">'{printf "%s,%d,%d,%d\n", $1, $2, $3, $4}'</span></span></
 </div>
 <div class="callout-body-container callout-body">
 <p>SSHでリモートサーバーに接続し，aptのインストール履歴をローカルのクリップボードにコピーするコマンド</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb42" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb42-1"><span class="fu" style="color: #4758AB;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb47" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb47-1"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">ssh</span> <span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -3116,7 +3235,7 @@ font-style: inherit;">-selection</span> clipboard</span></code></pre></div></div
 </div>
 <p>このコマンドは，リモートサーバー（<code>&lt;remote-server&gt;</code>）上のapt履歴ログファイルをローカルマシンのクリップボードに直接コピーします</p>
 <p><span class="mini-section">1. SSH でリモートサーバーにアクセス</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb43" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb43-1"><span class="fu" style="color: #4758AB;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb48" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb48-1"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">ssh</span> <span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -3154,7 +3273,7 @@ font-style: inherit;">"cat /var/log/apt/history.log"</span></span></code></pre><
 </div>
 </div>
 <p><span class="mini-section">2. xclip でクリップボードにコピー</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb44" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb44-1"><span class="kw" style="color: #003B4F;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb49" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb49-1"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">|</span> <span class="ex" style="color: null;
@@ -3184,10 +3303,10 @@ font-style: inherit;">-selection</span> clipboard</span></code></pre></div></div
 </ul>
 </div>
 </div>
-<section id="応用例-2" class="level3">
-<h3 class="anchored" data-anchor-id="応用例-2">応用例</h3>
+<section id="応用例-3" class="level3">
+<h3 class="anchored" data-anchor-id="応用例-3">応用例</h3>
 <p><span class="mini-section">dpkg.log を取得</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb45" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb45-1"><span class="fu" style="color: #4758AB;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb50" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb50-1"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">ssh</span> <span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -3211,7 +3330,7 @@ font-style: inherit;">-selection</span> clipboard</span></code></pre></div></div
 <li>dpkgのより詳細なログを取得</li>
 </ul>
 <p><span class="mini-section">最新N行のみをコピー</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb46" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb46-1"><span class="fu" style="color: #4758AB;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb51" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb51-1"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">ssh</span> <span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -3235,7 +3354,7 @@ font-style: inherit;">-selection</span> clipboard</span></code></pre></div></div
 <li>最新50行のみをクリップボードにコピー</li>
 </ul>
 <p><span class="mini-section">複数のログファイルを結合</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb47" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb47-1"><span class="fu" style="color: #4758AB;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb52" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb52-1"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">ssh</span> <span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -3259,7 +3378,7 @@ font-style: inherit;">-selection</span> clipboard</span></code></pre></div></div
 <li>現在のログとローテーションされた圧縮ログを結合</li>
 </ul>
 <p><span class="mini-section">特定期間のログを抽出</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb48" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb48-1"><span class="fu" style="color: #4758AB;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb53" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb53-1"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">ssh</span> <span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -3283,7 +3402,7 @@ font-style: inherit;">-selection</span> clipboard</span></code></pre></div></div
 <li>2026年2月のインストール履歴のみを抽出</li>
 </ul>
 <p><span class="mini-section">ローカルファイルに保存しつつクリップボードにもコピー</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb49" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb49-1"><span class="fu" style="color: #4758AB;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb54" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb54-1"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">ssh</span> <span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -3324,7 +3443,7 @@ font-style: inherit;">-selection</span> clipboard</span></code></pre></div></div
 <ul>
 <li><p><code>xclip</code>がインストールされていない場合は <code>sudo apt install xclip</code> でインストールが必要です</p></li>
 <li><p>Waylandを使用している場合は，<code>wl-clipboard</code>パッケージの<code>wl-copy</code>を使用します：</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb50" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb50-1"><span class="fu" style="color: #4758AB;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb55" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb55-1"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">ssh</span> <span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -3361,23 +3480,23 @@ font-style: inherit;">wl-copy</span></span></code></pre></div></div></li>
 </div>
 <div class="callout-body-container callout-body">
 <p>ファイルの内容を小文字から大文字に変換して表示するコマンド</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb51" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb51-1"><span class="fu" style="color: #4758AB;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb56" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb56-1"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">tr</span> a-z A-Z <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">&lt;</span> fileA</span></code></pre></div></div>
 <p><strong>例:</strong></p>
 <p>入力ファイル（fileA）:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb52" style="background: #f1f3f5;"><pre class="sourceCode txt code-with-copy"><code class="sourceCode default"><span id="cb52-1">hello world</span>
-<span id="cb52-2">this is a test</span></code></pre></div></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb57" style="background: #f1f3f5;"><pre class="sourceCode txt code-with-copy"><code class="sourceCode default"><span id="cb57-1">hello world</span>
+<span id="cb57-2">this is a test</span></code></pre></div></div>
 <p>出力:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb53" style="background: #f1f3f5;"><pre class="sourceCode txt code-with-copy"><code class="sourceCode default"><span id="cb53-1">HELLO WORLD</span>
-<span id="cb53-2">THIS IS A TEST</span></code></pre></div></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb58" style="background: #f1f3f5;"><pre class="sourceCode txt code-with-copy"><code class="sourceCode default"><span id="cb58-1">HELLO WORLD</span>
+<span id="cb58-2">THIS IS A TEST</span></code></pre></div></div>
 </div>
 </div>
 <p>このコマンドは <code>tr</code>（translate）コマンドを使用して，ファイル内のすべての小文字を大文字に変換します</p>
 <p><span class="mini-section">1. tr コマンド（translate characters）</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb54" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb54-1"><span class="fu" style="color: #4758AB;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb59" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb59-1"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">tr</span> a-z A-Z</span></code></pre></div></div>
 <ul>
@@ -3404,7 +3523,7 @@ font-style: inherit;">tr</span> a-z A-Z</span></code></pre></div></div>
 </div>
 </div>
 <p><span class="mini-section">2. リダイレクト（<code>&lt;</code>）で入力</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb55" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb55-1"><span class="op" style="color: #5E5E5E;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb60" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb60-1"><span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">&lt;</span> fileA</span></code></pre></div></div>
 <ul>
@@ -3423,13 +3542,13 @@ font-style: inherit;">&lt;</span> fileA</span></code></pre></div></div>
 </div>
 <div class="callout-body-container callout-body">
 <p><strong>リダイレクト (<code>&lt;</code>)</strong>:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb56" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb56-1"><span class="fu" style="color: #4758AB;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb61" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb61-1"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">tr</span> a-z A-Z <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">&lt;</span> fileA</span></code></pre></div></div>
 <p><strong>パイプ (<code>|</code>) + <code>cat</code></strong>:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb57" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb57-1"><span class="fu" style="color: #4758AB;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb62" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb62-1"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">cat</span> fileA <span class="kw" style="color: #003B4F;
 background-color: null;
@@ -3440,10 +3559,10 @@ font-style: inherit;">tr</span> a-z A-Z</span></code></pre></div></div>
 <p>どちらも同じ結果を得られますが，リダイレクトの方が効率的です（<code>cat</code> プロセスが不要）</p>
 </div>
 </div>
-<section id="応用例-3" class="level3">
-<h3 class="anchored" data-anchor-id="応用例-3">応用例</h3>
+<section id="応用例-4" class="level3">
+<h3 class="anchored" data-anchor-id="応用例-4">応用例</h3>
 <p><span class="mini-section">大文字を小文字に変換</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb58" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb58-1"><span class="fu" style="color: #4758AB;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb63" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb63-1"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">tr</span> A-Z a-z <span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -3452,7 +3571,7 @@ font-style: inherit;">&lt;</span> fileA</span></code></pre></div></div>
 <li>逆方向の変換（大文字→小文字）</li>
 </ul>
 <p><span class="mini-section">数字を削除</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb59" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb59-1"><span class="fu" style="color: #4758AB;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb64" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb64-1"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">tr</span> <span class="at" style="color: #657422;
 background-color: null;
@@ -3464,7 +3583,7 @@ font-style: inherit;">&lt;</span> fileA</span></code></pre></div></div>
 <li>すべての数字（0-9）を削除</li>
 </ul>
 <p><span class="mini-section">連続する空白を1つにまとめる</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb60" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb60-1"><span class="fu" style="color: #4758AB;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb65" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb65-1"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">tr</span> <span class="at" style="color: #657422;
 background-color: null;
@@ -3478,7 +3597,7 @@ font-style: inherit;">&lt;</span> fileA</span></code></pre></div></div>
 <li>連続する空白を1つにまとめる</li>
 </ul>
 <p><span class="mini-section">改行をスペースに変換（1行にまとめる）</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb61" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb61-1"><span class="fu" style="color: #4758AB;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb66" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb66-1"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">tr</span> <span class="st" style="color: #20794D;
 background-color: null;
@@ -3492,7 +3611,7 @@ font-style: inherit;">&lt;</span> fileA</span></code></pre></div></div>
 <li>複数行のテキストを1行にまとめる</li>
 </ul>
 <p><span class="mini-section">特定の文字を置換</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb62" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb62-1"><span class="fu" style="color: #4758AB;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb67" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb67-1"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">tr</span> <span class="st" style="color: #20794D;
 background-color: null;
@@ -3506,7 +3625,7 @@ font-style: inherit;">&lt;</span> fileA</span></code></pre></div></div>
 <li>CSV → TSV 変換に使用可能</li>
 </ul>
 <p><span class="mini-section">補集合を使用した変換</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb63" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb63-1"><span class="fu" style="color: #4758AB;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb68" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb68-1"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">tr</span> <span class="at" style="color: #657422;
 background-color: null;
@@ -3523,7 +3642,7 @@ font-style: inherit;">&lt;</span> fileA</span></code></pre></div></div>
 <li>ファイル名の正規化などに便利</li>
 </ul>
 <p><span class="mini-section">文字列の削除と圧縮を組み合わせ</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb64" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb64-1"><span class="fu" style="color: #4758AB;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb69" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb69-1"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">tr</span> <span class="at" style="color: #657422;
 background-color: null;
@@ -3577,13 +3696,13 @@ font-style: inherit;">' '</span></span></code></pre></div></div>
 </div>
 <div class="callout-body-container callout-body">
 <p><code>model</code> ディレクトリにある全モデルを順番に評価してログを保存するコマンド</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb65" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb65-1"><span class="fu" style="color: #4758AB;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb70" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb70-1"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">mkdir</span> <span class="at" style="color: #657422;
 background-color: null;
 font-style: inherit;">-p</span> logs</span>
-<span id="cb65-2"></span>
-<span id="cb65-3"><span class="cf" style="color: #003B4F;
+<span id="cb70-2"></span>
+<span id="cb70-3"><span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">for</span> MODEL_PATH <span class="kw" style="color: #003B4F;
@@ -3592,11 +3711,11 @@ font-weight: bold;
 font-style: inherit;">in</span> models/<span class="pp" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">*</span>.pkl</span>
-<span id="cb65-4"><span class="cf" style="color: #003B4F;
+<span id="cb70-4"><span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">do</span></span>
-<span id="cb65-5">   <span class="va" style="color: #111111;
+<span id="cb70-5">   <span class="va" style="color: #111111;
 background-color: null;
 font-style: inherit;">NAME</span><span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -3613,13 +3732,13 @@ background-color: null;
 font-style: inherit;">"</span> .pkl<span class="va" style="color: #111111;
 background-color: null;
 font-style: inherit;">)</span></span>
-<span id="cb65-6"></span>
-<span id="cb65-7">   <span class="ex" style="color: null;
+<span id="cb70-6"></span>
+<span id="cb70-7">   <span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">poetry</span> run python evaluate_cli.py <span class="dt" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">\</span></span>
-<span id="cb65-8">      <span class="at" style="color: #657422;
+<span id="cb70-8">      <span class="at" style="color: #657422;
 background-color: null;
 font-style: inherit;">--model_path</span> <span class="st" style="color: #20794D;
 background-color: null;
@@ -3630,17 +3749,17 @@ background-color: null;
 font-style: inherit;">"</span> <span class="dt" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">\</span></span>
-<span id="cb65-9">      <span class="at" style="color: #657422;
+<span id="cb70-9">      <span class="at" style="color: #657422;
 background-color: null;
 font-style: inherit;">--target</span> cv <span class="dt" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">\</span></span>
-<span id="cb65-10">      <span class="at" style="color: #657422;
+<span id="cb70-10">      <span class="at" style="color: #657422;
 background-color: null;
 font-style: inherit;">--make_pdp</span> <span class="dt" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">\</span></span>
-<span id="cb65-11">      <span class="op" style="color: #5E5E5E;
+<span id="cb70-11">      <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">&gt;</span> <span class="st" style="color: #20794D;
 background-color: null;
@@ -3655,27 +3774,27 @@ background-color: null;
 font-style: inherit;">&gt;&amp;</span><span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">1</span></span>
-<span id="cb65-12"><span class="cf" style="color: #003B4F;
+<span id="cb70-12"><span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">done</span></span></code></pre></div></div>
 </div>
 </div>
 <p><span class="mini-section">for loopの基本</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb66" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb66-1"><span class="cf" style="color: #003B4F;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb71" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb71-1"><span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">for</span> <span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">シェル変数</span> in 値のリスト</span>
-<span id="cb66-2"><span class="cf" style="color: #003B4F;
+<span id="cb71-2"><span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">do</span></span>
-<span id="cb66-3">  <span class="ex" style="color: null;
+<span id="cb71-3">  <span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">コマンド</span></span>
-<span id="cb66-4"><span class="cf" style="color: #003B4F;
+<span id="cb71-4"><span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">done</span></span></code></pre></div></div>
@@ -3684,86 +3803,86 @@ font-style: inherit;">done</span></span></code></pre></div></div>
 </ul>
 <p><span class="mini-section"><code>evaluate_cli.py</code> の実装方針</span></p>
 <p>Typer CLIを用いる場合を想定しています．pakcage構成はsrc layoutを採用し，以下のような構成にします．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb67" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb67-1"><span class="ex" style="color: null;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb72" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb72-1"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">project/</span></span>
-<span id="cb67-2"><span class="ex" style="color: null;
+<span id="cb72-2"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">│</span></span>
-<span id="cb67-3"><span class="ex" style="color: null;
+<span id="cb72-3"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">├─</span> cli/</span>
-<span id="cb67-4"><span class="ex" style="color: null;
+<span id="cb72-4"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">│</span>   ├─ evaluate_cli.py</span>
-<span id="cb67-5"><span class="ex" style="color: null;
+<span id="cb72-5"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">│</span>   └─ ...</span>
-<span id="cb67-6"><span class="ex" style="color: null;
+<span id="cb72-6"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">├─</span> src/</span>
-<span id="cb67-7"><span class="ex" style="color: null;
+<span id="cb72-7"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">│</span>   └─ package/</span>
-<span id="cb67-8"><span class="ex" style="color: null;
+<span id="cb72-8"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">│</span>       ├─ __init__.py</span>
-<span id="cb67-9"><span class="ex" style="color: null;
+<span id="cb72-9"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">│</span>       └─ evaluate.py  ← ロジック</span>
-<span id="cb67-10"><span class="ex" style="color: null;
+<span id="cb72-10"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">├─</span> models/</span>
-<span id="cb67-11"><span class="ex" style="color: null;
+<span id="cb72-11"><span class="ex" style="color: null;
 background-color: null;
 font-style: inherit;">└─</span> pyproject.toml</span></code></pre></div></div>
 <p>このとき，<code>evaluate_cli.py</code> の例として以下</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb68" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb68-1"><span class="im" style="color: #00769E;
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb73" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb73-1"><span class="im" style="color: #00769E;
 background-color: null;
 font-style: inherit;">import</span> typer</span>
-<span id="cb68-2"><span class="im" style="color: #00769E;
+<span id="cb73-2"><span class="im" style="color: #00769E;
 background-color: null;
 font-style: inherit;">from</span> package.evaluate <span class="im" style="color: #00769E;
 background-color: null;
 font-style: inherit;">import</span> run_evaluation</span>
-<span id="cb68-3"></span>
-<span id="cb68-4">app <span class="op" style="color: #5E5E5E;
+<span id="cb73-3"></span>
+<span id="cb73-4">app <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> typer.Typer()</span>
-<span id="cb68-5"></span>
-<span id="cb68-6"><span class="at" style="color: #657422;
+<span id="cb73-5"></span>
+<span id="cb73-6"><span class="at" style="color: #657422;
 background-color: null;
 font-style: inherit;">@app.command</span>()</span>
-<span id="cb68-7"><span class="kw" style="color: #003B4F;
+<span id="cb73-7"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">def</span> evaluate(</span>
-<span id="cb68-8">    model_path: <span class="bu" style="color: null;
+<span id="cb73-8">    model_path: <span class="bu" style="color: null;
 background-color: null;
 font-style: inherit;">str</span>,</span>
-<span id="cb68-9">    target: <span class="bu" style="color: null;
+<span id="cb73-9">    target: <span class="bu" style="color: null;
 background-color: null;
 font-style: inherit;">str</span> <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"cv"</span>,</span>
-<span id="cb68-10">    make_pdp: <span class="bu" style="color: null;
+<span id="cb73-10">    make_pdp: <span class="bu" style="color: null;
 background-color: null;
 font-style: inherit;">bool</span> <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="va" style="color: #111111;
 background-color: null;
 font-style: inherit;">False</span>,</span>
-<span id="cb68-11">):</span>
-<span id="cb68-12">    result <span class="op" style="color: #5E5E5E;
+<span id="cb73-11">):</span>
+<span id="cb73-12">    result <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> run_evaluation(model_path, target, make_pdp)</span>
-<span id="cb68-13">    <span class="bu" style="color: null;
+<span id="cb73-13">    <span class="bu" style="color: null;
 background-color: null;
 font-style: inherit;">print</span>(result)</span>
-<span id="cb68-14"></span>
-<span id="cb68-15"><span class="cf" style="color: #003B4F;
+<span id="cb73-14"></span>
+<span id="cb73-15"><span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">if</span> <span class="va" style="color: #111111;
@@ -3773,9 +3892,11 @@ background-color: null;
 font-style: inherit;">==</span> <span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"__main__"</span>:</span>
-<span id="cb68-16">    app()</span></code></pre></div></div>
+<span id="cb73-16">    app()</span></code></pre></div></div>
 
 
+</section>
+</div>
 </section>
 
  ]]></description>
