@@ -10,7 +10,472 @@
 <atom:link href="https://ryonakagami.github.io/regmonkey-datascience-blog/index.xml" rel="self" type="application/rss+xml"/>
 <description>日々の徒然勉強日記</description>
 <generator>quarto-1.9.37</generator>
-<lastBuildDate>Wed, 20 May 2026 00:00:00 GMT</lastBuildDate>
+<lastBuildDate>Tue, 26 May 2026 00:00:00 GMT</lastBuildDate>
+<item>
+  <title>シェルのリダイレクトと sponge の注意点</title>
+  <dc:creator>Ryo Nakagami</dc:creator>
+  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-05-26-shell-redirecting/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+
+<section id="command-filea-filea-の問題" class="level2">
+<h2 class="anchored" data-anchor-id="command-filea-filea-の問題"><code>command fileA &gt; fileA</code> の問題</h2>
+<div class="callout callout-style-default callout-warning callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">警告</span>同一ファイルを入出力に指定するとデータが消える
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">command</span> fileA <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> fileA</span></code></pre></div></div>
+<p>このように，<strong>同一ファイル</strong>を入力と出力に指定すると <code>fileA</code> の内容が空になってしまう．</p>
+</div>
+</div>
+<p><span class="mini-section">原因</span></p>
+<p>シェルはコマンドを実行する前にリダイレクト（<code>&gt;</code>）を処理するため，以下の順序で評価されます．</p>
+<ol type="1">
+<li><code>&gt; fileA</code> を評価 → <code>fileA</code> を空ファイルとして開く（既存内容を消去）</li>
+<li><code>command fileA</code> を実行 → 読み込もうとするが，すでに空</li>
+</ol>
+<p>つまり，<code>command</code> が <code>fileA</code> の中身を読む前にファイルが切り詰められてしまうため，意図した処理ができません．</p>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>例 1</strong></span> <span class="def-title">JSON formatter を使うときの注意点</span></p>
+<p>リダイレクトの問題がそのまま JSON 整形にも当てはまります．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">## NG: data.json が空になる</span></span>
+<span id="cb2-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">python</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-m</span> json.tool data.json <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> data.json</span>
+<span id="cb2-3"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">jq</span> . data.json <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> data.json</span>
+<span id="cb2-4"></span>
+<span id="cb2-5"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">## OK: sponge 経由</span></span>
+<span id="cb2-6"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">python</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-m</span> json.tool data.json <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">sponge</span> data.json</span>
+<span id="cb2-7"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">jq</span> . data.json <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">sponge</span> data.json</span>
+<span id="cb2-8"></span>
+<span id="cb2-9"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">## OK: 一時ファイル経由（jq は -i オプションを持たない）</span></span>
+<span id="cb2-10"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">jq</span> . data.json <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> tmp.json <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">&amp;&amp;</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mv</span> tmp.json data.json</span></code></pre></div></div>
+</div>
+<hr>
+</section>
+<section id="回避策" class="level2">
+<h2 class="anchored" data-anchor-id="回避策">回避策</h2>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>主な3つのアプローチ
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">## 1. 一時ファイルを経由する</span></span>
+<span id="cb3-2"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">command</span> fileA <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> tmp <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">&amp;&amp;</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mv</span> tmp fileA</span>
+<span id="cb3-3"></span>
+<span id="cb3-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">## 2. sponge を使う（moreutils）</span></span>
+<span id="cb3-5"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">command</span> fileA <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">sponge</span> fileA</span>
+<span id="cb3-6"></span>
+<span id="cb3-7"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">## 3. コマンドが対応していれば -i オプション（in-place 編集）</span></span>
+<span id="cb3-8"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sed</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-i</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'s/foo/bar/'</span> fileA</span></code></pre></div></div>
+</div>
+</div>
+<p><span class="mini-section">各アプローチの比較</span></p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 28%">
+<col style="width: 28%">
+<col style="width: 42%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>方法</th>
+<th>利点</th>
+<th>注意点</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>一時ファイル + <code>mv</code></td>
+<td>atomic な置換が可能（同一FS上）</td>
+<td>一時ファイルの命名・後始末が必要</td>
+</tr>
+<tr class="even">
+<td><code>sponge</code></td>
+<td>1行で書ける，可読性が高い</td>
+<td><code>moreutils</code> が必要．全入力をメモリに溜める．atomicでない</td>
+</tr>
+<tr class="odd">
+<td><code>-i</code> オプション</td>
+<td>最もシンプル</td>
+<td>対応するコマンドが限られる（<code>sed</code>, <code>perl</code>など）</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="sponge-の注意点" class="level2">
+<h2 class="anchored" data-anchor-id="sponge-の注意点"><code>sponge</code> の注意点</h2>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ヒント</span><code>sponge</code> とは
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><code>sponge</code> は標準入力を <strong>全部読み切ってから</strong> 指定ファイルへ書き込むコマンドです． これにより <code>cmd file | sponge file</code> のような「読みながら書く」競合を防げます．</p>
+</div>
+</div>
+<p><span class="mini-section">1. 標準インストールされていない</span></p>
+<p><code>sponge</code> は <code>moreutils</code> パッケージに含まれるため，別途インストールが必要です．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">## Debian/Ubuntu</span></span>
+<span id="cb4-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sudo</span> apt install moreutils</span>
+<span id="cb4-3"></span>
+<span id="cb4-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">## macOS</span></span>
+<span id="cb4-5"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">brew</span> install moreutils</span></code></pre></div></div>
+<p><span class="mini-section">2. 全入力をメモリに溜め込む</span></p>
+<p>設計上，<code>sponge</code> は入力をすべてメモリ上に保持してから書き込みます． そのため，数GB級の巨大ファイルを処理する場合は <strong>OOM (Out Of Memory)</strong> のリスクがあります．</p>
+<p><span class="mini-section">3. 失敗時の安全性</span></p>
+<p><code>tmp &amp;&amp; mv</code> パターンは <code>mv</code> が atomic に動作するため，途中失敗時に元ファイルが残ります． 一方，<code>sponge</code> は内部的に上書き書き込みを行うため，書き込み中にプロセスが中断すると <strong>元ファイルが壊れる可能性</strong> があります．</p>
+<div class="callout callout-style-default callout-warning callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">警告</span>重要なファイルの上書きには <code>tmp &amp;&amp; mv</code> を推奨
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>学習データや本番設定など，破損が許されないファイルに対しては， <code>sponge</code> よりも一時ファイル経由の atomic な置換を選ぶのが安全です．</p>
+</div>
+</div>
+</section>
+<section id="data-science-文脈での追加注意点" class="level2">
+<h2 class="anchored" data-anchor-id="data-science-文脈での追加注意点">Data science 文脈での追加注意点</h2>
+<section id="大きな-json-ファイル" class="level3">
+<h3 class="anchored" data-anchor-id="大きな-json-ファイル">1. 大きな JSON ファイル</h3>
+<p>機械学習の学習データや推論結果は数GBに達することがあります．</p>
+<ul>
+<li><code>sponge</code> は全量をメモリに載せるため OOM のリスクあり</li>
+<li>一時ファイル + <code>mv</code> のほうが安全</li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">jq</span> . large_dataset.json <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> tmp.json <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">&amp;&amp;</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mv</span> tmp.json large_dataset.json</span></code></pre></div></div>
+</section>
+<section id="json-lines-.jsonl-への注意" class="level3">
+<h3 class="anchored" data-anchor-id="json-lines-.jsonl-への注意">2. JSON Lines (<code>.jsonl</code>) への注意</h3>
+<div id="def-jsonl" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>定義 1</strong></span> <span class="def-title">JSON Lines (JSONL)</span></p>
+<ul>
+<li><strong>1行1 JSON オブジェクト</strong> で表現するテキストフォーマット．拡張子は <code>.jsonl</code> (または <code>.ndjson</code>)．</li>
+<li>ファイル全体は JSON 配列ではなく，<strong>改行 (<code>\n</code>) 区切り</strong> の独立した JSON 値の列．</li>
+<li>各行が独立しているため，<strong>ストリーミング処理</strong> や <strong>行単位の追記 (<code>&gt;&gt;</code>)</strong> と相性が良い．</li>
+<li>巨大データセット (ログ，学習データ，推論結果など) の保存形式として data science / ML 領域で広く採用される．</li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode jsonl code-with-copy"><code class="sourceCode json"><span id="cb6-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">{</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">"id"</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">:</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">,</span> <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">"text"</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">:</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"hello"</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">,</span> <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">"label"</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">:</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"greeting"</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">}</span></span>
+<span id="cb6-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">{</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">"id"</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">:</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">,</span> <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">"text"</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">:</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"bye"</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">,</span> <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">"label"</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">:</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"farewell"</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">}</span></span>
+<span id="cb6-3"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">{</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">"id"</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">:</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">,</span> <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">"text"</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">:</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"thanks"</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">,</span> <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">"label"</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">:</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"gratitude"</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">}</span></span></code></pre></div></div>
+</div>
+<p><span class="mini-section">通常の JSON との違い</span></p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 13%">
+<col style="width: 32%">
+<col style="width: 53%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>観点</th>
+<th>JSON</th>
+<th>JSON Lines (JSONL)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>構造</td>
+<td>1ファイル = 1 JSON 値 (通常は配列)</td>
+<td>1ファイル = 改行区切りの複数 JSON 値</td>
+</tr>
+<tr class="even">
+<td>読み込み</td>
+<td>全体をパースする必要あり</td>
+<td>1行ずつパース可能 (ストリーミング)</td>
+</tr>
+<tr class="odd">
+<td>追記</td>
+<td>末尾の <code>]</code> を書き換える必要あり</td>
+<td><code>&gt;&gt; file.jsonl</code> で安全に追記可</td>
+</tr>
+<tr class="even">
+<td>部分破損</td>
+<td>1箇所壊れると全体が読めない</td>
+<td>壊れた行だけスキップ可能</td>
+</tr>
+<tr class="odd">
+<td>代表的ツール</td>
+<td><code>python -m json.tool</code></td>
+<td><code>jq -c</code>, <code>pandas.read_json(lines=True)</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>data science では <strong>1行1レコード</strong> の JSON Lines 形式を扱うことが多いですが， <code>python -m json.tool</code> は JSONL を正しくパースできません．ツール選択に注意が必要です．</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>JSONL の整形には <code>jq</code> を使う
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">## -c で compact (1行1レコード) を維持</span></span>
+<span id="cb7-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">cat</span> data.jsonl <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">jq</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-c</span> . <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">sponge</span> data.jsonl</span></code></pre></div></div>
+<p><code>jq -c</code> はオブジェクトを1行に圧縮して出力するため，JSONL の構造を保ったまま整形できます．</p>
+</div>
+</div>
+</section>
+<section id="パイプライン中断時のデータ破損" class="level3">
+<h3 class="anchored" data-anchor-id="パイプライン中断時のデータ破損">3. パイプライン中断時のデータ破損</h3>
+<p>前処理パイプラインの中間ファイルを上書きする場合，途中で失敗すると学習データが <strong>欠損・破損</strong> します． バージョン管理（DVC など）や世代管理ディレクトリ構成を併用するのが望ましいです．</p>
+<p><span class="mini-section">世代管理の例: タイムスタンプ付き出力</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">jq</span> . data.json <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> data_<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$(</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">date</span> +%Y%m%d_%H%M%S<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">)</span>.json</span></code></pre></div></div>
+<ul>
+<li>元ファイルを残したまま新しい世代を生成</li>
+<li>失敗しても元データは保護される</li>
+<li>後でクリーンアップポリシー（古い世代の削除）と組み合わせて運用</li>
+</ul>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ヒント</span>実務での運用パターン
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ol type="1">
+<li><strong>検証中</strong> → <code>sponge</code> で素早く反復</li>
+<li><strong>本番データ・学習用データ</strong> → <code>tmp &amp;&amp; mv</code> で atomic に置換</li>
+<li><strong>再現性が重要なパイプライン</strong> → 世代管理 + DVC でデータバージョニング</li>
+</ol>
+</div>
+</div>
+
+
+</section>
+</section>
+
+ ]]></description>
+  <category>シェル</category>
+  <category>shellscript</category>
+  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-05-26-shell-redirecting/</guid>
+  <pubDate>Tue, 26 May 2026 00:00:00 GMT</pubDate>
+</item>
 <item>
   <title>シェルワンライナープログラミング</title>
   <dc:creator>Ryo Nakagami</dc:creator>
@@ -6530,1054 +6995,6 @@ font-style: inherit;">|</span></span>
   <category>skills</category>
   <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-04-24-skill-ignition-with-slash-command/</guid>
   <pubDate>Fri, 24 Apr 2026 00:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>Walrus Operator 101</title>
-  <dc:creator>Ryo Nakagami</dc:creator>
-  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-04-23-walrus-operator/</link>
-  <description><![CDATA[ 
-
-
-
-
-
-
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>Key Takeaways
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>典型的に価値を発揮するのは，<code>while</code> による読み取りループ，<code>re.match</code> の結果再利用，内包表記内の高コスト計算の一度化の 3 パターン</li>
-<li>チーム開発では「どこで使い，どこで使わないか」をレビューガイドラインで明文化しておくと混乱が少ない</li>
-</ul>
-</div>
-</div>
-<section id="ウォルラス演算子とは" class="level2">
-<h2 class="anchored" data-anchor-id="ウォルラス演算子とは">ウォルラス演算子とは</h2>
-<div id="def-" class="custom_problem blog-custom-border theorem definition">
-<p><span class="theorem-title"><strong>定義 1</strong></span> <span class="def-title">Walrus Operator (<code>:=</code>)</span></p>
-<ul>
-<li>Python 3.8 (PEP 572, 2019年リリース) で導入された <strong>代入式 (assignment expression)</strong> のための演算子</li>
-<li>式の中で変数への代入と値の参照を同時に行える</li>
-<li>見た目がセイウチ (walrus) の目と牙に似ていることから「ウォルラス演算子」と呼ばれる</li>
-</ul>
-</div>
-<ul>
-<li>通常の <code>=</code> は<span class="regmonkey-bold">文 (statement)</span>であり，式 (expression) としては評価できない</li>
-<li><code>:=</code> は<span class="regmonkey-bold">式 (expression)</span>として評価されるため，<code>if</code> / <code>while</code> / 内包表記などの条件部分に埋め込める</li>
-</ul>
-<div id="8d14664b" class="cell" data-execution_count="1">
-<details open="" class="code-fold">
-<summary>コード</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb1-1"><span class="im" style="color: #00769E;
-background-color: null;
-font-style: inherit;">import</span> re</span>
-<span id="cb1-2"></span>
-<span id="cb1-3">text <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"status=200"</span></span>
-<span id="cb1-4"></span>
-<span id="cb1-5"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># `=` は式ではないので if の条件内で代入はできない</span></span>
-<span id="cb1-6"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># 一方，`:=` は値を返しつつ変数束縛も行う</span></span>
-<span id="cb1-7"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">if</span> (m <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:=</span> re.match(<span class="vs" style="color: #20794D;
-background-color: null;
-font-style: inherit;">r"</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">(</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">\w</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">)</span><span class="vs" style="color: #20794D;
-background-color: null;
-font-style: inherit;">=</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">(</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">\w</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">)</span><span class="vs" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span>, text)):</span>
-<span id="cb1-8">    key, value <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> m.group(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>), m.group(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>)</span>
-<span id="cb1-9">    <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">print</span>(key, value)</span></code></pre></div></div>
-</details>
-<div class="cell-output cell-output-stdout">
-<pre><code>status 200</code></pre>
-</div>
-</div>
-<p><span class="mini-section">PEP 572 の設計思想</span></p>
-<ul>
-<li>PEP 572 では「同じ値を式の中で 2 度計算・参照しないこと」「一時変数のスコープを局所化すること」が主な動機として挙げられている</li>
-<li>Guido van Rossum が BDFL を退く契機となったことでも知られ，導入時にはコミュニティで賛否両論あった</li>
-<li>Python コミュニティ全体で積極的に推奨されているわけではなく，<span class="regmonkey-bold">「可読性が明確に上がる場面でのみ使う」</span>という控えめな運用が定着している</li>
-</ul>
-</section>
-<section id="典型的なベストプラクティス" class="level2">
-<h2 class="anchored" data-anchor-id="典型的なベストプラクティス">典型的なベストプラクティス</h2>
-<section id="while-ループでの読み取りループ" class="level3">
-<h3 class="anchored" data-anchor-id="while-ループでの読み取りループ"><code>while</code> ループでの読み取りループ</h3>
-<div id="exm-" class="custom_problem theorem example">
-<p><span class="theorem-title"><strong>例 1 (ファイルのチャンク読み込み)</strong></span> <br></p>
-<p>バイナリファイル large.bin を 8192バイト (= 8 KiB) ずつ 読み出し，読み取ったチャンクごとに process() を呼ぶループ処理</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Good: 代入と条件判定を一体化</span></span>
-<span id="cb3-2"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">with</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">open</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"large.bin"</span>, <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"rb"</span>) <span class="im" style="color: #00769E;
-background-color: null;
-font-style: inherit;">as</span> f:</span>
-<span id="cb3-3">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">while</span> (chunk <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:=</span> f.read(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">8192</span>)):</span>
-<span id="cb3-4">        process(chunk)</span></code></pre></div></div>
-<ul>
-<li>従来の <code>while True: chunk = f.read(...); if not chunk: break</code> という 3 行パターンが 1 行に畳める</li>
-<li>ループの「進む条件」と「読み取った値」が同じ行にあるため意図が読みやすい</li>
-</ul>
-</div>
-<hr>
-</section>
-<section id="正規表現マッチ結果の再利用" class="level3">
-<h3 class="anchored" data-anchor-id="正規表現マッチ結果の再利用">正規表現マッチ結果の再利用</h3>
-<div id="exm-" class="custom_problem theorem example">
-<p><span class="theorem-title"><strong>例 2 (<code>if + re.match</code> のイディオム)</strong></span> <br></p>
-<div id="8fa7baa1" class="cell" data-execution_count="2">
-<details open="" class="code-fold">
-<summary>コード</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb4-1"><span class="im" style="color: #00769E;
-background-color: null;
-font-style: inherit;">import</span> re</span>
-<span id="cb4-2"></span>
-<span id="cb4-3"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">def</span> parse_kv(line: <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">str</span>):</span>
-<span id="cb4-4">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">if</span> (m <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:=</span> re.match(<span class="vs" style="color: #20794D;
-background-color: null;
-font-style: inherit;">r"</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">(</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">\w</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">)</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">\s</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span><span class="vs" style="color: #20794D;
-background-color: null;
-font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">\s</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">(</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">.</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">)</span><span class="vs" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span>, line)):</span>
-<span id="cb4-5">        <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">return</span> m.group(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>), m.group(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>).strip()</span>
-<span id="cb4-6">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">return</span> <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">None</span></span>
-<span id="cb4-7"></span>
-<span id="cb4-8"><span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">print</span>(parse_kv(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"threshold = 0.95"</span>))</span>
-<span id="cb4-9"><span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">print</span>(parse_kv(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"not_a_pair"</span>))</span></code></pre></div></div>
-</details>
-<div class="cell-output cell-output-stdout">
-<pre><code>('threshold', '0.95')
-None</code></pre>
-</div>
-</div>
-<ul>
-<li><code>m = re.match(...)</code> と <code>if m:</code> を 1 行に統合できる</li>
-<li><code>m</code> のスコープが <code>if</code> ブロック内に自然と局所化されるため，下流で誤って参照するリスクが下がる</li>
-</ul>
-</div>
-<hr>
-</section>
-<section id="内包表記内での計算結果の再利用" class="level3">
-<h3 class="anchored" data-anchor-id="内包表記内での計算結果の再利用">内包表記内での計算結果の再利用</h3>
-<div id="exm-" class="custom_problem theorem example">
-<p><span class="theorem-title"><strong>例 3 (高コスト計算の 1 回化)</strong></span> <br></p>
-<div id="ea5d146b" class="cell" data-execution_count="3">
-<details open="" class="code-fold">
-<summary>コード</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb6-1"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">def</span> expensive(x: <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">int</span>) <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-&gt;</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">int</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">|</span> <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">None</span>:</span>
-<span id="cb6-2">    <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># 高コストな計算を想定</span></span>
-<span id="cb6-3">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">return</span> x <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> x <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">if</span> x <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">%</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">==</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">else</span> <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">None</span></span>
-<span id="cb6-4"></span>
-<span id="cb6-5">data <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">range</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">10</span>)</span>
-<span id="cb6-6"></span>
-<span id="cb6-7"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Bad: expensive(x) を 2 回呼んでいる</span></span>
-<span id="cb6-8">bad <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> [expensive(x) <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> x <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> data <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">if</span> expensive(x) <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">is</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">not</span> <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">None</span>]</span>
-<span id="cb6-9"></span>
-<span id="cb6-10"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Good: 1 回だけ計算</span></span>
-<span id="cb6-11">good <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> [y <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> x <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> data <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">if</span> (y <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:=</span> expensive(x)) <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">is</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">not</span> <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">None</span>]</span>
-<span id="cb6-12"></span>
-<span id="cb6-13"><span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">print</span>(good)</span></code></pre></div></div>
-</details>
-<div class="cell-output cell-output-stdout">
-<pre><code>[0, 4, 16, 36, 64]</code></pre>
-</div>
-</div>
-<ul>
-<li>同じ関数を 2 度呼ばず，計算コストを半分にできる</li>
-<li>データサイエンス文脈では <code>transform</code>, <code>score</code>, <code>predict</code> など副作用のない重い計算でよく使うパターン</li>
-</ul>
-</div>
-<hr>
-</section>
-<section id="条件付き早期リターン" class="level3">
-<h3 class="anchored" data-anchor-id="条件付き早期リターン">条件付き早期リターン</h3>
-<div id="exm-" class="custom_problem theorem example">
-<p><span class="theorem-title"><strong>例 4 (ネストしたdictのバリデーション)</strong></span> <br></p>
-<div id="cf34c7ae" class="cell" data-execution_count="4">
-<details open="" class="code-fold">
-<summary>コード</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb8-1"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">def</span> get_permissions(data: <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">dict</span>) <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-&gt;</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">list</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">|</span> <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">None</span>:</span>
-<span id="cb8-2">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">if</span> (user <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:=</span> data.get(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"user"</span>)) <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">is</span> <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">None</span>:</span>
-<span id="cb8-3">        <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">return</span> <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">None</span></span>
-<span id="cb8-4">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">if</span> (perms <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:=</span> user.get(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"permissions"</span>)) <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">is</span> <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">None</span>:</span>
-<span id="cb8-5">        <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">return</span> <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">None</span></span>
-<span id="cb8-6">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">return</span> perms</span>
-<span id="cb8-7"></span>
-<span id="cb8-8"><span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">print</span>(get_permissions({<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"user"</span>: {<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"permissions"</span>: [<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"read"</span>, <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"write"</span>]}}))</span>
-<span id="cb8-9"><span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">print</span>(get_permissions({<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"user"</span>: {}}))</span>
-<span id="cb8-10"><span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">print</span>(get_permissions({}))</span></code></pre></div></div>
-</details>
-<div class="cell-output cell-output-stdout">
-<pre><code>['read', 'write']
-None
-None</code></pre>
-</div>
-</div>
-<ul>
-<li>値の取得と <code>None</code> 判定を 1 行でまとめられる</li>
-<li>「取れたら使う，取れなかったら抜ける」というガード節パターンと相性が良い</li>
-</ul>
-</div>
-<hr>
-</section>
-</section>
-<section id="アンチパターン" class="level2">
-<h2 class="anchored" data-anchor-id="アンチパターン">アンチパターン</h2>
-<section id="単純代入での使用" class="level3">
-<h3 class="anchored" data-anchor-id="単純代入での使用">単純代入での使用</h3>
-<div class="callout callout-style-default callout-important callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">重要</span>通常の <code>=</code> で書ける場面では使わない
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p><code>:=</code> は「式の中で代入したい」という動機がある場合の道具です．単独の文として使うと，括弧が必要になる分だけ <code>=</code> より冗長になります．</p>
-</div>
-</div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Bad: 意味なく複雑にしている</span></span>
-<span id="cb10-2">(x <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:=</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">10</span>)</span>
-<span id="cb10-3"><span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">print</span>(x <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:=</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">5</span>)</span>
-<span id="cb10-4"></span>
-<span id="cb10-5"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Good: 普通の代入で書く</span></span>
-<span id="cb10-6">x <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">10</span></span>
-<span id="cb10-7">x <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">5</span></span>
-<span id="cb10-8"><span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">print</span>(x)</span></code></pre></div></div>
-</section>
-<section id="行に詰め込みすぎ" class="level3">
-<h3 class="anchored" data-anchor-id="行に詰め込みすぎ">1 行に詰め込みすぎ</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Bad: 読みづらく，デバッグもしにくい</span></span>
-<span id="cb11-2"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">if</span> (n <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:=</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">len</span>(data)) <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">10</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">and</span> (avg <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:=</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">sum</span>(data) <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span> n) <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;</span> threshold <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">and</span> (std <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:=</span> statistics.stdev(data)) <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&lt;</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>:</span>
-<span id="cb11-3">    ...</span>
-<span id="cb11-4"></span>
-<span id="cb11-5"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Good: 素直に分ける</span></span>
-<span id="cb11-6">n <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">len</span>(data)</span>
-<span id="cb11-7">avg <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">sum</span>(data) <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span> n</span>
-<span id="cb11-8">std <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> statistics.stdev(data)</span>
-<span id="cb11-9"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">if</span> n <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">10</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">and</span> avg <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;</span> threshold <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">and</span> std <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&lt;</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>:</span>
-<span id="cb11-10">    ...</span></code></pre></div></div>
-<ul>
-<li>同じ式内で複数の <code>:=</code> を連鎖させると，評価順序の理解に認知コストがかかる</li>
-<li>1 行に 2 つ以上の <code>:=</code> が出てきたら分解を検討するのが無難</li>
-</ul>
-</section>
-<section id="内包表記内で副作用目的に使う" class="level3">
-<h3 class="anchored" data-anchor-id="内包表記内で副作用目的に使う">内包表記内で副作用目的に使う</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Bad: 副作用を内包表記に隠す</span></span>
-<span id="cb12-2">_ <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> [log.append(x) <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> x <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> data <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">if</span> (y <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:=</span> process(x))]</span>
-<span id="cb12-3"></span>
-<span id="cb12-4"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Good: for ループで明示</span></span>
-<span id="cb12-5"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> x <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> data:</span>
-<span id="cb12-6">    y <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> process(x)</span>
-<span id="cb12-7">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">if</span> y:</span>
-<span id="cb12-8">        log.append(x)</span></code></pre></div></div>
-<ul>
-<li>内包表記は <span class="regmonkey-bold">本来「値のコレクションを作る」ための構文</span>であり，副作用 (ログ書き込みやファイル更新など) を隠蔽すると読み手に意図が伝わらない</li>
-</ul>
-</section>
-<section id="比較-と誤読される書き方" class="level3">
-<h3 class="anchored" data-anchor-id="比較-と誤読される書き方">比較 <code>==</code> と誤読される書き方</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Bad: 代入か比較か，ぱっと見で判別しづらい</span></span>
-<span id="cb13-2"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">if</span> x <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:=</span> get_value():</span>
-<span id="cb13-3">    ...</span>
-<span id="cb13-4"></span>
-<span id="cb13-5"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Good: 代入の意図を明示</span></span>
-<span id="cb13-6"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">if</span> (value <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:=</span> get_value()) <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">is</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">not</span> <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">None</span>:</span>
-<span id="cb13-7">    ...</span></code></pre></div></div>
-<ul>
-<li><code>:=</code> は括弧で囲む運用にしておくと <code>==</code> との混同を防げる</li>
-<li><code>if ... is not None</code> を明示することで，<code>0</code> や空文字列のような Falsy 値との区別が明確になる</li>
-</ul>
-</section>
-<section id="ループ内で毎回同じ値を再代入" class="level3">
-<h3 class="anchored" data-anchor-id="ループ内で毎回同じ値を再代入">ループ内で毎回同じ値を再代入</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Bad: ループの度に同じ値に束縛し直している</span></span>
-<span id="cb14-2"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> item <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> items:</span>
-<span id="cb14-3">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">if</span> (limit <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:=</span> config.max_size) <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">and</span> item.size <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;</span> limit:</span>
-<span id="cb14-4">        ...</span>
-<span id="cb14-5"></span>
-<span id="cb14-6"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Good: ループ外で一度だけ</span></span>
-<span id="cb14-7">limit <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> config.max_size</span>
-<span id="cb14-8"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> item <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> items:</span>
-<span id="cb14-9">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">if</span> limit <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">and</span> item.size <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;</span> limit:</span>
-<span id="cb14-10">        ...</span></code></pre></div></div>
-<ul>
-<li><code>:=</code> で変数の有効範囲は狭まらないため，「スコープを絞る」目的で使うのは誤り</li>
-<li>ループ内の <code>:=</code> は「その行に入るたびに再計算されている」と読む必要があり，読解コストが上がる</li>
-</ul>
-</section>
-<section id="f-string-lambda-内での使用" class="level3">
-<h3 class="anchored" data-anchor-id="f-string-lambda-内での使用">f-string / lambda 内での使用</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Bad: 副作用が f-string 内に隠れる</span></span>
-<span id="cb15-2"><span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
-background-color: null;
-font-style: inherit;">f"結果: </span><span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">{</span>(total <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:=</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">sum</span>(values))<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">}</span><span class="ss" style="color: #20794D;
-background-color: null;
-font-style: inherit;">, 平均: </span><span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">{</span>total <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">len</span>(values)<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">}</span><span class="ss" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span>)</span>
-<span id="cb15-3"></span>
-<span id="cb15-4"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Bad: lambda に := を詰め込む</span></span>
-<span id="cb15-5">sorter <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">lambda</span> x: (n <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:=</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">len</span>(x)) <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> n</span>
-<span id="cb15-6"></span>
-<span id="cb15-7"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Good: 変数を先に作る</span></span>
-<span id="cb15-8">total <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">sum</span>(values)</span>
-<span id="cb15-9"><span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
-background-color: null;
-font-style: inherit;">f"結果: </span><span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">{</span>total<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">}</span><span class="ss" style="color: #20794D;
-background-color: null;
-font-style: inherit;">, 平均: </span><span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">{</span>total <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">len</span>(values)<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">}</span><span class="ss" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span>)</span>
-<span id="cb15-10"></span>
-<span id="cb15-11">sorter <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">lambda</span> x: <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">len</span>(x) <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">**</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span></span></code></pre></div></div>
-<ul>
-<li>f-string や lambda は「短く書く」ための構文であり，そこに代入式を混ぜると読み手の注意が分散する</li>
-<li>特に f-string 内の <code>:=</code> は，ログ・print 文に副作用が紛れる典型例になる</li>
-</ul>
-</section>
-<section id="内包表記からのスコープリーク" class="level3">
-<h3 class="anchored" data-anchor-id="内包表記からのスコープリーク">内包表記からのスコープリーク</h3>
-<div class="callout callout-style-default callout-warning callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">警告</span>内包表記内の <code>:=</code> は外側スコープを汚染する
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>通常の内包表記内で定義したループ変数は外に漏れませんが，<code>:=</code> で束縛した変数は<span class="regmonkey-bold">外側のスコープに漏れます</span>．これは PEP 572 の意図的な仕様です．</p>
-</div>
-</div>
-<div id="16e6b22d" class="cell" data-execution_count="5">
-<details open="" class="code-fold">
-<summary>コード</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16" style="background: #f1f3f5;"><pre class="sourceCode python code-overflow-wrap code-with-copy"><code class="sourceCode python"><span id="cb16-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># 内包表記内の := はリークする（仕様）</span></span>
-<span id="cb16-2">[y <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:=</span> x <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> x <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">range</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">5</span>)]</span>
-<span id="cb16-3"><span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">print</span>(y)  <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># 8 が出てしまう</span></span></code></pre></div></div>
-</details>
-<div class="cell-output cell-output-stdout">
-<pre><code>8</code></pre>
-</div>
-</div>
-<ul>
-<li>意図せぬグローバル変数の生成を避けたい場合は <code>:=</code> を使わない</li>
-<li>逆に「内包表記の最後の値を外で使いたい」という稀なユースケースではこの性質を活用できるが，それ自体が読み手を混乱させるため非推奨</li>
-</ul>
-</section>
-</section>
-<section id="データサイエンス文脈での運用ルール" class="level2">
-<h2 class="anchored" data-anchor-id="データサイエンス文脈での運用ルール">データサイエンス文脈での運用ルール</h2>
-<p>データサイエンス/ML コードでは，Jupyter notebook・パイプライン・前処理関数など，<code>:=</code> を使いたくなる場面が多くあります．一方，notebook では実行順序に依存するバグが発生しやすく，変数リークも事故につながりやすいため，次のような方針で運用するのが安全です．</p>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>Data Science Style Guide: <code>:=</code> の利用方針
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ol type="1">
-<li><strong>スクリプトの外部 I/O ループ</strong> (ファイルチャンク読み込み，ストリーム API のページング，DB カーソルの <code>fetchmany</code> など) では積極的に利用</li>
-<li><strong>内包表記で同一の重い計算を 2 度書かずに済む場合</strong>のみ内包表記内で利用</li>
-<li><strong><code>if (m := re.match(...))</code> 等の「マッチ結果の条件 + 再利用」</strong>は推奨</li>
-<li><strong>notebook の上方 (EDA・前処理) では原則使わない</strong>. セル間で再実行順序が前後することが多いため，変数束縛は通常の <code>=</code> で明示的に書くほうが安全</li>
-<li><strong>pandas / polars / numpy のメソッドチェーン内では使わない</strong>. メソッドチェーンは「副作用のない変換列」であることが可読性の要であり，代入式を混ぜると崩れる</li>
-<li><strong>f-string やログ出力に <code>:=</code> を混ぜない</strong>. 観測用コードは最も単純に保つ</li>
-</ol>
-</div>
-</div>
-<div id="exm-" class="custom_problem theorem example">
-<p><span class="theorem-title"><strong>例 5 (推奨: バッチ単位の推論ループ)</strong></span> <br></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Good: ストリーム/ページング API との親和性が高い</span></span>
-<span id="cb18-2"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">def</span> batch_predict(model, loader, batch_size: <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">int</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">256</span>):</span>
-<span id="cb18-3">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">while</span> (batch <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:=</span> loader.fetch(batch_size)):</span>
-<span id="cb18-4">        <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">yield</span> model.predict(batch)</span></code></pre></div></div>
-<ul>
-<li><code>loader.fetch</code> が空配列を返したときに自然にループが止まる</li>
-<li><code>batch</code> のスコープが <code>while</code> ループに閉じるため，下流コードへの意図せぬリークがない</li>
-</ul>
-</div>
-<hr>
-<div id="exm-" class="custom_problem theorem example">
-<p><span class="theorem-title"><strong>例 6 (非推奨: メソッドチェーン内での利用)</strong></span> <br></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Bad: 変換列の中に代入式が混ざり，副作用があるように見えてしまう</span></span>
-<span id="cb19-2">result <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> (</span>
-<span id="cb19-3">    df.assign(score<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">lambda</span> d: (s <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:=</span> d[<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"x"</span>] <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> d[<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"y"</span>]))</span>
-<span id="cb19-4">      .query(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"score &gt; 0"</span>)</span>
-<span id="cb19-5">)</span>
-<span id="cb19-6"></span>
-<span id="cb19-7"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Good: 素直に中間変数を作る</span></span>
-<span id="cb19-8">df2 <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> df.assign(score<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span>df[<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"x"</span>] <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> df[<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"y"</span>])</span>
-<span id="cb19-9">result <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> df2.query(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"score &gt; 0"</span>)</span></code></pre></div></div>
-<ul>
-<li>pandas / polars のメソッドチェーンは「宣言的に読む」ことが価値の中心</li>
-<li>そこに <code>:=</code> が混ざると「副作用を伴う手続き的な列」として読まなければならなくなり，読解コストが跳ね上がる</li>
-</ul>
-</div>
-<hr>
-</section>
-<section id="利用可否の判断基準" class="level2">
-<h2 class="anchored" data-anchor-id="利用可否の判断基準">利用可否の判断基準</h2>
-<p>ウォルラス演算子を導入してよいかは，おおむね次の 3 条件を同時に満たすかで判断できます．</p>
-<ol type="1">
-<li><strong>同じ値を 2 回以上参照する必要がある</strong> (条件判定 + 本体での利用など)</li>
-<li><strong>スコープが局所的で短い</strong> (<code>if</code> ブロック，<code>while</code> 条件，内包表記のフィルタ部)</li>
-<li><strong>通常の <code>=</code> で書き直すと明らかに冗長になる</strong></li>
-</ol>
-<p>逆に「1 行で書けるから」「かっこよく見えるから」という理由だけで導入するとほぼアンチパターンになります． <span class="regmonkey-bold">迷ったら通常の <code>=</code> で書くのが無難</span>です．</p>
-</section>
-<section id="appendix" class="level2">
-<h2 class="anchored" data-anchor-id="appendix">Appendix</h2>
-<section id="フォーマッタlinter-の扱い" class="level3">
-<h3 class="anchored" data-anchor-id="フォーマッタlinter-の扱い">フォーマッタ/Linter の扱い</h3>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 30%">
-<col style="width: 70%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>ツール</th>
-<th><code>:=</code> への態度</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>Black</td>
-<td><code>:=</code> を他の代入に書き換えない (書き手の判断に委ねる)</td>
-</tr>
-<tr class="even">
-<td>Ruff</td>
-<td><code>:=</code> を自動で削除・導入するルールはデフォルトでは無効</td>
-</tr>
-<tr class="odd">
-<td><code>flake8-walrus</code></td>
-<td><code>:=</code> の利用を検出する linter (強制禁止したい現場向け)</td>
-</tr>
-</tbody>
-</table>
-</div>
-<ul>
-<li>現状，<code>:=</code> は自動変換の対象外であり，チームの合意と code review で運用するのが一般的</li>
-<li>プロジェクトで Python 3.7 以前のサポートが必要な場合は <code>:=</code> 自体を構文エラーとして禁止する必要がある</li>
-</ul>
-</section>
-</section>
-<section id="references" class="level2">
-<h2 class="anchored" data-anchor-id="references">References</h2>
-<ul>
-<li><a href="https://peps.python.org/pep-0572/">PEP 572 – Assignment Expressions</a></li>
-<li><a href="https://docs.python.org/3/whatsnew/3.8.html#assignment-expressions">Python 3.8 What’s New — Assignment Expressions</a></li>
-<li><a href="../2025-11-04-python-class-rules/index.html">継承，メソッドオーバーライド，スーパーメソッドの呼び出し</a></li>
-</ul>
-
-
-</section>
-
- ]]></description>
-  <category>python</category>
-  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-04-23-walrus-operator/</guid>
-  <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
 </item>
 </channel>
 </rss>

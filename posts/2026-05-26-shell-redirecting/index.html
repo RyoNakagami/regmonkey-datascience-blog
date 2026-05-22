@@ -7,9 +7,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Ryo Nakagami">
-<meta name="dcterms.date" content="2026-03-01">
+<meta name="dcterms.date" content="2026-05-26">
 
-<title>Note: ガウス積分 – regmonkey datascience blog</title>
+<title>シェルのリダイレクトと sponge の注意点 – regmonkey datascience blog</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -165,43 +165,11 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 <link rel="stylesheet" href="../../js/regmonkey_glossary_generator/regmonkey_glossary_generator.css">
 <script type="text/javascript" src="../../js/regmonkey_glossary_generator/regmonkey_glossary_generator.js"></script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
-
-<script type="text/javascript">
-const typesetMath = (el) => {
-  if (window.MathJax) {
-    // MathJax Typeset
-    window.MathJax.typeset([el]);
-  } else if (window.katex) {
-    // KaTeX Render
-    var mathElements = el.getElementsByClassName("math");
-    var macros = [];
-    for (var i = 0; i < mathElements.length; i++) {
-      var texText = mathElements[i].firstChild;
-      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
-        window.katex.render(texText.data, mathElements[i], {
-          displayMode: mathElements[i].classList.contains('display'),
-          throwOnError: false,
-          macros: macros,
-          fleqn: false
-        });
-      }
-    }
-  }
-}
-window.Quarto = {
-  typesetMath
-};
-</script>
 
 <link rel="stylesheet" href="../../styles.css">
-<meta property="og:title" content="Note: ガウス積分 – regmonkey datascience blog">
+<meta property="og:title" content="シェルのリダイレクトと sponge の注意点 – regmonkey datascience blog">
 <meta property="og:description" content="日々の徒然勉強日記">
-<meta property="og:image" content="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-03-01-gaussian-integral/index_files/figure-html/fig-bell-curve-output-1.png">
 <meta property="og:site_name" content="regmonkey datascience blog">
-<meta property="og:image:height" content="1221">
-<meta property="og:image:width" content="1221">
 </head>
 
 <body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
@@ -448,9 +416,10 @@ window.Quarto = {
 <header id="title-block-header" class="quarto-title-block default page-columns page-full">
   <div class="quarto-title-banner page-columns page-full">
     <div class="quarto-title column-body">
-      <h1 class="title">Note: ガウス積分</h1>
+      <h1 class="title">シェルのリダイレクトと <code>sponge</code> の注意点</h1>
                                 <div class="quarto-categories">
-                <div class="quarto-category">統計</div>
+                <div class="quarto-category">シェル</div>
+                <div class="quarto-category">shellscript</div>
               </div>
                   </div>
   </div>
@@ -468,14 +437,14 @@ window.Quarto = {
       <div>
       <div class="quarto-title-meta-heading">公開</div>
       <div class="quarto-title-meta-contents">
-        <p class="date">2026-03-01</p>
+        <p class="date">2026-05-26</p>
       </div>
     </div>
     
       <div>
       <div class="quarto-title-meta-heading">更新日</div>
       <div class="quarto-title-meta-contents">
-        <p class="date-modified">2026-03-31</p>
+        <p class="date-modified">2026-05-26</p>
       </div>
     </div>
       
@@ -490,9 +459,15 @@ window.Quarto = {
     <h2 id="toc-title">目次</h2>
    
   <ul>
-  <li><a href="#ガウス積分" id="toc-ガウス積分" class="nav-link active" data-scroll-target="#ガウス積分">ガウス積分</a></li>
-  <li><a href="#ガウス分布とモード" id="toc-ガウス分布とモード" class="nav-link" data-scroll-target="#ガウス分布とモード">ガウス分布とモード</a></li>
-  <li><a href="#mathmatical-appendix" id="toc-mathmatical-appendix" class="nav-link" data-scroll-target="#mathmatical-appendix">Mathmatical Appendix</a></li>
+  <li><a href="#command-filea-filea-の問題" id="toc-command-filea-filea-の問題" class="nav-link active" data-scroll-target="#command-filea-filea-の問題"><code>command fileA &gt; fileA</code> の問題</a></li>
+  <li><a href="#回避策" id="toc-回避策" class="nav-link" data-scroll-target="#回避策">回避策</a></li>
+  <li><a href="#sponge-の注意点" id="toc-sponge-の注意点" class="nav-link" data-scroll-target="#sponge-の注意点"><code>sponge</code> の注意点</a></li>
+  <li><a href="#data-science-文脈での追加注意点" id="toc-data-science-文脈での追加注意点" class="nav-link" data-scroll-target="#data-science-文脈での追加注意点">Data science 文脈での追加注意点</a>
+  <ul class="collapse">
+  <li><a href="#大きな-json-ファイル" id="toc-大きな-json-ファイル" class="nav-link" data-scroll-target="#大きな-json-ファイル">1. 大きな JSON ファイル</a></li>
+  <li><a href="#json-lines-.jsonl-への注意" id="toc-json-lines-.jsonl-への注意" class="nav-link" data-scroll-target="#json-lines-.jsonl-への注意">2. JSON Lines (<code>.jsonl</code>) への注意</a></li>
+  <li><a href="#パイプライン中断時のデータ破損" id="toc-パイプライン中断時のデータ破損" class="nav-link" data-scroll-target="#パイプライン中断時のデータ破損">3. パイプライン中断時のデータ破損</a></li>
+  </ul></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>問題を報告</a></li></ul></div></nav>
     </div>
@@ -504,285 +479,258 @@ window.Quarto = {
 
 
 
-<section id="ガウス積分" class="level2">
-<h2 class="anchored" data-anchor-id="ガウス積分">ガウス積分</h2>
-<div id="thm-" class="custom_problem blog-custom-border theorem">
-<p><span class="theorem-title"><strong>定理 1</strong></span> <span class="def-title">ガウス積分</span></p>
-<p><span class="math display">\[
-\int^\infty_{-\infty} \exp(-x^2) \,\mathrm{d}x = \sqrt{\pi}
-\]</span></p>
+<section id="command-filea-filea-の問題" class="level2">
+<h2 class="anchored" data-anchor-id="command-filea-filea-の問題"><code>command fileA &gt; fileA</code> の問題</h2>
+<div class="callout callout-style-default callout-warning callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
 </div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">警告</span>同一ファイルを入出力に指定するとデータが消える
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">command</span> fileA <span class="op">&gt;</span> fileA</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>このように，<strong>同一ファイル</strong>を入力と出力に指定すると <code>fileA</code> の内容が空になってしまう．</p>
+</div>
+</div>
+<p><span class="mini-section">原因</span></p>
+<p>シェルはコマンドを実行する前にリダイレクト（<code>&gt;</code>）を処理するため，以下の順序で評価されます．</p>
+<ol type="1">
+<li><code>&gt; fileA</code> を評価 → <code>fileA</code> を空ファイルとして開く（既存内容を消去）</li>
+<li><code>command fileA</code> を実行 → 読み込もうとするが，すでに空</li>
+</ol>
+<p>つまり，<code>command</code> が <code>fileA</code> の中身を読む前にファイルが切り詰められてしまうため，意図した処理ができません．</p>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>例 1</strong></span> <span class="def-title">JSON formatter を使うときの注意点</span></p>
+<p>リダイレクトの問題がそのまま JSON 整形にも当てはまります．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co">## NG: data.json が空になる</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> <span class="at">-m</span> json.tool data.json <span class="op">&gt;</span> data.json</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="ex">jq</span> . data.json <span class="op">&gt;</span> data.json</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="co">## OK: sponge 経由</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> <span class="at">-m</span> json.tool data.json <span class="kw">|</span> <span class="ex">sponge</span> data.json</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="ex">jq</span> . data.json <span class="kw">|</span> <span class="ex">sponge</span> data.json</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="co">## OK: 一時ファイル経由（jq は -i オプションを持たない）</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="ex">jq</span> . data.json <span class="op">&gt;</span> tmp.json <span class="kw">&amp;&amp;</span> <span class="fu">mv</span> tmp.json data.json</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<hr>
+</section>
+<section id="回避策" class="level2">
+<h2 class="anchored" data-anchor-id="回避策">回避策</h2>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>主な3つのアプローチ
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co">## 1. 一時ファイルを経由する</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="bu">command</span> fileA <span class="op">&gt;</span> tmp <span class="kw">&amp;&amp;</span> <span class="fu">mv</span> tmp fileA</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="co">## 2. sponge を使う（moreutils）</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="bu">command</span> fileA <span class="kw">|</span> <span class="ex">sponge</span> fileA</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="co">## 3. コマンドが対応していれば -i オプション（in-place 編集）</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="fu">sed</span> <span class="at">-i</span> <span class="st">'s/foo/bar/'</span> fileA</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</div>
+<p><span class="mini-section">各アプローチの比較</span></p>
 <div class="no-border-top-table">
-<p><span class="mini-section">証明方針</span></p>
 <table class="caption-top table">
 <colgroup>
-<col style="width: 25%">
-<col style="width: 75%">
+<col style="width: 28%">
+<col style="width: 28%">
+<col style="width: 42%">
 </colgroup>
 <thead>
 <tr class="header">
-<th></th>
-<th>内容</th>
+<th>方法</th>
+<th>利点</th>
+<th>注意点</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td>方針</td>
-<td>1次元積分 <span class="math inline">\(I\)</span> を直接求める代わりに <span class="math inline">\(I^2\)</span> を2次元積分として扱う</td>
+<td>一時ファイル + <code>mv</code></td>
+<td>atomic な置換が可能（同一FS上）</td>
+<td>一時ファイルの命名・後始末が必要</td>
 </tr>
 <tr class="even">
-<td>方法</td>
-<td>極座標変換 <span class="math inline">\((x,y)\to(r,\theta)\)</span> により2重積分を分離可能な形に変換する</td>
+<td><code>sponge</code></td>
+<td>1行で書ける，可読性が高い</td>
+<td><code>moreutils</code> が必要．全入力をメモリに溜める．atomicでない</td>
 </tr>
 <tr class="odd">
-<td>手段</td>
-<td>ヤコビアン <span class="math inline">\(r\)</span> を用いて <span class="math inline">\(\exp(-r^2)r\)</span> の積分に帰着し，置換 <span class="math inline">\(u=r^2\)</span> で計算する</td>
+<td><code>-i</code> オプション</td>
+<td>最もシンプル</td>
+<td>対応するコマンドが限られる（<code>sed</code>, <code>perl</code>など）</td>
 </tr>
 </tbody>
 </table>
 </div>
-<div class="callout callout-style-default callout-note no-icon callout-titled">
-<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-1-contents" aria-controls="callout-1" aria-expanded="true" aria-label="Toggle callout">
-<div class="callout-icon-container">
-<i class="callout-icon no-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>Proof
-</div>
-<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
-</div>
-<div id="callout-1" class="callout-1-contents callout-collapse collapse show">
-<div class="callout-body-container callout-body">
-<p><span class="math display">\[
-I \coloneqq \int^\infty_{-\infty} \exp(-x^2) \,\mathrm{d}x
-\]</span></p>
-<p>とおく．このとき，</p>
-<div class="math display" style="overflow: auto">
-<p><span class="math display">\[
-\begin{align}
-I^2
-  &amp;= I \int^\infty_{-\infty} \exp(-x^2) \,\mathrm{d}x\\
-  &amp;= \int^\infty_{-\infty} I \exp(-x^2) \,\mathrm{d}x\\
-  &amp;= \int^\infty_{-\infty} \left(\int^\infty_{-\infty}\exp(-y^2) \,\mathrm{d}y\right) \exp(-x^2) \,\mathrm{d}x\\
-  &amp;= \int^\infty_{-\infty}\int^\infty_{-\infty} \exp(- (x^2 + y^2)) \,\mathrm{d}x \,\mathrm{d}y
-\end{align}
-\]</span></p>
-</div>
-<p>これは平面全体（x–y平面）での積分なので，極座標変換</p>
-<p><span class="math display">\[
-x = r\cos\theta,\quad y = r\sin\theta
-\]</span></p>
-<p>を実施する．ヤコビアン <span class="math inline">\(J\)</span> が</p>
-<div class="math display" style="overflow: auto">
-<p><span class="math display">\[
-\begin{align}
-J
-  &amp;= \operatorname{det}\left(
-      \begin{array}{cc}
-      \frac{\partial x}{\partial r} &amp; \frac{\partial x}{\partial \theta}\\
-      \frac{\partial y}{\partial r} &amp; \frac{\partial y}{\partial \theta}
-      \end{array}
-  \right)\\
-  &amp;= r
-\end{align}
-\]</span></p>
-</div>
-<p>であることから</p>
-<p><span class="math display">\[
-I^2 = \int^{2\pi}_0\int^\infty_0 \exp(-r^2)r \,\mathrm{d}r\,\mathrm{d}\theta
-\]</span></p>
-<p>ここで積分を分離すると，置換 <span class="math inline">\(r^2 = u\)</span> を利用することで</p>
-<div class="math display" style="overflow: auto">
-<p><span class="math display">\[
-\begin{align}
-I^2
-  &amp;= \left(\int^{2\pi}_0\,\mathrm{d}\theta\right) \left(\int^\infty_0 \exp(-r^2)r \,\mathrm{d}r\right)\\
-  &amp;= 2\pi \times \frac{1}{2} = \pi
-\end{align}
-\]</span></p>
-</div>
-<p>したがって，<span class="math inline">\(I = \sqrt{\pi}\)</span></p>
-</div>
-</div>
-</div>
-<p><span class="mini-section">ガウス積分のplot</span></p>
-<p><span class="math inline">\(f(x,y) = \exp(-(x^2 + y^2))\)</span> の bell surface を以下にplot</p>
-<div id="cell-fig-bell-curve" class="cell" data-execution_count="1">
-<details class="code-fold">
-<summary>コード</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="co"># グリッド生成</span></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> np.linspace(<span class="op">-</span><span class="dv">3</span>, <span class="dv">3</span>, <span class="dv">200</span>)</span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> np.linspace(<span class="op">-</span><span class="dv">3</span>, <span class="dv">3</span>, <span class="dv">200</span>)</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>X, Y <span class="op">=</span> np.meshgrid(x, y)</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>Z <span class="op">=</span> np.exp(<span class="op">-</span>(X<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> Y<span class="op">**</span><span class="dv">2</span>))</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Bell surface の描画</span></span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>fig <span class="op">=</span> plt.figure(figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="dv">8</span>))</span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>ax <span class="op">=</span> fig.add_subplot(<span class="dv">111</span>, projection<span class="op">=</span><span class="st">"3d"</span>)</span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>ax.plot_surface(X, Y, Z, cmap<span class="op">=</span><span class="st">"jet"</span>, edgecolor<span class="op">=</span><span class="st">"none"</span>, alpha<span class="op">=</span><span class="fl">0.9</span>)</span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>ax.set_xlabel(<span class="st">"x"</span>)</span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>ax.set_ylabel(<span class="st">"y"</span>)</span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>ax.set_zlabel(<span class="vs">r"</span><span class="dv">$</span><span class="vs">f</span><span class="kw">(</span><span class="vs">x,y</span><span class="kw">)</span><span class="dv">$</span><span class="vs">"</span>, labelpad<span class="op">=</span><span class="dv">10</span>)</span>
-<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>ax.set_box_aspect(<span class="va">None</span>, zoom<span class="op">=</span><span class="fl">0.85</span>)</span>
-<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
-<div class="cell-output cell-output-display">
-<div id="fig-bell-curve" class="quarto-float quarto-figure quarto-figure-center anchored" width="611" height="611">
-<figure class="quarto-float quarto-float-fig figure">
-<div aria-describedby="fig-bell-curve-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<img src="index_files/figure-html/fig-bell-curve-output-1.png" id="fig-bell-curve" width="611" height="611" class="figure-img">
-</div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-bell-curve-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-図&nbsp;1
-</figcaption>
-</figure>
-</div>
-</div>
-</div>
-<div id="exm-" class="custom_problem theorem example">
-<p><span class="theorem-title"><strong>例 1</strong></span> <span class="def-title">正規分布と規格化</span></p>
-<p><span class="math display">\[
-I = \int_{-\infty}^\infty \exp\left(-\frac{x^2}{2\sigma^2}\right)\,\mathrm{d}x
-\]</span></p>
-<p>を考える．</p>
-<p><span class="math display">\[
-I^2 = \int_{-\infty}^\infty\int_{-\infty}^\infty \exp\left(-\frac{x^2 + y^2}{2\sigma^2}\right)\,\mathrm{d}x\,\mathrm{d}y
-\]</span></p>
-<p>として，同じく極座標変換をすると</p>
-<div class="math display" style="overflow: auto">
-<p><span class="math display">\[
-\begin{align}
-I^2
-  &amp;= \int_{0}^{2\pi}\int_{0}^\infty \exp\left(-\frac{r^2}{2\sigma^2}\right)r\,\mathrm{d}r\,\mathrm{d}y\theta\\
-  &amp;= 2\pi\times \frac{1}{2}\int_{0}^\infty \exp\left(-\frac{u}{2\sigma^2}\right)\,\mathrm{d}u \quad \because r^2 = u\\
-  &amp;= 2\pi \times \frac{1}{2} \times 2\sigma^2\\
-  &amp;= 2\pi\sigma^2
-\end{align}
-\]</span></p>
-</div>
-<p>したがって，<span class="math inline">\(I = \sqrt{2\pi\sigma^2}\)</span></p>
-</div>
-<hr>
 </section>
-<section id="ガウス分布とモード" class="level2">
-<h2 class="anchored" data-anchor-id="ガウス分布とモード">ガウス分布とモード</h2>
-<p><span class="mini-section">1Dガウス分布の場合</span></p>
-<div class="blog-custom-border" style="margin-top: 1rem; margin-bottom: 1rem;">
-<div id="prp-" class="custom_problem theorem proposition">
-<p><span class="theorem-title"><strong>命題 1</strong></span> <br></p>
-<p>1次元ガウス分布</p>
-<p><span class="math display">\[
-\mathcal{N}(x \mid \mu, \sigma^2) = \frac{1}{\sqrt{2\pi\sigma^2}} \exp\left(-\frac{(x - \mu)^2}{2\sigma^2}\right)
-\]</span></p>
-<p>のモード（最頻値）は <span class="math inline">\(\text{mode}(x) = \mu\)</span> である．</p>
-</div>
-</div>
-<div class="callout callout-style-default callout-note no-icon callout-titled">
-<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-2-contents" aria-controls="callout-2" aria-expanded="true" aria-label="Toggle callout">
+<section id="sponge-の注意点" class="level2">
+<h2 class="anchored" data-anchor-id="sponge-の注意点"><code>sponge</code> の注意点</h2>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
-<i class="callout-icon no-icon"></i>
+<i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>Proof
+<span class="screen-reader-only">ヒント</span><code>sponge</code> とは
 </div>
-<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-2" class="callout-2-contents callout-collapse collapse show">
 <div class="callout-body-container callout-body">
-<p>確率密度関数 <span class="math inline">\(p(x)\)</span> を最大化する <span class="math inline">\(x\)</span> を求める．<span class="math inline">\(p(x) &gt; 0\)</span> であるから，<span class="math inline">\(p(x)\)</span> の最大化は <span class="math inline">\(\ln p(x)\)</span> の最大化と同値である．</p>
-<p><span class="math display">\[
-\ln p(x) = -\frac{1}{2}\ln(2\pi\sigma^2) - \frac{(x - \mu)^2}{2\sigma^2}
-\]</span></p>
-<p><span class="math inline">\(x\)</span> で微分すると，</p>
-<p><span class="math display">\[
-\frac{d}{dx}\ln p(x) = -\frac{x - \mu}{\sigma^2}
-\]</span></p>
-<p>これを <span class="math inline">\(0\)</span> とおくと <span class="math inline">\(x = \mu\)</span> を得る．また，2階微分は</p>
-<p><span class="math display">\[
-\frac{d^2}{dx^2}\ln p(x) = -\frac{1}{\sigma^2} &lt; 0
-\]</span></p>
-<p>であるから，<span class="math inline">\(x = \mu\)</span> は極大である．したがって，<span class="math inline">\(\text{mode}(x) = \mu\)</span>．<span class="math inline">\(\blacksquare\)</span></p>
+<p><code>sponge</code> は標準入力を <strong>全部読み切ってから</strong> 指定ファイルへ書き込むコマンドです． これにより <code>cmd file | sponge file</code> のような「読みながら書く」競合を防げます．</p>
 </div>
 </div>
-</div>
-<p><span class="mini-section">多変量ガウス分布の場合</span></p>
-<div class="blog-custom-border" style="margin-top: 1rem; margin-bottom: 1rem;">
-<div id="prp-" class="custom_problem theorem proposition">
-<p><span class="theorem-title"><strong>命題 2</strong></span> <br></p>
-<p><span class="math inline">\(D\)</span> 次元多変量ガウス分布</p>
-<p><span class="math display">\[
-\mathcal{N}(\pmb x \mid \pmb \mu, \Sigma) = \frac{1}{(2\pi)^{D/2}|\Sigma|^{1/2}} \exp\left(-\frac{1}{2}(\pmb x - \pmb \mu)^T \Sigma^{-1} (\pmb x - \pmb \mu)\right)
-\]</span></p>
-<p>のモードは <span class="math inline">\(\text{mode}(\pmb x) = \pmb \mu\)</span> である．ただし，<span class="math inline">\(\Sigma\)</span> は <span class="math inline">\(D \times D\)</span> の正定値対称行列とする．</p>
-</div>
-</div>
-<div class="callout callout-style-default callout-note no-icon callout-titled">
-<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-3-contents" aria-controls="callout-3" aria-expanded="true" aria-label="Toggle callout">
+<p><span class="mini-section">1. 標準インストールされていない</span></p>
+<p><code>sponge</code> は <code>moreutils</code> パッケージに含まれるため，別途インストールが必要です．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co">## Debian/Ubuntu</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> apt install moreutils</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="co">## macOS</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="ex">brew</span> install moreutils</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p><span class="mini-section">2. 全入力をメモリに溜め込む</span></p>
+<p>設計上，<code>sponge</code> は入力をすべてメモリ上に保持してから書き込みます． そのため，数GB級の巨大ファイルを処理する場合は <strong>OOM (Out Of Memory)</strong> のリスクがあります．</p>
+<p><span class="mini-section">3. 失敗時の安全性</span></p>
+<p><code>tmp &amp;&amp; mv</code> パターンは <code>mv</code> が atomic に動作するため，途中失敗時に元ファイルが残ります． 一方，<code>sponge</code> は内部的に上書き書き込みを行うため，書き込み中にプロセスが中断すると <strong>元ファイルが壊れる可能性</strong> があります．</p>
+<div class="callout callout-style-default callout-warning callout-titled">
+<div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
-<i class="callout-icon no-icon"></i>
+<i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>Proof
+<span class="screen-reader-only">警告</span>重要なファイルの上書きには <code>tmp &amp;&amp; mv</code> を推奨
 </div>
-<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-3" class="callout-3-contents callout-collapse collapse show">
 <div class="callout-body-container callout-body">
-<p>1次元の場合と同様に，<span class="math inline">\(p(\pmb x) &gt; 0\)</span> であるから <span class="math inline">\(\ln p(\pmb x)\)</span> の最大化と同値である．</p>
-<p><span class="math display">\[
-\ln p(\pmb x) = -\frac{D}{2}\ln(2\pi) - \frac{1}{2}\ln|\Sigma| - \frac{1}{2}(\pmb x - \pmb \mu)^T \Sigma^{-1} (\pmb x - \pmb \mu)
-\]</span></p>
-<p><span class="math inline">\(\pmb x\)</span> に依存するのは第3項のみであるから，<span class="math inline">\(\ln p(\pmb x)\)</span> の最大化は</p>
-<p><span class="math display">\[
-f(\pmb x) = -\frac{1}{2}(\pmb x - \pmb \mu)^T \Sigma^{-1} (\pmb x - \pmb \mu)
-\]</span></p>
-<p>の最大化と同値である．<span class="math inline">\(\pmb x\)</span> で勾配をとると，</p>
-<p><span class="math display">\[
-\nabla_{\pmb x} f = -\Sigma^{-1}(\pmb x - \pmb \mu)
-\]</span></p>
-<p>ここで <span class="math inline">\(\Sigma\)</span> は対称行列であるから <span class="math inline">\(\Sigma^{-1}\)</span> も対称行列であることを用いた．<span class="math inline">\(\nabla_{\pmb x} f = \pmb 0\)</span> とおくと，<span class="math inline">\(\Sigma^{-1}\)</span> は正則であるから</p>
-<p><span class="math display">\[
-\pmb x = \pmb \mu
-\]</span></p>
-<p>を得る．次に，ヘシアン行列は</p>
-<p><span class="math display">\[
-H = \frac{\partial^2 f}{\partial \pmb x \partial \pmb x^T} = -\Sigma^{-1}
-\]</span></p>
-<p><span class="math inline">\(\Sigma\)</span> が正定値であるから <span class="math inline">\(\Sigma^{-1}\)</span> も正定値であり，<span class="math inline">\(H = -\Sigma^{-1}\)</span> は負定値である．したがって，<span class="math inline">\(\pmb x = \pmb \mu\)</span> は最大点であり，<span class="math inline">\(\text{mode}(\pmb x) = \pmb \mu\)</span>．<span class="math inline">\(\blacksquare\)</span></p>
-</div>
+<p>学習データや本番設定など，破損が許されないファイルに対しては， <code>sponge</code> よりも一時ファイル経由の atomic な置換を選ぶのが安全です．</p>
 </div>
 </div>
 </section>
-<section id="mathmatical-appendix" class="level2">
-<h2 class="anchored" data-anchor-id="mathmatical-appendix">Mathmatical Appendix</h2>
-<div id="def-" class="custom_problem blog-custom-border theorem definition">
-<p><span class="theorem-title"><strong>定義 1</strong></span> <span class="def-title">勾配ベクトル</span></p>
-<p>スカラー値関数 <span class="math inline">\(f: \mathbb{R}^D \to \mathbb{R}\)</span> に対して，勾配ベクトル（gradient）を</p>
-<p><span class="math display">\[
-\nabla_{\pmb x} f = \frac{\partial f}{\partial \pmb x} = \begin{pmatrix} \frac{\partial f}{\partial x_1} \\ \frac{\partial f}{\partial x_2} \\ \vdots \\ \frac{\partial f}{\partial x_D} \end{pmatrix}
-\]</span></p>
-<p>と定義する．</p>
+<section id="data-science-文脈での追加注意点" class="level2">
+<h2 class="anchored" data-anchor-id="data-science-文脈での追加注意点">Data science 文脈での追加注意点</h2>
+<section id="大きな-json-ファイル" class="level3">
+<h3 class="anchored" data-anchor-id="大きな-json-ファイル">1. 大きな JSON ファイル</h3>
+<p>機械学習の学習データや推論結果は数GBに達することがあります．</p>
+<ul>
+<li><code>sponge</code> は全量をメモリに載せるため OOM のリスクあり</li>
+<li>一時ファイル + <code>mv</code> のほうが安全</li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">jq</span> . large_dataset.json <span class="op">&gt;</span> tmp.json <span class="kw">&amp;&amp;</span> <span class="fu">mv</span> tmp.json large_dataset.json</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="json-lines-.jsonl-への注意" class="level3">
+<h3 class="anchored" data-anchor-id="json-lines-.jsonl-への注意">2. JSON Lines (<code>.jsonl</code>) への注意</h3>
+<div id="def-jsonl" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>定義 1</strong></span> <span class="def-title">JSON Lines (JSONL)</span></p>
+<ul>
+<li><strong>1行1 JSON オブジェクト</strong> で表現するテキストフォーマット．拡張子は <code>.jsonl</code> (または <code>.ndjson</code>)．</li>
+<li>ファイル全体は JSON 配列ではなく，<strong>改行 (<code>\n</code>) 区切り</strong> の独立した JSON 値の列．</li>
+<li>各行が独立しているため，<strong>ストリーミング処理</strong> や <strong>行単位の追記 (<code>&gt;&gt;</code>)</strong> と相性が良い．</li>
+<li>巨大データセット (ログ，学習データ，推論結果など) の保存形式として data science / ML 領域で広く採用される．</li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode jsonl code-with-copy"><code class="sourceCode json"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span><span class="dt">"id"</span><span class="fu">:</span> <span class="dv">1</span><span class="fu">,</span> <span class="dt">"text"</span><span class="fu">:</span> <span class="st">"hello"</span><span class="fu">,</span> <span class="dt">"label"</span><span class="fu">:</span> <span class="st">"greeting"</span><span class="fu">}</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span><span class="dt">"id"</span><span class="fu">:</span> <span class="dv">2</span><span class="fu">,</span> <span class="dt">"text"</span><span class="fu">:</span> <span class="st">"bye"</span><span class="fu">,</span> <span class="dt">"label"</span><span class="fu">:</span> <span class="st">"farewell"</span><span class="fu">}</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span><span class="dt">"id"</span><span class="fu">:</span> <span class="dv">3</span><span class="fu">,</span> <span class="dt">"text"</span><span class="fu">:</span> <span class="st">"thanks"</span><span class="fu">,</span> <span class="dt">"label"</span><span class="fu">:</span> <span class="st">"gratitude"</span><span class="fu">}</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<div id="def-" class="custom_problem blog-custom-border theorem definition">
-<p><span class="theorem-title"><strong>定義 2</strong></span> <span class="def-title">ヘシアン行列</span></p>
-<p>スカラー値関数 <span class="math inline">\(f: \mathbb{R}^D \to \mathbb{R}\)</span> に対して，ヘシアン行列（Hessian matrix）を</p>
-<p><span class="math display">\[
-H = \frac{\partial^2 f}{\partial \pmb x \partial \pmb x^T} = \begin{pmatrix} \frac{\partial^2 f}{\partial x_1^2} &amp; \frac{\partial^2 f}{\partial x_1 \partial x_2} &amp; \cdots &amp; \frac{\partial^2 f}{\partial x_1 \partial x_D} \\ \frac{\partial^2 f}{\partial x_2 \partial x_1} &amp; \frac{\partial^2 f}{\partial x_2^2} &amp; \cdots &amp; \frac{\partial^2 f}{\partial x_2 \partial x_D} \\ \vdots &amp; \vdots &amp; \ddots &amp; \vdots \\ \frac{\partial^2 f}{\partial x_D \partial x_1} &amp; \frac{\partial^2 f}{\partial x_D \partial x_2} &amp; \cdots &amp; \frac{\partial^2 f}{\partial x_D^2} \end{pmatrix}
-\]</span></p>
-<p>と定義する．<span class="math inline">\(f\)</span> が <span class="math inline">\(C^2\)</span> 級ならば <span class="math inline">\(H\)</span> は対称行列である．</p>
+<p><span class="mini-section">通常の JSON との違い</span></p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 13%">
+<col style="width: 32%">
+<col style="width: 53%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>観点</th>
+<th>JSON</th>
+<th>JSON Lines (JSONL)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>構造</td>
+<td>1ファイル = 1 JSON 値 (通常は配列)</td>
+<td>1ファイル = 改行区切りの複数 JSON 値</td>
+</tr>
+<tr class="even">
+<td>読み込み</td>
+<td>全体をパースする必要あり</td>
+<td>1行ずつパース可能 (ストリーミング)</td>
+</tr>
+<tr class="odd">
+<td>追記</td>
+<td>末尾の <code>]</code> を書き換える必要あり</td>
+<td><code>&gt;&gt; file.jsonl</code> で安全に追記可</td>
+</tr>
+<tr class="even">
+<td>部分破損</td>
+<td>1箇所壊れると全体が読めない</td>
+<td>壊れた行だけスキップ可能</td>
+</tr>
+<tr class="odd">
+<td>代表的ツール</td>
+<td><code>python -m json.tool</code></td>
+<td><code>jq -c</code>, <code>pandas.read_json(lines=True)</code></td>
+</tr>
+</tbody>
+</table>
 </div>
-<div id="prp-" class="custom_problem blog-custom-border theorem proposition">
-<p><span class="theorem-title"><strong>命題 3</strong></span> <span class="def-title">二次形式の勾配</span></p>
-<p><span class="math inline">\(A\)</span> を <span class="math inline">\(D \times D\)</span> の対称行列，<span class="math inline">\(\pmb b \in \mathbb{R}^D\)</span> とする．このとき，</p>
-<p><span class="math display">\[
-\nabla_{\pmb x} (\pmb x^T A \pmb x) = 2A\pmb x, \quad \nabla_{\pmb x} (\pmb b^T \pmb x) = \pmb b
-\]</span></p>
+<p>data science では <strong>1行1レコード</strong> の JSON Lines 形式を扱うことが多いですが， <code>python -m json.tool</code> は JSONL を正しくパースできません．ツール選択に注意が必要です．</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>JSONL の整形には <code>jq</code> を使う
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co">## -c で compact (1行1レコード) を維持</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> data.jsonl <span class="kw">|</span> <span class="ex">jq</span> <span class="at">-c</span> . <span class="kw">|</span> <span class="ex">sponge</span> data.jsonl</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>jq -c</code> はオブジェクトを1行に圧縮して出力するため，JSONL の構造を保ったまま整形できます．</p>
+</div>
+</div>
+</section>
+<section id="パイプライン中断時のデータ破損" class="level3">
+<h3 class="anchored" data-anchor-id="パイプライン中断時のデータ破損">3. パイプライン中断時のデータ破損</h3>
+<p>前処理パイプラインの中間ファイルを上書きする場合，途中で失敗すると学習データが <strong>欠損・破損</strong> します． バージョン管理（DVC など）や世代管理ディレクトリ構成を併用するのが望ましいです．</p>
+<p><span class="mini-section">世代管理の例: タイムスタンプ付き出力</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ex">jq</span> . data.json <span class="op">&gt;</span> data_<span class="va">$(</span><span class="fu">date</span> +%Y%m%d_%H%M%S<span class="va">)</span>.json</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<ul>
+<li>元ファイルを残したまま新しい世代を生成</li>
+<li>失敗しても元データは保護される</li>
+<li>後でクリーンアップポリシー（古い世代の削除）と組み合わせて運用</li>
+</ul>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ヒント</span>実務での運用パターン
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ol type="1">
+<li><strong>検証中</strong> → <code>sponge</code> で素早く反復</li>
+<li><strong>本番データ・学習用データ</strong> → <code>tmp &amp;&amp; mv</code> で atomic に置換</li>
+<li><strong>再現性が重要なパイプライン</strong> → 世代管理 + DVC でデータバージョニング</li>
+</ol>
+</div>
 </div>
 
 
+</section>
 </section>
 
 </main> <!-- /main -->
