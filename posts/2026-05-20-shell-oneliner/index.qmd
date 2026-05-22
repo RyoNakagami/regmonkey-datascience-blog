@@ -12,6 +12,88 @@ comments:
        issue-term: title
 ---
 
+## 実行可能スクリプトファイルをワンライナーで用意する
+
+::: {.callout-note}
+### コマンド
+
+`bin/run_analysis.sh` という実行可能な空ファイルを，ディレクトリ作成・ファイル作成・パーミッション設定までまとめて一発で用意するコマンド
+
+```bash
+install -Dm755 /dev/null bin/run_analysis.sh
+```
+
+:::
+
+素直にに書くと，3つのコマンドを順に実行する必要があります．
+
+```bash
+mkdir -p bin
+touch bin/run_analysis.sh
+chmod 755 bin/run_analysis.sh
+```
+
+- `mkdir -p bin`: `bin` ディレクトリが無ければ作成（あってもエラーにならない）
+- `touch bin/run_analysis.sh`: 空ファイルを作成
+- `chmod 755 bin/run_analysis.sh`: 所有者に rwx，グループ・その他に r-x を付与
+
+これを `install` コマンド1つで置き換えられます．
+
+[1. `install` コマンドとは]{.mini-section}
+
+`install` はファイルのコピーとパーミッション・所有者設定を同時に行うためのコマンドです．`cp` + `chmod` + `chown` + `mkdir` を1ステップで実行できます．
+
+[2. オプションの意味]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| オプション      | 意味                                                  |
+| ---------- | --------------------------------------------------- |
+| `-D`       | コピー先の親ディレクトリが無ければ作成する（`mkdir -p` に相当）             |
+| `-m755`    | コピー後のファイルのモードを `755` に設定する（`chmod 755` に相当）         |
+| `/dev/null` | コピー元．空の特殊ファイルなので，結果として「空ファイル」が作成される                |
+
+[3. なぜ `/dev/null` を渡すのか]{.mini-section}
+
+`install` は本来「ファイルをコピーするコマンド」なので，コピー元のファイルが必要です．「空ファイルを作りたいだけ」のときに毎回ダミーファイルを用意するのは面倒なので，常に空である `/dev/null` をコピー元に指定することで，空ファイルを生成できます．
+
+::: {.callout-tip}
+### `touch` + `chmod` との違い
+
+- `touch` は既存ファイルがあるとタイムスタンプだけ更新する（内容は保持）
+- `install -Dm755 /dev/null` は **既存ファイルを空ファイルで上書きする**
+
+既存のスクリプトを意図せず空にしてしまわないよう，新規作成のときに使うのが安全です．
+
+:::
+
+### 応用例
+
+[実行権限なしで空ファイルを作成]{.mini-section}
+
+```bash
+install -Dm644 /dev/null path/to/config.yaml
+```
+
+- 設定ファイルなど，実行権限が不要なファイルに対して `644` を指定
+
+[ディレクトリだけを作成]{.mini-section}
+
+```bash
+install -d -m755 path/to/new/dir
+```
+
+- `-d`: ディレクトリを作成するモード（`mkdir -p` 相当）
+
+[既存ファイルを別の場所にコピーしてパーミッションも設定]{.mini-section}
+
+```bash
+install -Dm755 scripts/run_analysis.sh /usr/local/bin/run_analysis.sh
+```
+
+- ローカルのスクリプトを `/usr/local/bin` 配下に配置する用途で，Makefile などでもよく使われる書き方
+
+
 ## 似てるけど違う挙動: `grep` 
 
 ::: {.callout-note}
