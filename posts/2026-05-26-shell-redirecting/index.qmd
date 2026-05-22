@@ -1,0 +1,212 @@
+---
+title: "シェルのリダイレクトと `sponge` の注意点"
+author: "Ryo Nakagami"
+date: "2026-05-26"
+date-modified: "2026-05-26"
+categories: [シェル, shellscript]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## `command fileA > fileA` の問題
+
+::: {.callout-warning}
+### 同一ファイルを入出力に指定するとデータが消える
+
+```bash
+command fileA > fileA
+```
+
+このように，**同一ファイル**を入力と出力に指定すると `fileA` の内容が空になってしまう．
+
+:::
+
+[原因]{.mini-section}
+
+シェルはコマンドを実行する前にリダイレクト（`>`）を処理するため，以下の順序で評価されます．
+
+1. `> fileA` を評価 → `fileA` を空ファイルとして開く（既存内容を消去）
+2. `command fileA` を実行 → 読み込もうとするが，すでに空
+
+つまり，`command` が `fileA` の中身を読む前にファイルが切り詰められてしまうため，意図した処理ができません．
+
+::: {#exm- .custom_problem }
+[JSON formatter を使うときの注意点]{.def-title}
+
+リダイレクトの問題がそのまま JSON 整形にも当てはまります．
+
+```bash
+## NG: data.json が空になる
+python -m json.tool data.json > data.json
+jq . data.json > data.json
+
+## OK: sponge 経由
+python -m json.tool data.json | sponge data.json
+jq . data.json | sponge data.json
+
+## OK: 一時ファイル経由（jq は -i オプションを持たない）
+jq . data.json > tmp.json && mv tmp.json data.json
+```
+
+:::
+***
+
+
+## 回避策
+
+::: {.callout-note}
+### 主な3つのアプローチ
+
+```bash
+## 1. 一時ファイルを経由する
+command fileA > tmp && mv tmp fileA
+
+## 2. sponge を使う（moreutils）
+command fileA | sponge fileA
+
+## 3. コマンドが対応していれば -i オプション（in-place 編集）
+sed -i 's/foo/bar/' fileA
+```
+
+:::
+
+[各アプローチの比較]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| 方法                       | 利点                       | 注意点                                  |
+| ------------------------ | ------------------------ | ------------------------------------ |
+| 一時ファイル + `mv`            | atomic な置換が可能（同一FS上）     | 一時ファイルの命名・後始末が必要                     |
+| `sponge`                 | 1行で書ける，可読性が高い            | `moreutils` が必要．全入力をメモリに溜める．atomicでない |
+| `-i` オプション               | 最もシンプル                   | 対応するコマンドが限られる（`sed`, `perl`など）       |
+
+::::
+
+## `sponge` の注意点
+
+::: {.callout-tip}
+### `sponge` とは
+
+`sponge` は標準入力を **全部読み切ってから** 指定ファイルへ書き込むコマンドです．
+これにより `cmd file | sponge file` のような「読みながら書く」競合を防げます．
+
+:::
+
+[1. 標準インストールされていない]{.mini-section}
+
+`sponge` は `moreutils` パッケージに含まれるため，別途インストールが必要です．
+
+```bash
+## Debian/Ubuntu
+sudo apt install moreutils
+
+## macOS
+brew install moreutils
+```
+
+[2. 全入力をメモリに溜め込む]{.mini-section}
+
+設計上，`sponge` は入力をすべてメモリ上に保持してから書き込みます．
+そのため，数GB級の巨大ファイルを処理する場合は **OOM (Out Of Memory)** のリスクがあります．
+
+[3. 失敗時の安全性]{.mini-section}
+
+`tmp && mv` パターンは `mv` が atomic に動作するため，途中失敗時に元ファイルが残ります．
+一方，`sponge` は内部的に上書き書き込みを行うため，書き込み中にプロセスが中断すると **元ファイルが壊れる可能性** があります．
+
+::: {.callout-warning}
+### 重要なファイルの上書きには `tmp && mv` を推奨
+
+学習データや本番設定など，破損が許されないファイルに対しては，
+`sponge` よりも一時ファイル経由の atomic な置換を選ぶのが安全です．
+
+:::
+
+
+## Data science 文脈での追加注意点
+
+### 1. 大きな JSON ファイル
+
+機械学習の学習データや推論結果は数GBに達することがあります．
+
+- `sponge` は全量をメモリに載せるため OOM のリスクあり
+- 一時ファイル + `mv` のほうが安全
+
+```bash
+jq . large_dataset.json > tmp.json && mv tmp.json large_dataset.json
+```
+
+### 2. JSON Lines (`.jsonl`) への注意
+
+::: {#def-jsonl .custom_problem .blog-custom-border}
+[JSON Lines (JSONL)]{.def-title}
+
+- **1行1 JSON オブジェクト** で表現するテキストフォーマット．拡張子は `.jsonl` (または `.ndjson`)．
+- ファイル全体は JSON 配列ではなく，**改行 (`\n`) 区切り** の独立した JSON 値の列．
+- 各行が独立しているため，**ストリーミング処理** や **行単位の追記 (`>>`)** と相性が良い．
+- 巨大データセット (ログ，学習データ，推論結果など) の保存形式として data science / ML 領域で広く採用される．
+
+```jsonl
+{"id": 1, "text": "hello", "label": "greeting"}
+{"id": 2, "text": "bye", "label": "farewell"}
+{"id": 3, "text": "thanks", "label": "gratitude"}
+```
+
+:::
+
+[通常の JSON との違い]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| 観点         | JSON                     | JSON Lines (JSONL)                      |
+| ---------- | ------------------------ | --------------------------------------- |
+| 構造         | 1ファイル = 1 JSON 値 (通常は配列) | 1ファイル = 改行区切りの複数 JSON 値                 |
+| 読み込み       | 全体をパースする必要あり             | 1行ずつパース可能 (ストリーミング)                     |
+| 追記         | 末尾の `]` を書き換える必要あり       | `>> file.jsonl` で安全に追記可                 |
+| 部分破損       | 1箇所壊れると全体が読めない           | 壊れた行だけスキップ可能                            |
+| 代表的ツール     | `python -m json.tool`    | `jq -c`, `pandas.read_json(lines=True)` |
+
+::::
+
+data science では **1行1レコード** の JSON Lines 形式を扱うことが多いですが，
+`python -m json.tool` は JSONL を正しくパースできません．ツール選択に注意が必要です．
+
+::: {.callout-note}
+### JSONL の整形には `jq` を使う
+
+```bash
+## -c で compact (1行1レコード) を維持
+cat data.jsonl | jq -c . | sponge data.jsonl
+```
+
+`jq -c` はオブジェクトを1行に圧縮して出力するため，JSONL の構造を保ったまま整形できます．
+
+:::
+
+### 3. パイプライン中断時のデータ破損
+
+前処理パイプラインの中間ファイルを上書きする場合，途中で失敗すると学習データが **欠損・破損** します．
+バージョン管理（DVC など）や世代管理ディレクトリ構成を併用するのが望ましいです．
+
+[世代管理の例: タイムスタンプ付き出力]{.mini-section}
+
+```bash
+jq . data.json > data_$(date +%Y%m%d_%H%M%S).json
+```
+
+- 元ファイルを残したまま新しい世代を生成
+- 失敗しても元データは保護される
+- 後でクリーンアップポリシー（古い世代の削除）と組み合わせて運用
+
+::: {.callout-tip}
+### 実務での運用パターン
+
+1. **検証中** → `sponge` で素早く反復
+2. **本番データ・学習用データ** → `tmp && mv` で atomic に置換
+3. **再現性が重要なパイプライン** → 世代管理 + DVC でデータバージョニング
+
+:::
