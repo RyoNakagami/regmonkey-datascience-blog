@@ -1,0 +1,289 @@
+---
+title: "Bash Strict Mode ガイド"
+author: "Ryo Nakagami"
+date: "2026-05-25"
+date-modified: "2026-05-25"
+categories: [bash, shell]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+
+::: {.callout-note}
+## Goal
+
+:::{style="padding-left:1em"}
+
+- [ ] `set -euo pipefail` と `IFS` 設定による堅牢なBashスクリプトの書き方の理解
+
+:::
+
+:::
+
+
+## 基本パターン
+
+Bashのデフォルト挙動はインタラクティブシェル向けに設計されているため，「エラーが起きても次のコマンドを打てる」ことが重要です．
+一方，シェルスクリプトとして用いる場合は，「途中でエラーが起きたまま処理が続くと，データ破壊や意図しない副作用が生じる」ため，早期終了と明示的なエラー検出が必要という違いがあります．
+
+::: {#exm- .custom_problem }
+[`set -u` の例]{.def-title}
+
+```bash
+firstName="Aaron"
+fullName="$firstname Maxwell"  # タイポ: firstname（小文字）
+echo "$fullName"               # -u なし → "Maxwell" と出力されてしまう
+                               # -u あり → "firstname: unbound variable" でエラー終
+```
+
+
+:::
+***
+
+上記のような意図しない挙動を検知するためにstrict mode，具体的には `set -euo pipefail` を用いて挙動をコントロールすることが一般的です．
+よく使用されるラインは以下
+
+```bash
+#!/bin/bash
+set -euo pipefail
+IFS=$'\n\t'
+```
+
+:::: {.no-border-top-table}
+
+| オプション | 効果 |
+|---|---|
+| `set -e` | コマンドが非ゼロ終了した時点でスクリプトを即座に終了 |
+| `set -u` | 未定義変数を参照したらエラーで終了（`$*`, `$@` は例外） |
+| `set -o pipefail` | パイプライン中のいずれかのコマンドが失敗したら，そのコードをパイプライン全体の終了コードとして返す |
+| `set -x` | 実行コマンドをすべてターミナルに出力（デバッグ用） |
+
+: {tbl-colwidths="[25,75]"}
+
+::::
+
+
+
+
+## `set -e` の注意点
+
+### 算術式 `((...))` との衝突
+
+```bash
+set -euo pipefail
+
+declare -i value=0
+((value++))       # ← ここでスクリプトが終了する
+echo "valueの値は $value"
+```
+
+[なぜ終了するのか]{.mini-section}
+
+`((式))` は算術評価コマンドであり，**評価結果が 0（false）のとき終了コード 1 を返します**．`value` が `0` のとき `((value++))` は後置インクリメントなので「インクリメント前の値 = 0」を評価し，終了コード 1 を返してしまい，`set -e` はこれをエラーと見なしてスクリプトを終了させます
+
+| 式 | 評価値 | 終了コード |
+|---|---|---|
+| `((0))` | 0 (false) | 1 → `-e` で終了 |
+| `((1))` | 1 (true) | 0 → 正常 |
+| `((value++))` (value=0のとき) | 0 (false) | 1 → `-e` で終了 |
+| `((++value))` (value=0のとき) | 1 (true) | 0 → 正常 |
+
+
+[回避策]{.mini-section}
+
+```bash
+# NG: 後置インクリメント（value=0 のとき終了コード1）
+((value++))
+
+# OK: || true でエラーを無効化
+((value++)) || true
+
+# OK: 算術展開（終了コードを返さない）← 最も安全
+value=$((value + 1))
+```
+
+`value=$((value + 1))` が最も安全．`$((...))` は**算術展開**であり終了コードを返さない．
+
+### `if` / `while` の条件内では `-e` が無効になる
+
+```bash
+set -e
+
+# OK（条件評価として扱われる）
+if grep -q "pattern" file; then
+  echo "found"
+fi
+
+# 終了する（条件外で非ゼロ終了）
+grep -q "pattern" file
+echo "ここには到達しない"
+```
+
+- `if`・`while`・`||`・`&&` の条件部分では `-e` が一時的に無効化される
+- 失敗を許容したいコマンドは `if` で包むか `|| true` を付ける
+
+### 関数の戻り値にも適用される
+
+```bash
+set -e
+
+check() {
+  return 1
+}
+
+check        # スクリプト終了
+check || true  # OK
+```
+
+## `set -u` の注意点
+
+### デフォルト値展開は `-u` のもとでも安全
+
+```bash
+set -u
+
+echo "${VAR}"            # エラー: unbound variable
+echo "${VAR:-default}"   # OK: 未定義なら "default" を使う
+echo "${VAR:+defined}"   # OK: 未定義なら空文字
+```
+
+### `$@` / `$*` は例外
+
+引数ゼロでもエラーにならない．ただし `$1` は例外ではないため `${1:-}` と書く．
+
+```bash
+set -u
+
+for arg in "$@"; do  # 引数なしでもエラーにならない
+  echo "$arg"
+done
+
+# $1 を参照する場合
+name="${1:-anonymous}"
+```
+
+## `set -o pipefail` の注意点
+
+### SIGPIPE との衝突
+
+`grep -m1` などでパイプを早期クローズするコマンドを使うと，後続コマンドが SIGPIPE（終了コード 141）で終了し，`pipefail` がエラーとして拾ってしまいます．
+
+```bash
+set -o pipefail
+
+# grep -m1 がマッチ後にパイプを閉じると cat が SIGPIPE で終了（コード141）
+cat large_file.txt | grep -m1 "pattern"
+echo $?  # 141 → pipefail でエラー扱いになる
+```
+
+回避策：`|| true` を付けるか，`grep` の代わりに `head` などを検討する．
+
+### `PIPESTATUS` で各コマンドの終了コードを個別確認
+
+```bash
+cat file | grep "pattern" | sort
+echo "${PIPESTATUS[@]}"  # 例: "0 1 0" → grep だけ失敗
+```
+
+## IFS の設定
+
+`IFS`（Internal Field Separator）はBashの単語分割を制御します．デフォルトは `$' \n\t'`（スペース・改行・タブ）で，スペースでも分割されるため配列のイテレーションでバグを生みやすいです．
+
+```bash
+IFS=$'\n\t'  # 改行とタブのみで分割
+```
+
+**スペースを含む要素の扱い：**
+
+```bash
+names=("Aaron Maxwell" "Wayne Gretzky")
+
+# デフォルトIFS → スペースで分割され "Aaron" "Maxwell" ... と4要素になる
+for name in ${names[@]}; do echo "$name"; done
+
+# IFS=$'\n\t' → "Aaron Maxwell" が1要素として正しく処理される
+IFS=$'\n\t'
+for name in "${names[@]}"; do echo "$name"; done
+```
+
+**コマンドライン引数でも同様：**
+
+```bash
+# myscript.sh notes 'My Resume.doc' を呼び出した場合
+# デフォルトIFS → "My" と "Resume.doc" に誤分割される
+# IFS=$'\n\t'  → "My Resume.doc" が1引数として正しく処理される
+for arg in $@; do
+  echo "$arg"
+done
+```
+
+## 推奨テンプレート
+
+```bash
+#!/bin/bash
+set -euo pipefail
+IFS=$'\n\t'
+
+# 算術インクリメントは代入形式で
+value=0
+value=$((value + 1))
+
+# 失敗を許容するコマンドは明示的に
+some_command || true
+
+# 未定義変数はデフォルト値展開で
+name="${1:-anonymous}"
+```
+
+## Appendix
+
+:::{.glossary-container}
+
+```yaml
+glossary:
+  - def: 後置インクリメント (`value++`)
+    description: |
+      式を評価してから変数をインクリメントする演算子．返す値はインクリメント前の値．
+      `value=0` のとき `((value++))` の評価結果は `0`（false）となり，
+      `set -e` 環境では終了コード 1 として扱われスクリプトが終了する．
+
+  - def: 前置インクリメント (`++value`)
+    description: |
+      変数をインクリメントしてから式を評価する演算子．返す値はインクリメント後の値．
+      `value=0` のとき `((++value))` の評価結果は `1`（true）となり，
+      終了コード 0 として正常扱いになる．
+
+  - def: パイプライン (`cmd1 | cmd2`)
+    description: |
+      `|` で複数のコマンドを連結し，左側コマンドの標準出力を右側コマンドの
+      標準入力に流すBashの構文．デフォルトではパイプライン全体の終了コードは
+      **最後のコマンド**のものになるため，途中のコマンドが失敗しても全体としては
+      成功扱いになる．これを変えるのが `set -o pipefail`．
+
+  - def: SIGPIPE (終了コード 141)
+    description: |
+      パイプの読み側が先にクローズされた状態で書き側が出力しようとしたときに
+      OSが送るシグナル．デフォルトでプロセスを終了させ，終了コードは
+      `128 + 13 = 141` となる．`grep -m1` や `head` のような早期クローズ系の
+      コマンドと組み合わせると，上流コマンドが SIGPIPE で終了するため
+      `pipefail` 環境ではエラー扱いになる点に注意．
+
+  - def: PIPESTATUS
+    description: |
+      直前に実行されたパイプライン中の**各コマンドの終了コード**を保持するBashの
+      配列変数．`${PIPESTATUS[@]}` で全要素，`${PIPESTATUS[0]}` で先頭コマンドの
+      終了コードを取得できる．`$?` がパイプライン全体の終了コードしか持たないのに対し，
+      どの位置のコマンドが失敗したかを特定できる．
+```
+
+:::
+
+
+## References
+
+- [Unofficial Bash Strict Mode](http://redsymbol.net/articles/unofficial-bash-strict-mode/) — Aaron Maxwell
+- [BashFAQ/105](http://mywiki.wooledge.org/BashFAQ/105) — `set -e` の過剰検知について
