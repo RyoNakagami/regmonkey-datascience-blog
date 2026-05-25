@@ -445,7 +445,7 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
       <div>
       <div class="quarto-title-meta-heading">更新日</div>
       <div class="quarto-title-meta-contents">
-        <p class="date-modified">2025-11-14</p>
+        <p class="date-modified">2026-05-25</p>
       </div>
     </div>
       
@@ -470,6 +470,7 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
   <li><a href="#case-2-メモリリソースを監視する" id="toc-case-2-メモリリソースを監視する" class="nav-link" data-scroll-target="#case-2-メモリリソースを監視する">Case 2: メモリリソースを監視する</a></li>
   <li><a href="#case-3-dockerの起動状態を確認する" id="toc-case-3-dockerの起動状態を確認する" class="nav-link" data-scroll-target="#case-3-dockerの起動状態を確認する">Case 3: Dockerの起動状態を確認する</a></li>
   <li><a href="#case-4-memory-usageの確認" id="toc-case-4-memory-usageの確認" class="nav-link" data-scroll-target="#case-4-memory-usageの確認">Case 4: Memory Usageの確認</a></li>
+  <li><a href="#case-5-claude-stats-でセッション使用量を定期監視する" id="toc-case-5-claude-stats-でセッション使用量を定期監視する" class="nav-link" data-scroll-target="#case-5-claude-stats-でセッション使用量を定期監視する">Case 5: <code>claude-stats</code> でセッション使用量を定期監視する</a></li>
   </ul></li>
   <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
   </ul>
@@ -778,6 +779,55 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 </ul>
 </div>
 </div>
+</section>
+<section id="case-5-claude-stats-でセッション使用量を定期監視する" class="level3">
+<h3 class="anchored" data-anchor-id="case-5-claude-stats-でセッション使用量を定期監視する">Case 5: <code>claude-stats</code> でセッション使用量を定期監視する</h3>
+<div class="reveal_vspace" style="--vspace-height: 0.5em;"></div>
+<p><span class="mini-section">コマンド</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="ex">watch</span> <span class="at">-n</span> 5 <span class="st">'claude-stats sessions --project jqrush --since 2026-05-20'</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 44%">
+<col style="width: 55%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>オプション/引数</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>--color</code></td>
+<td>ANSI カラーコードを有効にする（<code>-c</code> の long form）</td>
+</tr>
+<tr class="even">
+<td><code>-n 5</code></td>
+<td>5秒ごとに再実行</td>
+</tr>
+<tr class="odd">
+<td><code>'claude-stats sessions ...'</code></td>
+<td>シングルクォートでコマンド全体を保護し，<code>watch</code> に 1 つの引数として渡す</td>
+</tr>
+<tr class="even">
+<td><code>--project jqrush</code></td>
+<td>対象プロジェクトを <code>jqrush</code> に絞り込む</td>
+</tr>
+<tr class="odd">
+<td><code>--since 2026-05-20</code></td>
+<td>指定日以降のセッションのみ集計</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><span class="mini-section">シングルクォートで保護する理由</span></p>
+<p><code>claude-stats sessions --project jqrush --since 2026-05-20</code> のように<strong>スペースを含むコマンド</strong>を <code>watch</code> に渡す場合，クォートなしだと <code>watch</code> が最初のトークン（<code>claude-stats</code>）だけをコマンドと解釈し，残りを引数として誤認識します． シングルクォートで全体を囲むことで，<code>watch</code> に 1 つの文字列として渡り，内部の <code>sh -c</code> で正しく展開されます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co">## NG: watch は `claude-stats` だけをコマンドと解釈してしまう可能性がある</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="ex">watch</span> <span class="at">-n</span> 5 claude-stats sessions <span class="at">--project</span> jqrush <span class="at">--since</span> 2026-05-20</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="co">## OK: シングルクォートで 1 つの引数として渡す</span></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a><span class="ex">watch</span> <span class="at">-n</span> 5 <span class="st">'claude-stats sessions --project jqrush --since 2026-05-20'</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 </section>
 <section id="references" class="level2">
