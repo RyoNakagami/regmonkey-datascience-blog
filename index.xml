@@ -477,6 +477,938 @@ font-style: inherit;">)</span>.json</span></code></pre></div></div>
   <pubDate>Tue, 26 May 2026 00:00:00 GMT</pubDate>
 </item>
 <item>
+  <title>Bash Strict Mode ガイド</title>
+  <dc:creator>Ryo Nakagami</dc:creator>
+  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-05-25-set-strict-mode/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>Goal
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<div style="padding-left:1em">
+<ul class="task-list">
+<li><label><input type="checkbox"><code>set -euo pipefail</code> と <code>IFS</code> 設定による堅牢なBashスクリプトの書き方の理解</label></li>
+</ul>
+</div>
+</div>
+</div>
+<section id="基本パターン" class="level2">
+<h2 class="anchored" data-anchor-id="基本パターン">基本パターン</h2>
+<p>Bashのデフォルト挙動はインタラクティブシェル向けに設計されているため，「エラーが起きても次のコマンドを打てる」ことが重要です． 一方，シェルスクリプトとして用いる場合は，「途中でエラーが起きたまま処理が続くと，データ破壊や意図しない副作用が生じる」ため，早期終了と明示的なエラー検出が必要という違いがあります．</p>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>例 1</strong></span> <span class="def-title"><code>set -u</code> の例</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">firstName</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Aaron"</span></span>
+<span id="cb1-2"><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">fullName</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$firstname</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> Maxwell"</span>  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># タイポ: firstname（小文字）</span></span>
+<span id="cb1-3"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$fullName</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>               <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># -u なし → "Maxwell" と出力されてしまう</span></span>
+<span id="cb1-4">                               <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># -u あり → "firstname: unbound variable" でエラー終</span></span></code></pre></div></div>
+</div>
+<hr>
+<p>上記のような意図しない挙動を検知するためにstrict mode，具体的には <code>set -euo pipefail</code> を用いて挙動をコントロールすることが一般的です． よく使用されるラインは以下</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#!/bin/bash</span></span>
+<span id="cb2-2"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">set</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-euo</span> pipefail</span>
+<span id="cb2-3"><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">IFS</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">$'</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\n\t</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'</span></span></code></pre></div></div>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 75%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>オプション</th>
+<th>効果</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>set -e</code></td>
+<td>コマンドが非ゼロ終了した時点でスクリプトを即座に終了</td>
+</tr>
+<tr class="even">
+<td><code>set -u</code></td>
+<td>未定義変数を参照したらエラーで終了（<code>$*</code>, <code>$@</code> は例外）</td>
+</tr>
+<tr class="odd">
+<td><code>set -o pipefail</code></td>
+<td>パイプライン中のいずれかのコマンドが失敗したら，そのコードをパイプライン全体の終了コードとして返す</td>
+</tr>
+<tr class="even">
+<td><code>set -x</code></td>
+<td>実行コマンドをすべてターミナルに出力（デバッグ用）</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="set--e-の注意点" class="level2">
+<h2 class="anchored" data-anchor-id="set--e-の注意点"><code>set -e</code> の注意点</h2>
+<section id="算術式-...-との衝突" class="level3">
+<h3 class="anchored" data-anchor-id="算術式-...-との衝突">算術式 <code>((...))</code> との衝突</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">set</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-euo</span> pipefail</span>
+<span id="cb3-2"></span>
+<span id="cb3-3"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">declare</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-i</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">value</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>0</span>
+<span id="cb3-4"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">((</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">value</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">++</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">))</span>       <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># ← ここでスクリプトが終了する</span></span>
+<span id="cb3-5"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"valueの値は </span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$value</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span></span></code></pre></div></div>
+<p><span class="mini-section">なぜ終了するのか</span></p>
+<p><code>((式))</code> は算術評価コマンドであり，<strong>評価結果が 0（false）のとき終了コード 1 を返します</strong>．<code>value</code> が <code>0</code> のとき <code>((value++))</code> は後置インクリメントなので「インクリメント前の値 = 0」を評価し，終了コード 1 を返してしまい，<code>set -e</code> はこれをエラーと見なしてスクリプトを終了させます</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>式</th>
+<th>評価値</th>
+<th>終了コード</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>((0))</code></td>
+<td>0 (false)</td>
+<td>1 → <code>-e</code> で終了</td>
+</tr>
+<tr class="even">
+<td><code>((1))</code></td>
+<td>1 (true)</td>
+<td>0 → 正常</td>
+</tr>
+<tr class="odd">
+<td><code>((value++))</code> (value=0のとき)</td>
+<td>0 (false)</td>
+<td>1 → <code>-e</code> で終了</td>
+</tr>
+<tr class="even">
+<td><code>((++value))</code> (value=0のとき)</td>
+<td>1 (true)</td>
+<td>0 → 正常</td>
+</tr>
+</tbody>
+</table>
+<p><span class="mini-section">回避策</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># NG: 後置インクリメント（value=0 のとき終了コード1）</span></span>
+<span id="cb4-2"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">((</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">value</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">++</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">))</span></span>
+<span id="cb4-3"></span>
+<span id="cb4-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># OK: || true でエラーを無効化</span></span>
+<span id="cb4-5"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">((</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">value</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">++</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">))</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">||</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">true</span></span>
+<span id="cb4-6"></span>
+<span id="cb4-7"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># OK: 算術展開（終了コードを返さない）← 最も安全</span></span>
+<span id="cb4-8"><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">value</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$((value</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">))</span></span></code></pre></div></div>
+<p><code>value=$((value + 1))</code> が最も安全．<code>$((...))</code> は<strong>算術展開</strong>であり終了コードを返さない．</p>
+</section>
+<section id="if-while-の条件内では--e-が無効になる" class="level3">
+<h3 class="anchored" data-anchor-id="if-while-の条件内では--e-が無効になる"><code>if</code> / <code>while</code> の条件内では <code>-e</code> が無効になる</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">set</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-e</span></span>
+<span id="cb5-2"></span>
+<span id="cb5-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># OK（条件評価として扱われる）</span></span>
+<span id="cb5-4"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">grep</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-q</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"pattern"</span> file<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">;</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">then</span></span>
+<span id="cb5-5">  <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"found"</span></span>
+<span id="cb5-6"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">fi</span></span>
+<span id="cb5-7"></span>
+<span id="cb5-8"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 終了する（条件外で非ゼロ終了）</span></span>
+<span id="cb5-9"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">grep</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-q</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"pattern"</span> file</span>
+<span id="cb5-10"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"ここには到達しない"</span></span></code></pre></div></div>
+<ul>
+<li><code>if</code>・<code>while</code>・<code>||</code>・<code>&amp;&amp;</code> の条件部分では <code>-e</code> が一時的に無効化される</li>
+<li>失敗を許容したいコマンドは <code>if</code> で包むか <code>|| true</code> を付ける</li>
+</ul>
+</section>
+<section id="関数の戻り値にも適用される" class="level3">
+<h3 class="anchored" data-anchor-id="関数の戻り値にも適用される">関数の戻り値にも適用される</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">set</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-e</span></span>
+<span id="cb6-2"></span>
+<span id="cb6-3"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">check()</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">{</span></span>
+<span id="cb6-4">  <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span></span>
+<span id="cb6-5"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">}</span></span>
+<span id="cb6-6"></span>
+<span id="cb6-7"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">check</span>        <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># スクリプト終了</span></span>
+<span id="cb6-8"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">check</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">||</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">true</span>  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># OK</span></span></code></pre></div></div>
+</section>
+</section>
+<section id="set--u-の注意点" class="level2">
+<h2 class="anchored" data-anchor-id="set--u-の注意点"><code>set -u</code> の注意点</h2>
+<section id="デフォルト値展開は--u-のもとでも安全" class="level3">
+<h3 class="anchored" data-anchor-id="デフォルト値展開は--u-のもとでも安全">デフォルト値展開は <code>-u</code> のもとでも安全</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">set</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-u</span></span>
+<span id="cb7-2"></span>
+<span id="cb7-3"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">${VAR}</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>            <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># エラー: unbound variable</span></span>
+<span id="cb7-4"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">${VAR</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:-</span>default<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">}</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>   <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># OK: 未定義なら "default" を使う</span></span>
+<span id="cb7-5"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">${VAR</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:+</span>defined<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">}</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>   <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># OK: 未定義なら空文字</span></span></code></pre></div></div>
+</section>
+<section id="は例外" class="level3">
+<h3 class="anchored" data-anchor-id="は例外"><code>$@</code> / <code>$*</code> は例外</h3>
+<p>引数ゼロでもエラーにならない．ただし <code>$1</code> は例外ではないため <code>${1:-}</code> と書く．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">set</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-u</span></span>
+<span id="cb8-2"></span>
+<span id="cb8-3"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> arg <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$@</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">;</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">do</span>  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 引数なしでもエラーにならない</span></span>
+<span id="cb8-4">  <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$arg</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span></span>
+<span id="cb8-5"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">done</span></span>
+<span id="cb8-6"></span>
+<span id="cb8-7"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># $1 を参照する場合</span></span>
+<span id="cb8-8"><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">name</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">${1</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:-</span>anonymous<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">}</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span></span></code></pre></div></div>
+</section>
+</section>
+<section id="set--o-pipefail-の注意点" class="level2">
+<h2 class="anchored" data-anchor-id="set--o-pipefail-の注意点"><code>set -o pipefail</code> の注意点</h2>
+<section id="sigpipe-との衝突" class="level3">
+<h3 class="anchored" data-anchor-id="sigpipe-との衝突">SIGPIPE との衝突</h3>
+<p><code>grep -m1</code> などでパイプを早期クローズするコマンドを使うと，後続コマンドが SIGPIPE（終了コード 141）で終了し，<code>pipefail</code> がエラーとして拾ってしまいます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">set</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-o</span> pipefail</span>
+<span id="cb9-2"></span>
+<span id="cb9-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># grep -m1 がマッチ後にパイプを閉じると cat が SIGPIPE で終了（コード141）</span></span>
+<span id="cb9-4"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">cat</span> large_file.txt <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">grep</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-m1</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"pattern"</span></span>
+<span id="cb9-5"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">echo</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$?</span>  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 141 → pipefail でエラー扱いになる</span></span></code></pre></div></div>
+<p>回避策：<code>|| true</code> を付けるか，<code>grep</code> の代わりに <code>head</code> などを検討する．</p>
+</section>
+<section id="pipestatus-で各コマンドの終了コードを個別確認" class="level3">
+<h3 class="anchored" data-anchor-id="pipestatus-で各コマンドの終了コードを個別確認"><code>PIPESTATUS</code> で各コマンドの終了コードを個別確認</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">cat</span> file <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">grep</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"pattern"</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sort</span></span>
+<span id="cb10-2"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">${PIPESTATUS</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">[@]</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">}</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 例: "0 1 0" → grep だけ失敗</span></span></code></pre></div></div>
+</section>
+</section>
+<section id="ifs-の設定" class="level2">
+<h2 class="anchored" data-anchor-id="ifs-の設定">IFS の設定</h2>
+<p><code>IFS</code>（Internal Field Separator）はBashの単語分割を制御します．デフォルトは <code>$' \n\t'</code>（スペース・改行・タブ）で，スペースでも分割されるため配列のイテレーションでバグを生みやすいです．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">IFS</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">$'</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\n\t</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'</span>  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 改行とタブのみで分割</span></span></code></pre></div></div>
+<p><strong>スペースを含む要素の扱い：</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">names</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">(</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Aaron Maxwell"</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Wayne Gretzky"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">)</span></span>
+<span id="cb12-2"></span>
+<span id="cb12-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># デフォルトIFS → スペースで分割され "Aaron" "Maxwell" ... と4要素になる</span></span>
+<span id="cb12-4"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> name <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">${names</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">[@]</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">}</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">;</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">do</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$name</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">;</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">done</span></span>
+<span id="cb12-5"></span>
+<span id="cb12-6"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># IFS=$'\n\t' → "Aaron Maxwell" が1要素として正しく処理される</span></span>
+<span id="cb12-7"><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">IFS</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">$'</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\n\t</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'</span></span>
+<span id="cb12-8"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> name <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">${names</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">[@]</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">}</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">;</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">do</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$name</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">;</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">done</span></span></code></pre></div></div>
+<p><strong>コマンドライン引数でも同様：</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb13-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># myscript.sh notes 'My Resume.doc' を呼び出した場合</span></span>
+<span id="cb13-2"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># デフォルトIFS → "My" と "Resume.doc" に誤分割される</span></span>
+<span id="cb13-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># IFS=$'\n\t'  → "My Resume.doc" が1引数として正しく処理される</span></span>
+<span id="cb13-4"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> arg <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$@</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">;</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">do</span></span>
+<span id="cb13-5">  <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$arg</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span></span>
+<span id="cb13-6"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">done</span></span></code></pre></div></div>
+</section>
+<section id="推奨テンプレート" class="level2">
+<h2 class="anchored" data-anchor-id="推奨テンプレート">推奨テンプレート</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb14-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#!/bin/bash</span></span>
+<span id="cb14-2"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">set</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-euo</span> pipefail</span>
+<span id="cb14-3"><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">IFS</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">$'</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\n\t</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'</span></span>
+<span id="cb14-4"></span>
+<span id="cb14-5"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 算術インクリメントは代入形式で</span></span>
+<span id="cb14-6"><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">value</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>0</span>
+<span id="cb14-7"><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">value</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$((value</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">))</span></span>
+<span id="cb14-8"></span>
+<span id="cb14-9"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 失敗を許容するコマンドは明示的に</span></span>
+<span id="cb14-10"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">some_command</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">||</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">true</span></span>
+<span id="cb14-11"></span>
+<span id="cb14-12"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 未定義変数はデフォルト値展開で</span></span>
+<span id="cb14-13"><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">name</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">${1</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:-</span>anonymous<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">}</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span></span></code></pre></div></div>
+</section>
+<section id="appendix" class="level2">
+<h2 class="anchored" data-anchor-id="appendix">Appendix</h2>
+<div class="glossary-container">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15" style="background: #f1f3f5;"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb15-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">glossary</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span></span>
+<span id="cb15-2"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> 後置インクリメント (`value++`)</span></span>
+<span id="cb15-3"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb15-4">      式を評価してから変数をインクリメントする演算子．返す値はインクリメント前の値．</span>
+<span id="cb15-5">      `value=0` のとき `((value++))` の評価結果は `0`（false）となり，</span>
+<span id="cb15-6">      `set -e` 環境では終了コード 1 として扱われスクリプトが終了する．</span>
+<span id="cb15-7"></span>
+<span id="cb15-8"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> 前置インクリメント (`++value`)</span></span>
+<span id="cb15-9"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb15-10">      変数をインクリメントしてから式を評価する演算子．返す値はインクリメント後の値．</span>
+<span id="cb15-11">      `value=0` のとき `((++value))` の評価結果は `1`（true）となり，</span>
+<span id="cb15-12">      終了コード 0 として正常扱いになる．</span>
+<span id="cb15-13"></span>
+<span id="cb15-14"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> パイプライン (`cmd1 | cmd2`)</span></span>
+<span id="cb15-15"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb15-16">      `|` で複数のコマンドを連結し，左側コマンドの標準出力を右側コマンドの</span>
+<span id="cb15-17">      標準入力に流すBashの構文．デフォルトではパイプライン全体の終了コードは</span>
+<span id="cb15-18">      **最後のコマンド**のものになるため，途中のコマンドが失敗しても全体としては</span>
+<span id="cb15-19">      成功扱いになる．これを変えるのが `set -o pipefail`．</span>
+<span id="cb15-20"></span>
+<span id="cb15-21"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> SIGPIPE (終了コード 141)</span></span>
+<span id="cb15-22"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb15-23">      パイプの読み側が先にクローズされた状態で書き側が出力しようとしたときに</span>
+<span id="cb15-24">      OSが送るシグナル．デフォルトでプロセスを終了させ，終了コードは</span>
+<span id="cb15-25">      `128 + 13 = 141` となる．`grep -m1` や `head` のような早期クローズ系の</span>
+<span id="cb15-26">      コマンドと組み合わせると，上流コマンドが SIGPIPE で終了するため</span>
+<span id="cb15-27">      `pipefail` 環境ではエラー扱いになる点に注意．</span>
+<span id="cb15-28"></span>
+<span id="cb15-29"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> PIPESTATUS</span></span>
+<span id="cb15-30"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb15-31">      直前に実行されたパイプライン中の**各コマンドの終了コード**を保持するBashの</span>
+<span id="cb15-32">      配列変数．`${PIPESTATUS[@]}` で全要素，`${PIPESTATUS[0]}` で先頭コマンドの</span>
+<span id="cb15-33">      終了コードを取得できる．`$?` がパイプライン全体の終了コードしか持たないのに対し，</span>
+<span id="cb15-34">      どの位置のコマンドが失敗したかを特定できる．</span></code></pre></div></div>
+</div>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<ul>
+<li><a href="http://redsymbol.net/articles/unofficial-bash-strict-mode/">Unofficial Bash Strict Mode</a> — Aaron Maxwell</li>
+<li><a href="http://mywiki.wooledge.org/BashFAQ/105">BashFAQ/105</a> — <code>set -e</code> の過剰検知について</li>
+</ul>
+
+
+</section>
+
+ ]]></description>
+  <category>bash</category>
+  <category>shell</category>
+  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-05-25-set-strict-mode/</guid>
+  <pubDate>Mon, 25 May 2026 00:00:00 GMT</pubDate>
+</item>
+<item>
   <title>シェルワンライナープログラミング</title>
   <dc:creator>Ryo Nakagami</dc:creator>
   <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-05-20-shell-oneliner/</link>
@@ -6741,381 +7673,6 @@ font-style: inherit;">|</span></span>
   <category>uv</category>
   <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-04-25-uv-tool-via-ssh/</guid>
   <pubDate>Sat, 25 Apr 2026 00:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>Slash Command 経由での Skill 自動発火を検証する</title>
-  <dc:creator>Ryo Nakagami</dc:creator>
-  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-04-24-skill-ignition-with-slash-command/</link>
-  <description><![CDATA[ 
-
-
-
-
-
-
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>REMARKS
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<div class="lh-12">
-<ul>
-<li><code>/my-todo-run</code> のような slash command 経由でタスクを実行する文脈で，<span class="regmonkey-bold">TODO.md に書かれたタスク内容に応じて他の skill (例: <code>simplify</code>, <code>git-branch-from-spec</code>) が自動的に発火するか</span>を実機で確認</li>
-<li>結論: <strong>明示パターン (skill 名をタスク本文に書く)</strong> が最も信頼できる．description マッチも実用に堪えるが，ファイル書込み単独ではトリガにならない</li>
-</ul>
-</div>
-</div>
-</div>
-<section id="検証パターン" class="level2">
-<h2 class="anchored" data-anchor-id="検証パターン">1. 検証パターン</h2>
-<p>検証対象 slash command は <code>/my-todo-run</code>(<code>TODO.md</code>を実行するslash command)，検証対象 skill は <code>simplify</code> および <code>git-branch-from-spec</code>．以下の3パターンを比較する．</p>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 10%">
-<col style="width: 25%">
-<col style="width: 65%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>識別子</th>
-<th>パターン名</th>
-<th>書き方</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>T1</td>
-<td>明示パターン</td>
-<td>TODO.md の本文に skill 名 (例: <code>simplify</code>) をそのまま書く</td>
-</tr>
-<tr class="even">
-<td>T2</td>
-<td>description マッチパターン</td>
-<td>skill 名は書かず，skill description の語彙 (例: “review changed code for reuse, quality, and efficiency”) を要件として書く</td>
-</tr>
-<tr class="odd">
-<td>T3</td>
-<td>ファイル内テキストパターン</td>
-<td>TODO.md にスキル名や description 語彙を書き込んだ「直後」に，ユーザー追加メッセージ無しで自動発火するか観察(ファイルのREADだけで発火するかの確認)</td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-<section id="観察結果一覧" class="level2">
-<h2 class="anchored" data-anchor-id="観察結果一覧">2. 観察結果一覧</h2>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 22%">
-<col style="width: 22%">
-<col style="width: 33%">
-<col style="width: 22%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>識別子</th>
-<th>対象 skill</th>
-<th style="text-align: center;">発火可否</th>
-<th>発火経路 / 観察内容</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>T1</td>
-<td><code>simplify</code></td>
-<td style="text-align: center;">✅ 発火</td>
-<td><code>/my-todo-run</code> の Code 段階で起動．タスク本文に skill 名を明示</td>
-</tr>
-<tr class="even">
-<td>T2</td>
-<td><code>git-branch-from-spec</code></td>
-<td style="text-align: center;">✅ 発火</td>
-<td>description マッチ駆動 (本文に skill 名なし)．「仕様書からブランチを切る」が name と意味的に一致</td>
-</tr>
-<tr class="odd">
-<td>T2</td>
-<td><code>simplify</code></td>
-<td style="text-align: center;">✅ 発火</td>
-<td>description マッチ駆動 (本文に skill 名なし)．「changed code を reuse / quality / efficiency 観点で review」が description のほぼ直訳</td>
-</tr>
-<tr class="even">
-<td>T3</td>
-<td>(任意 skill)</td>
-<td style="text-align: center;">❌ 発火せず</td>
-<td>TODO.md に skill 関連語彙を書き込んだ直後でも，Skill ツールは自動発火しなかった</td>
-</tr>
-</tbody>
-</table>
-</div>
-<section id="t1-明示パターン" class="level3">
-<h3 class="anchored" data-anchor-id="t1-明示パターン">T1: 明示パターン</h3>
-<ul>
-<li>タスク本文に <code>simplify</code> skill 名を明示</li>
-<li><code>/my-todo-run</code> の Plan 段階で「Code 段階で <code>simplify</code> を起動する」方針が立ち，Code 段階で <code>Skill(skill="simplify")</code> を実際に呼び出した</li>
-<li><code>simplify</code> 自身は git diff が空 (本リポジトリ未コミット) のため <span class="regmonkey-bold">Phase 2 (3 エージェント並列起動) を省略する判断</span>をした</li>
-</ul>
-</section>
-<section id="t2-description-マッチパターン" class="level3">
-<h3 class="anchored" data-anchor-id="t2-description-マッチパターン">T2: description マッチパターン</h3>
-<ul>
-<li>skill 名を一切本文に書かず，要件文だけを記述</li>
-<li>本文を読んだ瞬間に <code>git-branch-from-spec</code> および <code>simplify</code> の双方が想起され，Code 段階で順次起動された</li>
-<li><code>git-branch-from-spec</code> は <code>ERROR: spec required</code> を返却 (spec 未指定の正常応答)</li>
-<li><code>simplify</code> は T1 と同様，変更コード不在のため省略応答</li>
-</ul>
-</section>
-<section id="t3-ファイル内テキストパターン" class="level3">
-<h3 class="anchored" data-anchor-id="t3-ファイル内テキストパターン">T3: ファイル内テキストパターン</h3>
-<ul>
-<li>本セッションより前のタスク1 検証で，TODO.md に skill 関連語彙を <code>Write</code> した直後にスキル自動発火が起こるかを観察</li>
-<li>結果: 発火しなかった</li>
-<li>解釈: skill 発火はあくまで <span class="regmonkey-bold">ユーザーメッセージ (slash command 起動 / 自然言語のリクエスト) を起点にした想起</span>．ファイル書込み内容を Read しても，それが「ユーザー意図」として処理されない限り skill 起動には繋がらない</li>
-</ul>
-</section>
-</section>
-<section id="メタ観察" class="level2">
-<h2 class="anchored" data-anchor-id="メタ観察">3. メタ観察</h2>
-<p><span class="mini-section">1. skill 発火のタイミング</span></p>
-<p><code>/my-todo-run</code> の Plan 段階そのものでは skill は呼ばれない (Plan は方針記述に留まる)．発火は <span class="regmonkey-bold">Code 段階で「自然な実装手段の選択」として行われる</span>．</p>
-<p><span class="mini-section">2. 明示パターンと description マッチパターンの実質差は小さい</span></p>
-<p>本実験では両者とも同じ Code 段階で発火した．ただし description マッチは <span class="regmonkey-bold">skill description が要件語彙と意味的に近い</span> ことが前提条件．語彙のすれ違いがあると発火しない可能性がある．</p>
-<p><span class="mini-section">3. ファイル書込み単独では skill 起動の trigger にならない</span></p>
-<p><code>Read</code> / <code>Write</code> 経由のテキストは「データ」であり，<span class="regmonkey-bold">ユーザー意図の代替ではない</span>．skill を起動させたい場合は，必ずユーザーメッセージか slash command を介する必要がある．</p>
-<p><span class="mini-section">4. 言語の壁を越える</span></p>
-<p>T2 では日本語要件文に対して英語 skill description が想起された．<span class="regmonkey-bold">意味的マッチであれば言語混在でも発火する</span>．</p>
-<p><span class="mini-section">5. slash command 自身のロード</span></p>
-<p><code>/my-todo-run</code> 自体は「ユーザーが <code>/&lt;skill-name&gt;</code> を打鍵した」時点で確実にロードされる．これが <span class="regmonkey-bold">最も信頼性の高い skill 発火形式</span>．</p>
-</section>
-<section id="結論推奨パターン" class="level2">
-<h2 class="anchored" data-anchor-id="結論推奨パターン">4. 結論・推奨パターン</h2>
-<p>slash command 経由で他 skill を確実に発火させたい場合の推奨度:</p>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 20%">
-<col style="width: 35%">
-<col style="width: 45%">
-</colgroup>
-<thead>
-<tr class="header">
-<th style="text-align: center;">推奨度</th>
-<th>パターン</th>
-<th>適用場面</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: center;">★★★ 最推奨</td>
-<td><strong>明示パターン</strong> (skill 名をタスク本文に書く)</td>
-<td>必ず特定 skill を呼び出させたい場合．最も確実で曖昧性が無い</td>
-</tr>
-<tr class="even">
-<td style="text-align: center;">★★ 条件付き推奨</td>
-<td><strong>description マッチパターン</strong></td>
-<td>skill description が要件語彙と意味的に近いことが既知の場合．skill description を意識して要件文を書くと発火しやすい</td>
-</tr>
-<tr class="odd">
-<td style="text-align: center;">☆ 非推奨</td>
-<td>ファイル内テキストパターン (書込み直後の自動発火)</td>
-<td>発火しない．ユーザーが明示的にトリガとなるアクション (slash command 起動 / メッセージ) を取る必要あり</td>
-</tr>
-</tbody>
-</table>
-</div>
-<section id="実用上のガイドライン" class="level3">
-<h3 class="anchored" data-anchor-id="実用上のガイドライン">実用上のガイドライン</h3>
-<ul>
-<li>「TODO.md に書いた要件から自動的に最適な skill を選んで実行してほしい」という UX を実現するには，<span class="regmonkey-bold">明示パターン</span>が現実的に最も信頼できる．要件文の中に skill 名を埋め込むテンプレートを用意するとよい</li>
-<li>description マッチも実用に堪えるが，<span class="regmonkey-bold">skill description が更新されると挙動が変わる脆さ</span>がある．「特定 skill が必ず発火する」契約を求めるなら，明示パターンを併用すべき</li>
-<li>skill 自体の挙動 (例: 対象不在の場合の応答) は別問題</li>
-</ul>
-</section>
-</section>
-<section id="appendix-用語解説" class="level2">
-<h2 class="anchored" data-anchor-id="appendix-用語解説">Appendix: 用語解説</h2>
-<div class="glossary-container">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb1-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">glossary</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span></span>
-<span id="cb1-2"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> slash command</span></span>
-<span id="cb1-3"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb1-4">      Claude Code 上で `/&lt;name&gt;` の形式で呼び出されるユーザートリガ．</span>
-<span id="cb1-5">      ユーザーが打鍵した時点で対応する skill (もしくはビルトインコマンド) が</span>
-<span id="cb1-6">      確実にロードされ，最も信頼性の高い skill 発火形式となる．</span>
-<span id="cb1-7"></span>
-<span id="cb1-8"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> skill</span></span>
-<span id="cb1-9"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb1-10">      Claude が実行時に呼び出せる再利用可能な機能単位．`SKILL.md` の</span>
-<span id="cb1-11">      frontmatter (`name` / `description`) と本文で構成され，description</span>
-<span id="cb1-12">      の語彙からモデルが「呼ぶべきか」を判断する．</span>
-<span id="cb1-13"></span>
-<span id="cb1-14"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> description マッチ</span></span>
-<span id="cb1-15"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb1-16">      skill 名を明示せずとも，ユーザーの要件文と skill の `description`</span>
-<span id="cb1-17">      フィールドが意味的に一致することで skill が想起されること．</span>
-<span id="cb1-18">      日本語と英語が混在していても意味的マッチがあれば発火する．</span>
-<span id="cb1-19"></span>
-<span id="cb1-20"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> 明示パターン</span></span>
-<span id="cb1-21"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb1-22">      タスク本文に skill 名そのもの (例: `simplify`) を埋め込む書き方．</span>
-<span id="cb1-23">      曖昧性が無く，最も確実に skill 発火を引き起こせる．</span>
-<span id="cb1-24"></span>
-<span id="cb1-25"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> Plan 段階 / Code 段階</span></span>
-<span id="cb1-26"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb1-27">      `/my-todo-run` の処理フロー．Plan 段階では方針を記述するだけで</span>
-<span id="cb1-28">      skill は呼ばれない．skill 発火は Code 段階で「自然な実装手段の選択」</span>
-<span id="cb1-29">      として行われる．</span>
-<span id="cb1-30"></span>
-<span id="cb1-31"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> Chain-of-thought prompting</span></span>
-<span id="cb1-32"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb1-33">      AIに対して，問題を段階的に考えさせる手法．</span>
-<span id="cb1-34">      複雑なタスクを小さなステップに分解することで，AIが人間の思考過程を追いやすくなり，より良い結果を得られるようにする．</span></code></pre></div></div>
-</div>
-
-
-</section>
-
- ]]></description>
-  <category>claude code</category>
-  <category>skills</category>
-  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-04-24-skill-ignition-with-slash-command/</guid>
-  <pubDate>Fri, 24 Apr 2026 00:00:00 GMT</pubDate>
 </item>
 </channel>
 </rss>
