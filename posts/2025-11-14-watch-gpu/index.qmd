@@ -2,7 +2,7 @@
 title: "watchコマンドを用いてGPUリソースを確認する"
 author: "Ryo Nakagami"
 date: "2025-11-14"
-date-modified: "2025-11-14"
+date-modified: "2026-05-25"
 categories: [Linux, 監視]
 listing_category: development
 comments:
@@ -227,7 +227,40 @@ Swap:           8191           0        8191
 
 :::
 
+### Case 5: `claude-stats` でセッション使用量を定期監視する
 
+{{< reveal_vspace 0.5em >}}
+
+[コマンド]{.mini-section}
+
+```bash
+watch -n 5 'claude-stats sessions --project jqrush --since 2026-05-20'
+```
+
+:::: {.no-border-top-table}
+
+| オプション/引数                                  | 説明                                                  |
+| ----------------------------------------- | --------------------------------------------------- |
+| `--color`                                 | ANSI カラーコードを有効にする（`-c` の long form）                 |
+| `-n 5`                                    | 5秒ごとに再実行                                            |
+| `'claude-stats sessions ...'`             | シングルクォートでコマンド全体を保護し，`watch` に 1 つの引数として渡す          |
+| `--project jqrush`                        | 対象プロジェクトを `jqrush` に絞り込む                            |
+| `--since 2026-05-20`                      | 指定日以降のセッションのみ集計                                     |
+
+::::
+
+[シングルクォートで保護する理由]{.mini-section}
+
+`claude-stats sessions --project jqrush --since 2026-05-20` のように**スペースを含むコマンド**を `watch` に渡す場合，クォートなしだと `watch` が最初のトークン（`claude-stats`）だけをコマンドと解釈し，残りを引数として誤認識します．
+シングルクォートで全体を囲むことで，`watch` に 1 つの文字列として渡り，内部の `sh -c` で正しく展開されます．
+
+```bash
+## NG: watch は `claude-stats` だけをコマンドと解釈してしまう可能性がある
+watch -n 5 claude-stats sessions --project jqrush --since 2026-05-20
+
+## OK: シングルクォートで 1 つの引数として渡す
+watch -n 5 'claude-stats sessions --project jqrush --since 2026-05-20'
+```
 
 
 References
