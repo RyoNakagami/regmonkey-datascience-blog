@@ -83,7 +83,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const dl = document.createElement("dl");
     glossary.forEach(item => {
       const dt = document.createElement("dt");
-      dt.textContent = item.def;
+      dt.innerHTML = renderInline(item.def).trim();
       dt.className = "glossary-term";
 
       const dd = document.createElement("dd");
