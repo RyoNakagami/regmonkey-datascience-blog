@@ -9,7 +9,7 @@
 <link>https://ryonakagami.github.io/regmonkey-datascience-blog/</link>
 <atom:link href="https://ryonakagami.github.io/regmonkey-datascience-blog/index.xml" rel="self" type="application/rss+xml"/>
 <description>日々の徒然勉強日記</description>
-<generator>quarto-1.9.37</generator>
+<generator>quarto-1.9.38</generator>
 <lastBuildDate>Tue, 26 May 2026 00:00:00 GMT</lastBuildDate>
 <item>
   <title>シェルのリダイレクトと sponge の注意点</title>
@@ -1407,6 +1407,591 @@ font-style: inherit;">|</span></span>
   <category>shell</category>
   <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-05-25-set-strict-mode/</guid>
   <pubDate>Mon, 25 May 2026 00:00:00 GMT</pubDate>
+</item>
+<item>
+  <title>疎通確認: ping vs curl</title>
+  <dc:creator>Ryo Nakagami</dc:creator>
+  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-05-22-connection-check-ping-vs-curl/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+
+<section id="ネットワークの基礎-通信はレイヤーで分かれている" class="level2">
+<h2 class="anchored" data-anchor-id="ネットワークの基礎-通信はレイヤーで分かれている">ネットワークの基礎: 通信はレイヤーで分かれている</h2>
+<p>ネットワーク通信は <strong>OSI 参照モデル</strong> という 7 階層のモデルで整理され，各レイヤーが独立した役割を担っています．下位レイヤーが動いていないと上位レイヤーは成立しません．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 16%">
+<col style="width: 28%">
+<col style="width: 28%">
+<col style="width: 28%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>OSI層</th>
+<th>名称</th>
+<th>役割</th>
+<th>代表的なプロトコル</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>L7</td>
+<td>アプリケーション層</td>
+<td>アプリ間のやり取り</td>
+<td>HTTP / HTTPS / DNS / SSH</td>
+</tr>
+<tr class="even">
+<td>L4</td>
+<td>トランスポート層</td>
+<td>ポート単位の通信・到達保証</td>
+<td>TCP / UDP</td>
+</tr>
+<tr class="odd">
+<td>L3</td>
+<td>ネットワーク層</td>
+<td>ホスト間のルーティング</td>
+<td>IP / ICMP</td>
+</tr>
+<tr class="even">
+<td>L2</td>
+<td>データリンク層</td>
+<td>同一ネットワーク内の転送</td>
+<td>Ethernet / ARP</td>
+</tr>
+<tr class="odd">
+<td>L1</td>
+<td>物理層</td>
+<td>電気信号・光・電波</td>
+<td>ケーブル / Wi-Fi</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>疎通確認のコマンドは「どのレイヤーまで到達できているか」を切り分けるための道具です．たとえば次のように，レイヤーごとに「届いているか」を確認していくと原因の位置が特定できます．</p>
+<ul>
+<li>L3 でホストに届かない → IP ルーティング / ファイアウォール / NW 障害</li>
+<li>L3 は届くが L7 が応答しない → サーバープロセスのダウン / ポート閉塞 / アプリエラー</li>
+</ul>
+</section>
+<section id="ping-と-curl-は確認するレイヤーが違う" class="level2">
+<h2 class="anchored" data-anchor-id="ping-と-curl-は確認するレイヤーが違う">ping と curl は確認するレイヤーが違う</h2>
+<p><code>ping</code> と <code>curl</code> はどちらも「疎通確認」に使われますが，確認しているレイヤーが異なります．</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 16%">
+<col style="width: 28%">
+<col style="width: 28%">
+<col style="width: 28%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>コマンド</th>
+<th>確認対象</th>
+<th>OSI層</th>
+<th>例</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>ping</code></td>
+<td>ホスト到達性</td>
+<td>L3 (IP)</td>
+<td>サーバーに届くか</td>
+</tr>
+<tr class="even">
+<td><code>curl</code></td>
+<td>アプリケーション応答</td>
+<td>L7 (HTTP/HTTPS)</td>
+<td>Webサービスが動いているか</td>
+</tr>
+</tbody>
+</table>
+<p><span class="mini-section"><code>ping</code>: L3 (IP) の到達性を確認する</span></p>
+<p><code>ping</code> は <strong>ICMP</strong> という L3 のプロトコルを使い，相手ホストに「Echo Request」を送って「Echo Reply」が返ってくるかを確認します．HTTP サーバーが動いているかどうかは一切関係なく，<strong>IP レベルでパケットが往復できるか</strong>だけを見ます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># ホストに IP レベルで届くか（4回だけ送信）</span></span>
+<span id="cb1-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ping</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-c</span> 4 example.com</span></code></pre></div></div>
+<pre><code>PING example.com (93.184.216.34): 56 data bytes
+64 bytes from 93.184.216.34: icmp_seq=0 ttl=56 time=11.5 ms
+64 bytes from 93.184.216.34: icmp_seq=1 ttl=56 time=11.2 ms
+...
+4 packets transmitted, 4 packets received, 0.0% packet loss
+round-trip min/avg/max = 11.2/11.4/11.5 ms</code></pre>
+<p><code>time</code> は往復にかかった時間 (RTT)，<code>packet loss</code> はパケットの欠落率です．</p>
+<p><span class="mini-section"><code>curl</code>: L7 (HTTP/HTTPS) の応答を確認する</span></p>
+<p><code>curl</code> は実際に <strong>HTTP/HTTPS リクエスト</strong>を送り，Web サービスがアプリケーションとして 応答するかを確認します．TCP 接続 (L4)，TLS ハンドシェイク (HTTPS の場合)， HTTP レスポンスまでの一連の流れが成立して初めて成功します．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># HTTP ステータスコードだけを確認する</span></span>
+<span id="cb3-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">curl</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-o</span> /dev/null <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-s</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-w</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'%{http_code}\n'</span> https://example.com</span>
+<span id="cb3-3"></span>
+<span id="cb3-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># レスポンスヘッダを確認する（-I は HEAD リクエスト）</span></span>
+<span id="cb3-5"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">curl</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-I</span> https://example.com</span></code></pre></div></div>
+<pre><code>HTTP/2 200
+content-type: text/html; charset=UTF-8
+...</code></pre>
+<p>ステータスコード <code>200</code> が返れば L7 まで疎通しています．<code>000</code> の場合は接続そのものが 確立できていない (TCP / TLS / DNS のいずれかで失敗) ことを示します．</p>
+<p><span class="mini-section">1 つの <code>curl</code> は複数レイヤーを通過している</span></p>
+<p><code>curl</code> は「L7 の確認」と書きましたが，実際には下位レイヤーを順番に積み上げてから HTTP 応答に到達します．<code>-w</code> でフェーズ別の所要時間を出力すると，どのレイヤーまで 進んだか・どこで時間がかかっているかが分かります．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">curl</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-o</span> /dev/null <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-s</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-w</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span></span>
+<span id="cb5-2"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">  dns:        %{time_namelookup}s</span></span>
+<span id="cb5-3"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">  tcp:        %{time_connect}s</span></span>
+<span id="cb5-4"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">  tls:        %{time_appconnect}s</span></span>
+<span id="cb5-5"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">  ttfb:       %{time_starttransfer}s</span></span>
+<span id="cb5-6"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">  total:      %{time_total}s</span></span>
+<span id="cb5-7"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">  http_code:  %{http_code}</span></span>
+<span id="cb5-8"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span> https://example.com</span></code></pre></div></div>
+<p>各フェーズと OSI 層の対応は次の通りです．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 24%">
+<col style="width: 16%">
+<col style="width: 36%">
+<col style="width: 24%">
+</colgroup>
+<thead>
+<tr class="header">
+<th><code>curl</code> 変数</th>
+<th>フェーズ</th>
+<th>何が起きているか</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>time_namelookup</code></td>
+<td>DNS 解決</td>
+<td>ドメイン名 → IP アドレス</td>
+<td>-</td>
+</tr>
+<tr class="even">
+<td><code>time_connect</code></td>
+<td>TCP 接続</td>
+<td>3-way handshake の完了</td>
+<td>L4 (TCP)</td>
+</tr>
+<tr class="odd">
+<td><code>time_appconnect</code></td>
+<td>TLS ハンドシェイク</td>
+<td>暗号化セッションの確立 (HTTPS のみ)</td>
+<td>L5–L6 (セッション/プレゼンテーション)</td>
+</tr>
+<tr class="even">
+<td><code>time_starttransfer</code></td>
+<td>TTFB</td>
+<td>リクエスト送信〜最初の応答バイト受信</td>
+<td>L7 (HTTP)</td>
+</tr>
+<tr class="odd">
+<td><code>time_total</code></td>
+<td>全体</td>
+<td>全フェーズの合計</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">重要</span>各 <code>time_*</code> はフェーズの長さではなく「開始からの累積時間」
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>これらの値はリクエスト開始時点を 0 とした<strong>累積値</strong>です (<code>time_namelookup</code> ≤ <code>time_connect</code> ≤ <code>time_appconnect</code> ≤ <code>time_starttransfer</code> ≤ <code>time_total</code>)． 個々のフェーズの所要時間が欲しいときは差分を取ります．</p>
+<ul>
+<li>TCP 接続だけの時間 = <code>time_connect</code> − <code>time_namelookup</code></li>
+<li>TLS だけの時間 = <code>time_appconnect</code> − <code>time_connect</code></li>
+<li>サーバー処理時間 = <code>time_starttransfer</code> − <code>time_appconnect</code></li>
+</ul>
+</div>
+</div>
+<p>この内訳を見ると，<code>ping</code> (L3) では見えない上位レイヤーのどこで詰まっているかを 切り分けられます．たとえば <code>dns</code> だけ極端に遅ければ DNS の問題，<code>tls</code> で止まれば 証明書 / TLS ネゴシエーションの問題，<code>ttfb</code> が長ければサーバー側の処理が遅い， と判断できます．</p>
+</section>
+<section id="切り分けの考え方" class="level2">
+<h2 class="anchored" data-anchor-id="切り分けの考え方">切り分けの考え方</h2>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>下位レイヤーから順に確認する
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>「つながらない」ときは <strong>L3 → L4 → L7</strong> の順で確認すると原因が絞り込めます．</p>
+</div>
+</div>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>症状</th>
+<th>推定される原因</th>
+<th>確認コマンド</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>ping は通るが curl が <code>000</code></td>
+<td>サーバープロセス停止 / ポート閉塞 / TLS 失敗</td>
+<td><code>curl -v</code>, <code>nc -vz host port</code></td>
+</tr>
+<tr class="even">
+<td>ping も curl も通らない</td>
+<td>NW 障害 / ファイアウォール / DNS 解決失敗</td>
+<td><code>ping</code>, <code>dig</code>, <code>traceroute</code></td>
+</tr>
+<tr class="odd">
+<td>ping は通らないが curl は通る</td>
+<td>ICMP がブロックされているだけ（正常なことも多い）</td>
+<td><code>curl -I</code> で実応答を確認</td>
+</tr>
+</tbody>
+</table>
+<p><span class="mini-section"><code>ping</code> が通らない＝障害，とは限らない</span></p>
+<p>セキュリティ上の理由で ICMP (ping) をブロックしているサーバーは珍しくありません． その場合 ping は失敗しますが，HTTP は正常に応答します．<strong>「ping が通らない」だけで サービス停止と判断しない</strong>ようにしましょう．L7 の確認には curl を使います．</p>
+</section>
+<section id="glossary" class="level2">
+<h2 class="anchored" data-anchor-id="glossary">Glossary</h2>
+<div class="glossary-container">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb6-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">glossary</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span></span>
+<span id="cb6-2"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> OSI参照モデル</span></span>
+<span id="cb6-3"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb6-4">      ネットワーク通信の機能を 7 つの階層に分けて整理したモデル．</span>
+<span id="cb6-5">      下位層 (物理・データリンク・ネットワーク) から上位層</span>
+<span id="cb6-6">      (トランスポート・セッション・プレゼンテーション・アプリケーション)</span>
+<span id="cb6-7">      まであり，各層が独立した役割を持つ．</span>
+<span id="cb6-8"></span>
+<span id="cb6-9"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> ICMP (Internet Control Message Protocol)</span></span>
+<span id="cb6-10"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb6-11">      IP (L3) で動作する制御・エラー通知用のプロトコル．`ping` は ICMP の</span>
+<span id="cb6-12">      Echo Request / Echo Reply を使ってホストの到達性を確認する．</span>
+<span id="cb6-13"></span>
+<span id="cb6-14"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> ping</span></span>
+<span id="cb6-15"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb6-16">      ICMP を使ってホストに到達できるか (L3) を確認するコマンド．</span>
+<span id="cb6-17">      往復時間 (RTT) やパケットロス率を測定できる．HTTP サーバーの稼働とは無関係．</span>
+<span id="cb6-18"></span>
+<span id="cb6-19"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> curl</span></span>
+<span id="cb6-20"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb6-21">      HTTP/HTTPS をはじめとする各種プロトコルでリクエストを送る CLI ツール．</span>
+<span id="cb6-22">      Web サービスがアプリケーションレベル (L7) で応答するかを確認できる．</span>
+<span id="cb6-23"></span>
+<span id="cb6-24"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> RTT (Round-Trip Time)</span></span>
+<span id="cb6-25"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb6-26">      パケットが送信先まで往復するのにかかる時間．`ping` の `time` 値として表示される．</span>
+<span id="cb6-27"></span>
+<span id="cb6-28"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> DNS解決 (Name Resolution)</span></span>
+<span id="cb6-29"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb6-30">      ドメイン名 (例 `example.com`) を IP アドレスに変換する処理．curl の</span>
+<span id="cb6-31">      `time_namelookup` で計測でき，ここが遅い・失敗する場合は DNS 側の問題．</span>
+<span id="cb6-32"></span>
+<span id="cb6-33"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> TLSハンドシェイク</span></span>
+<span id="cb6-34"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb6-35">      HTTPS 通信の冒頭で暗号化セッションを確立する手順 (証明書検証・鍵交換)．</span>
+<span id="cb6-36">      curl では `time_appconnect` として計測される．OSI 上はセッション/プレゼンテーション層</span>
+<span id="cb6-37">      (L5–L6) 相当．</span>
+<span id="cb6-38"></span>
+<span id="cb6-39"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> TTFB (Time To First Byte)</span></span>
+<span id="cb6-40"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb6-41">      リクエスト送信から最初の応答バイトを受信するまでの時間．curl の</span>
+<span id="cb6-42">      `time_starttransfer` に対応し，サーバー側の処理時間 (L7) の目安になる．</span>
+<span id="cb6-43"></span>
+<span id="cb6-44"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> TCP / UDP</span></span>
+<span id="cb6-45"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb6-46">      トランスポート層 (L4) のプロトコル．TCP は到達保証・順序保証つきの接続型，</span>
+<span id="cb6-47">      UDP は保証のない非接続型．HTTP は TCP の上で動く．</span>
+<span id="cb6-48"></span>
+<span id="cb6-49"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> HTTPステータスコード</span></span>
+<span id="cb6-50"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb6-51">      HTTP レスポンスの結果を表す 3 桁の番号．`200` は成功，`4xx` はクライアント側エラー，</span>
+<span id="cb6-52">      `5xx` はサーバー側エラー．curl の `000` は HTTP 応答に到達する前に接続が失敗したことを示す．</span></code></pre></div></div>
+</div>
+
+
+</section>
+
+ ]]></description>
+  <category>network</category>
+  <category>curl</category>
+  <category>ping</category>
+  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-05-22-connection-check-ping-vs-curl/</guid>
+  <pubDate>Fri, 22 May 2026 00:00:00 GMT</pubDate>
 </item>
 <item>
   <title>シェルワンライナープログラミング</title>
@@ -7401,278 +7986,6 @@ font-style: inherit;">-exec</span> rm {} +</span></code></pre></div></div>
   <category>shellscript</category>
   <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-05-01-sed-frontmatter/</guid>
   <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>uv tool install で SSH 経由の private GitHub リポジトリからインストールします</title>
-  <dc:creator>Ryo Nakagami</dc:creator>
-  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-04-25-uv-tool-via-ssh/</link>
-  <description><![CDATA[ 
-
-
-
-
-
-
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>REMARKS
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li><code>uv tool install</code> は HTTPS だけでなく <span class="regmonkey-bold">SSH 経由でも Git リポジトリから CLI ツールを直接インストール</span>可能</li>
-<li>モノレポのように1リポジトリに複数パッケージが入っている場合は <span class="regmonkey-bold"><code>#subdirectory=</code> で対象ディレクトリを指定</span></li>
-<li>private リポジトリへのアクセスには SSH 鍵の設定が前提</li>
-</ul>
-</div>
-</div>
-<section id="前提条件" class="level2">
-<h2 class="anchored" data-anchor-id="前提条件">前提条件</h2>
-<p><code>uv tool install git+ssh://...</code> を使うには，以下の3点が揃っている必要がある．</p>
-<p><strong>1. SSH 鍵が存在</strong></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ls</span> ~/.ssh/id_ed25519</span></code></pre></div></div>
-<p>なければ以下のように生成．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ssh-keygen</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-t</span> ed25519 <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-C</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"your_email@example.com"</span></span></code></pre></div></div>
-<p><strong>2. GitHub に公開鍵を登録済み</strong></p>
-<p><code>~/.ssh/id_ed25519.pub</code> の内容を GitHub → Settings → SSH and GPG keys に追加．</p>
-<p><strong>3. SSH 接続を確認済み</strong></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ssh</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-T</span> git@github.com</span></code></pre></div></div>
-<p>成功すれば以下のように返る．</p>
-<pre class="text"><code>Hi username! You've successfully authenticated, but GitHub does not provide shell access.</code></pre>
-</section>
-<section id="uv-tool-installの使い方" class="level2">
-<h2 class="anchored" data-anchor-id="uv-tool-installの使い方">uv tool installの使い方</h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">uv</span> tool install git+ssh://git@github.com/RyoNakagami/yamlcli.git</span></code></pre></div></div>
-<p>ブランチ・タグ・コミットハッシュを指定するには <code>@</code> を使う．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">uv</span> tool install <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"git+ssh://git@github.com/RyoNakagami/yamlcli.git@develop"</span></span>
-<span id="cb6-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">uv</span> tool install <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"git+ssh://git@github.com/RyoNakagami/yamlcli.git@v1.2.0"</span></span></code></pre></div></div>
-<section id="サブディレクトリを指定してインストールします" class="level3">
-<h3 class="anchored" data-anchor-id="サブディレクトリを指定してインストールします">サブディレクトリを指定してインストールします</h3>
-<p>1つのリポジトリに複数の Python パッケージが入っているモノレポ構成では， <code>#subdirectory=</code> フラグメントでインストール対象のディレクトリを指定します．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">uv</span> tool install git+https://github.com/RyoNakagami/skilltool-infra.git#subdirectory=client</span></code></pre></div></div>
-<p>URL の構造を分解すると次のとおり．</p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 50%">
-<col style="width: 50%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>部分</th>
-<th>意味</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>git+https://</code></td>
-<td>Git リポジトリを HTTPS で取得するスキーム</td>
-</tr>
-<tr class="even">
-<td><code>github.com/RyoNakagami/skilltool-infra.git</code></td>
-<td>リポジトリの場所</td>
-</tr>
-<tr class="odd">
-<td><code>#subdirectory=client</code></td>
-<td><code>pyproject.toml</code> が置かれているサブディレクトリ</td>
-</tr>
-</tbody>
-</table>
-<p>ブランチ指定と組み合わせる場合は <code>@</code> を URL とフラグメントの間に置く．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">uv</span> tool install <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">\</span></span>
-<span id="cb8-2">  <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"git+https://github.com/RyoNakagami/skilltool-infra.git@develop#subdirectory=client"</span></span></code></pre></div></div>
-<p>SSH 経由でも同じフラグメント構文が使える．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">uv</span> tool install <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">\</span></span>
-<span id="cb9-2">  <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"git+ssh://git@github.com/RyoNakagami/skilltool-infra.git@develop#subdirectory=client"</span></span></code></pre></div></div>
-</section>
-</section>
-<section id="複数-ssh-鍵を使い分ける場合" class="level2">
-<h2 class="anchored" data-anchor-id="複数-ssh-鍵を使い分ける場合">複数 SSH 鍵を使い分ける場合</h2>
-<p>会社アカウントと個人アカウントなど，GitHub に複数のアカウントで SSH 接続します場合は <code>~/.ssh/config</code> でホスト別名を作って鍵を使い分ける．</p>
-<pre class="text"><code># ~/.ssh/config
-
-Host github-work
-  HostName github.com
-  User git
-  IdentityFile ~/.ssh/id_ed25519_work</code></pre>
-<p>この設定は「<code>github-work</code> という別名で接続したら，<code>github.com</code> に <code>git</code> ユーザーで <code>id_ed25519_work</code> を使って接続します」という意味になる．</p>
-<p>別名を使ったインストールコマンドは次のとおり．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">uv</span> tool install <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">\</span></span>
-<span id="cb11-2">  <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"git+ssh://git@github-work/RyoNakagami/yamlcli.git@develop"</span></span></code></pre></div></div>
-<p><code>git@github.com</code> の <code>github.com</code> 部分を <code>~/.ssh/config</code> のホスト別名 <code>github-work</code> に 置き換えるだけでよい．</p>
-</section>
-<section id="appendix-用語解説" class="level2">
-<h2 class="anchored" data-anchor-id="appendix-用語解説">Appendix: 用語解説</h2>
-<div class="glossary-container">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb12-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">glossary</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span></span>
-<span id="cb12-2"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> SSH鍵</span></span>
-<span id="cb12-3"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb12-4">      公開鍵暗号を使った認証情報のペア．秘密鍵 (~/.ssh/id_ed25519) をローカルに保持し，</span>
-<span id="cb12-5">      公開鍵 (~/.ssh/id_ed25519.pub) をサーバ (GitHub 等) に登録することで</span>
-<span id="cb12-6">      パスワードなしで認証できる．</span>
-<span id="cb12-7"></span>
-<span id="cb12-8"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> ~/.ssh/config</span></span>
-<span id="cb12-9"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb12-10">      SSH クライアントの接続設定ファイル．Host 別名ごとに HostName・User・IdentityFile</span>
-<span id="cb12-11">      などを定義でき，複数アカウントや鍵の使い分けを管理できる．</span>
-<span id="cb12-12"></span>
-<span id="cb12-13"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> uv tool install</span></span>
-<span id="cb12-14"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb12-15">      Python 製 CLI ツールを独立した仮想環境にインストールしますコマンド．</span>
-<span id="cb12-16">      PyPI パッケージのほか，git+https:// や git+ssh:// スキームで</span>
-<span id="cb12-17">      Git リポジトリから直接インストールしますこともできる．</span>
-<span id="cb12-18"></span>
-<span id="cb12-19"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"> #subdirectory=フラグメント</span></span>
-<span id="cb12-20"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb12-21">      Git URL に付加するフラグメント指定子．モノレポなど1リポジトリに複数パッケージが</span>
-<span id="cb12-22">      存在する場合に，pyproject.toml があるサブディレクトリを明示．</span>
-<span id="cb12-23">      pip / uv の PEP 440 拡張 URL 構文で定義されており，@ によるリビジョン指定と</span>
-<span id="cb12-24">      組み合わせて使える (例: repo.git@branch#subdirectory=pkg)．</span></code></pre></div></div>
-</div>
-
-
-</section>
-
- ]]></description>
-  <category>uv</category>
-  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-04-25-uv-tool-via-ssh/</guid>
-  <pubDate>Sat, 25 Apr 2026 00:00:00 GMT</pubDate>
 </item>
 </channel>
 </rss>
