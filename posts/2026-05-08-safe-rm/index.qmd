@@ -1,0 +1,136 @@
+---
+title: "safe-rm with trash-cli"
+author: "Ryo Nakagami"
+date: "2026-05-08"
+date-modified: "2026-06-18"
+categories: [shellscript]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## Dependency
+
+::: {#def- .custom_problem .blog-custom-border}
+[`trash-cli`]{.def-title}
+
+- `trash-cli` は，元のパス・削除日時・パーミッションを記録した上でファイルをゴミ箱へ移動するツール
+- KDE・GNOME・XFCE が使うものと同じゴミ箱を利用しますが，コマンドライン（やスクリプト）から呼び出せる点が特徴
+
+:::
+
+[install]{.mini-section}
+
+```bash
+sudo apt install trash-cli
+```
+
+[install version]{.mini-section}
+
+```zsh
+% apt policy trash-cli
+
+trash-cli:
+  Installed: 0.23.11.10-1
+  Candidate: 0.23.11.10-1
+  Version table:
+ *** 0.23.11.10-1 500
+        500 http://jp.archive.ubuntu.com/ubuntu noble/universe amd64 Packages
+        500 http://jp.archive.ubuntu.com/ubuntu noble/universe i386 Packages
+        100 /var/lib/dpkg/status
+
+```
+
+[commands]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| command | description |
+| ------- | ------------ |
+| `trash-put`     | trash files and directories.|
+| `trash-empty`   | empty the trashcan(s).|
+| `trash-list`    | list trashed files.|
+| `trash-restore` | restore a trashed file.|
+| `trash-rm`      | remove individual files from the trashcan.|
+
+::::
+
+## スクリプト
+
+
+::: {.callout-note}
+## 廃止理由
+
+- シンプルにコマンドを使用するほうが良い
+
+:::
+
+[スクリプト]{.mini-section}
+
+```bash
+#!/bin/bash
+# -----------------------------------------------------------------------------
+# Author: Ryo Billiken
+# Revised: 2025-12-06
+# Script: safe-rm
+# Description:
+#   Safely removes files or directories by moving them to the system trash
+#   instead of permanently deleting them. Mimics 'rm -rf' behavior but uses
+#   trash-cli or trash command for safety.
+#
+#   Steps:
+#     1. Load required dependencies.
+#     2. Detect available trash command (trash-put or trash).
+#     3. For each argument, check existence and move to trash.
+#
+# Options:
+#   (none) This script does not accept options; all arguments are treated as
+#   files or directories to be trashed.
+#
+# Usage:
+#   ./safe-rm <file-or-directory> [...]   # Move targets to trash safely
+#
+# Notes:
+#   - Requires 'trash-cli' command installed.
+#   - Does not permanently delete files; recovery is possible via trash.
+#   - 'trash-restore' command can be used to recover trashed items.
+#   - 'trash-empty' command can be used to permanently delete all items in trash.
+# -----------------------------------------------------------------------------
+
+set -euo pipefail
+
+# ---- Detect trash command ----
+if command -v trash-put &>/dev/null; then
+    TRASH_CMD="trash-put"
+elif command -v trash &>/dev/null; then
+    TRASH_CMD="trash"
+else
+    echo "Error: trash-cli or trash command not found." >&2
+    exit 1
+fi
+
+# ---- Behavior: rm -rf but move to trash ----
+for target in "$@"; do
+    if [[ ! -e "$target" ]]; then
+        echo "safe-rm: '$target' does not exist."
+        continue
+    fi
+
+    read -p "$target: Will you remove it? (y/N): " yn
+    case "$yn" in
+      [yY]*)
+        $TRASH_CMD "$target"
+        echo "[TRASHED] $target"
+        ;;
+      *) echo "abort" ;;
+    esac
+done
+
+```
+
+## References
+
+- [trash-cli](https://github.com/andreafrancia/trash-cli)
