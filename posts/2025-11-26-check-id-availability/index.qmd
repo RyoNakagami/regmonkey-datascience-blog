@@ -1,0 +1,148 @@
+---
+title: "[obsolete] getentで指定IDの使用状況を確認する"
+author: "Ryo Nakagami"
+date: "2025-11-26"
+date-modified: "2026-07-01"
+categories: [shell, linux]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## スコープ
+
+- Linux でユーザーやグループを新規作成する際，指定した ID がすでに UID または GID として使われていないかを事前に確認したい場面がある
+- `check_id_availability` は，与えられた ID が UID・GID のどちらか（あるいは両方）で使用中か，あるいは未使用かを `getent` コマンドで判定し，結果を標準出力に表示するスクリプト
+
+
+## スクリプト本体
+
+```bash
+#!/bin/bash
+# -----------------------------------------------------------------------------
+# Author: Ryo Nakagami
+# Revised: 2025-11-27
+# Script: check_id_availability
+# Description:
+#   Checks if a given user or group ID is present in the system.
+#   Reports whether the specified ID is used as a UID, GID, both, or is free.
+#
+#   Steps:
+#     1. Validate that an ID argument is provided.
+#     2. Query system user database for UID match.
+#     3. Query system group database for GID match.
+#     4. Output status based on results.
+#
+# Options:
+#    -h    Show this help message.
+#
+# Usage:
+#   ./check_id_availability <id>         # Check availability of given ID
+#
+# Notes:
+#   - Requires getent installed.
+#   - Requires bash.
+#   - Requires /etc/passwd and /etc/group available.
+# -----------------------------------------------------------------------------
+
+# ---- Load dependencies ----
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/docstring.sh"
+
+# --- Parse command-line options ----
+while getopts "h" opt; do
+    case "$opt" in
+        h) usage_helper; exit 0 ;;
+        *) usage_helper; exit 1 ;;
+    esac
+done
+
+# ---- Validate input ----
+if [ -z "$1" ]; then
+    usage_helper
+    exit 1
+fi
+
+ID="$1"
+
+# ---- Check UID and GID availability ---
+UID_ENTRY=$(getent passwd "$ID")
+GID_ENTRY=$(getent group "$ID")
+
+# ---- Output result ----
+if [ -n "$UID_ENTRY" ] && [ -n "$GID_ENTRY" ]; then
+    echo "Both UID and GID $ID used"
+elif [ -n "$UID_ENTRY" ]; then
+    echo "UID $ID used"
+elif [ -n "$GID_ENTRY" ]; then
+    echo "GID $ID used"
+else
+    echo "Both $ID free"
+fi
+```
+
+## 処理の流れ
+
+[依存ライブラリの読み込み]{.mini-section}
+
+```bash
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/docstring.sh"
+```
+
+- `${BASH_SOURCE[0]}` はこのスクリプト自身のパスを保持する変数．
+- `docstring.sh` はスクリプト冒頭のコメント（docstring）を解析して `-h` オプション時にヘルプを表示する `usage_helper` 関数を提供する共通ライブラリ
+
+[オプション解析]{.mini-section}
+
+```bash
+while getopts "h" opt; do
+    case "$opt" in
+        h) usage_helper; exit 0 ;;
+        *) usage_helper; exit 1 ;;
+    esac
+done
+```
+
+- `getopts "h"` は `-h` オプションのみを受け付ける設定
+- `-h` が指定された場合はヘルプを表示して正常終了 (`exit 0`)
+- それ以外の未知のオプションが指定された場合はヘルプを表示して異常終了 (`exit 1`) 
+
+[入力検証]{.mini-section}
+
+```bash
+if [ -z "$1" ]; then
+    usage_helper
+    exit 1
+fi
+
+ID="$1"
+```
+
+第一引数が空文字列かどうかを `-z` でチェックし，ID が指定されていない場合はヘルプを表示して終了する．引数が存在する場合はそれを `ID` 変数に格納する．
+
+[UID/GID の照会]{.mini-section}
+
+```bash
+UID_ENTRY=$(getent passwd "$ID")
+GID_ENTRY=$(getent group "$ID")
+```
+
+`getent passwd "$ID"` は `/etc/passwd`（および NSS で設定された他のバックエンド，例えば LDAP）に対して，指定した文字列が UID またはユーザー名として登録されているかを照会する．同様に `getent group "$ID"` は `/etc/group` に対してその文字列が GID またはグループ名として登録されているかを照会する．該当するエントリがなければ空文字列が返る．
+
+[結果の出力]{.mini-section}
+
+```bash
+if [ -n "$UID_ENTRY" ] && [ -n "$GID_ENTRY" ]; then
+    echo "Both UID and GID $ID used"
+elif [ -n "$UID_ENTRY" ]; then
+    echo "UID $ID used"
+elif [ -n "$GID_ENTRY" ]; then
+    echo "GID $ID used"
+else
+    echo "Both $ID free"
+fi
+```
+
+`UID_ENTRY` と `GID_ENTRY` の非空判定 (`-n`) を組み合わせることで，4 パターン（両方使用中／UID のみ使用中／GID のみ使用中／両方未使用）のいずれに該当するかを判定し，対応するメッセージを表示する．
