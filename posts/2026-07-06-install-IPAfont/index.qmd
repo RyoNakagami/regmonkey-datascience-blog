@@ -1,0 +1,141 @@
+---
+title: "ユーザーローカルへのIPAfontインストール"
+author: "Ryo Nakagami"
+date: "2026-07-06"
+date-modified: "2026-07-09"
+categories: [環境構築, font]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## IPAfontインストール手順
+
+:::: {.no-border-top-table}
+
+| 手順No | 目的                    | コマンド                                                                        |
+| ---- | --------------------- | --------------------------------------------------------------------------- |
+| 1    | 公式サイトからIPAfontをダウンロード | [公式サイト](https://moji.or.jp/ipafont/ipaex00401/)から取得（`~/Downloads/IPAexfont00401.zip`） |
+| 2    | フォントディレクトリへ移動         | `cd ~/.local/share/fonts`                                                   |
+| 3    | zipを作業ディレクトリへ移動       | `mv ~/Downloads/IPAexfont00401.zip ./`                                      |
+| 4    | 圧縮ファイルの解凍             | `unzip IPAexfont00401.zip`                                                  |
+| 5    | フォントキャッシュの更新          | `fc-cache -fv`                                                              |
+| 6    | フォントの読み込み確認           | `fc-cache -v \| grep "IPA"`                                                 |
+| 7    | （任意）不要な圧縮ファイルの削除      | `rm IPAexfont00401.zip`                                                     |
+
+::::
+
+## 解説
+
+
+::: {.callout-note}
+### フォントディレクトリ
+
+- Linux では fontconfig がフォントを探索するディレクトリが決まっており，そこに `.ttf`/`.ttc`/`.otf` を置くことでシステムがフォントを認識
+
+:::
+
+
+主なフォントディレクトリは以下の通りで，「システム全体に効かせるか」「自分だけに効かせるか」で置き場所を使い分けます．
+
+:::: {.no-border-top-table}
+
+| 置き場所                                  | 適用範囲          | 権限   | 備考                        |
+| ------------------------------------- | ------------- | ---- | ------------------------- |
+| `/usr/share/fonts`                    | システム全体        | root | ディストリビューション標準．パッケージ管理下    |
+| `/usr/local/share/fonts`              | システム全体（手動追加用） | root | 管理者が手動で追加するときの推奨場所         |
+| `~/.local/share/fonts`                | ログインユーザのみ     | 自分   | XDG準拠の個人用フォント．**root不要**  |
+| `~/.fonts`                            | ログインユーザのみ     | 自分   | 古い慣習．非推奨だが後方互換で今も認識される     |
+
+: {tbl-colwidths="[25,25,10,40]"}
+
+::::
+
+- 今回 `~/.local/share/fonts` を使っているのは，**sudo権限を持たない環境（共有サーバや権限制限された解析環境）でも自分のアカウント内で日本語フォントを追加したいため**
+- 共有マシンで matplotlib の日本語化やレポート出力の文字化け対策をしたい，といったデータ分析の実務で特に有効
+- `~/.local/share/fonts` は [XDG Base Directory 仕様](https://specifications.freedesktop.org/basedir-spec/latest/)における `$XDG_DATA_HOME`（デフォルト `~/.local/share`）配下のディレクトリ
+- `~/.fonts` は歴史的な置き場所で，現在は XDG 準拠の `~/.local/share/fonts` が推奨されている
+
+
+::: {.callout-note}
+### `fc-cache` コマンド
+
+- fontconfig はフォントを探索するたびに全ファイルを読み直すのではなく，**フォント情報のキャッシュ**を参照して高速に描画対象フォントを決定
+- 新しいフォントを追加・削除しても，キャッシュが古いままだとシステムから認識されない
+- `fc-cache` はこのキャッシュを再生成するコマンド
+
+
+```bash
+fc-cache -fv
+```
+
+:::
+
+
+:::: {.no-border-top-table}
+
+| オプション | 動作                                                        |
+| ----- | -------------------------------------------------- |
+| `-f`  | force．既存キャッシュが有効そうに見えても強制的に作り直す．フォント追加直後は必ず付けると確実 |
+| `-v`  | verbose．走査したディレクトリと処理結果（キャッシュ更新の有無・フォント数）を表示 |
+
+::::
+
+ユーザーローカル（`~/.local/share/fonts`）に置いた場合は `sudo` 不要で `fc-cache -fv` を実行でき，自分のキャッシュ（`~/.cache/fontconfig`）だけが更新されます．
+反映されたかどうかは以下のように確認します．
+
+```bash
+## 追加したフォントがfontconfigに認識されているか確認
+fc-list | grep -i "IPA"
+
+## 日本語フォントとして認識されているか確認
+fc-list :lang=ja | grep -i "IPA"
+```
+
+- matplotlib など Python 側でフォントを新規に認識させたいときは，`fc-cache` に加えて matplotlib のフォントキャッシュ（`~/.cache/matplotlib`）の削除・再構築が別途必要になる点に注意
+- OS レベルのキャッシュ（fontconfig）とアプリレベルのキャッシュは別物
+
+
+
+::: {.callout-note}
+### 明朝 vs ゴシック
+
+- IPAex フォントには**明朝体（ipaexm）**と**ゴシック体（ipaexg）**の2種類が含まれる
+- 明朝体は**serif（セリフ体）**，ゴシック体は **sans-serif（サンセリフ体）**に対応
+
+:::
+
+
+
+:::: {.no-border-top-table}
+
+| 書体          | ファイル       | 特徴                                       | 主な用途                          |
+| ----------- | ---------- | ---------------------------------------- | ----------------------------- |
+| 明朝体（Mincho） | `ipaexm.ttf` | 縦画が太く横画が細い．線の端に「うろこ（セリフ）」がある．長文でも目が疲れにくい | 論文・レポート・書籍などの**本文** |
+| ゴシック体（Gothic）| `ipaexg.ttf` | 線幅がほぼ均一で「うろこ」がない．遠目でも視認性が高い | 見出し・スライド・**グラフのラベル・図中の文字** |
+
+::::
+
+
+データサイエンスの実務では以下のような使い分けが目安になります．
+
+- **グラフ・図表（matplotlib / plotly など）**: 小さいサイズや低解像度でも文字がつぶれにくい**ゴシック体（ipaexg）**が基本
+- **論文・技術文書の本文（LaTeX / Quarto PDF など）**: 可読性重視で**明朝体（ipaexm）**，見出しはゴシック体
+
+例えば matplotlib で日本語ゴシック体を指定する場合は以下のようになります．
+
+```python
+import matplotlib.pyplot as plt
+
+## IPAexゴシックをデフォルトフォントに指定
+plt.rcParams["font.family"] = "IPAexGothic"
+```
+
+
+References
+----------
+- [文字情報技術促進協議会 > IPAfontインストール](https://moji.or.jp/ipafont/installation/)
+- [Ubuntuにフォントを追加する](../2026-02-05-install-new-fonts/index.html)
