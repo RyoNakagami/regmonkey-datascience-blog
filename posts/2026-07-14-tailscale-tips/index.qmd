@@ -1,0 +1,171 @@
+---
+title: "tailscaleにおけるshields-upオプション"
+author: "Ryo Nakagami"
+date: "2026-07-14"
+date-modified: "2026-07-14"
+categories: [tailscale]
+listing_category: development
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+
+::: {.callout-note}
+### TL;DRs
+
+- `tailscale up --ssh`: **Tailscale SSH サーバー**を起動し，tailnet 管理者が定義したアクセスポリシー（未定義ならデフォルトポリシー）に従ってアクセスを許可するコマンド
+- `--shields-up` オプション: Tailscale ネットワーク上の他デバイスからの**着信接続をブロック**するオプション
+
+:::
+
+
+
+## 📘 Tailscaleとアクセス制御ポリシー
+### 基本ルール
+
+- Tailscale では，ネットワーク（tailnet）上のデバイス管理は**管理者（Admin）**が，アクセス制御ポリシー（ACL）を設定することで接続制限を行う
+- 一方，個々のユーザーも自分のデバイスに対しては制御権を持つ
+  - 例: Tailscaleからの着信接続をブロック(`tailscale up --shields-up`)
+
+[ACLポリシーと方向性]{.mini-section}
+
+- 「ノートPC → Web サーバー」への接続を許可するルールがあっても，逆方向，つまり「Web サーバー → ノートPC」への接続を許可することにはならない
+- このことを，「ACLポリシーは方向性を持つ」と表現される
+
+### Tailscale クライアントのデフォルト挙動
+
+Tailscale クライアントは，デフォルトで以下のように動作
+
+- 着信接続を許可する
+- Tailscale の DNS 設定を使用する
+
+### shields up
+
+- すべての着信接続をブロックする状態のこと(`ssh`をブロック)
+- shields upを有効にしても，デバイス自体は tailnet 上で引き続き確認可能(`tailscale status`やブラウザ管理画面どちらでも)
+
+
+::: {#exm- .custom_problem }
+[コマンド例]{.def-title}
+
+```bash
+# 着信接続をブロックする（shields up）
+tailscale up --shields-up
+
+# 着信接続を許可する（デフォルト）
+tailscale up --shields-up=false
+```
+
+:::
+***
+
+## 🤔 はまったケース: ssh serverの再設定
+
+
+::: {.callout-note}
+### TL:DRs
+
+Tailscale の key expire に伴い，再設定として
+
+```bash
+tailscale up --ssh --shields-up
+```
+
+を実行してしまい，`tailscale ssh` は疎通しない状態にはまった．
+
+:::
+
+
+[起きたこと]{.mini-section}
+
+- `--ssh` により Tailscale SSH サーバー自体は有効化されている(`tailscale debug prefs` でも `RunSSH: true`)
+- しかし同時に指定した `--shields-up` によって，**着信接続がすべてブロック**される状態になっていた
+- そのため，L3レベルの疎通は生きているにもかかわらず，SSH 接続だけが確立できない状況が発生した
+
+[切り分けの手順]{.mini-section}
+
+まず ICMP・TSMP レベルでの疎通を確認
+
+```bash
+% tailscale ping <device-ip>
+pong from <device-name> (<device-ip>) via 192.168.10.104:41641 in 56ms
+
+% tailscale ping --tsmp <device-ip>
+pong from <device-name> (<device-ip>, 34043) via TSMP in 29ms
+```
+
+`tailscale ping` は成功しており，tailnet 上のデバイスとしては到達可能であることが分かる．
+
+一方，`ProxyCommand` 経由の `ssh` はハンドシェイクが進まず停止
+
+```bash
+% ssh -vvv \
+    -o ProxyCommand="tailscale nc %h %p" \
+    <user>@<device-ip>
+OpenSSH_9.6p1 Ubuntu-3ubuntu13.18, OpenSSL 3.0.13 30 Jan 2024
+debug1: Reading configuration data ~/.ssh/config
+debug1: Reading configuration data /etc/ssh/ssh_config
+debug1: /etc/ssh/ssh_config line 19: include /etc/ssh/ssh_config.d/*.conf matched no files
+debug1: /etc/ssh/ssh_config line 21: Applying options for *
+debug2: resolve_canonicalize: hostname <device-ip> is address
+debug3: expanded UserKnownHostsFile '~/.ssh/known_hosts' -> '~/.ssh/known_hosts'
+debug3: channel_clear_timeouts: clearing
+debug1: Executing proxy command: exec tailscale nc <device-ip> 22
+debug1: identity file ~/.ssh/id_rsa type -1
+...
+debug1: Local version string SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13.18
+```
+
+ここで止まったまま応答が返らず，`tailscale ssh` も同様に接続できなかった．`tailscale debug prefs` で `RunSSH: true` を確認していたため，「SSH サーバーは有効なのになぜ繋がらないのか」と原因の切り分けに時間がかかった．
+
+[原因]{.mini-section}
+
+- `--shields-up` は**着信接続を全面的にブロックする**オプションであり，SSH サーバーが有効かどうかとは独立した設定
+- `tailscale up --ssh` と `--shields-up` を同時に指定すると，SSH サーバー自体は起動しているにもかかわらず，shields up によって着信の SSH 接続そのものが弾かれる
+- `tailscale ping` / `tailscale ping --tsmp` は疎通確認であり，shields up の影響を受けないため，「ping は通るのに ssh だけ通らない」という一見矛盾した状況になった
+
+[対応]{.mini-section}
+
+```bash
+# shields up を解除する
+tailscale up --ssh --shields-up=false
+
+# reset optionを用いる
+tailscale up --ssh --reset
+```
+
+これにより着信接続のブロックが解除され，`tailscale ssh` / `ProxyCommand` 経由の `ssh` ともに疎通するようになった．
+
+## Appendix: Glossaries
+
+:::{.glossary-container}
+
+```yaml
+glossary:
+  - def: ACL (Access Control List)
+    description: |
+      Tailscale における tailnet 全体のアクセス制御ポリシーを定義する仕組み．どのデバイス・ユーザーがどのデバイス・ポートに接続できるかをルールとして記述し，tailnet 管理者が管理する．ACL が明示的に定義されていない場合は，デフォルトポリシー（tailnet 内の全デバイス間で通信を許可）が適用される．
+
+  - def: ICMP (Internet Control Message Protocol)
+    description: |
+      IPネットワーク上でエラー通知や疎通確認に用いられるプロトコル．
+      `ping` コマンドはこの ICMP のエコーリクエスト/リプライを利用して
+      到達性を確認する．`tailscale ping` はデフォルトでこの ICMP による
+      疎通確認を行う．
+
+  - def: TSMP (Tailscale Message Protocol)
+    description: |
+      Tailscale 独自のping/疎通確認用プロトコル．`tailscale ping --tsmp`
+      で使用され，通常の ICMP ping とは異なり Tailscale の暗号化された
+      WireGuard トンネルを経由してピア間の直接疎通を確認する．
+```
+
+:::
+
+
+References
+----------
+- [tailscale docs > Manage client preferences](https://tailscale.com/docs/features/client/manage-preferences)
