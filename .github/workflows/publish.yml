@@ -51,7 +51,7 @@ jobs:
           cache: poetry
 
       - name: Configure Poetry
-        run: poetry config virtualenvs.create false
+        run: poetry env use "$(which python)"
 
       - name: Install the project dependencies
         run: poetry install --no-root
@@ -61,12 +61,12 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cmdstan
-          key: cmdstan-2.38.0
+          key: cmdstan-2.39.0
 
       - name: Install CmdStan (Linux, macOS)
         if: steps.cache-cmdstan.outputs.cache-hit != 'true'
         run: |
-          python -c "import cmdstanpy; cmdstanpy.install_cmdstan(version='2.38.0', cores=4)"
+          poetry run python -c "import cmdstanpy; cmdstanpy.install_cmdstan(version='2.39.0', cores=4)"
 
       # ── Restore previous build ──────────────────────────────────────────────
       # Fetch gh-pages into a temporary worktree, rsync content into _site/,
@@ -159,7 +159,7 @@ jobs:
       # ── Render ─────────────────────────────────────────────────────────────
       - name: Render (full)
         if: steps.scope.outputs.mode == 'full'
-        run: quarto render
+        run: poetry run quarto render
 
       - name: Render (partial)
         if: steps.scope.outputs.mode == 'partial'
@@ -169,7 +169,7 @@ jobs:
           # Render each file individually: quarto render <file> --no-clean
           # (file must come before flags, and multiple files cannot be passed at once)
           while IFS= read -r f; do
-            [ -n "$f" ] && quarto render "$f" --no-clean
+            [ -n "$f" ] && poetry run quarto render "$f" --no-clean
           done <<< "${{ steps.scope.outputs.targets }}"
 
       - name: No changes — skip render
