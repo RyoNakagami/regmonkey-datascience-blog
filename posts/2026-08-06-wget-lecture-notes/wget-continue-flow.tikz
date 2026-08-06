@@ -1,0 +1,117 @@
+#| mainfont: IPAexGothic
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    block/.style={draw=#1!55!black, fill=#1!12, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, inner sep=5pt},
+    dec/.style={draw=#1!55!black, fill=#1!12, diamond, aspect=2.3,
+                align=center, inner sep=0pt},
+    ext/.style={draw=gray!70, dashed, fill=gray!8, rounded corners=3pt,
+                align=center, inner sep=5pt},
+    zone/.style={fill=#1!6, draw=#1!40, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south, font=\bfseries, text=#1!45!black},
+    sig/.style={font=\footnotesize, inner sep=2pt},
+    step/.style={font=\scriptsize\bfseries, text=black!55},
+    dot/.style={circle, fill, inner sep=1.4pt},
+  ]
+
+  %% ================= Zone 1: shell =================
+  \node[block=blue, text width=4.0cm] (cmd)
+    {\textcircled{\scriptsize 0}\ コマンド行\\[2pt]\texttt{\footnotesize wget -c}\\\texttt{\footnotesize .../lecture\_\{1..20\}.pdf}};
+  \node[block=blue, below=1.5cm of cmd, text width=4.0cm] (brace)
+    {brace expansion\\[2pt]\footnotesize shell が \texttt{\{1..20\}} を展開\\\footnotesize（\texttt{wget} の機能ではない）};
+  \node[block=blue, below=1.5cm of brace, text width=4.0cm] (argv)
+    {\texttt{argv} に 20 個の URL\\[2pt]\footnotesize \texttt{lecture\_1.pdf}\\\footnotesize $\vdots$\ \ \texttt{lecture\_20.pdf}};
+
+  %% ========== Zone 2: wget — top row (setup) ==========
+  \node[block=teal, right=2.4cm of cmd, text width=3.5cm] (parse)
+    {\textcircled{\scriptsize 1}\ URL を解析\\[2pt]\footnotesize scheme / host / path\\\footnotesize \texttt{https} · \texttt{example.com} · \texttt{/lecture\_3.pdf}};
+  \node[block=teal, right=1.5cm of parse, text width=132pt] (dns)
+    {\textcircled{\scriptsize 2}\ DNS 名前解決\\[2pt]\footnotesize \texttt{example.com} $\to$ IP\\\footnotesize（結果はメモリにキャッシュ）};
+  \node[block=teal, right=1.5cm of dns, text width=3.2cm] (conn)
+    {\textcircled{\scriptsize 3}\ サーバへ接続\\[2pt]\footnotesize TCP 確立 $\to$\\\footnotesize \texttt{https} なら TLS handshake};
+
+  %% ========== Zone 2: wget — middle row (local check / request) ==========
+  \node[block=teal, below=1.7cm of parse, text width=3.5cm] (local)
+    {\textcircled{\scriptsize 4}\ ローカルファイルを確認\\[2pt]\footnotesize \texttt{-c} 指定時のみ．同名ファイルの\\\footnotesize サイズ $N$ を取得（例: 4\,MB）};
+  \node[dec=orange, right=1.7cm of local, text width=2.3cm] (exists)
+    {\footnotesize 途中ファイル\\\footnotesize が存在?};
+  \node[block=teal, right=1.7cm of exists, text width=4.0cm, minimum height=1.5cm] (req)
+    {\textcircled{\scriptsize 5}\ HTTP リクエスト送信\\[2pt]
+     \footnotesize \texttt{GET /lecture\_3.pdf HTTP/1.1}\\
+     \footnotesize ＋（あり時）\texttt{Range: bytes=$N$-}};
+
+  %% ========== Zone 3: server responses ==========
+  \node[block=purple, right=2.2cm of req, text width=3.9cm] (r206)
+    {\textcircled{\scriptsize 6}\ \texttt{206 Partial Content}\\[2pt]\footnotesize 続きを受信し末尾に追記};
+  \node[block=purple, above=0.75cm of r206, text width=3.9cm] (r200)
+    {\texttt{200 OK}（\texttt{Range} 非対応）\\[2pt]\footnotesize 再開不可．先頭から取り直し};
+  \node[ext, below=0.75cm of r206, text width=3.9cm] (rerr)
+    {\texttt{404 Not Found} 等\\[2pt]\footnotesize この URL は失敗\\\footnotesize （fatal error）};
+
+  %% ========== write / next ==========
+  \node[block=teal, below=1.7cm of exists, text width=4.0cm] (write)
+    {\textcircled{\scriptsize 7}\ データを保存\\[2pt]\footnotesize \texttt{206}: 末尾に追記／\texttt{200}: 全体を書き直し};
+  \node[block=teal, left=1.7cm of write, text width=3.0cm] (next)
+    {\textcircled{\scriptsize 8}\ 次の URL へ};
+
+  %% ================= edges =================
+  \draw[->] (cmd) -- (brace);
+  \draw[->] (brace) -- (argv);
+  \draw[->] (cmd) -- (parse) node[midway, above, sig] {1 URL ずつ};
+
+  \draw[->] (parse) -- (dns);
+  \draw[->] (dns) -- (conn);
+  %% orthogonal: down → left → down into local.north
+  \coordinate (crow) at ($(conn.south)+(0,-0.85)$);
+  \draw[->] (conn.south) -- (crow) -- (crow -| local.north) -- (local.north);
+
+  \draw[->] (local) -- (exists);
+  \draw[->] (exists) -- (req) node[midway, above, sig] {あり / なし};
+
+  \coordinate (reqx) at ($(req.east)+(0.55,0)$);
+  \draw[->] (req.east) -- (reqx) |- (r200.west);
+  \draw[->] (reqx) |- (r206.west);
+  \draw[->, gray!70, dashed] (reqx) |- (rerr.west);
+
+  %% 206 -> write（差分を追記）
+  \coordinate (retx) at ($(r206.east)+(0.55,0)$);
+  \draw[->] (r206.east) -- (retx) -- (write.east -| retx) -- (write.east);
+
+  %% 200 OK（Range 非対応）も同じ rail で write へ合流（全体を書き直す）
+  \draw[-] (r200.east) -- ($(r200.east)+(0.55,0)$) -- (retx);
+
+  %% write -> next -> loop back to parse (bottom rail, left riser)
+  \draw[->] (write) -- (next);
+  %% 3 bends: down → left → up the riser → right into parse.south
+  \coordinate (riser)   at ($(parse.west)+(-0.75,0)$);
+  \coordinate (botrail) at ($(next.south)+(0,-1.0)$);
+  \coordinate (pin)     at ($(parse.south)+(-0.9,0)$);
+  \draw[->] (next.south) -- (botrail) -- (botrail -| riser)
+    -- (3.84,-0.67) -- (4.6,-0.67);
+  \node[dot] at (botrail -| riser) {};
+  \node[sig, anchor=south west] at ($(botrail -| riser)+(0.12,0.05)$) {残り URL があれば};
+
+  %% fatal error skips write: joins the return rail below the write row
+  \coordinate (frow)  at ($(write.south)+(0,-0.42)$);
+  \coordinate (fnext) at ($(next.south)+(0.5,0)$);
+  \draw[->, gray!70, dashed] (rerr.south) -- (rerr.south |- frow)
+    -- (fnext |- frow) -- (fnext);
+
+  %% ================= zones =================
+  \coordinate (ztop) at ($(parse.north)+(0,0.6)$);
+  \coordinate (zbot) at ($(next.south)+(0,-0.95)$);
+
+  \begin{scope}[on background layer]
+    \node[zone=blue,   fit=(cmd)(argv)(cmd |- ztop)(argv |- zbot)] (zs) {};
+    \node[zone=teal,   fit=(parse)(conn)(local)(req)(write)(next)(riser)(parse |- ztop)(next |- zbot)] (zw) {};
+    \node[zone=purple, fit=(r200)(rerr)(retx)(r200 |- ztop)(r200 |- zbot)] (zsv) {};
+  \end{scope}
+  \node[zlabel=blue]   at (zs.north)  {① shell（実行前の展開）};
+  \node[zlabel=teal]   at (zw.north)  {② \texttt{wget} プロセス：1 URL ごとに \textcircled{\scriptsize 1}--\textcircled{\scriptsize 8} を繰り返す};
+  \node[zlabel=purple] at (zsv.north) {③ サーバ応答};
+
+  \node[font=\scriptsize, text=gray, anchor=north west, align=left]
+    at ($(zw.south west)+(0.1,-0.28)$)
+    {※ keep-alive が有効なら \textcircled{\scriptsize 2}\textcircled{\scriptsize 3} は初回のみで，以降は同一 TCP 接続を再利用する．\\
+     ※ 破線 = fatal error 経路．リトライ対象外でそのまま \textcircled{\scriptsize 8} へ進む．};
+\end{tikzpicture}
