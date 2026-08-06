@@ -9,8 +9,1885 @@
 <link>https://ryonakagami.github.io/regmonkey-datascience-blog/</link>
 <atom:link href="https://ryonakagami.github.io/regmonkey-datascience-blog/index.xml" rel="self" type="application/rss+xml"/>
 <description>日々の徒然勉強日記</description>
-<generator>quarto-1.9.38</generator>
-<lastBuildDate>Tue, 09 Jun 2026 00:00:00 GMT</lastBuildDate>
+<generator>quarto-1.10.18</generator>
+<lastBuildDate>Thu, 06 Aug 2026 00:00:00 GMT</lastBuildDate>
+<item>
+  <title>wgetコマンドでLecture notesをまとめて取得する</title>
+  <dc:creator>Ryo Nakagami</dc:creator>
+  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-08-06-wget-lecture-notes/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+
+<section id="wget-コマンドとは" class="level2">
+<h2 class="anchored" data-anchor-id="wget-コマンドとは">wget コマンドとは</h2>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>定義 1</strong></span> <span class="def-title"><code>wget</code> コマンド</span></p>
+<ul>
+<li>非対話的なネットワークダウンローダ</li>
+<li>HTTP，HTTPS，FTP プロトコルに対応し，HTTP proxy 経由の取得もサポート</li>
+</ul>
+</div>
+<p><span class="mini-section">非対話的であることの意味</span></p>
+<blockquote class="blockquote">
+<p>Wget is non-interactive, meaning that it can work in the background, while the user is not logged on. This allows you to start a retrieval and disconnect from the system, letting Wget finish the work. By contrast, most of the Web browsers require constant user’s presence, which can be a great hindrance when transferring a lot of data.</p>
+</blockquote>
+<ul>
+<li>ユーザがログインしていない状態でもバックグラウンドで動作できる． 取得を開始してからシステムからログアウトしても，<code>wget</code> は動作する</li>
+<li>ブラウザはユーザが常に画面の前にいることを要求し，大量のデータ転送ではそれが大きな障害になるが， <code>wget</code> はその制約から回避することができる</li>
+</ul>
+<p><span class="mini-section">主要な機能</span></p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 30%">
+<col style="width: 70%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>機能</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>recursive download</td>
+<td>HTML / XHTML / CSS 内のリンクを辿り，サイトのディレクトリ構造を再現したローカル版を作る．この際 Robot Exclusion Standard (<code>/robots.txt</code>) を尊重する</td>
+</tr>
+<tr class="even">
+<td>link conversion</td>
+<td>ダウンロードしたファイル内のリンクをローカルファイルを指すよう書き換え，オフライン閲覧を可能にする</td>
+</tr>
+<tr class="odd">
+<td>堅牢性</td>
+<td>低速・不安定な回線を想定して設計されている．ネットワーク障害で失敗しても，ファイル全体を取得するまでリトライを繰り返す</td>
+</tr>
+<tr class="even">
+<td>レジューム</td>
+<td>サーバが regetting に対応していれば，中断した位置から取得を再開するようサーバに指示する</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="wget--c-で-lecture-note-をまとめて取得する" class="level2">
+<h2 class="anchored" data-anchor-id="wget--c-で-lecture-note-をまとめて取得する"><code>wget -c</code> で lecture note をまとめて取得する</h2>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>TL;DR
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>取得したいLecture notesのBase URLが判明している場合，shell の brace expansion と組み合わせて</p>
+<div class="code-padding">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">wget</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-c</span> https://cecilialeiqi.github.io/ds3001/lecture_{1..20}.pdf</span></code></pre></div></div>
+</div>
+<ul>
+<li><code>{1..20}</code> は <code>wget</code> の機能ではなく<span class="regmonkey-bold">shell 側</span>の展開</li>
+<li>実行すると shell が事前に 20 個の URL に展開し，<code>wget</code> は複数 URL を 引数として受け取って順番に取得</li>
+</ul>
+</div>
+</div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-08-06-wget-lecture-notes/wget-continue-flow.svg" class="img-fluid figure-img"></p>
+<figcaption>wget処理フロー</figcaption>
+</figure>
+</div>
+<section id="c---continue-の役割" class="level3">
+<h3 class="anchored" data-anchor-id="c---continue-の役割"><code>-c</code> (<code>--continue</code>) の役割</h3>
+<ul>
+<li><code>-c</code> は部分的にダウンロードされたファイルの取得を継続するオプション</li>
+<li>すでに <code>lecture_3.pdf</code> が途中まで存在する場合，<code>wget</code> はそれをリモートファイルの 先頭部分とみなし，ローカルファイルの長さに等しいオフセットから取得を再開するよう サーバに要求する．</li>
+</ul>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 30%">
+<col style="width: 70%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>ローカルファイルの状態</th>
+<th><code>-c</code> を付けた場合の挙動</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>存在しない</td>
+<td>通常どおり最初から取得する</td>
+</tr>
+<tr class="even">
+<td>サーバ側と同じサイズ</td>
+<td>ダウンロードを拒否し，説明メッセージを出す (Wget 1.7 以降)</td>
+</tr>
+<tr class="odd">
+<td>サーバ側より小さい</td>
+<td>差分 <code>length(remote) - length(local)</code> バイトだけ取得し，末尾に追記する</td>
+</tr>
+<tr class="even">
+<td>サーバ側より大きい</td>
+<td>「継続」に意味がないため何もダウンロードしない</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>つまり同じコマンドを再実行すれば，<span class="regmonkey-bold">取得済みの回はスキップし，失敗した回だけ取り直す</span> という使い方ができる．</p>
+<p><span class="mini-section"><code>-c</code> を付けないとどうなるか</span></p>
+<ul>
+<li><code>-c</code> なしで同じディレクトリに再ダウンロードすると，元のファイルは保存されたまま 2 つ目のコピーが <code>lecture_3.pdf.1</code> という名前になる．さらに実行すれば <code>.2</code>, <code>.3</code> と増えていく．</li>
+<li>中断した <code>lecture_3.pdf</code> が残っている状態で <code>-c</code> なしに再実行すると， truncate された <code>lecture_3.pdf</code> はそのまま放置され，<code>lecture_3.pdf.1</code> に落ちてくる．</li>
+</ul>
+</section>
+<section id="存在しない番号があるとき" class="level3">
+<h3 class="anchored" data-anchor-id="存在しない番号があるとき">存在しない番号があるとき</h3>
+<p><code>lecture_20.pdf</code> まで存在するとは限りません．存在しない番号は 404 になりますが， <code>connection refused</code> や <code>not found</code> (404) のような fatal error は リトライ対象外なので，<code>wget</code> はその URL を諦めて次の URL へ進みます．20 個中 12 個しかなければ，8 回分の 404 ログが出たうえで 12 個が手に入る．</p>
+<p>どの回が取得できなかったかを後から確認したい場合はログを残す．</p>
+<div class="code-padding">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">wget</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-c</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-o</span> wget.log https://cecilialeiqi.github.io/ds3001/lecture_{1..20}.pdf</span>
+<span id="cb2-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">grep</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-E</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'ERROR|404'</span> wget.log</span></code></pre></div></div>
+</div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>まず <code>--spider</code> で存在確認する
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li><code>--spider</code> を付けると <code>wget</code> は Web spider のように振る舞い，ページをダウンロードせず 「そこに存在するか」だけを確認してくれる</li>
+<li>どの番号まで資料があるかを調べるのに使える．</li>
+</ul>
+<div class="code-padding">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">$</span> wget <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--spider</span> https://cecilialeiqi.github.io/ds3001/lecture_{0..2}.pdf</span>
+<span id="cb3-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Spider</span> mode enabled. Check if remote file exists.</span>
+<span id="cb3-3"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">--2026-08-06</span> 16:09:53--  https://cecilialeiqi.github.io/ds3001/lecture_0.pdf</span>
+<span id="cb3-4"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Resolving</span> cecilialeiqi.github.io <span class="er" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">(</span><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">cecilialeiqi.github.io</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">)</span><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">...</span> 185.199.109.153, 185.199.108.153, 185.199.110.153, ...</span>
+<span id="cb3-5"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Connecting</span> to cecilialeiqi.github.io <span class="er" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">(</span><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">cecilialeiqi.github.io</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">)|</span><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">185.199.109.153</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">:443...</span> connected.</span>
+<span id="cb3-6"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">HTTP</span> request sent, awaiting response... 404 Not Found</span>
+<span id="cb3-7"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Remote</span> file does not exist <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--</span> broken link!!!</span>
+<span id="cb3-8"></span>
+<span id="cb3-9"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Spider</span> mode enabled. Check if remote file exists.</span>
+<span id="cb3-10"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">--2026-08-06</span> 16:09:53--  https://cecilialeiqi.github.io/ds3001/lecture_1.pdf</span>
+<span id="cb3-11"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Reusing</span> existing connection to cecilialeiqi.github.io:443.</span>
+<span id="cb3-12"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">HTTP</span> request sent, awaiting response... 200 OK</span>
+<span id="cb3-13"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Length:</span> 165939 <span class="er" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">(</span><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">162K</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">)</span> <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">[application/pdf]</span></span>
+<span id="cb3-14"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Remote</span> file exists.</span>
+<span id="cb3-15"></span>
+<span id="cb3-16"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Spider</span> mode enabled. Check if remote file exists.</span>
+<span id="cb3-17"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">--2026-08-06</span> 16:09:53--  https://cecilialeiqi.github.io/ds3001/lecture_2.pdf</span>
+<span id="cb3-18"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Reusing</span> existing connection to cecilialeiqi.github.io:443.</span>
+<span id="cb3-19"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">HTTP</span> request sent, awaiting response... 200 OK</span>
+<span id="cb3-20"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Length:</span> 217145 <span class="er" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">(</span><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">212K</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">)</span> <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">[application/pdf]</span></span>
+<span id="cb3-21"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">Remote</span> file exists.</span></code></pre></div></div>
+</div>
+</div>
+</div>
+</section>
+<section id="保存先を分ける" class="level3">
+<h3 class="anchored" data-anchor-id="保存先を分ける">保存先を分ける</h3>
+<p><code>-P</code> (<code>--directory-prefix</code>) で保存先ディレクトリを指定できます</p>
+<div class="code-padding">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">wget</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-c</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-P</span> ./ds3001 https://cecilialeiqi.github.io/ds3001/lecture_{0..2}.pdf</span></code></pre></div></div>
+</div>
+</section>
+<section id="再ダウンロード制御の他の選択肢" class="level3">
+<h3 class="anchored" data-anchor-id="再ダウンロード制御の他の選択肢">再ダウンロード制御の他の選択肢</h3>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>オプション</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>-nc</code> (<code>--no-clobber</code>)</td>
+<td>既存ファイルがあればダウンロードしない (<code>.1</code> の連番も作らない)</td>
+</tr>
+<tr class="even">
+<td><code>-N</code> (<code>--timestamping</code>)</td>
+<td>ローカルとリモートのタイムスタンプ / サイズを比較し，新しければ取得する</td>
+</tr>
+<tr class="odd">
+<td><code>--backups=N</code></td>
+<td>上書き前に <code>.1</code>, <code>.2</code> … と世代バックアップを取る</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>講義ページを定期的に見に行って「更新された資料だけ落とす」用途では <code>-N</code> が便利である．</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>併用できない組み合わせ
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li><code>-nc</code> と <code>-N</code> は同時に指定できない</li>
+<li><code>-N</code> と <code>-O</code> (出力先ファイル指定) は併用できない．<code>-O</code> は常にファイルを新規作成するため， 常に非常に新しいタイムスタンプを持つことになり，タイムスタンプ比較が意味を持たない</li>
+<li><code>-nc</code> と <code>-O</code> は，指定した出力ファイルが存在しない場合にのみ受け付けられる</li>
+</ul>
+</div>
+</div>
+</section>
+</section>
+<section id="ネットワークの観点からの注意点" class="level2">
+<h2 class="anchored" data-anchor-id="ネットワークの観点からの注意点">ネットワークの観点からの注意点</h2>
+<p><code>wget</code> は簡単に大量のリクエストを生成できるため，相手のサーバや自分の回線に対する 影響を意識して使う必要があります．</p>
+<section id="リクエスト頻度を落とす" class="level3">
+<h3 class="anchored" data-anchor-id="リクエスト頻度を落とす">リクエスト頻度を落とす</h3>
+<p>man page は <code>-w</code> の使用を<span class="regmonkey-bold">推奨</span>しており，その理由を 「リクエストの頻度を下げることでサーバ負荷を軽くする」と説明している．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 27%">
+<col style="width: 72%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>オプション</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>-w seconds</code> (<code>--wait</code>)</td>
+<td>取得ごとに待機する．<code>m</code> / <code>h</code> / <code>d</code> の接尾辞で分・時・日も指定可</td>
+</tr>
+<tr class="even">
+<td><code>--random-wait</code></td>
+<td>待ち時間を <code>-w</code> の 0.5〜1.5 倍でランダム化する</td>
+</tr>
+<tr class="odd">
+<td><code>--waitretry=seconds</code></td>
+<td>失敗時のみ待つ．線形バックオフ (1 回目失敗後 1 秒，2 回目 2 秒…) で指定秒数まで増やす．既定値は 10 秒</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="code-padding">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">wget</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-c</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-w</span> 1 <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--random-wait</span> https://cecilialeiqi.github.io/ds3001/lecture_{1..20}.pdf</span></code></pre></div></div>
+</div>
+<ul>
+<li><code>--random-wait</code> はもともと，リクエスト間隔の統計的な規則性から <code>wget</code> のような 取得プログラムを検出するサイトを想定して追加されたオプションである．</li>
+</ul>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>ネットワークや宛先ホストが落ちている場合
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><code>-w</code> に大きな値を指定するのは，ネットワークや宛先ホストがダウンしているときに有効である． ネットワークエラーが復旧すると期待できる程度に長く待たせることができる．</p>
+</div>
+</div>
+</section>
+<section id="タイムアウトを理解する" class="level3">
+<h3 class="anchored" data-anchor-id="タイムアウトを理解する">タイムアウトを理解する</h3>
+<p><code>wget</code> のタイムアウトは種類ごとに分かれており，既定で有効なのは read timeout だけ</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>オプション</th>
+<th>既定値</th>
+<th>対象</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>-T seconds</code> (<code>--timeout</code>)</td>
+<td>—</td>
+<td>下記 3 つを同時に設定する</td>
+</tr>
+<tr class="even">
+<td><code>--dns-timeout=seconds</code></td>
+<td>なし (システムライブラリ依存)</td>
+<td>DNS 参照</td>
+</tr>
+<tr class="odd">
+<td><code>--connect-timeout=seconds</code></td>
+<td>なし (システムライブラリ依存)</td>
+<td>TCP 接続確立</td>
+</tr>
+<tr class="even">
+<td><code>--read-timeout=seconds</code></td>
+<td>900 秒</td>
+<td>読み書きの<strong>アイドル時間</strong></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>read timeout は転送全体の時間ではなく<span class="regmonkey-bold">アイドル時間</span>を指す． ダウンロード中のどこかで指定秒数以上データが届かなければ読み取りが失敗し， ダウンロードが再開される．このオプションはダウンロード全体の所要時間には直接影響しない． タイムアウトに <code>0</code> を指定すると完全に無効化される．</p>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">重要</span>既定値は基本的に変えない
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>man page は「何をしているか分かっていない限り，既定のタイムアウト設定は変えないのが最善」 と明記している．</p>
+<p>また，リモートサーバがこのオプションの指定より早く接続を切ることは当然ありうる．</p>
+</div>
+</div>
+</section>
+<section id="リトライの挙動" class="level3">
+<h3 class="anchored" data-anchor-id="リトライの挙動">リトライの挙動</h3>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>オプション</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>-t number</code> (<code>--tries</code>)</td>
+<td>リトライ回数．既定は 20 回．<code>0</code> または <code>inf</code> で無限</td>
+</tr>
+<tr class="even">
+<td><code>--retry-connrefused</code></td>
+<td><code>connection refused</code> を一時的なエラーとみなして再試行する</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>既定では 20 回リトライするが，<code>connection refused</code> や <code>not found</code> (404) のような fatal error は<span class="regmonkey-bold">リトライされない</span>．前者は「サーバがそもそも動いていない」 サインであり，リトライしても無意味と解釈されるため</p>
+<p><code>--retry-connrefused</code> は，サーバが短時間消えることがある不安定なサイトを ミラーする場合に使う．</p>
+</section>
+<section id="dns-とアドレスファミリ" class="level3">
+<h3 class="anchored" data-anchor-id="dns-とアドレスファミリ">DNS とアドレスファミリ</h3>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 66%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>オプション</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>--no-dns-cache</code></td>
+<td>DNS 参照結果のキャッシュを無効化し，接続ごとに名前解決する</td>
+</tr>
+<tr class="even">
+<td><code>-4</code> / <code>--inet4-only</code></td>
+<td>IPv4 ホストにのみ接続する (DNS の AAAA レコードを無視)</td>
+</tr>
+<tr class="odd">
+<td><code>-6</code> / <code>--inet6-only</code></td>
+<td>IPv6 ホストにのみ接続する (A レコードを無視)</td>
+</tr>
+<tr class="even">
+<td><code>--prefer-family=none/IPv4/IPv6</code></td>
+<td>接続を試すアドレスファミリの順序を変える (アクセス自体は禁止しない)</td>
+</tr>
+<tr class="odd">
+<td><code>--bind-address=ADDRESS</code></td>
+<td>複数 IP を持つマシンで，接続元アドレスを指定する</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>既定では，IPv6 対応の <code>wget</code> はホストの DNS レコードが返すアドレスファミリを使う． IPv4 / IPv6 両方が返った場合は接続できるものが見つかるまで順に試す． <code>-4</code> / <code>-6</code> は通常必要にならず，デュアルファミリ環境でのデバッグや 壊れたネットワーク設定への対処に使う．</p>
+<p><code>--prefer-family</code> は，IPv4 ネットワークから IPv6 / IPv4 両方に解決されるホストへ アクセスするときの余計なエラーと接続試行を避けるためのオプションである． <code>-4</code> / <code>-6</code> と違ってアドレスファミリへのアクセスを禁止せず，順序だけを変える． この並べ替えは stable であり，同一ファミリ内の相対順序は保たれる．</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span><code>--no-dns-cache</code> の効果範囲
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><code>wget</code> は既定で参照した IP アドレスを記憶し，同じホストへの取得で DNS サーバへ 繰り返し問い合わせないようにする．このキャッシュはメモリ上にのみ存在し， 新しい <code>wget</code> の実行では再度 DNS に問い合わせる．</p>
+<p>なお <code>--no-dns-cache</code> は，resolver ライブラリや NSCD のような外部キャッシュ層が 行うキャッシュには影響しない．</p>
+</div>
+</div>
+</section>
+<section id="keep-alive-と-proxy" class="level3">
+<h3 class="anchored" data-anchor-id="keep-alive-と-proxy">keep-alive と proxy</h3>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 66%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>オプション</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>--no-http-keep-alive</code></td>
+<td>keep-alive を無効化する</td>
+</tr>
+<tr class="even">
+<td><code>--no-proxy</code></td>
+<td><code>*_proxy</code> 環境変数が設定されていても proxy を使わない</td>
+</tr>
+<tr class="odd">
+<td><code>--no-cache</code></td>
+<td><code>Cache-Control: no-cache</code> と <code>Pragma: no-cache</code> を送り，サーバサイドのキャッシュを回避する</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>既定では <code>wget</code> はサーバに接続を維持するよう要求する． 同じサーバから複数ファイルを取得する場合に同一の TCP 接続で転送されるため， 時間が節約でき，同時にサーバ負荷も下がる． 連番の lecture note を落とす用途はまさにこのケースにあたるので， 通常 keep-alive は有効なままにしておくのが望ましいです．</p>
+<p><code>--no-http-keep-alive</code> は，サーバのバグやサーバサイドスクリプトが持続的接続を 扱えない場合の回避策として使う．</p>
+</section>
+<section id="通信内容を確認する" class="level3">
+<h3 class="anchored" data-anchor-id="通信内容を確認する">通信内容を確認する</h3>
+<p>想定どおりのリクエストが飛んでいるかを確認するためのオプション．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 66%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>オプション</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>-S</code> (<code>--server-response</code>)</td>
+<td>HTTP サーバが送るヘッダ (FTP ではレスポンス) を表示する</td>
+</tr>
+<tr class="even">
+<td><code>-d</code> (<code>--debug</code>)</td>
+<td>デバッグ出力．<code>wget</code> が debug 付きでビルドされている必要がある</td>
+</tr>
+<tr class="odd">
+<td><code>-o logfile</code></td>
+<td>メッセージをログファイルに書き出す (上書き)．既定では標準エラーへ出力される</td>
+</tr>
+<tr class="even">
+<td><code>-a logfile</code></td>
+<td>ログファイルに追記する</td>
+</tr>
+<tr class="odd">
+<td><code>-nv</code> (<code>--no-verbose</code>)</td>
+<td>完全に黙らせずに verbose を切る．エラーと基本情報は表示される</td>
+</tr>
+<tr class="even">
+<td><code>--show-progress</code></td>
+<td><code>-nv</code> / <code>-q</code> でもプログレスバーを表示する</td>
+</tr>
+<tr class="odd">
+<td><code>-b</code> (<code>--background</code>)</td>
+<td>起動直後にバックグラウンドへ移行する．<code>-o</code> 未指定なら出力は <code>wget-log</code> へリダイレクトされる</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># ヘッダを見ながら 1 本だけ試す</span></span>
+<span id="cb6-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">wget</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-S</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--spider</span> https://cecilialeiqi.github.io/ds3001/lecture_1.pdf</span>
+<span id="cb6-3"></span>
+<span id="cb6-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 長時間の取得はバックグラウンドに回す</span></span>
+<span id="cb6-5"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">wget</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-b</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-c</span> https://cecilialeiqi.github.io/ds3001/lecture_{1..20}.pdf</span></code></pre></div></div>
+</section>
+<section id="相手サイトのポリシーを尊重する" class="level3">
+<h3 class="anchored" data-anchor-id="相手サイトのポリシーを尊重する">相手サイトのポリシーを尊重する</h3>
+<ul>
+<li><code>wget</code> は recursive download の際に Robot Exclusion Standard (<code>/robots.txt</code>) を尊重する．</li>
+<li><code>--password</code> や URL 内にパスワードを直接書くと，<code>ps</code> を実行した他ユーザから見えてしまうので，<code>--ask-password</code> で対話的に入力する，<code>--use-askpass</code> を使う，あるいは <code>.wgetrc</code> / <code>.netrc</code> に保存して <code>chmod</code> で保護する．</li>
+</ul>
+</section>
+</section>
+<section id="appendix-glossary-of-terms" class="level2">
+<h2 class="anchored" data-anchor-id="appendix-glossary-of-terms">Appendix: Glossary of Terms</h2>
+<div class="glossary-container">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb7-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">glossary</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span></span>
+<span id="cb7-2"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> brace expansion (`{1..20}`)</span></span>
+<span id="cb7-3"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb7-4">      shell が波括弧内の範囲を複数の文字列に展開する機能．`wget` の機能ではないため，</span>
+<span id="cb7-5">      `wget` からは複数の URL が引数として渡されたようにしか見えない．</span>
+<span id="cb7-6">      展開結果は `echo` で事前に確認できる．</span>
+<span id="cb7-7"></span>
+<span id="cb7-8"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> recursive download (`-r`)</span></span>
+<span id="cb7-9"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb7-10">      取得した HTML/XHTML/CSS 内のリンクを辿って，リンク先のファイルも</span>
+<span id="cb7-11">      連鎖的にダウンロードする機能．サイトのディレクトリ構造をローカルに</span>
+<span id="cb7-12">      再現したミラーを作ることができる．再帰時は robots.txt が尊重される．</span>
+<span id="cb7-13"></span>
+<span id="cb7-14"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> Robot Exclusion Standard (`robots.txt`)</span></span>
+<span id="cb7-15"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb7-16">      サイト側がクローラに対して「どのパスを取得してよいか」を宣言する仕組み．</span>
+<span id="cb7-17">      `wget` は再帰取得の際にこれを尊重する．</span>
+<span id="cb7-18"></span>
+<span id="cb7-19"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> regetting / `Range` ヘッダ</span></span>
+<span id="cb7-20"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb7-21">      HTTP でファイルの一部分 (バイト範囲) を要求するためのヘッダ．</span>
+<span id="cb7-22">      `wget -c` によるレジューム (中断したダウンロードの再開) は，</span>
+<span id="cb7-23">      FTP サーバ，または `Range` に対応した HTTP サーバでのみ機能する．</span>
+<span id="cb7-24">      非対応のサーバでは最初から取り直しになり，既存ファイルは上書きされる．</span>
+<span id="cb7-25"></span>
+<span id="cb7-26"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> read timeout (`--read-timeout`)</span></span>
+<span id="cb7-27"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb7-28">      転送全体の時間ではなく「アイドル時間」に対するタイムアウト．</span>
+<span id="cb7-29">      ダウンロード中のどこかで指定秒数以上データが届かない場合に読み取りが失敗し，</span>
+<span id="cb7-30">      ダウンロードが再開される．既定値は 900 秒で，`wget` で既定有効な</span>
+<span id="cb7-31">      唯一のタイムアウトである．</span>
+<span id="cb7-32"></span>
+<span id="cb7-33"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> fatal error</span></span>
+<span id="cb7-34"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb7-35">      `connection refused` や `not found` (404) のように，リトライしても</span>
+<span id="cb7-36">      無意味と判断されるエラー．`-t` で指定したリトライ回数の対象外となる．</span>
+<span id="cb7-37">      `--retry-connrefused` を付けると `connection refused` は一時的エラーとして</span>
+<span id="cb7-38">      再試行されるようになる．</span>
+<span id="cb7-39"></span>
+<span id="cb7-40"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> boolean option (真偽値オプション)</span></span>
+<span id="cb7-41"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb7-42">      `--follow-ftp` のような肯定形と `--no-glob` のような否定形を持つオプション．</span>
+<span id="cb7-43">      肯定形は `--no-` を前置して否定でき，否定形は `--no-` を外して肯定できる．</span>
+<span id="cb7-44">      `.wgetrc` で既定値が変えられている場合，コマンドラインから工場出荷時の</span>
+<span id="cb7-45">      挙動へ戻す手段になる．</span>
+<span id="cb7-46"></span>
+<span id="cb7-47"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> keep-alive</span></span>
+<span id="cb7-48"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb7-49">      同一サーバへの複数リクエストを 1 本の TCP 接続で転送する HTTP の仕組み．</span>
+<span id="cb7-50">      `wget` は既定で接続維持を要求する．時間を節約すると同時にサーバ負荷も下げる．</span>
+<span id="cb7-51">      サーバのバグ等で問題が起きる場合のみ `--no-http-keep-alive` で無効化する．</span>
+<span id="cb7-52"></span>
+<span id="cb7-53"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> `.wgetrc`</span></span>
+<span id="cb7-54"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb7-55">      `wget` の起動時設定ファイル．`-e command` でコマンドラインから</span>
+<span id="cb7-56">      `.wgetrc` の設定を追記的に上書きできる (`.wgetrc` 内の設定より優先される)．</span>
+<span id="cb7-57">      `--config=FILE` で別のファイルを指定，`--no-config` で読み込みを無効化する．</span></code></pre></div></div>
+</div>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<ul>
+<li><a href="../../posts/2025-02-07-wget-vs-curl/index.html">wget vs curl</a></li>
+</ul>
+
+
+</section>
+
+ ]]></description>
+  <category>shell</category>
+  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-08-06-wget-lecture-notes/</guid>
+  <pubDate>Thu, 06 Aug 2026 00:00:00 GMT</pubDate>
+</item>
+<item>
+  <title>Auth keys in Tailscale</title>
+  <dc:creator>Ryo Nakagami</dc:creator>
+  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-07-30-tailscale-auth-keys/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+
+<section id="auth-keyとは" class="level2">
+<h2 class="anchored" data-anchor-id="auth-keyとは">Auth Keyとは？</h2>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>定義 1</strong></span> <span class="def-title">Pre-authentication keys</span></p>
+<ul>
+<li>Auth keyと呼ばれる</li>
+<li>Auth keyを活用することで，ブラウザ経由認証を介さずにTailscaleノードを追加することができる</li>
+<li>新しいノードは<span class="regmonkey-bold">「キーを生成したユーザー」としてデバイスを認証</span>される</li>
+<li>tag 付きの auth keyの場合は，auth key の tag のアイデンティティを引き継ぐ</li>
+</ul>
+</div>
+<p><span class="mini-section">ユースケース</span></p>
+<ul>
+<li>対話的ログインが困難・非現実的な場面での利用</li>
+<li>コンテナ，IoTデバイスなど</li>
+</ul>
+</section>
+<section id="auth-keyの発行" class="level2">
+<h2 class="anchored" data-anchor-id="auth-keyの発行">Auth keyの発行</h2>
+<p>コンソールから発行する場合は<a href="https://console.tailscale.com/admin/settings/keys">Tailscale管理画面</a>から <code>Generate auth key...</code> をクリックし，発行する</p>
+<p><span class="mini-section">Step 1: Tailscale管理画面</span></p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-07-30-tailscale-auth-keys/generate-auth-key.png" class="img-fluid figure-img"></p>
+<figcaption>Tailscale管理画面</figcaption>
+</figure>
+</div>
+<p><span class="mini-section">Step 2: Generate auth key</span></p>
+<ul>
+<li>フォームで説明（description），reusable か否か，有効期限，デバイス設定を指定</li>
+<li>Ephemeral: デバイスがオフラインになったら自動的に削除する（短命ワークロード向け）</li>
+</ul>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-07-30-tailscale-auth-keys/generate-auth-key-2.png" style="height:10.0%" class="figure-img"></p>
+<figcaption>Auth keyの発行画面</figcaption>
+</figure>
+</div>
+</section>
+<section id="認証の仕組み" class="level2">
+<h2 class="anchored" data-anchor-id="認証の仕組み">認証の仕組み</h2>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-07-30-tailscale-auth-keys/auth-key-identity.svg" class="img-fluid figure-img"></p>
+<figcaption>auth key vs tag 付きの auth key</figcaption>
+</figure>
+</div>
+<p><span class="mini-section">tag付きキーの設定</span></p>
+<ul>
+<li>tag 付き auth key を発行するには，事前に <a href="https://console.tailscale.com/admin/acls/file">tailnet policy file（JSON ACL）</a>の <code>tagOwners</code> セクションで tag を定義しておく必要あり</li>
+<li>未定義の tag を指定した auth key は生成できない</li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb1-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">{</span></span>
+<span id="cb1-2">  <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">"tagOwners"</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">:</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">{</span></span>
+<span id="cb1-3">    <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">"tag:server"</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">:</span>     <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">[</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"autogroup:admin"</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">]</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">,</span></span>
+<span id="cb1-4">    <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">"tag:ci-runner"</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">:</span>  <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">[</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"alice@example.com"</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">,</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"tag:server"</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">]</span></span>
+<span id="cb1-5">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">}</span></span>
+<span id="cb1-6"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">}</span></span></code></pre></div></div>
+<p>tag 付きでプロビジョニングされたデバイスは，生成者個人ではなく tag のアイデンティティで動作するため，アクセス範囲は <code>acls</code> セクションで tag を送信元／宛先として明示的に許可しない限り通信できない点に注意してください</p>
+<p><span class="mini-section">キーの種類</span></p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 30%">
+<col style="width: 45%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>種類</th>
+<th>説明</th>
+<th>想定ユースケース</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>One-off（使い捨て）</td>
+<td>1回限りの利用．1台のデバイス／サーバーの接続にのみ使用可能．使用後は Tailscale が自動的に revoke する．</td>
+<td>自分で直接デバイス上の認証操作ができない状況（例：クラウドサーバーの初回接続）</td>
+</tr>
+<tr class="even">
+<td>Reusable（再利用可能）</td>
+<td>複数デバイスの接続に繰り返し使用可能．</td>
+<td>オンプレミスDBの複数インスタンスなど，同種ノードの一括接続．</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="有効期限key-expiryの仕様" class="level2">
+<h2 class="anchored" data-anchor-id="有効期限key-expiryの仕様">有効期限（Key Expiry）の仕様</h2>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 30%">
+<col style="width: 70%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>項目</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>auth key の有効期限</td>
+<td>生成時に指定した日数で自動失効．指定可能範囲は 1〜90日．未指定の場合は最大値の 90日 で失効する．失効後も使い続けたい場合は新規キーの生成が必要．</td>
+</tr>
+<tr class="even">
+<td>失効後のデバイス</td>
+<td>auth key が失効しても，そのキーで認証済みのデバイスは node key が失効するまで認証状態を維持する．</td>
+</tr>
+<tr class="odd">
+<td>node key</td>
+<td>各デバイスは Tailscale ログイン時に node key を生成し，tailnet に対する自己識別に使用する．デフォルトでは 180日 ごとに自動失効．デフォルト値は admin console の Device management &gt; Key Expiry で変更可能．</td>
+</tr>
+<tr class="even">
+<td>デバイス単位の制御</td>
+<td>admin console の Machines ページ，または Tailscale API の Update device key メソッドで，デバイスごとに key expiry の有効／無効を切り替え可能．</td>
+</tr>
+<tr class="odd">
+<td>tag 付きデバイスの expiry</td>
+<td>デフォルトで無効．admin console／CLI／API でデバイスの tag を変更しても，再認証しない限り expiry 設定は変わらない（有効なら有効のまま，無効なら無効のまま）．再認証後は key expiry が無効化される．</td>
+</tr>
+<tr class="even">
+<td>失効・revoke 済みキーの確認</td>
+<td>admin console の Keys ページで，最近 revoke されたキー・失効したキーを確認できる．</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="キーのrevoke失効" class="level2">
+<h2 class="anchored" data-anchor-id="キーのrevoke失効">キーのRevoke(失効)</h2>
+<ul>
+<li>revoke できるのは自分自身のキーのみ．</li>
+<li>One-off キーは使用後に Tailscale が自動 revoke</li>
+<li><span class="regmonkey-bold">キーの revoke は，そのキーで認証済みのノードの認可を取り消さない</span>．ノード自体を無効化するには Machines ページからノードを削除する必要があり</li>
+</ul>
+</section>
+<section id="appendix-tailscale-api-access-token-との違い" class="level2">
+<h2 class="anchored" data-anchor-id="appendix-tailscale-api-access-token-との違い">Appendix: Tailscale API access token との違い</h2>
+<p>auth key と同じく admin console の Keys ページから発行できるキーとして，Tailscale API 用の access token（API key）があります． どちらも「Keys ページで発行する有効期限付きのキー」だが，用途が異なります．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 40%">
+<col style="width: 40%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>項目</th>
+<th>auth key</th>
+<th>API access token</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>用途</td>
+<td>デバイスを tailnet に追加する際の認証（ブラウザ経由認証の代替）</td>
+<td>Tailscale API へのリクエスト認証（tailnet 操作の自動化）</td>
+</tr>
+<tr class="even">
+<td>発行できる人</td>
+<td>tailnet のユーザー（admin console の Keys ページから）</td>
+<td>tailnet の Owner／Admin／IT admin／Network admin のみ</td>
+</tr>
+<tr class="odd">
+<td>有効期限</td>
+<td>1〜90日．未指定の場合は最大値の 90日</td>
+<td>1〜90日．発行時に日数を選択し，経過後に自動失効</td>
+</tr>
+<tr class="even">
+<td>失効時の影響</td>
+<td>キー自体は使えなくなるが，認証済みデバイスは node key が失効するまで認証状態を維持</td>
+<td>API リクエストが認証不能になる．継続利用には新規トークンの発行が必要</td>
+</tr>
+<tr class="odd">
+<td>revoke</td>
+<td>失効前に revoke 可能．One-off キーは使用後に自動 revoke</td>
+<td>失効前に revoke 可能</td>
+</tr>
+<tr class="even">
+<td>失効・revoke 済みキーの確認</td>
+<td>Keys ページで確認可能</td>
+<td>Keys ページで確認可能</td>
+</tr>
+<tr class="odd">
+<td>補足</td>
+<td>tag 付きで発行するとデバイスは tag のアイデンティティを引き継ぐ</td>
+<td>大文字・小文字を区別（case-sensitive）．API 全体へのフルアクセスとなるため，細かい権限制御が必要な場合は trust credentials の利用が推奨される</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<ul>
+<li><a href="https://tailscale.com/docs/features/access-control/auth-keys">Tailscale Docs › Features › Access control › Auth keys</a></li>
+<li><a href="https://tailscale.com/docs/reference/tailscale-api">Tailscale Docs &gt; Technical reference › Tailscale API</a></li>
+</ul>
+
+
+</section>
+
+ ]]></description>
+  <category>tailscale</category>
+  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-07-30-tailscale-auth-keys/</guid>
+  <pubDate>Thu, 30 Jul 2026 00:00:00 GMT</pubDate>
+</item>
+<item>
+  <title>tailscaleにおけるshields-upオプション</title>
+  <dc:creator>Ryo Nakagami</dc:creator>
+  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-07-14-tailscale-tips/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>TL;DRs
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li><code>tailscale up --ssh</code>: <strong>Tailscale SSH サーバー</strong>を起動し，tailnet 管理者が定義したアクセスポリシー（未定義ならデフォルトポリシー）に従ってアクセスを許可するコマンド</li>
+<li><code>--shields-up</code> オプション: Tailscale ネットワーク上の他デバイスからの<strong>着信接続をブロック</strong>するオプション</li>
+</ul>
+</div>
+</div>
+<section id="tailscaleとアクセス制御ポリシー" class="level2">
+<h2 class="anchored" data-anchor-id="tailscaleとアクセス制御ポリシー">📘 Tailscaleとアクセス制御ポリシー</h2>
+<section id="基本ルール" class="level3">
+<h3 class="anchored" data-anchor-id="基本ルール">基本ルール</h3>
+<ul>
+<li>Tailscale では，ネットワーク（tailnet）上のデバイス管理は<strong>管理者（Admin）</strong>が，アクセス制御ポリシー（ACL）を設定することで接続制限を行う</li>
+<li>一方，個々のユーザーも自分のデバイスに対しては制御権を持つ
+<ul>
+<li>例: Tailscaleからの着信接続をブロック(<code>tailscale up --shields-up</code>)</li>
+</ul></li>
+</ul>
+<p><span class="mini-section">ACLポリシーと方向性</span></p>
+<ul>
+<li>「ノートPC → Web サーバー」への接続を許可するルールがあっても，逆方向，つまり「Web サーバー → ノートPC」への接続を許可することにはならない</li>
+<li>このことを，「ACLポリシーは方向性を持つ」と表現される</li>
+</ul>
+</section>
+<section id="tailscale-クライアントのデフォルト挙動" class="level3">
+<h3 class="anchored" data-anchor-id="tailscale-クライアントのデフォルト挙動">Tailscale クライアントのデフォルト挙動</h3>
+<p>Tailscale クライアントは，デフォルトで以下のように動作</p>
+<ul>
+<li>着信接続を許可する</li>
+<li>Tailscale の DNS 設定を使用する</li>
+</ul>
+</section>
+<section id="shields-up" class="level3">
+<h3 class="anchored" data-anchor-id="shields-up">shields up</h3>
+<ul>
+<li>すべての着信接続をブロックする状態のこと(<code>ssh</code>をブロック)</li>
+<li>shields upを有効にしても，デバイス自体は tailnet 上で引き続き確認可能(<code>tailscale status</code>やブラウザ管理画面どちらでも)</li>
+</ul>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>例 1</strong></span> <span class="def-title">コマンド例</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 着信接続をブロックする（shields up）</span></span>
+<span id="cb1-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">tailscale</span> up <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--shields-up</span></span>
+<span id="cb1-3"></span>
+<span id="cb1-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 着信接続を許可する（デフォルト）</span></span>
+<span id="cb1-5"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">tailscale</span> up <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--shields-up</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>false</span></code></pre></div></div>
+</div>
+<hr>
+</section>
+</section>
+<section id="はまったケース-ssh-serverの再設定" class="level2">
+<h2 class="anchored" data-anchor-id="はまったケース-ssh-serverの再設定">🤔 はまったケース: ssh serverの再設定</h2>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>TL:DRs
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Tailscale の key expire に伴い，再設定として</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">tailscale</span> up <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--ssh</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--shields-up</span></span></code></pre></div></div>
+<p>を実行してしまい，<code>tailscale ssh</code> は疎通しない状態にはまった．</p>
+</div>
+</div>
+<p><span class="mini-section">起きたこと</span></p>
+<ul>
+<li><code>--ssh</code> により Tailscale SSH サーバー自体は有効化されている(<code>tailscale debug prefs</code> でも <code>RunSSH: true</code>)</li>
+<li>しかし同時に指定した <code>--shields-up</code> によって，<strong>着信接続がすべてブロック</strong>される状態になっていた</li>
+<li>そのため，L3レベルの疎通は生きているにもかかわらず，SSH 接続だけが確立できない状況が発生した</li>
+</ul>
+<p><span class="mini-section">切り分けの手順</span></p>
+<p>まず ICMP・TSMP レベルでの疎通を確認</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> tailscale ping <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;</span>device-ip<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span></span>
+<span id="cb3-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">pong</span> from <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;</span>device-name<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> <span class="er" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">(</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;</span>device-ip<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">)</span> <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">via</span> 192.168.10.104:41641 in 56ms</span>
+<span id="cb3-3"></span>
+<span id="cb3-4"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> tailscale ping <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--tsmp</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;</span>device-ip<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span></span>
+<span id="cb3-5"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">pong</span> from <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;</span>device-name<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> <span class="er" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">(</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;</span>device-ip<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span>, <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">34043</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">)</span> <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">via</span> TSMP in 29ms</span></code></pre></div></div>
+<p><code>tailscale ping</code> は成功しており，tailnet 上のデバイスとしては到達可能であることが分かる．</p>
+<p>一方，<code>ProxyCommand</code> 経由の <code>ssh</code> はハンドシェイクが進まず停止</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> ssh <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-vvv</span> <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb4-2">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-o</span> ProxyCommand=<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"tailscale nc %h %p"</span> <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb4-3">    <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;</span>user<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span>@<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;</span>device-ip<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span></span>
+<span id="cb4-4"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">OpenSSH_9.6p1</span> Ubuntu-3ubuntu13.18, OpenSSL 3.0.13 30 Jan 2024</span>
+<span id="cb4-5"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">debug1:</span> Reading configuration data ~/.ssh/config</span>
+<span id="cb4-6"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">debug1:</span> Reading configuration data /etc/ssh/ssh_config</span>
+<span id="cb4-7"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">debug1:</span> /etc/ssh/ssh_config line 19: include /etc/ssh/ssh_config.d/<span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">*</span>.conf matched no files</span>
+<span id="cb4-8"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">debug1:</span> /etc/ssh/ssh_config line 21: Applying options for <span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">*</span></span>
+<span id="cb4-9"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">debug2:</span> resolve_canonicalize: hostname <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;</span>device-ip<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> is address</span>
+<span id="cb4-10"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">debug3:</span> expanded UserKnownHostsFile <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'~/.ssh/known_hosts'</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'~/.ssh/known_hosts'</span></span>
+<span id="cb4-11"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">debug3:</span> channel_clear_timeouts: clearing</span>
+<span id="cb4-12"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">debug1:</span> Executing proxy command: exec tailscale nc <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;</span>device-ip<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> 22</span>
+<span id="cb4-13"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">debug1:</span> identity file ~/.ssh/id_rsa type <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-1</span></span>
+<span id="cb4-14"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">...</span></span>
+<span id="cb4-15"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">debug1:</span> Local version string SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13.18</span></code></pre></div></div>
+<p>ここで止まったまま応答が返らず，<code>tailscale ssh</code> も同様に接続できなかった．<code>tailscale debug prefs</code> で <code>RunSSH: true</code> を確認していたため，「SSH サーバーは有効なのになぜ繋がらないのか」と原因の切り分けに時間がかかった．</p>
+<p><span class="mini-section">原因</span></p>
+<ul>
+<li><code>--shields-up</code> は<strong>着信接続を全面的にブロックする</strong>オプションであり，SSH サーバーが有効かどうかとは独立した設定</li>
+<li><code>tailscale up --ssh</code> と <code>--shields-up</code> を同時に指定すると，SSH サーバー自体は起動しているにもかかわらず，shields up によって着信の SSH 接続そのものが弾かれる</li>
+<li><code>tailscale ping</code> / <code>tailscale ping --tsmp</code> は疎通確認であり，shields up の影響を受けないため，「ping は通るのに ssh だけ通らない」という一見矛盾した状況になった</li>
+</ul>
+<p><span class="mini-section">対応</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># shields up を解除する</span></span>
+<span id="cb5-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">tailscale</span> up <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--ssh</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--shields-up</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>false</span>
+<span id="cb5-3"></span>
+<span id="cb5-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># reset optionを用いる</span></span>
+<span id="cb5-5"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">tailscale</span> up <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--ssh</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--reset</span></span></code></pre></div></div>
+<p>これにより着信接続のブロックが解除され，<code>tailscale ssh</code> / <code>ProxyCommand</code> 経由の <code>ssh</code> ともに疎通するようになった．</p>
+</section>
+<section id="appendix-glossaries" class="level2">
+<h2 class="anchored" data-anchor-id="appendix-glossaries">Appendix: Glossaries</h2>
+<div class="glossary-container">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb6-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">glossary</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span></span>
+<span id="cb6-2"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> ACL (Access Control List)</span></span>
+<span id="cb6-3"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb6-4">      Tailscale における tailnet 全体のアクセス制御ポリシーを定義する仕組み．どのデバイス・ユーザーがどのデバイス・ポートに接続できるかをルールとして記述し，tailnet 管理者が管理する．ACL が明示的に定義されていない場合は，デフォルトポリシー（tailnet 内の全デバイス間で通信を許可）が適用される．</span>
+<span id="cb6-5"></span>
+<span id="cb6-6"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> ICMP (Internet Control Message Protocol)</span></span>
+<span id="cb6-7"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb6-8">      IPネットワーク上でエラー通知や疎通確認に用いられるプロトコル．</span>
+<span id="cb6-9">      `ping` コマンドはこの ICMP のエコーリクエスト/リプライを利用して</span>
+<span id="cb6-10">      到達性を確認する．`tailscale ping` はデフォルトでこの ICMP による</span>
+<span id="cb6-11">      疎通確認を行う．</span>
+<span id="cb6-12"></span>
+<span id="cb6-13"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> TSMP (Tailscale Message Protocol)</span></span>
+<span id="cb6-14"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb6-15">      Tailscale 独自のping/疎通確認用プロトコル．`tailscale ping --tsmp`</span>
+<span id="cb6-16">      で使用され，通常の ICMP ping とは異なり Tailscale の暗号化された</span>
+<span id="cb6-17">      WireGuard トンネルを経由してピア間の直接疎通を確認する．</span></code></pre></div></div>
+</div>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<ul>
+<li><a href="https://tailscale.com/docs/features/client/manage-preferences">tailscale docs &gt; Manage client preferences</a></li>
+</ul>
+
+
+</section>
+
+ ]]></description>
+  <category>tailscale</category>
+  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-07-14-tailscale-tips/</guid>
+  <pubDate>Tue, 14 Jul 2026 00:00:00 GMT</pubDate>
+</item>
+<item>
+  <title>ユーザーローカルへのIPAfontインストール</title>
+  <dc:creator>Ryo Nakagami</dc:creator>
+  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-07-06-install-IPAfont/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+
+<section id="ipafontインストール手順" class="level2">
+<h2 class="anchored" data-anchor-id="ipafontインストール手順">IPAfontインストール手順</h2>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>手順No</th>
+<th>目的</th>
+<th>コマンド</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td>公式サイトからIPAfontをダウンロード</td>
+<td><a href="https://moji.or.jp/ipafont/ipaex00401/">公式サイト</a>から取得（<code>~/Downloads/IPAexfont00401.zip</code>）</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td>フォントディレクトリへ移動</td>
+<td><code>cd ~/.local/share/fonts</code></td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td>zipを作業ディレクトリへ移動</td>
+<td><code>mv ~/Downloads/IPAexfont00401.zip ./</code></td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td>圧縮ファイルの解凍</td>
+<td><code>unzip IPAexfont00401.zip</code></td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td>フォントキャッシュの更新</td>
+<td><code>fc-cache -fv</code></td>
+</tr>
+<tr class="even">
+<td>6</td>
+<td>フォントの読み込み確認</td>
+<td><code>fc-cache -v \| grep "IPA"</code></td>
+</tr>
+<tr class="odd">
+<td>7</td>
+<td>（任意）不要な圧縮ファイルの削除</td>
+<td><code>rm IPAexfont00401.zip</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="解説" class="level2">
+<h2 class="anchored" data-anchor-id="解説">解説</h2>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>フォントディレクトリ
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>Linux では fontconfig がフォントを探索するディレクトリが決まっており，そこに <code>.ttf</code>/<code>.ttc</code>/<code>.otf</code> を置くことでシステムがフォントを認識</li>
+</ul>
+</div>
+</div>
+<p>主なフォントディレクトリは以下の通りで，「システム全体に効かせるか」「自分だけに効かせるか」で置き場所を使い分けます．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 10%">
+<col style="width: 40%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>置き場所</th>
+<th>適用範囲</th>
+<th>権限</th>
+<th>備考</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>/usr/share/fonts</code></td>
+<td>システム全体</td>
+<td>root</td>
+<td>ディストリビューション標準．パッケージ管理下</td>
+</tr>
+<tr class="even">
+<td><code>/usr/local/share/fonts</code></td>
+<td>システム全体（手動追加用）</td>
+<td>root</td>
+<td>管理者が手動で追加するときの推奨場所</td>
+</tr>
+<tr class="odd">
+<td><code>~/.local/share/fonts</code></td>
+<td>ログインユーザのみ</td>
+<td>自分</td>
+<td>XDG準拠の個人用フォント．<strong>root不要</strong></td>
+</tr>
+<tr class="even">
+<td><code>~/.fonts</code></td>
+<td>ログインユーザのみ</td>
+<td>自分</td>
+<td>古い慣習．非推奨だが後方互換で今も認識される</td>
+</tr>
+</tbody>
+</table>
+</div>
+<ul>
+<li>今回 <code>~/.local/share/fonts</code> を使っているのは，<strong>sudo権限を持たない環境（共有サーバや権限制限された解析環境）でも自分のアカウント内で日本語フォントを追加したいため</strong></li>
+<li>共有マシンで matplotlib の日本語化やレポート出力の文字化け対策をしたい，といったデータ分析の実務で特に有効</li>
+<li><code>~/.local/share/fonts</code> は <a href="https://specifications.freedesktop.org/basedir-spec/latest/">XDG Base Directory 仕様</a>における <code>$XDG_DATA_HOME</code>（デフォルト <code>~/.local/share</code>）配下のディレクトリ</li>
+<li><code>~/.fonts</code> は歴史的な置き場所で，現在は XDG 準拠の <code>~/.local/share/fonts</code> が推奨されている</li>
+</ul>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span><code>fc-cache</code> コマンド
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>fontconfig はフォントを探索するたびに全ファイルを読み直すのではなく，<strong>フォント情報のキャッシュ</strong>を参照して高速に描画対象フォントを決定</li>
+<li>新しいフォントを追加・削除しても，キャッシュが古いままだとシステムから認識されない</li>
+<li><code>fc-cache</code> はこのキャッシュを再生成するコマンド</li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">fc-cache</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-fv</span></span></code></pre></div></div>
+</div>
+</div>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 9%">
+<col style="width: 90%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>オプション</th>
+<th>動作</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>-f</code></td>
+<td>force．既存キャッシュが有効そうに見えても強制的に作り直す．フォント追加直後は必ず付けると確実</td>
+</tr>
+<tr class="even">
+<td><code>-v</code></td>
+<td>verbose．走査したディレクトリと処理結果（キャッシュ更新の有無・フォント数）を表示</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>ユーザーローカル（<code>~/.local/share/fonts</code>）に置いた場合は <code>sudo</code> 不要で <code>fc-cache -fv</code> を実行でき，自分のキャッシュ（<code>~/.cache/fontconfig</code>）だけが更新されます． 反映されたかどうかは以下のように確認します．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">## 追加したフォントがfontconfigに認識されているか確認</span></span>
+<span id="cb2-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">fc-list</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">grep</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-i</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"IPA"</span></span>
+<span id="cb2-3"></span>
+<span id="cb2-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">## 日本語フォントとして認識されているか確認</span></span>
+<span id="cb2-5"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">fc-list</span> :lang=ja <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">grep</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-i</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"IPA"</span></span></code></pre></div></div>
+<ul>
+<li>matplotlib など Python 側でフォントを新規に認識させたいときは，<code>fc-cache</code> に加えて matplotlib のフォントキャッシュ（<code>~/.cache/matplotlib</code>）の削除・再構築が別途必要になる点に注意</li>
+<li>OS レベルのキャッシュ（fontconfig）とアプリレベルのキャッシュは別物</li>
+</ul>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>明朝 vs ゴシック
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>IPAex フォントには<strong>明朝体（ipaexm）</strong>と<strong>ゴシック体（ipaexg）</strong>の2種類が含まれる</li>
+<li>明朝体は<strong>serif（セリフ体）</strong>，ゴシック体は <strong>sans-serif（サンセリフ体）</strong>に対応</li>
+</ul>
+</div>
+</div>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 12%">
+<col style="width: 11%">
+<col style="width: 44%">
+<col style="width: 32%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>書体</th>
+<th>ファイル</th>
+<th>特徴</th>
+<th>主な用途</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>明朝体（Mincho）</td>
+<td><code>ipaexm.ttf</code></td>
+<td>縦画が太く横画が細い．線の端に「うろこ（セリフ）」がある．長文でも目が疲れにくい</td>
+<td>論文・レポート・書籍などの<strong>本文</strong></td>
+</tr>
+<tr class="even">
+<td>ゴシック体（Gothic）</td>
+<td><code>ipaexg.ttf</code></td>
+<td>線幅がほぼ均一で「うろこ」がない．遠目でも視認性が高い</td>
+<td>見出し・スライド・<strong>グラフのラベル・図中の文字</strong></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>データサイエンスの実務では以下のような使い分けが目安になります．</p>
+<ul>
+<li><strong>グラフ・図表（matplotlib / plotly など）</strong>: 小さいサイズや低解像度でも文字がつぶれにくい<strong>ゴシック体（ipaexg）</strong>が基本</li>
+<li><strong>論文・技術文書の本文（LaTeX / Quarto PDF など）</strong>: 可読性重視で<strong>明朝体（ipaexm）</strong>，見出しはゴシック体</li>
+</ul>
+<p>例えば matplotlib で日本語ゴシック体を指定する場合は以下のようになります．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> matplotlib.pyplot <span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">as</span> plt</span>
+<span id="cb3-2"></span>
+<span id="cb3-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">## IPAexゴシックをデフォルトフォントに指定</span></span>
+<span id="cb3-4">plt.rcParams[<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"font.family"</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"IPAexGothic"</span></span></code></pre></div></div>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<ul>
+<li><a href="https://moji.or.jp/ipafont/installation/">文字情報技術促進協議会 &gt; IPAfontインストール</a></li>
+<li><a href="../2026-02-05-install-new-fonts/index.html">Ubuntuにフォントを追加する</a></li>
+</ul>
+
+
+</section>
+
+ ]]></description>
+  <category>環境構築</category>
+  <category>font</category>
+  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-07-06-install-IPAfont/</guid>
+  <pubDate>Mon, 06 Jul 2026 00:00:00 GMT</pubDate>
+</item>
 <item>
   <title>プロジェクトの成功の定義について</title>
   <dc:creator>Ryo Nakagami</dc:creator>
@@ -3634,7 +5511,7 @@ font-style: inherit;">"</span></span></code></pre></div></div>
 <div class="callout-body-container callout-body">
 <ul>
 <li><code>eval</code> は文字列をシェルコマンドとして実行する強力なコマンドですが，セキュリティリスクもあります</li>
-<li>信頼できる入力（この場合は <code>loginctl</code> の出力）に対してのみ使用してください。</li>
+<li>信頼できる入力（この場合は <code>loginctl</code> の出力）に対してのみ使用してください．</li>
 </ul>
 </div>
 </div>
@@ -4335,7 +6212,7 @@ font-weight: bold;
 font-style: inherit;">done</span></span></code></pre></div></div>
 </div>
 </div>
-<p>このコマンドは指定した期間の各日付について，日付・年始からの経過日数（通日）・曜日番号・ISO週番号を取得します。</p>
+<p>このコマンドは指定した期間の各日付について，日付・年始からの経過日数（通日）・曜日番号・ISO週番号を取得します．</p>
 <p><span class="mini-section">1. 開始日と終了日の設定</span></p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb35" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb35-1"><span class="va" style="color: #111111;
 background-color: null;
@@ -5912,2043 +7789,6 @@ font-style: inherit;">"__main__"</span>:</span>
   <category>shell</category>
   <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-05-20-shell-oneliner/</guid>
   <pubDate>Wed, 20 May 2026 00:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>shell scriptをsystemdサービスとして登録・管理する方法</title>
-  <dc:creator>Ryo Nakagami</dc:creator>
-  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-05-18-systemctl-with-shellscript/</link>
-  <description><![CDATA[ 
-
-
-
-
-
-
-<section id="shell-script-setup" class="level2">
-<h2 class="anchored" data-anchor-id="shell-script-setup">0. Shell Script Setup</h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">#!/bin/bash</span></span>
-<span id="cb1-2"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># /opt/myapp/run.sh</span></span>
-<span id="cb1-3"></span>
-<span id="cb1-4"><span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">set</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-euo</span> pipefail</span>
-<span id="cb1-5"></span>
-<span id="cb1-6"><span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">exec</span> python3 /opt/myapp/main.py</span></code></pre></div></div>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span><code>exec</code> はプロセスの置き換え
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>shell scriptが子プロセスを起動するとき，bashは生き続けながらforkした子（python3）を管理します．exec を使うと，forkせずにbashプロセス自体がpython3に置き換わります．つまり同じPIDのまま別のプログラムになります</p>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-05-18-systemctl-with-shellscript/exec_vs_no_exec_process_tree.svg" class="img-fluid figure-img"></p>
-<figcaption>プロセスツリーの違い</figcaption>
-</figure>
-</div>
-</div>
-</div>
-</section>
-<section id="unit-file-の基本構造" class="level2">
-<h2 class="anchored" data-anchor-id="unit-file-の基本構造">1. Unit file の基本構造</h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb2-1"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">[Unit]</span></span>
-<span id="cb2-2"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">Description</span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">My Application</span></span>
-<span id="cb2-3"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">After</span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">network.target</span></span>
-<span id="cb2-4"></span>
-<span id="cb2-5"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">[Service]</span></span>
-<span id="cb2-6"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">Type</span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">simple</span></span>
-<span id="cb2-7"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">User</span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">myapp</span></span>
-<span id="cb2-8"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">Group</span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">myapp</span></span>
-<span id="cb2-9"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">WorkingDirectory</span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">/opt/myapp</span></span>
-<span id="cb2-10"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">ExecStart</span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">/opt/myapp/run.sh</span></span>
-<span id="cb2-11"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">Restart</span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">on-failure</span></span>
-<span id="cb2-12"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">RestartSec</span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">5s</span></span>
-<span id="cb2-13"></span>
-<span id="cb2-14"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">[Install]</span></span>
-<span id="cb2-15"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">WantedBy</span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">multi-user.target</span></span></code></pre></div></div>
-<hr>
-<section id="unit-file-の配置場所" class="level3">
-<h3 class="anchored" data-anchor-id="unit-file-の配置場所">Unit file の配置場所</h3>
-<p>systemd は決まったディレクトリから unit file を読み込む．用途に応じて配置先を使い分ける．</p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 30%">
-<col style="width: 30%">
-<col style="width: 40%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>パス</th>
-<th>用途</th>
-<th>優先度</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>/etc/systemd/system/</code></td>
-<td>管理者が手動で配置するサービス．<strong>通常はここに置く</strong></td>
-<td>高（パッケージ提供分を上書き可）</td>
-</tr>
-<tr class="even">
-<td><code>/run/systemd/system/</code></td>
-<td>ランタイム生成された一時的なunit．再起動で消える</td>
-<td>中</td>
-</tr>
-<tr class="odd">
-<td><code>/lib/systemd/system/</code>（<code>/usr/lib/systemd/system/</code>）</td>
-<td>パッケージマネージャ（apt等）が配置するサービス．<strong>手で編集しない</strong></td>
-<td>低</td>
-</tr>
-<tr class="even">
-<td><code>~/.config/systemd/user/</code></td>
-<td>ユーザー単位の <code>systemctl --user</code> 向け</td>
-<td>―</td>
-</tr>
-</tbody>
-</table>
-<p>優先度が高いパスに同名ファイルがあれば上書きされる．自作サービスは <code>/etc/systemd/system/myapp.service</code> に置くのが定石．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># 配置例</span></span>
-<span id="cb3-2"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> install <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-m</span> 644 myapp.service /etc/systemd/system/myapp.service</span>
-<span id="cb3-3"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> systemctl daemon-reload</span></code></pre></div></div>
-<div class="callout callout-style-default callout-tip callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ヒント</span>ファイル名 = サービス名
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p><code>/etc/systemd/system/myapp.service</code> を配置すれば <code>systemctl start myapp</code> で起動できる．<code>.service</code> 拡張子は省略可能．</p>
-</div>
-</div>
-<hr>
-</section>
-<section id="repository管理時はsymlinkを使う" class="level3">
-<h3 class="anchored" data-anchor-id="repository管理時はsymlinkを使う">repository管理時はsymlinkを使う</h3>
-<p>unit file をGit repositoryで管理する場合，<code>/etc/systemd/system/</code> に<strong>コピー</strong>するのではなく<strong>シンボリックリンク</strong>を張るのが望ましい．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># repository内の実体</span></span>
-<span id="cb4-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">/opt/myapp/deploy/myapp.service</span></span>
-<span id="cb4-3"></span>
-<span id="cb4-4"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># symlink を作成</span></span>
-<span id="cb4-5"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> ln <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-s</span> /opt/myapp/deploy/myapp.service /etc/systemd/system/myapp.service</span>
-<span id="cb4-6"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> systemctl daemon-reload</span></code></pre></div></div>
-<p><span class="mini-section">メリット</span></p>
-<ul>
-<li>repository側を編集すれば <code>/etc/systemd/system/</code> に即反映される．<code>cp</code> の再実行や同期忘れが起きない</li>
-<li><code>git pull</code> だけで unit file の更新が完結する</li>
-<li>repositoryが<strong>Single Source of Truth</strong>になり，本番ホスト上で個別に書き換える事故を防げる</li>
-<li><code>systemctl cat myapp</code> でリンク先の実体パスが表示されるので，どのrepositoryのファイルか追跡できる</li>
-</ul>
-<p><span class="mini-section">注意点</span></p>
-<ul>
-<li>リンク元のファイル・親ディレクトリは <code>root</code> から読める権限が必要．<code>/home/&lt;user&gt;/...</code> 配下は他ユーザーから見えないことがあるため <code>/opt/</code> や <code>/srv/</code> 配下を推奨</li>
-<li><code>systemctl enable myapp</code> は <code>[Install]</code> セクションを元に <code>multi-user.target.wants/</code> 配下に<strong>別のsymlink</strong>を作る．自前のsymlinkと混同しないこと</li>
-<li>リンク元を消すと unit が壊れる．<code>systemctl disable --now myapp</code> してから削除する</li>
-</ul>
-<div class="callout callout-style-default callout-warning callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">警告</span><code>daemon-reload</code> を忘れない
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>symlink を張り替えた・実体ファイルを編集した直後は <code>sudo systemctl daemon-reload</code> が必要．これを忘れると古い定義のまま動き続ける．</p>
-</div>
-</div>
-<hr>
-</section>
-<section id="service-フィールド解説" class="level3">
-<h3 class="anchored" data-anchor-id="service-フィールド解説"><code>[Service]</code> フィールド解説</h3>
-<p><span class="mini-section"><code>Type=simple</code></span></p>
-<p>プロセスの起動モデルを指定する．</p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 40%">
-<col style="width: 60%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>値</th>
-<th>意味</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>simple</code></td>
-<td><code>ExecStart</code> で起動したプロセス自体がメインプロセス．フォアグラウンドで動き続けるデーモンに使う（デフォルト）</td>
-</tr>
-<tr class="even">
-<td><code>forking</code></td>
-<td>起動後に親プロセスがforkして終了し，子プロセスがデーモンとして残る旧来スタイル</td>
-</tr>
-<tr class="odd">
-<td><code>oneshot</code></td>
-<td>一度実行して終了するスクリプト向け．<code>RemainAfterExit=yes</code> と組み合わせることが多い</td>
-</tr>
-<tr class="even">
-<td><code>notify</code></td>
-<td>プロセスが <code>sd_notify()</code> で起動完了を通知する．完了通知まで依存サービスの起動を待てる</td>
-</tr>
-</tbody>
-</table>
-<p>shell script を常駐させる場合は <code>simple</code> が基本．</p>
-<hr>
-<p><span class="mini-section"><code>User=myapp</code> / <code>Group=myapp</code></span></p>
-<p>サービスを実行するOSユーザー・グループを指定する．</p>
-<ul>
-<li>省略すると <code>root</code> で実行される（危険なので必ず指定する）</li>
-<li>専用のシステムユーザーを作成しておくのが定石</li>
-</ul>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># システムユーザーの作成例</span></span>
-<span id="cb5-2"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> useradd <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--system</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--no-create-home</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--shell</span> /usr/sbin/nologin myapp</span></code></pre></div></div>
-<p><code>--system</code> はログイン不可のサービス専用ユーザーを作るオプション．</p>
-<hr>
-<p><span class="mini-section"><code>WorkingDirectory=/opt/myapp</code></span></p>
-<p>プロセスのカレントディレクトリを指定する．</p>
-<ul>
-<li>相対パスでファイルを開くスクリプトはここが基点になる</li>
-<li>省略すると <code>/</code> になり，相対パス参照が壊れることがある</li>
-<li><code>~</code> は使えない（<code>User</code> のホームディレクトリに展開されない）</li>
-</ul>
-<hr>
-<p><span class="mini-section"><code>ExecStart=/opt/myapp/run.sh</code></span></p>
-<p>サービス起動時に実行するコマンドを指定する．</p>
-<ul>
-<li><strong>絶対パスが必須</strong>（<code>PATH</code> は限定的なので <code>which</code> で確認すること）</li>
-<li>shell scriptの場合はshebang（<code>#!/bin/bash</code>）が必要</li>
-<li>スクリプトに実行権限が必要（<code>chmod +x run.sh</code>）</li>
-</ul>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># よくあるミス：実行権限を忘れる</span></span>
-<span id="cb6-2"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">chmod</span> +x /opt/myapp/run.sh</span></code></pre></div></div>
-<p><code>exec</code> で子プロセスに置き換えると，PIDがスクリプトではなくアプリ本体になり systemdのシグナル（<code>SIGTERM</code> など）が正しく届く．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">#!/bin/bash</span></span>
-<span id="cb7-2"><span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">exec</span> python3 /opt/myapp/main.py</span></code></pre></div></div>
-<hr>
-<p><span class="mini-section"><code>Restart=on-failure</code></span></p>
-<p>プロセスが終了したときの再起動ポリシーを指定する．</p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 19%">
-<col style="width: 80%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>値</th>
-<th>再起動するケース</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>no</code></td>
-<td>再起動しない（デフォルト）</td>
-</tr>
-<tr class="even">
-<td><code>on-success</code></td>
-<td>正常終了（exit 0）時のみ</td>
-</tr>
-<tr class="odd">
-<td><code>on-failure</code></td>
-<td>異常終了・シグナル終了時のみ（<code>systemctl stop</code> は対象外）</td>
-</tr>
-<tr class="even">
-<td><code>on-abnormal</code></td>
-<td>シグナル終了・タイムアウト時のみ</td>
-</tr>
-<tr class="odd">
-<td><code>always</code></td>
-<td><code>systemctl stop</code> 以外のすべての終了で再起動</td>
-</tr>
-</tbody>
-</table>
-<p>本番サービスでは <code>on-failure</code> が標準．<code>always</code> はデバッグ時に便利だが本番には向かない．</p>
-<hr>
-<p><span class="mini-section"><code>RestartSec=5s</code></span></p>
-<p>再起動前の待機時間を指定する．</p>
-<ul>
-<li>デフォルトは <code>100ms</code></li>
-<li>即時再起動ループを防ぐために数秒設けるのが推奨</li>
-<li>時間の単位は <code>s</code>（秒），<code>ms</code>（ミリ秒），<code>min</code>（分）など</li>
-</ul>
-<p>クラッシュループ防止のために <code>StartLimitIntervalSec</code> / <code>StartLimitBurst</code> と組み合わせることもある．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb8-1"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">StartLimitIntervalSec</span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">60s</span></span>
-<span id="cb8-2"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">StartLimitBurst</span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">5</span></span>
-<span id="cb8-3"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># → 60秒以内に5回クラッシュしたらそれ以上再起動しない</span></span></code></pre></div></div>
-<hr>
-</section>
-</section>
-<section id="登録管理コマンド" class="level2">
-<h2 class="anchored" data-anchor-id="登録管理コマンド">2. 登録・管理コマンド</h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># unit fileを読み込む（編集後は必ず実行）</span></span>
-<span id="cb9-2"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> systemctl daemon-reload</span>
-<span id="cb9-3"></span>
-<span id="cb9-4"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># 自動起動を有効化 + 即時起動</span></span>
-<span id="cb9-5"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> systemctl enable <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--now</span> myapp</span>
-<span id="cb9-6"></span>
-<span id="cb9-7"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># 停止</span></span>
-<span id="cb9-8"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> systemctl stop myapp</span>
-<span id="cb9-9"></span>
-<span id="cb9-10"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># 再起動</span></span>
-<span id="cb9-11"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> systemctl restart myapp</span>
-<span id="cb9-12"></span>
-<span id="cb9-13"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># 状態確認</span></span>
-<span id="cb9-14"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> systemctl status myapp</span>
-<span id="cb9-15"></span>
-<span id="cb9-16"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># ログをリアルタイム追跡</span></span>
-<span id="cb9-17"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">journalctl</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-u</span> myapp <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-f</span></span>
-<span id="cb9-18"></span>
-<span id="cb9-19"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># 起動時のログのみ表示</span></span>
-<span id="cb9-20"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">journalctl</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-u</span> myapp <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-b</span></span></code></pre></div></div>
-<hr>
-</section>
-<section id="変更時のreload手順" class="level2">
-<h2 class="anchored" data-anchor-id="変更時のreload手順">3. 変更時のreload手順</h2>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>変更内容</th>
-<th>必要な操作</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>.service</code> ファイルを編集</td>
-<td><code>daemon-reload</code> → <code>restart</code></td>
-</tr>
-<tr class="even">
-<td><code>run.sh</code> を編集</td>
-<td><code>restart</code> のみ</td>
-</tr>
-<tr class="odd">
-<td>環境変数ファイル（<code>.env</code>）を編集</td>
-<td><code>restart</code> のみ</td>
-</tr>
-</tbody>
-</table>
-<hr>
-</section>
-<section id="環境変数の渡し方" class="level2">
-<h2 class="anchored" data-anchor-id="環境変数の渡し方">4. 環境変数の渡し方</h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb10-1"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">[Service]</span></span>
-<span id="cb10-2"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># 直接書く場合</span></span>
-<span id="cb10-3"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">Environment</span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"APP_ENV=production" "PORT=8080"</span></span>
-<span id="cb10-4"></span>
-<span id="cb10-5"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># ファイルから読む場合</span></span>
-<span id="cb10-6"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">EnvironmentFile</span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">/opt/myapp/.env</span></span></code></pre></div></div>
-<p><code>.env</code> ファイルは <code>KEY=VALUE</code> 形式で記述する．<code>export</code> は不要で <code>#</code> コメントが使える．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># /opt/myapp/.env</span></span>
-<span id="cb11-2"><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">APP_ENV</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span>production</span>
-<span id="cb11-3"><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">PORT</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span>8080</span>
-<span id="cb11-4"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># DATABASE_URL=...</span></span></code></pre></div></div>
-</section>
-<section id="appendix-用語解説" class="level2">
-<h2 class="anchored" data-anchor-id="appendix-用語解説">Appendix: 用語解説</h2>
-<div class="glossary-container">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb12-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">glossary</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span></span>
-<span id="cb12-2"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> systemd</span></span>
-<span id="cb12-3"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb12-4">      Linuxの主要なinitシステム兼サービスマネージャ．PID 1 として起動し，</span>
-<span id="cb12-5">      サービス（unit）の起動順序・依存関係・再起動・ログ収集を一元管理する．</span>
-<span id="cb12-6">      `systemctl` はその制御CLI．</span>
-<span id="cb12-7"></span>
-<span id="cb12-8"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> unit / unit file</span></span>
-<span id="cb12-9"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb12-10">      systemd が管理するリソース定義の単位．`.service`（プロセス），</span>
-<span id="cb12-11">      `.timer`（cron代替），`.socket`（IPC），`.target`（グループ）など</span>
-<span id="cb12-12">      種類がある．本記事の対象は `.service` unit．</span>
-<span id="cb12-13"></span>
-<span id="cb12-14"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> journalctl</span></span>
-<span id="cb12-15"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb12-16">      systemd journal を参照するCLI．`-u myapp` で特定サービスのログ，</span>
-<span id="cb12-17">      `-f` で追跡，`-b` で今回起動分のみ表示．stdout/stderr は自動で</span>
-<span id="cb12-18">      journalに集約される．</span>
-<span id="cb12-19"></span>
-<span id="cb12-20"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> exec（shellビルトイン）</span></span>
-<span id="cb12-21"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb12-22">      bash等のshellで，現在のプロセスを別プログラムに**置き換える**組み込み</span>
-<span id="cb12-23">      コマンド．fork せず同じPIDのまま実行イメージが切り替わる．systemdの</span>
-<span id="cb12-24">      シグナルがアプリ本体に直接届くようにするため，ラッパー shell script の</span>
-<span id="cb12-25">      最後で使うのが一般的．</span></code></pre></div></div>
-</div>
-
-
-</section>
-
- ]]></description>
-  <category>Linux</category>
-  <category>systemctl</category>
-  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-05-18-systemctl-with-shellscript/</guid>
-  <pubDate>Mon, 18 May 2026 00:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>[Obsolete]: CSVファイルの指定列を線形変換し出力するシェルスクリプト</title>
-  <dc:creator>Ryo Nakagami</dc:creator>
-  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-05-11-linear-convert-shellscript/</link>
-  <description><![CDATA[ 
-
-
-
-
-
-
-<section id="廃止済みシェルスクリプト" class="level2">
-
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">#!/bin/bash</span></span>
-<span id="cb1-2"><span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">:</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">'</span></span>
-<span id="cb1-3"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">linear_convert - CSVファイルの指定列を線形変換し出力するスクリプト</span></span>
-<span id="cb1-4"></span>
-<span id="cb1-5"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">Usage:</span></span>
-<span id="cb1-6"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">  ./linear_convert &lt;a: slope&gt; &lt;b: intercept&gt; &lt;column_num&gt; &lt;precision&gt; &lt;input_csv_file&gt; [na_replacement|keep]</span></span>
-<span id="cb1-7"></span>
-<span id="cb1-8"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">Arguments:</span></span>
-<span id="cb1-9"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">  a               傾き（線形変換の倍率）</span></span>
-<span id="cb1-10"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">  b               切片（線形変換の加算値）</span></span>
-<span id="cb1-11"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">  column_num      変換対象の列番号（1始まり）</span></span>
-<span id="cb1-12"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">  precision       出力する小数点以下の桁数</span></span>
-<span id="cb1-13"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">  input_csv_file  入力CSVファイルのパス</span></span>
-<span id="cb1-14"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">  na_replacement  欠損値・非数値の置換文字列または"keep"（省略時は"keep"）</span></span>
-<span id="cb1-15"></span>
-<span id="cb1-16"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">Description:</span></span>
-<span id="cb1-17"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">  指定したCSVファイルの指定列の値に対して、線形変換 y = a * x + b を適用します。</span></span>
-<span id="cb1-18"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">  欠損値や数値でない値は、指定した文字列に置換するか、"keep"指定であればそのまま保持します。</span></span>
-<span id="cb1-19"></span>
-<span id="cb1-20"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">Example:</span></span>
-<span id="cb1-21"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">  # 第3列を y=2.5*x + 10 に変換し、小数点2桁で出力。欠損値はそのまま保持。</span></span>
-<span id="cb1-22"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">  ./linear_convert.sh 2.5 10 3 2 input.csv</span></span>
-<span id="cb1-23"></span>
-<span id="cb1-24"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">  # 欠損値を"Missing"に置換する場合</span></span>
-<span id="cb1-25"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">  ./linear_convert.sh 2.5 10 3 2 input.csv Missing</span></span>
-<span id="cb1-26"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">'</span></span>
-<span id="cb1-27"></span>
-<span id="cb1-28"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># --- 引数チェック ---</span></span>
-<span id="cb1-29"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">if</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">[</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$#</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span> <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">-lt</span> 5 <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">]</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">||</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">[</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$#</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span> <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">-gt</span> 6 <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">]</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">;</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">then</span></span>
-<span id="cb1-30">  <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Usage: </span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$0</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;"> &lt;a: slope&gt; &lt;b: intercept&gt; &lt;column_num&gt; &lt;precision&gt; &lt;input_csv_file&gt; [na_replacement|keep]"</span></span>
-<span id="cb1-31">  <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Example: </span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$0</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;"> 2.5 10 3 2 input.csv Missing"</span></span>
-<span id="cb1-32">  <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"na_replacement options: NA, Missing, 0, or keep (default: keep)"</span></span>
-<span id="cb1-33">  <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">exit</span> 1</span>
-<span id="cb1-34"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">fi</span></span>
-<span id="cb1-35"></span>
-<span id="cb1-36"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># --- 引数を変数に代入 ---</span></span>
-<span id="cb1-37"><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">a</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$1</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span></span>
-<span id="cb1-38"><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">b</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$2</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span></span>
-<span id="cb1-39"><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">col</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$3</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span></span>
-<span id="cb1-40"><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">precision</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$4</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span></span>
-<span id="cb1-41"><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">input_file</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$5</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span></span>
-<span id="cb1-42"><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">na_replacement</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">${6</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:-</span>keep<span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">}</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span>   <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># 6番目の引数がなければ keep をデフォルトに</span></span>
-<span id="cb1-43"></span>
-<span id="cb1-44"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">awk</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-F</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">','</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-v</span> a=<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$a</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-v</span> b=<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$b</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-v</span> col=<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$col</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-v</span> prec=<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$precision</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-v</span> na=<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$na_replacement</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">'</span></span>
-<span id="cb1-45"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">BEGIN {</span></span>
-<span id="cb1-46"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">    OFS = ",";</span></span>
-<span id="cb1-47"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">    format = "%." prec "f";</span></span>
-<span id="cb1-48"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">}</span></span>
-<span id="cb1-49"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">NR == 1 {</span></span>
-<span id="cb1-50"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">    print $0;</span></span>
-<span id="cb1-51"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">}</span></span>
-<span id="cb1-52"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">NR &gt; 1 {</span></span>
-<span id="cb1-53"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">    val = $col;</span></span>
-<span id="cb1-54"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">    if (val ~ /^[0-9.]+$/) {</span></span>
-<span id="cb1-55"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">        $col = sprintf(format, a * val + b);</span></span>
-<span id="cb1-56"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">    } else {</span></span>
-<span id="cb1-57"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">        if (na == "keep") {</span></span>
-<span id="cb1-58"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">            $col = val;   # 欠損・非数値はそのまま保持</span></span>
-<span id="cb1-59"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">        } else {</span></span>
-<span id="cb1-60"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">            $col = na;    # na_replacement で置換</span></span>
-<span id="cb1-61"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">        }</span></span>
-<span id="cb1-62"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">    }</span></span>
-<span id="cb1-63"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">    print $0;</span></span>
-<span id="cb1-64"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">}</span></span>
-<span id="cb1-65"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">'</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$input_file</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span></span></code></pre></div></div>
-
-
-</section>
-
- ]]></description>
-  <category>shellscript</category>
-  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-05-11-linear-convert-shellscript/</guid>
-  <pubDate>Mon, 11 May 2026 00:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>Ubuntu 24.04 カーネル更新後の起動不能トラブル復旧</title>
-  <dc:creator>Ryo Nakagami</dc:creator>
-  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-05-10-ubuntu-kernel-module-trouble-shooting/</link>
-  <description><![CDATA[ 
-
-
-
-
-
-
-<section id="ゴール" class="level2">
-<h2 class="anchored" data-anchor-id="ゴール">🎯 ゴール</h2>
-<ul>
-<li>カーネル更新後に Ubuntu 24.04 が起動しなくなった場合の切り分けと復旧手順を整理</li>
-<li><code>grub&gt;</code> プロンプトに落ちた状態からの手動復旧と，再発予防のための対策を整理</li>
-</ul>
-<p><span class="mini-section">対象環境</span></p>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>項目</th>
-<th>内容</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>マシン</td>
-<td>HP Desktop PC</td>
-</tr>
-<tr class="even">
-<td>OS</td>
-<td>Ubuntu 24.04 LTS</td>
-</tr>
-<tr class="odd">
-<td>ストレージ</td>
-<td>NVMe SSD (<code>/dev/nvme0n1</code>)</td>
-</tr>
-<tr class="even">
-<td>無線チップ</td>
-<td>Realtek</td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-<section id="問題事象" class="level2">
-<h2 class="anchored" data-anchor-id="問題事象">問題事象</h2>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>症状
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>Wi-Fi が認識しなくなる</li>
-<li>有線キーボードを挿しても入力できない（通電はしている）</li>
-<li>マウスは動作する</li>
-<li>BIOS 画面ではキーボードが効く</li>
-</ul>
-</div>
-</div>
-<p><span class="mini-section">根本原因</span></p>
-<ul>
-<li>直近のカーネル更新により，入力ドライバと Realtek 無線ドライバのロードが失敗していた</li>
-</ul>
-</section>
-<section id="復旧手順" class="level2">
-<h2 class="anchored" data-anchor-id="復旧手順">復旧手順</h2>
-<section id="診断フェーズ原因の切り分け" class="level3">
-<h3 class="anchored" data-anchor-id="診断フェーズ原因の切り分け">1. 診断フェーズ(原因の切り分け)</h3>
-<p><span class="mini-section">1.1 ハードウェア生存確認</span></p>
-<p>電源 ON 直後，<code>F10</code> で BIOS Setup に入る</p>
-<ul>
-<li><strong>BIOS でキーボードが効く</strong> → ハードは生きている．OS 側の問題</li>
-<li><strong>BIOS でも効かない</strong> → ハード故障．修理案件</li>
-</ul>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>意思決定
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>BIOSではキーボードは動作していたので，ハードの故障はなくkernel moduleまわりのトラブルであると推察</li>
-<li>最新ではなく，１つ古いversionのkernelを用いて起動を試みると判断</li>
-</ul>
-</div>
-</div>
-</section>
-<section id="grub-プロンプトから手動起動" class="level3">
-<h3 class="anchored" data-anchor-id="grub-プロンプトから手動起動">2. GRUB プロンプトから手動起動</h3>
-<p>再起動し，<code>ESC</code>を連打して <code>grub</code> プロンプトモードへ移動</p>
-<div class="callout callout-style-default callout-tip callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-ヒント
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li><code>grub&gt;</code> プロンプトが出ている前提</li>
-<li><span class="regmonkey-bold">TAB キーで補完が効く</span>ので積極的に活用．</li>
-</ul>
-</div>
-</div>
-<p><span class="mini-section">2.1 パーティション確認</span></p>
-<pre><code>ls</code></pre>
-<p>→ <code>(hd0)</code> <code>(hd0,gpt1)</code> <code>(hd0,gpt2)</code> … が表示されます．</p>
-<p><span class="mini-section">2.2 Ubuntu のルートパーティションを特定</span></p>
-<pre><code>ls (hd0,gpt2)/</code></pre>
-<ul>
-<li><code>boot</code> <code>etc</code> <code>home</code> <code>usr</code> などが見えればそこがルート</li>
-<li>見えなければ <code>gpt3</code>，<code>gpt4</code> … と順に試す</li>
-</ul>
-<p><span class="mini-section">2.3 カーネルと initrd のファイル名を確認</span></p>
-<pre><code>ls (hd0,gpt2)/boot/</code></pre>
-<p><code>vmlinuz-6.8.0-XX-generic</code> と <code>initrd.img-6.8.0-XX-generic</code> のバージョン番号を控えます．</p>
-<p><span class="mini-section">2.4 手動起動</span></p>
-<pre><code>set root=(hd0,gpt2)
-linux /boot/vmlinuz-6.8.0-XX-generic root=/dev/nvme0n1p2
-initrd /boot/initrd.img-6.8.0-XX-generic
-boot</code></pre>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-ノート
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li><code>root=/dev/nvme0n1p2</code> は NVMe SSD の場合(SATA なら <code>/dev/sda2</code>)</li>
-<li>パーティション番号(末尾の <code>p2</code> または <code>2</code>)は GRUB の <code>gpt2</code> と一致させる</li>
-<li>カーネルバージョンが複数ある場合，<span class="regmonkey-bold">古いほうから試す</span>(新しいのが壊れている可能性が高いため)</li>
-</ul>
-</div>
-</div>
-</section>
-<section id="対策フェーズ" class="level3">
-<h3 class="anchored" data-anchor-id="対策フェーズ">3. 対策フェーズ</h3>
-<p><span class="mini-section">3.1 GRUB のデフォルトを動作するカーネルに固定</span></p>
-<p>現在動いているカーネルバージョンを確認します．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">uname</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-r</span></span></code></pre></div></div>
-<p><code>/etc/default/grub</code> を編集:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> nano /etc/default/grub</span></code></pre></div></div>
-<p>以下のように変更:</p>
-<pre><code>GRUB_DEFAULT="Advanced options for Ubuntu&gt;Ubuntu, with Linux 6.8.0-XX-generic"</code></pre>
-<p><code>XX</code> は <code>uname -r</code> の値に合わせます．設定を反映:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> update-grub</span></code></pre></div></div>
-<p><span class="mini-section">3.2 GRUB の修復(必要なら)</span></p>
-<p>UEFI / BIOS を確認:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">[</span> <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">-d</span> /sys/firmware/efi <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">]</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">&amp;&amp;</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"UEFI"</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">||</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"BIOS"</span></span></code></pre></div></div>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>ファームウェア</th>
-<th>対応コマンド</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>UEFI</td>
-<td><code>sudo update-grub</code> のみで十分</td>
-</tr>
-<tr class="even">
-<td>BIOS</td>
-<td>追加で <code>sudo grub-install /dev/nvme0n1</code></td>
-</tr>
-</tbody>
-</table>
-</div>
-<div class="callout callout-style-default callout-warning callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-警告
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>パーティション(<code>nvme0n1p2</code>)ではなく <span class="regmonkey-bold">ディスク全体</span>(<code>nvme0n1</code>)を指定すること．</p>
-</div>
-</div>
-<p><span class="mini-section">3.3 カーネル自動更新の一時停止(任意)</span></p>
-<p>修正版カーネルがリリースされるまで自動更新で再発させたくない場合:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> apt-mark hold linux-image-generic linux-headers-generic</span></code></pre></div></div>
-<p>数週間〜数か月後，解除:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> apt-mark unhold linux-image-generic linux-headers-generic</span></code></pre></div></div>
-<p><span class="mini-section">3.4 壊れたカーネルの削除(慎重に)</span></p>
-<p>インストール済みカーネル一覧:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">dpkg</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--list</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">grep</span> linux-image</span></code></pre></div></div>
-<p>問題のあるカーネルを削除:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb13-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> apt remove linux-image-壊れたバージョン-generic</span>
-<span id="cb13-2"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> update-grub</span></code></pre></div></div>
-<div class="callout callout-style-default callout-warning callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-警告
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li><span class="regmonkey-bold">現在動いているカーネル(<code>uname -r</code> で表示されるもの)は絶対に削除しない</span>．</li>
-</ul>
-</div>
-</div>
-</section>
-</section>
-<section id="appendix-用語解説" class="level2">
-<h2 class="anchored" data-anchor-id="appendix-用語解説">Appendix: 用語解説</h2>
-<div class="glossary-container">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb14-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">glossary</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span></span>
-<span id="cb14-2"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> NVMe (Non-Volatile Memory Express)</span></span>
-<span id="cb14-3"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb14-4">      PCIe バス経由で直接接続する高速 SSD 用の通信プロトコル．</span>
-<span id="cb14-5">      Linux 上では `/dev/nvme0n1` のように見え，`nvme0` は 1 台目のコントローラ，</span>
-<span id="cb14-6">      `n1` はその上の 1 個目の名前空間 (≒ ディスク本体) を表す．</span>
-<span id="cb14-7">      パーティションは `/dev/nvme0n1p1`，`/dev/nvme0n1p2` のように</span>
-<span id="cb14-8">      `p&lt;番号&gt;` が付与される．</span>
-<span id="cb14-9"></span>
-<span id="cb14-10"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> SATA / sda</span></span>
-<span id="cb14-11"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb14-12">      SATA は HDD・SSD を接続する従来からの規格．</span>
-<span id="cb14-13">      SATA 接続のディスクは Linux 上で `/dev/sda`，`/dev/sdb` ... と</span>
-<span id="cb14-14">      アルファベット順に認識され，パーティションは `/dev/sda1`，`/dev/sda2`</span>
-<span id="cb14-15">      のように番号のみが付く．NVMe の `nvme0n1p2` に相当するのが SATA の `sda2`．</span>
-<span id="cb14-16"></span>
-<span id="cb14-17"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> GRUB (GRand Unified Bootloader)</span></span>
-<span id="cb14-18"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb14-19">      Linux で広く使われるブートローダ．BIOS/UEFI から呼び出され，</span>
-<span id="cb14-20">      カーネルと initramfs をメモリへロードして OS を起動する．</span>
-<span id="cb14-21">      設定ファイルは `/etc/default/grub` と `/boot/grub/grub.cfg`．</span>
-<span id="cb14-22">      `grub&gt;` プロンプトに落ちるのは `grub.cfg` を読めなかった場合．</span>
-<span id="cb14-23"></span>
-<span id="cb14-24"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> grub&gt; プロンプト</span></span>
-<span id="cb14-25"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb14-26">      GRUB が設定ファイルを発見できなかったときに表示される最小シェル．</span>
-<span id="cb14-27">      `ls`，`set root=`，`linux`，`initrd`，`boot` の 5 コマンドだけで</span>
-<span id="cb14-28">      手動起動が可能．TAB 補完が効くため，パーティションやファイル名を</span>
-<span id="cb14-29">      総当たりせずに済む．</span>
-<span id="cb14-30"></span>
-<span id="cb14-31"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> (initramfs) シェル</span></span>
-<span id="cb14-32"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb14-33">      ルートファイルシステムをマウントできなかったときに落ちる</span>
-<span id="cb14-34">      BusyBox ベースの緊急シェル．カーネル自体は起動しているが，</span>
-<span id="cb14-35">      その先の OS 環境はまだ立ち上がっていない状態．</span>
-<span id="cb14-36"></span>
-<span id="cb14-37"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> initramfs / initrd</span></span>
-<span id="cb14-38"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb14-39">      カーネル起動直後に展開される一時的なルートファイルシステム．</span>
-<span id="cb14-40">      実ディスク上のルートをマウントするのに必要なドライバ (ストレージ，</span>
-<span id="cb14-41">      ファイルシステム，暗号化など) を含む．ファイル名は通常</span>
-<span id="cb14-42">      `/boot/initrd.img-&lt;カーネルバージョン&gt;`．</span>
-<span id="cb14-43"></span>
-<span id="cb14-44"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> vmlinuz</span></span>
-<span id="cb14-45"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb14-46">      圧縮済みの Linux カーネル本体．`/boot/vmlinuz-&lt;バージョン&gt;-generic`</span>
-<span id="cb14-47">      の形で配置される．GRUB の `linux` コマンドで指定する対象．</span>
-<span id="cb14-48"></span>
-<span id="cb14-49"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> UEFI / BIOS</span></span>
-<span id="cb14-50"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb14-51">      PC の電源投入直後に動くファームウェア．UEFI は後継規格で</span>
-<span id="cb14-52">      GPT パーティション・大容量ディスク・セキュアブートに対応．</span>
-<span id="cb14-53">      Linux からは `/sys/firmware/efi` の有無で判別可能．</span>
-<span id="cb14-54">      UEFI なら `update-grub` のみ，旧 BIOS (Legacy) なら</span>
-<span id="cb14-55">      追加で `grub-install /dev/&lt;ディスク全体&gt;` が必要になる．</span>
-<span id="cb14-56"></span>
-<span id="cb14-57"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> GPT (GUID Partition Table)</span></span>
-<span id="cb14-58"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb14-59">      UEFI 時代の標準パーティションテーブル形式．GRUB プロンプトでは</span>
-<span id="cb14-60">      `(hd0,gpt1)`，`(hd0,gpt2)` のように表示される．`hd0` は 1 台目の</span>
-<span id="cb14-61">      ディスク (NVMe/SATA を問わず) を指し，`gpt&lt;N&gt;` がパーティション番号．</span>
-<span id="cb14-62"></span>
-<span id="cb14-63"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> カーネル (kernel)</span></span>
-<span id="cb14-64"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb14-65">      OS の中核となるプログラム．ハードウェア制御・プロセス管理・</span>
-<span id="cb14-66">      メモリ管理などを担う．Ubuntu では `linux-image-&lt;バージョン&gt;-generic`</span>
-<span id="cb14-67">      パッケージとして配布され，`uname -r` で現在動作中のバージョンを確認できる．</span>
-<span id="cb14-68"></span>
-<span id="cb14-69"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> カーネルモジュール</span></span>
-<span id="cb14-70"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb14-71">      カーネルに後付けで組み込めるドライバなどの拡張機能．</span>
-<span id="cb14-72">      Wi-Fi (Realtek)・キーボード入力 (evdev) などもモジュールとして</span>
-<span id="cb14-73">      ロードされており，これらが失敗すると OS は起動しても</span>
-<span id="cb14-74">      周辺機器が使えない状態になる．</span>
-<span id="cb14-75"></span>
-<span id="cb14-76"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> apt-mark hold</span></span>
-<span id="cb14-77"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb14-78">      指定パッケージを `apt upgrade` 等で更新させないようにする仕組み．</span>
-<span id="cb14-79">      壊れたカーネル更新の再発防止に使う．解除は `apt-mark unhold`．</span></code></pre></div></div>
-</div>
-
-
-</section>
-
- ]]></description>
-  <category>Linux</category>
-  <category>環境構築</category>
-  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-05-10-ubuntu-kernel-module-trouble-shooting/</guid>
-  <pubDate>Sun, 10 May 2026 00:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>bq command Tips</title>
-  <dc:creator>Ryo Nakagami</dc:creator>
-  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-05-09-bq-commands/</link>
-  <description><![CDATA[ 
-
-
-
-
-
-
-<section id="datasetの作成" class="level2">
-<h2 class="anchored" data-anchor-id="datasetの作成">Datasetの作成</h2>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>Command
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p><code>${PROJECTID}</code> GCPプロジェクト内に，<code>${DATASET}</code> という名前のBigQueryデータセットを、東京リージョンに作成するコマンド</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">bq</span> mk <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--location</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span>asia-northeast1 <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--dataset</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--description</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"hogehoge"</span> <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">${PROJECTID}</span>:<span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">${DATASET}</span></span></code></pre></div></div>
-<ul>
-<li><code>$PROJECTID</code>: Google Cloud プロジェクトID</li>
-<li><code>$DATASET</code>: 作成するデータセット名．英数字とアンダースコアのみ使用可，ハイフン不可</li>
-</ul>
-</div>
-</div>
-<p><span class="mini-section">Options</span></p>
-<div class="glossary-container">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb2-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">glossary</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span></span>
-<span id="cb2-2"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> bq mk</span></span>
-<span id="cb2-3"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb2-4">      `mk` は `make` の略．BigQuery のリソース（データセット，テーブル，ビューなど）を</span>
-<span id="cb2-5">      新規作成するサブコマンド．</span>
-<span id="cb2-6"></span>
-<span id="cb2-7"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> --location=asia-northeast1</span></span>
-<span id="cb2-8"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb2-9">      データセットを配置するリージョンを指定．`asia-northeast1` は東京リージョン．</span>
-<span id="cb2-10">      一度設定したらデータセット作成後は変更不可の点に注意．BigQuery はクエリ実行時にデータとジョブが同じリージョンにある必要があるため，</span>
-<span id="cb2-11">      ロケーションは慎重に選ぶ．</span>
-<span id="cb2-12"></span>
-<span id="cb2-13"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> --dataset</span></span>
-<span id="cb2-14"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb2-15">      作成するリソースの種類が「データセット」であることを明示．`bq mk` はテーブルやビューも</span>
-<span id="cb2-16">      作れるため，何を作るかをフラグで指定する．</span>
-<span id="cb2-17"></span>
-<span id="cb2-18"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> --description="..."</span></span>
-<span id="cb2-19"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb2-20">      データセットの説明文．後から見たときに用途がわかるようメタ情報として付ける．</span>
-<span id="cb2-21"></span>
-<span id="cb2-22"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> ${PROJECTID}:${DATASET}</span></span>
-<span id="cb2-23"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb2-24">      作成するデータセットの完全修飾名．`プロジェクトID:データセットID` の形式．</span></code></pre></div></div>
-</div>
-<section id="dataset-descriptionの変更" class="level3">
-<h3 class="anchored" data-anchor-id="dataset-descriptionの変更">Dataset Descriptionの変更</h3>
-<p><span class="mini-section">方法 1: フラグで直接書き換え</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">bq</span> update <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--description</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"新しい説明文をここに"</span> <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">${PROJECTID}</span>:<span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">${DATASET}</span></span></code></pre></div></div>
-<p><span class="mini-section">方法 2: JSON 経由で編集</span></p>
-<p>長文の説明やラベル等もまとめて編集したい場合は，現在のメタデータを JSON として 取り出して編集する方法が安全．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># 1. 現在の設定をJSONで取得</span></span>
-<span id="cb4-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">bq</span> show <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--format</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span>prettyjson <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">${PROJECTID}</span>:<span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">${DATASET}</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;</span> dataset.json</span>
-<span id="cb4-3"></span>
-<span id="cb4-4"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># 2. dataset.json の "description" フィールドを編集</span></span>
-<span id="cb4-5"></span>
-<span id="cb4-6"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># 3. 更新を反映</span></span>
-<span id="cb4-7"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">bq</span> update <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--source</span> dataset.json <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">${PROJECTID}</span>:<span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">${DATASET}</span></span></code></pre></div></div>
-<div class="callout callout-style-default callout-tip callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-ヒント
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>方法 1 は単純な上書き向け．改行やクオートを含む長文は方法 2 が確実．</li>
-<li><code>bq show</code> の出力には <code>lastModifiedTime</code> などの読み取り専用フィールドも含まれるが， <code>bq update --source</code> 側で無視されるためそのまま編集して問題ない．</li>
-</ul>
-</div>
-</div>
-</section>
-</section>
-<section id="テーブルをgcsへエクスポート" class="level2">
-<h2 class="anchored" data-anchor-id="テーブルをgcsへエクスポート">テーブルをGCSへエクスポート</h2>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>Command
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>BigQuery テーブルを GCS へ Parquet 形式でエクスポートするコマンド</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">bq</span> extract <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">\</span></span>
-<span id="cb5-2">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--destination_format</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span>PARQUET <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">\</span></span>
-<span id="cb5-3">  <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">'${PROJECTID}:${DATASET}.${TABLE}'</span> <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">\</span></span>
-<span id="cb5-4">  <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">'gs://${BUCKET}/${TABLE}/*.parquet'</span></span></code></pre></div></div>
-<ul>
-<li><code>${PROJECTID}:${DATASET}.${TABLE}</code>: エクスポート元のテーブルの完全修飾名</li>
-<li><code>gs://${BUCKET}/${TABLE}/*.parquet</code>: 出力先 GCS パス．<code>*</code> でシャード分割される</li>
-</ul>
-</div>
-</div>
-<p><span class="mini-section">Options</span></p>
-<div class="glossary-container">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb6-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">glossary</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span></span>
-<span id="cb6-2"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> bq extract</span></span>
-<span id="cb6-3"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb6-4">      BigQuery テーブルの内容を GCS へエクスポートするサブコマンド．</span>
-<span id="cb6-5">      CSV・JSON・Parquet・Avro などの形式に対応．</span>
-<span id="cb6-6"></span>
-<span id="cb6-7"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> --destination_format=PARQUET</span></span>
-<span id="cb6-8"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb6-9">      出力形式を指定．`PARQUET` のほか `CSV`，`NEWLINE_DELIMITED_JSON`，`AVRO` が使用可能．</span>
-<span id="cb6-10">      Parquet はカラム型フォーマットのため，後続の分析処理での読み込みが高速．</span>
-<span id="cb6-11"></span>
-<span id="cb6-12"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"gs://bucket/path/*.parquet"</span></span>
-<span id="cb6-13"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb6-14">      出力先 GCS URI．`*` を含めるとファイルが複数シャードに分割されて書き出される．</span>
-<span id="cb6-15">      テーブルが大きい場合は分割必須（1 ファイルあたり上限 1 GB）．</span>
-<span id="cb6-16">      `*` を含めない場合，テーブルサイズが上限を超えるとエラーになる．</span></code></pre></div></div>
-</div>
-
-
-</section>
-
- ]]></description>
-  <category>google cloud</category>
-  <category>BigQuery</category>
-  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-05-09-bq-commands/</guid>
-  <pubDate>Sat, 09 May 2026 00:00:00 GMT</pubDate>
 </item>
 </channel>
 </rss>
