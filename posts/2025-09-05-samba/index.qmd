@@ -2,9 +2,8 @@
 title: "Sambaの設定とiPad連携"
 author: "Ryo Nakagami"
 date: "2025-09-05"
-date-modified: "2025-09-05"
+date-modified: "2026-09-09"
 categories: [環境構築, Linux]
-listing_category: development
 comments:
   utterances:
        repo: RyoNakagami/regmonkey-datascience-blog
@@ -17,11 +16,13 @@ comments:
 ::: {#def- .custom_problem .blog-custom-border}
 [Samba]{.def-title}
 
-- LinuxホストをMicrosoftネットワークに参加できるようにするソフトウェア
+- LinuxホストをMicrosoftネットワークに参加できるようにするSMBプロとコロルを用いたソフトウェア
+- SMB = Server Message Block
+- SMB2/3プロトコルは445/tcpのみを使用
 
 :::
 
-Sambaを使うことで，次のような機能が実現できます．
+[実現できること]{.mini-section}
 
 :::: {.no-border-top-table}
 
@@ -30,18 +31,145 @@ Sambaを使うことで，次のような機能が実現できます．
 | **ファイル共有**          | ディレクトリ共有         | Windows から Linux/Unix のディレクトリにアクセス可能．読み取り専用／書き込み可の権限設定が可能・ |
 |                         | ファイルアクセス制御       | ユーザー・グループごとのアクセス権を設定可能．                                    |
 | **プリンタ共有**          | プリンタ共有           | Linux/Unix に接続されたプリンタを Windows から利用可能．          |
-|                         | 複数ユーザー対応         | 複数ユーザーでの共有プリンタ環境を構築可能．                                     |
 |                         | プリンタドライバーの配布         | Samba サーバに Windows 用プリンタドライバーを置いておくと，クライアント側で共有プリンタに接続するだけで自動インストールできる                                     |
-| **ADメンバーサーバー**     | ドメイン参加           | Active Directoryを構成するメンバーサーバーになることが可能                                         |
-|                          | ドメインコントローラ       | Samba を AD 互換ドメインコントローラとして利用可能．ユーザー認証・グループ管理・ポリシー管理が可能．    |
-|                          |Kerberos 認証対応      |シングルサインオン（SSO）で共有アクセスが可能|
-| **バックアップ・サーバ**  | ファイルサーバ機能        | ネットワーク経由でバックアップやファイル共有が可能．                                 |
-|                        | 自動バックアップ         | rsync や cron と組み合わせて自動バックアップが可能．                           |
 | **ホームディレクトリ提供** | ユーザーごとのホームディレクトリ | Windows ユーザーごとに自動マウント可能．                                   |
 | **アクセスログ・監査**    | ログ取得             | どのユーザーがいつアクセスしたかのログを取得可能．監査やセキュリティ対策に活用可能．                 |
 : {tbl-colwidths="[25,25,50]"}
 
 ::::
+
+[Sambaの仕組み]{.mini-section}
+
+Sambaは，SMBプロトコルを話す `smbd` と，NetBIOS名前解決を担う `nmbd` の2つのデーモンでLinuxホストをファイルサーバー化します．
+クライアントからの要求は `smb.conf` の共有定義とpassdbの認証情報に照らして検証され，
+通過したものだけがホストOSのディレクトリ・プリンタへのPOSIX I/Oに変換されます．
+
+![Sambaの全体構成とアクセス経路](./samba-architecture.svg){#fig-samba-architecture width="100%"}
+
+::: {.callout-note icon="false"}
+
+- [`smbd`]{.regmonkey-bold}: 445/tcp で待ち受け，認証・共有アクセスの実務をすべて担当する．Sambaの中核
+- [`nmbd`]{.regmonkey-bold}: 137,138/udp を用いたNetBIOS名前解決とブラウジングを担当．SMB2/3のみの環境やTailscale経由での名前解決が効く環境では必須ではない
+- [`smb.conf` / passdb]{.regmonkey-bold}: `smbd` が参照する設定と認証DB．`[Share Definitions]` の変更は共有単位で反映されるが，`[Global Settings]` の変更には再起動が必要
+- Sambaユーザーは[Linuxユーザーとは別のパスワードDB]{.regmonkey-bold}(`tdbsam`)で管理されるため，`smbpasswd` での登録が別途必要
+
+:::
+
+[Samba と TCP/IP]{.mini-section}
+
+SMBは[TCP上で動くアプリケーション層のプロトコル]{.regmonkey-bold}で，`smbd` は 445/tcp をlistenするごく普通のTCPサーバーです．
+実際に `ss` で待ち受けソケットを確認すると，`smbd` が445番ポートで接続を待っていることがわかります．
+
+```zsh
+% sudo ss -tlnp | grep smbd
+LISTEN 0      50                         0.0.0.0:445        0.0.0.0:*    users:(("smbd",pid=293976,fd=39))                                                        
+LISTEN 0      50                            [::]:445           [::]:*    users:(("smbd",pid=293976,fd=38))                                                        
+
+```
+
+`ss` の各カラムは左から，
+
+- ソケットの状態(`LISTEN`)
+- 受信キューの滞留数(`0`)
+- バックログの上限(`50`)，
+- ローカルのアドレス:ポート
+- リモートのアドレス:ポート
+- そのソケットを保持しているプロセス
+
+を表示しています．`0.0.0.0:445` と `[::]:445` の2行が出ているのは，同一の `smbd` プロセス(pid=293976)がIPv4用とIPv6用に
+別々のソケット(`fd=39` / `fd=38`)を開いているためで，デーモンが2つ起動しているわけではありません．
+
+`0.0.0.0` / `[::]` はワイルドカードアドレスを意味し，[ホストが持つすべてのNIC宛の接続を受け付ける]{.regmonkey-bold}状態を表します．
+
+::: {.callout-note icon="false"}
+
+- [445/tcp (`smbd`)]{.regmonkey-bold}: SMB本体の通信路．ここが開いていなければ共有には一切アクセスできない
+- 特定のNICにのみ待ち受けさせたい場合は `[global]` の `interfaces` と `bind interfaces only = yes` を設定する．
+  この場合 `0.0.0.0:445` ではなく個別のIPアドレスがlistenアドレスとして表示される
+
+:::
+
+
+
+### Sambaユーザー認証
+
+- [`security`]{.regmonkey-bold} : どこで認証するか
+- [`passdb backend`]{.regmonkey-bold}: 認証情報をどこに保存するか
+
+の2つのパラメータで，Sambaの認証まわりの挙動はほぼ決まります．どちらも，後述する `[global]` セクションに記述します．
+
+```ini
+[global]
+   security = user
+   passdb backend = tdbsam
+```
+
+[`security` の設定値]{.mini-section}
+
+`security` は[クライアントの認証をどこで行うか]{.regmonkey-bold}を指定するパラメータです．
+Samba 4以降では `share` (認証なし共有)が廃止され，実質的に `user` / `domain` / `ads` の3択になっています．
+
+:::: {.no-border-top-table}
+
+| 設定値      | 説明                                                                                                          |
+| --------- | ------------------------------------------------------------------------------------------------------------- |
+| `user`    | [デフォルト値]{.regmonkey-bold}．Samba サーバー自身が持つ認証DB(`passdb backend`)でユーザー名とパスワードを検証する．単体のファイルサーバー(standalone server)ならこれを使う |
+| `domain`  | ドメインコントローラーによる認証設定 |
+| `ads`     | Active Directory ドメインのメンバーサーバーとして参加し，Kerberos経由でADに認証を委譲する設定 |
+| ~~`share`~~ | 共有単位でパスワードを持ち，ユーザー認証を行わない旧方式．[Samba 4.0で廃止済み]{.regmonkey-bold}のため使用不可．匿名共有をしたい場合は `security = user` + `guest ok = yes` で代替する |
+: {tbl-colwidths="[20,80]"}
+
+::::
+
+[`passdb backend` の設定値]{.mini-section}
+
+`passdb backend` は，[Sambaユーザーのアカウント情報(ユーザー名・NTハッシュ・SIDなど)をどこに保存するか]{.regmonkey-bold}を指定するパラメータです．
+`security = user` のときにこのDBが参照されます．
+
+:::: {.no-border-top-table}
+
+| 設定値       | 説明                                                                                                       |
+| ---------- | ----------------------------------------------------------------------------------------------------------- |
+| `tdbsam`   | [デフォルト値]{.regmonkey-bold}．TDB(Trivial Database)形式のローカルファイル `/var/lib/samba/private/passdb.tdb` に保存する．設定不要で使え，数百ユーザー規模までのスタンドアロン構成に適する |
+| `ldapsam`  | LDAPサーバー(OpenLDAPなど)にアカウント情報を保存する．`ldapsam:ldap://ldap.example.com` のようにURIを付けて指定する．複数のSambaサーバーでアカウントを共有したい場合に使う |
+| `smbpasswd`| 旧来のテキストファイル `/etc/samba/smbpasswd` に保存する形式．[非推奨]{.regmonkey-bold}で，SIDやアカウントポリシーなどの情報を保持できない．旧環境からの移行時にのみ登場する |
+: {tbl-colwidths="[20,80]"}
+
+::::
+
+::: {.callout-important}
+## Sambaユーザーは Linuxユーザーとは別管理
+
+- `passdb backend` に登録されるのは[Sambaのパスワードのみ]{.regmonkey-bold}
+- Linuxのパスワード(`/etc/shadow`)とは別物です．
+- Sambaユーザーは[同名のLinuxユーザーが存在していること]{.regmonkey-bold}が前提(ファイルの所有権をUIDで管理するため)
+
+したがって新規ユーザーを追加する場合は，Linuxユーザーの作成 → `smbpasswd -a` の順で登録します．
+
+:::{.padding-left-10}
+
+```zsh
+# 1. Linuxユーザーを作成 (ログイン不要ならシェルを無効化しておく)
+% sudo useradd -M -s /usr/sbin/nologin sambauser
+
+# 2. Sambaの認証DB (passdb backend) に登録
+% sudo smbpasswd -a sambauser
+New SMB password:
+Retype new SMB password:
+Added user sambauser.
+
+# 3. 登録済みユーザーの確認
+% sudo pdbedit -L -v
+```
+
+:::
+
+
+
+- `unix password sync = yes` を設定しておくと，Samba側のパスワード変更が `passwd program` を通じてLinux側にも反映される
+- ファイル共有用途がメインであるならば特段，必要はないと感じる
+
+:::
 
 ## Sambaのインストール
 
@@ -86,53 +214,24 @@ tailscaleを導入している場合は，tailscaleについてのファイヤ�
 :::: {.no-border-top-table}
 
 | 構成要素                | 担当機能                           | systemctl サービス名 |
-| ------------------- | ------------------------------ | --------------- |
+| ---------------- | ------------------------------ | --------------- |
 | **smbd**            | ファイル共有・プリント共有・ユーザー認証           | `smbd`          |
 | **nmbd**            | 名前解決                        | `nmbd`          |
+| **samba-ad-dc**     | Samba AD DC サービス（AD ドメインコントローラ運用時） | `samba-ad-dc` |
 
 ::::
 
-## Sambaの制御
-
-:::: {.no-border-top-table}
-
-| サービス / デーモン | 役割                                 | コマンド                                   |
-| ----------- | ---------------------------------- | -------------------------------------- |
-| `smbd`      | ファイル共有・プリンタ共有・ユーザー認証               | 起動: `sudo systemctl start smbd`        |
-|             |                                    | 停止: `sudo systemctl stop smbd`         |
-|             |                                    | 再起動: `sudo systemctl restart smbd`     |
-|             |                                    | 自動起動有効: `sudo systemctl enable smbd`   |
-|             |                                    | 自動起動無効: `sudo systemctl disable smbd`  |
-|             |                                    | 状態確認: `sudo systemctl status smbd`     |
-| `nmbd`      | 名前解決                               | 起動: `sudo systemctl start nmbd`        |
-|             |                                    | 停止: `sudo systemctl stop nmbd`         |
-|             |                                    | 再起動: `sudo systemctl restart nmbd`     |
-|             |                                    | 自動起動有効: `sudo systemctl enable nmbd`   |
-|             |                                    | 自動起動無効: `sudo systemctl disable nmbd`  |
-|             |                                    | 状態確認: `sudo systemctl status nmbd`     |
-| `samba`     | Samba AD DC サービス（AD ドメインコントローラ運用時） | 起動: `sudo systemctl start samba`       |
-|             |                                    | 停止: `sudo systemctl stop samba`        |
-|             |                                    | 再起動: `sudo systemctl restart samba`    |
-|             |                                    | 自動起動有効: `sudo systemctl enable samba`  |
-|             |                                    | 自動起動無効: `sudo systemctl disable samba` |
-|             |                                    | 状態確認: `sudo systemctl status samba`    |
-: {tbl-colwidths="[20,40,40]"}
-
-::::
 
 ## Sambaの設定
 
 ::: {.callout-note}
 ### Samba設定の基本
 
-- Sambaの主な設定は `/etc/samba/smb.conf` に記述する
-- `smb.conf` は大きく分けて `[Global Settings]` と `[Share Definitions]` の２つから構成される
-- `[Global Settings]`: Sambaサーバーの全般的な設定をする部分．この部分を変更した場合はSambaサーバーの再起動が必要
-- `[Share Definitions]`: ファイル共有やプリンター共有を設定する部分
+- Sambaの主な設定は `/etc/samba/smb.conf` に記述
+- `[セクション名]` で始まるブロックごとにルールを設定していく．セクション名がそのまま**共有名（share name）**になる．クライアントから見えるのはこの名前．
+- `/etc/samba/smb.conf` を編集するときは `sudo cp -a smb.conf smb.conf.default` なり `.bak` 拡張子を用いてバックアップをしておくと安全です．
 
 :::
-
-`/etc/samba/smb.conf` を編集するときは `sudo cp -a smb.conf smb.conf.default` なり `.bak` 拡張子を用いてバックアップをしておくと安全です．
 
 [`smb.conf` Syntax]{.mini-section}
 
@@ -140,6 +239,24 @@ tailscaleを導入している場合は，tailscaleについてのファイヤ�
 parameter = value
 # commentout line begins with # or ;
 ```
+
+[予約セクション]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| セクション	| 役割 | 
+| ----- | ----------------------- |
+| `[global]` | サーバ全体の動作を決める唯一の特別なセクション。ここに書いた値は以降のすべての共有セクションのデフォルト値としても継承される（workgroup、interfaces、server min protocol など）	|
+| `[homes]` |	各ユーザーのホームディレクトリの共有に関するパラメータ設定セクション | 
+| `[printers]` |	CUPS などのプリンタスプーラと連携し、登録済みプリンタを自動的に共有・公開するための設定セクション．ファイルサーバ用途では不要 |
+| `[print$]`|	Windows クライアントに配布するプリンタドライバ設定セクション	プリンタ共有を使わないなら不要|
+
+
+::::
+
+
+
+
 
 [`global`の設定項目]{.mini-section}
 
@@ -161,7 +278,7 @@ parameter = value
 
 ::::
 
-[`Share Deinition`の設定項目]{.mini-section}
+[共有セクションの設定項目]{.mini-section}
 
 :::: {.no-border-top-table}
 
@@ -209,13 +326,13 @@ iPadからtailscale経由でアクセス可能な共有ディレクトリを指�
 
 ```ini
 [server-hdd]
-comment = 2TB sized hdd
-path = /media/kirby/DATA/
-browsable = yes
-writable = yes
-guest ok = no
-printable = no
-valid users = dedede kirby
+   comment = 2TB sized hdd
+   path = /media/kirby/DATA/
+   browsable = yes
+   writable = yes
+   guest ok = no
+   printable = no
+   valid users = dedede kirby
 ```
 
 と指定すると `server-hdd` を共有名として `path` を公開することができます．設定が完了したら
@@ -266,7 +383,7 @@ sudo mount -t exfat -o uid=1000,gid=1000,fmask=000,dmask=000 /dev/sda1 <mount-po
 
 :::
 
-## NautilusでSamba共有フォルダをmountする
+### NautilusでSamba共有フォルダをmountする
 
 基本的にはiPadでの設定と同じ手順です
 
@@ -282,122 +399,43 @@ Tailscaleをつないでいるならば自動的に名前解決してくれま�
 smb://dsserver/
 ```
 
-その後，Sambaユーザー名とSambaパスワード等が要求されますが，それは `smb.conf` の設定に合わせて入力する．
+その後，Sambaユーザー名とSambaパスワード等が要求されますが，それは `smb.conf` の設定に合わせて入力します．
 
-### VSCodeでフォルダの中身を編集する
 
-一度，Nautilus経由でSamba共有フォルダへのアクセス設定すると，`GVfs` が `/run/user/<userid>/gvfs/` 以下に次のような仮想ディレクトリを作成します：
+### クライアント接続情報の確認
 
-```ini
-/run/user/1000/gvfs/smb-share:server=<server-name>,share=<share-folder-name>/
-```
+Sambaサーバに対するアクセス状況は以下のように確認できます．
 
-これはFUSE(Filesystem in Userspace)経由のマウントなので，GVfsに非対応のコマンドラインツールでは直接編集できない場合があります．
-Samba共有フォルダを対象にCLI操作なり開発をしたい場合は `~/Desktop/` などの通常のマウントポイントにマウントするか **シンボリックリンク（`ln -s`）**
-で操作できるようにするという選択肢があります．
-
-GVfsのマウントはセッションごとに作られるため，シンボリックリンクでは動作が不安定になる可能性がありますが，一時的なそうなの場合は十分です．
-
-[シンボリックリンクの作り方]{.mini-section}
-
-デスクトップの `project` フォルダをクリックすると Samba 共有へ飛ぶようするには以下のスクリプトを実行します：
 
 ```bash
-ln -s /run/user/1000/gvfs/smb-share:server=fileserver,share=project ~/Desktop/project
+$ sudo smbstatus
+
+Samba version 4.19.5-Ubuntu
+PID     Username     Group        Machine                                   Protocol Version  Encryption           Signing              
+----------------------------------------------------------------------------------------------------------------------------------------
+1018393 kirby        kirby        100.x.x.x (ipv4:100.x.x.x:60008)          SMB3_11           -                    partial(AES-128-GMAC)
+1011489 dedede       dedede       100.x.x.x (ipv4:100.x.x.x:40280)          SMB3_11           -                    partial(AES-128-GMAC)
+1009585 nobody       nogroup      100.x.x.x (ipv4:100.x.x.x:30585)          SMB3_11           -                    -                    
+
+Service      pid     Machine       Connected at                     Encryption   Signing     
+---------------------------------------------------------------------------------------------
+IPC$         1009585 100.x.x.x     Wed Sep  9 08:33:26 PM 2026 JST  -            -           
+server-hdd   1018393 100.x.x.x     Wed Sep  9 08:47:25 PM 2026 JST  -            -           
+server-hdd   1011489 100.x.x.x     Wed Sep  9 08:39:04 PM 2026 JST  -            -           
+
+
+Locked files:
+Pid          User(ID)   DenyMode   Access      R/W        Oplock           SharePath   Name   Time
+--------------------------------------------------------------------------------------------------
+1011489      1003       DENY_NONE  0x120089    RDONLY     NONE             /media/kirby/DATA/ sambafs/xxxxx/DiNardoetal.pdf   Wed Sep  9 20:52:08 2026
+
 ```
 
-[cifs mountの実施]{.mini-section}
 
-とあるPATH上に credential情報を格納したファイル(例: `.cifs-credentials`)を以下のように設定します
+::: {.callout-note}
+### `IPC$` とは？
 
-```ini
-username=hoshino-kirby
-password=pupupuland
-```
-
-上記はSambaで設定したユーザー情報です．これを`/etc/.cifs-credentials` に格納した場合，
-以下のコマンドでSamba共有フォルダを通常のマウントポイント(例: `~/Desktop/sandbox/`)にマウントすることができます
-
-```bash
-$ sudo mount -t cifs //<server-global-ip>/<samba foldaname>/<path> ~/Desktop/sandbox/ \
--o credentials=/etc/.cifs-credentials,iocharset=utf8,uid=<uid>,gid=<gid>,vers=3.0
-```
-
-::: {.callout-note icon="false"}
-### Remarks
-
-- `uid`と`gid`はクライアント側のvalueを入力します．確認したい場合は `id` コマンドを活用してください．
-- `-13` エラーコードを履く場合，`sudo apt install cifs-utils` を実行してから再度試してください
-
-:::
-
-
-## Appendix: Microsoftネットワーク
-
-Microsoftネットワークは「ワークグループ」という基本単位でネットワークに参加するPCを論理的にまとめて管理しています．
-Windowsコンピューターでは，所属するワークグループ名を設定するだけで，そのワークグループへ参加することができます．
-
-[ワークグループの管理方式]{.mini-section}
-
-ワークグループ自体は分散型管理が基本で，ユーザーアカウントやパスワードをそれぞれのコンピューターで管理します．もう一つの方法として，
-ドメインネットワークを利用したドメインコントローラーというサーバーによる集中管理する方法もあります．
-
-:::: {.no-border-top-table}
-
-| 項目     | ワークグループ（分散型） | ドメイン（中央管理） |
-| ------ | ------------ | ---------- |
-| 管理方式   | 分散型          | 集中管理型      |
-| ユーザー管理 | 各PCごと        | ドメインコントローラー(DC)で一元管理    |
-| 規模     | 小規模          | 中～大規模      |
-| 必要設備   | PCのみ         | DCサーバー必要   |
-
-::::
-
-ドメインネットワークを利用する場合は以下の手順で認証が行われます
-
-1. ユーザーのPCがシステム起動するとき「ドメインログイン」を行い，その認証情報がDCに送られる
-2. DCがユーザー名とパスワードを照合し，認証を行う
-3. DCによる認証をパスすると，ドメインネットワークへのアクセスが許可される
-
-ドメインネットワークでは，一度認証をパスすれば，ドメイン内のサーバーへアクセスする際，個々に認証をする必要はありません．そのため，大規模なネットワークを運用する場合に便利な機能です．
-
-```{mermaid}
-%%{init: {"theme":"default"}}%%
-architecture-beta
-    group wg(cloud)[Workgroup]
-
-    service pc1(server)[PC1] in wg
-    service pc2(server)[PC2] in wg
-    service pc3(server)[PC3] in wg
-    service pc4(server)[PC4] in wg
-
-    pc1:B -- T:pc2
-    pc2:L -- R:pc3
-    pc1:R -- L:pc3
-    pc3:T -- B:pc4
-    pc4:R -- L:pc1
-    pc4:B -- T:pc2
-
-    group domain(cloud)[Domain]
-
-    service dc(database)[Domain Controller] in domain
-    service dpc1(server)[PC5] in domain
-    service dpc2(server)[PC6] in domain
-    service dpc3(server)[PC7] in domain
-
-    dpc1:B -- T:dc
-    dpc2:L -- R:dc
-    dpc3:T -- B:dc
-```
-
-[アクティブディレクトリ（Active Directory, AD）]{.mini-section}
-
-::: {#def- .custom_problem .blog-custom-border}
-[アクティブディレクトリ]{.def-title}
-
-- ユーザーやグループなどのリソースを一元管理するディレクトリサービス
-- ディレクトリアクセスプロトコルとしてLDAPを利用
-- ホスト名の名前解決にDNSを利用
-- 認証システムにKerberosを利用
+- Inter Process Communication の略
+- 匿名ユーザーが共有情報を取得するために必要なセクション
 
 :::

@@ -1,0 +1,94 @@
+#| mainfont: IPAexGothic
+\begin{tikzpicture}[
+    >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    block/.style={draw=#1!55!black, fill=#1!12, rounded corners=3pt,
+                  align=center, minimum height=1.05cm, inner sep=5pt},
+    store/.style={draw=#1!55!black, fill=#1!12, rounded corners=3pt,
+                  align=center, minimum height=0.9cm, inner sep=5pt},
+    zone/.style={fill=#1!6, draw=#1!40, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south, font=\bfseries\small, text=#1!45!black},
+    sig/.style={font=\footnotesize, inner sep=2pt},
+  ]
+
+  %% ---- クライアント側 ----
+  \node[block=blue] (win)  {Windows PC\\\scriptsize エクスプローラー};
+  \node[block=blue, below=0.75cm of win] (ipad) {iPad / iPhone\\\scriptsize ファイルApp};
+  \node[block=blue, below=0.75cm of ipad] (linux) {Linux クライアント\\\scriptsize Nautilus / mount -t cifs};
+
+  %% ---- ネットワーク層 ----
+  \node[block=gray, right=2.4cm of ipad, minimum height=1.3cm] (net)
+        {LAN / Tailscale\\\scriptsize（閉じたネットワーク）};
+
+  %% ---- Samba サーバ側 デーモン ----
+  \node[block=teal, right=3.4cm of net, minimum width=3.4cm] (smbd)
+        {\textbf{smbd}\\\scriptsize ファイル・プリンタ共有\\\scriptsize ユーザー認証};
+  \node[block=orange, above=1.5cm of smbd, minimum width=3.4cm] (nmbd)
+        {\textbf{nmbd}\\\scriptsize NetBIOS 名前解決・ブラウジング};
+
+  %% ---- 設定・認証DB（smbd の下に縦積み）----
+  \node[store=purple, below=1.9cm of smbd, xshift=-1.5cm, minimum width=2.7cm] (conf)
+        {\texttt{smb.conf}\\\scriptsize global / share 定義};
+  \node[store=purple, below=1.9cm of smbd, xshift=1.9cm, minimum width=3.1cm] (passdb)
+        {passdb (\texttt{tdbsam})\\\scriptsize ユーザー・パスワード};
+
+  %% ---- OS リソース ----
+  \node[block=violet, right=4.0cm of smbd, minimum width=3.3cm] (fs)
+        {共有ディレクトリ\\\scriptsize \texttt{/media/kirby/DATA}};
+  \node[block=violet, above=1.5cm of fs, minimum width=3.3cm] (printer)
+        {プリンタ\\\scriptsize CUPS};
+  \node[block=violet, below=1.35cm of fs, minimum width=3.3cm] (home)
+        {ホームディレクトリ\\\scriptsize \texttt{[homes]}};
+
+  %% ---- 配線: クライアント → ネットワーク ----
+  \coordinate (cbus) at ($(ipad.east)!0.45!(net.west)$);
+  \draw[-] (win.east)   -- (win.east   -| cbus);
+  \draw[-] (linux.east) -- (linux.east -| cbus);
+  \draw[-] (win.east -| cbus) -- (linux.east -| cbus);
+  \node[circle, fill, inner sep=1.2pt] at (ipad.east -| cbus) {};
+  \draw[->] (ipad.east) -- (net.west);
+
+  %% ---- ネットワーク → デーモン ----
+  \draw[->] (net.east) -- (smbd.west);
+  \node[sig, anchor=south] at ($(net.east)!0.5!(smbd.west)+(0,0.10)$) {SMB / TCP 445};
+  \node[sig, anchor=north, align=center] at ($(net.east)!0.5!(smbd.west)+(0,-0.10)$)
+        {\scriptsize SMB2/3 は 445/tcp のみ\\\scriptsize セッション確立・読み書き};
+
+  \draw[->] (net.north) |- (nmbd.west);
+  \node[sig, anchor=south west] at ($(net.north |- nmbd.west)+(0.1,0.08)$)
+        {NetBIOS 名前解決 / UDP 137, 138};
+  \node[sig, anchor=north west, text=black!60] at ($(net.north |- nmbd.west)+(0.1,-0.08)$)
+        {\scriptsize SMB1 互換経路};
+
+  %% ---- 設定・認証の参照（縦方向のみ）----
+  \coordinate (dbus) at ($(smbd.south)+(0,-0.8)$);
+  \draw[-, dashed] (conf.north)   -- (conf.north   |- dbus);
+  \draw[-, dashed] (passdb.north) -- (passdb.north |- dbus);
+  \draw[-, dashed] (conf.north |- dbus) -- (passdb.north |- dbus);
+  \draw[->, dashed] (dbus) -- (smbd.south);
+  \node[circle, fill, inner sep=1.2pt] at (dbus) {};
+  \node[sig, anchor=south, align=center] at ($(conf.north)+(0,0.06)$) {設定読込};
+  \node[sig, anchor=south, align=center] at ($(passdb.north)+(0,0.06)$) {認証照合};
+
+  %% ---- デーモン → OS リソース ----
+  \draw[->] (smbd.east) -- (fs.west);
+  \coordinate (bus) at ($(smbd.east)!0.55!(fs.west)$);
+  \node[sig, anchor=south] at ($(smbd.east)!0.30!(fs.west)+(0,0.10)$) {POSIX I/O};
+  \node[sig, anchor=north] at ($(smbd.east)!0.30!(fs.west)+(0,-0.10)$)
+        {\scriptsize 権限・マスク適用};
+  \node[circle, fill, inner sep=1.4pt] at (bus) {};
+  \draw[->] (bus) |- (printer.west);
+  \draw[->] (bus) |- (home.west);
+
+  %% ---- ゾーン背景 ----
+  \coordinate (ctop) at ($(win.north)+(0,0.3)$);
+  \coordinate (cbot) at ($(linux.south)+(0,-0.3)$);
+  \begin{scope}[on background layer]
+    \node[zone=blue, fit=(win)(ipad)(linux)(ctop)(cbot)] (zclient) {};
+    \node[zone=teal, fit=(nmbd)(smbd)(conf)(passdb)] (zserver) {};
+    \node[zone=violet, fit=(printer)(fs)(home)] (zos) {};
+  \end{scope}
+  \node[zlabel=blue]   at (zclient.north) {SMB クライアント};
+  \node[zlabel=teal]   at (zserver.north) {Samba サーバ（Linux ホスト）};
+  \node[zlabel=violet] at (zos.north) {ホスト OS のリソース};
+
+\end{tikzpicture}
