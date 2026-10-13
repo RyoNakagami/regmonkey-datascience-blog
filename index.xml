@@ -983,6 +983,619 @@ font-style: inherit;">]</span></span></code></pre></div></div>
   <pubDate>Thu, 01 Oct 2026 00:00:00 GMT</pubDate>
 </item>
 <item>
+  <title>tee コマンドのすすめ</title>
+  <dc:creator>Ryo Nakagami</dc:creator>
+  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-01-stdout-log/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>TL;DRs
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>やりたいこと</th>
+<th>書き方</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>画面とファイルの両方に出す</td>
+<td><code>cmd | tee out.log</code></td>
+</tr>
+<tr class="even">
+<td>stderr も含める</td>
+<td><code>cmd 2&gt;&amp;1 | tee out.log</code></td>
+</tr>
+<tr class="odd">
+<td>追記する</td>
+<td><code>cmd | tee -a out.log</code></td>
+</tr>
+<tr class="even">
+<td>複数ファイルに保存する</td>
+<td><code>cmd | tee a.log b.log</code></td>
+</tr>
+<tr class="odd">
+<td>終了ステータスを保つ</td>
+<td><code>set -o pipefail</code> または <code>${PIPESTATUS[0]}</code></td>
+</tr>
+<tr class="even">
+<td>色を残しつつログは素のテキストにする</td>
+<td><code>cmd --color=always 2&gt;&amp;1 | tee &gt;(sed ... &gt; out.log)</code></td>
+</tr>
+<tr class="odd">
+<td>root 権限のファイルに書く</td>
+<td><code>echo ... | sudo tee -a file &gt; /dev/null</code></td>
+</tr>
+<tr class="even">
+<td>Python の出力を即時表示する</td>
+<td><code>python -u script.py 2&gt;&amp;1 | tee out.log</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<section id="tee-コマンドとは" class="level2">
+<h2 class="anchored" data-anchor-id="tee-コマンドとは">tee コマンドとは</h2>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>定義 1</strong></span> <span class="def-title">tee コマンド</span></p>
+<ul>
+<li><code>tee</code> は標準入力から受け取った内容を，標準出力とファイルの両方に書き出すコマンド</li>
+<li>ファイルへの保存と標準出力への出力を同時に行える</li>
+<li>複数のファイルへの出力も可能</li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">コマンド1</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tee</span> ファイル <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">コマンド2</span></span>
+<span id="cb1-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">コマンド</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tee</span> ファイル1 ファイル2 ファイル3 ...</span></code></pre></div></div>
+</div>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 30%">
+<col style="width: 45%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>短いオプション</th>
+<th>長いオプション</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>-a</code></td>
+<td><code>--append</code></td>
+<td>既存ファイルを上書きせず追記する(リダイレクトの <code>&gt;&gt;</code> に相当)</td>
+</tr>
+<tr class="even">
+<td><code>-i</code></td>
+<td><code>--ignore-interrupts</code></td>
+<td>割り込みシグナル(<code>SIGINT</code>)を無視する</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>「画面で進捗を見ながら，同じ内容をログとして残す」という，データ分析や開発で頻出する要求を1つのコマンドで満たせます．</p>
+<p><span class="mini-section">リダイレクトとの違い</span></p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>書き方</th>
+<th>画面</th>
+<th>ファイル</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>cmd &gt; out.log</code></td>
+<td>出ない</td>
+<td>出る</td>
+</tr>
+<tr class="even">
+<td><code>cmd | tee out.log</code></td>
+<td>出る</td>
+<td>出る</td>
+</tr>
+<tr class="odd">
+<td><code>cmd | tee -a out.log</code></td>
+<td>出る</td>
+<td>追記される</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="基本の使い方" class="level2">
+<h2 class="anchored" data-anchor-id="基本の使い方">基本の使い方</h2>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>例 1 (リダイレクトとパイプを同時に行う)</strong></span> <code>コマンド &gt; ファイル</code> と <code>コマンド | コマンド</code> を同時に行いたい場合は，間に <code>tee</code> を挟みます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">find</span> /bin /usr/bin <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-type</span> f <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tee</span> cmdlist <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">less</span></span></code></pre></div></div>
+<p><code>find</code> の結果を <code>cmdlist</code> に保存しつつ，<code>less</code> で閲覧しています．</p>
+</div>
+<hr>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>例 2 (複数のファイルに保存する)</strong></span> &nbsp;</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ls</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tee</span> a.lst b.lst c.lst</span></code></pre></div></div>
+<p><code>tee</code> は標準出力にも書き出すので，画面に出したくない場合は出力先の1つをリダイレクトにします．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ls</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tee</span> a.lst b.lst <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> c.lst</span></code></pre></div></div>
+</div>
+<hr>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>例 3 (stderr も一緒に残す)</strong></span> パイプが渡すのは stdout だけです．エラーメッセージや進捗表示は stderr に出ることが多いので，ログを取るときは <code>2&gt;&amp;1</code> でまとめてから <code>tee</code> に渡します．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">cargo</span> test <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--locked</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;&amp;</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tee</span> test.log</span></code></pre></div></div>
+<p>cargo はビルドの進捗を stderr に，テスト結果を stdout に出すため，<code>2&gt;&amp;1</code> がないとビルドログがファイルに残りません．</p>
+</div>
+<hr>
+</section>
+<section id="開発での使いどころ" class="level2">
+<h2 class="anchored" data-anchor-id="開発での使いどころ">開発での使いどころ</h2>
+<section id="終了ステータスを保持する" class="level3">
+<h3 class="anchored" data-anchor-id="終了ステータスを保持する">終了ステータスを保持する</h3>
+<p>パイプにすると，終了コードは最後のコマンドである <code>tee</code> のもの(ほぼ常に 0)になります． テストが失敗してもスクリプトや CI が成功扱いになってしまうので，次のどちらかで対処します．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">set</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-o</span> pipefail</span>
+<span id="cb6-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">cargo</span> test <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--locked</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;&amp;</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tee</span> test.log</span></code></pre></div></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">cargo</span> test <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--locked</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;&amp;</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tee</span> test.log</span>
+<span id="cb7-2"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">exit</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">${PIPESTATUS</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">[</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">]</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">}</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span></span></code></pre></div></div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+ノート
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li><code>PIPESTATUS</code> は bash の配列</li>
+<li>zsh では小文字の <code>pipestatus</code> で，添字が1始まりになります(<code>${pipestatus[1]}</code>)．</li>
+</ul>
+</div>
+</div>
+</section>
+<section id="画面の色を残す" class="level3">
+<h3 class="anchored" data-anchor-id="画面の色を残す">画面の色を残す</h3>
+<p>パイプ先は TTY ではないため，多くのコマンドは色を自動で無効にします． cargo の場合，cargo 本体とテストハーネスの両方に指定します．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">cargo</span> test <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--locked</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--color</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>always <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--color</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>always <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;&amp;</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tee</span> test.log</span></code></pre></div></div>
+<p>ただしこの方法ではログにも ANSI エスケープが入ります． ログをプレーンテキストにしたい場合は，プロセス置換を使ってファイルに書く側だけで除去します．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">cargo</span> test <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--locked</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--color</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>always <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--color</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>always <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;&amp;</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb9-2">  <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tee</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;(</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sed</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-E</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'s/\x1b\[[0-9;]*[mK]//g'</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> test.log<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">)</span></span></code></pre></div></div>
+<p>他のツールでも考え方は同じで，色を強制するオプションが異なるだけです．</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>ツール</th>
+<th>色を強制する指定</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>cargo</code></td>
+<td><code>--color=always</code></td>
+</tr>
+<tr class="even">
+<td><code>pytest</code></td>
+<td><code>--color=yes</code></td>
+</tr>
+<tr class="odd">
+<td><code>git</code></td>
+<td><code>-c color.ui=always</code></td>
+</tr>
+<tr class="even">
+<td><code>grep</code> / <code>ls</code></td>
+<td><code>--color=always</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="root-権限が必要なファイルに書き込む" class="level3">
+<h3 class="anchored" data-anchor-id="root-権限が必要なファイルに書き込む">root 権限が必要なファイルに書き込む</h3>
+<p><code>sudo echo ... &gt; /etc/...</code> は，リダイレクトを処理するのが sudo 前の自分のシェルなので権限エラーになります． 書き込みを <code>tee</code> に任せ，<code>tee</code> を sudo で実行します．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"127.0.0.1 mlflow.local"</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sudo</span> tee <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-a</span> /etc/hosts <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> /dev/null</span></code></pre></div></div>
+<p>末尾の <code>&gt; /dev/null</code> は画面へのエコーを捨てるためのものです．<code>-a</code> を忘れるとファイルが上書きされる点に注意してください．</p>
+</section>
+</section>
+<section id="データ分析での使いどころ" class="level2">
+<h2 class="anchored" data-anchor-id="データ分析での使いどころ">データ分析での使いどころ</h2>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>例 4 (学習・バッチ処理のログを残す)</strong></span> 長時間かかる学習やバッチ処理では，進捗を画面で追いながらログを残します．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">python</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-u</span> train.py <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--config</span> config.yml <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;&amp;</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tee</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"logs/train_</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$(</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">date</span> +%Y%m%d_%H%M%S<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">)</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">.log"</span></span></code></pre></div></div>
+<p>Python は出力先が TTY でないと stdout をブロックバッファリングするため，そのままでは画面への表示がまとまって遅れて出ます． <code>-u</code>(または環境変数 <code>PYTHONUNBUFFERED=1</code>)でバッファリングを無効にします．</p>
+<p>Python 以外のコマンドでは <code>stdbuf</code> が使えます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">stdbuf</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-oL</span> ./long_job <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;&amp;</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tee</span> job.log</span></code></pre></div></div>
+</div>
+<hr>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>例 5 (同じログに追記していく)</strong></span> ハイパーパラメータを変えながら繰り返し実行する場合は，<code>-a</code> で1つのファイルに追記します．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb13-1"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> lr <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> 0.1 0.01 0.001<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">;</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">do</span></span>
+<span id="cb13-2">  <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"=== lr=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">${lr}</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> ==="</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tee</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-a</span> sweep.log</span>
+<span id="cb13-3">  <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">python</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-u</span> train.py <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--lr</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">${lr}</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;&amp;</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tee</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-a</span> sweep.log</span>
+<span id="cb13-4"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">done</span></span></code></pre></div></div>
+</div>
+<hr>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>例 6 (パイプラインの中間結果を保存する)</strong></span> 前処理をパイプでつないでいるとき，途中段階のデータをファイルに落としておくと，後から件数や中身を検証できます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb14-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">zcat</span> access.log.gz <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb14-2">  <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">grep</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-v</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"healthcheck"</span> <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb14-3">  <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tee</span> filtered.log <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb14-4">  <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">awk</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'{print $1}'</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sort</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">uniq</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-c</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sort</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-rn</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">head</span></span></code></pre></div></div>
+</div>
+<hr>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<ul>
+<li><a href="https://atmarkit.itmedia.co.jp/ait/articles/1611/16/news022.html">tee コマンド: ―標準出力とファイルの両方に出力する</a></li>
+</ul>
+
+
+</section>
+
+ ]]></description>
+  <category>環境構築</category>
+  <category>shellscript</category>
+  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-01-stdout-log/</guid>
+  <pubDate>Thu, 01 Oct 2026 00:00:00 GMT</pubDate>
+</item>
+<item>
   <title>Glob Qualifier in Bash and Zsh</title>
   <dc:creator>Ryo Nakagami</dc:creator>
   <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-09-07-zsh-glob-qualifiers/</link>
@@ -3678,105 +4291,6 @@ font-style: inherit;">"IPAexGothic"</span></span></code></pre></div></div>
   <category>font</category>
   <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-07-06-install-IPAfont/</guid>
   <pubDate>Mon, 06 Jul 2026 00:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>プロジェクトの成功の定義について</title>
-  <dc:creator>Ryo Nakagami</dc:creator>
-  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-06-03-thoughts-on-project-evaluation/</link>
-  <description><![CDATA[ 
-
-
-
-
-
-
-<section id="chaosレポートにおけるプロジェクト評価の定義" class="level2">
-<h2 class="anchored" data-anchor-id="chaosレポートにおけるプロジェクト評価の定義">CHAOSレポートにおけるプロジェクト評価の定義</h2>
-<p>CHAOSレポート（Standish Group が定期発行するソフトウェアプロジェクトの実態調査）では， プロジェクトの結果を以下の3カテゴリに分類している．</p>
-<table class="caption-top table">
-<caption>CHAOSレポートにおける3分類</caption>
-<colgroup>
-<col style="width: 15%">
-<col style="width: 20%">
-<col style="width: 65%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>カテゴリ</th>
-<th>英語名</th>
-<th>定義</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><strong>成功</strong></td>
-<td>Successful</td>
-<td>予算内・期限内に完了し，要求された機能・特性をすべて備えている</td>
-</tr>
-<tr class="even">
-<td><strong>問題あり</strong></td>
-<td>Challenged</td>
-<td>完了はしたが，予算超過・期限超過・機能不足のいずれかが発生している</td>
-</tr>
-<tr class="odd">
-<td><strong>失敗</strong></td>
-<td>Failed</td>
-<td>キャンセルまたは納品されたが使用されなかった</td>
-</tr>
-</tbody>
-</table>
-<div class="reveal_vspace" style="--vspace-height: 2em;"></div>
-<div id="fig-plot" class="center quarto-float quarto-figure quarto-figure-center anchored">
-<figure class="quarto-float quarto-float-fig figure">
-<div aria-describedby="fig-plot-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-06-03-thoughts-on-project-evaluation/project-stats.svg" class="img-fluid figure-img">
-</div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-plot-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-図&nbsp;1
-</figcaption>
-</figure>
-</div>
-<p>上図は Standish Group CHAOS Report（2015年）のデータをもとに，開発手法（Agile / Waterfall）とプロジェクト規模（全体・大型・中型・小型）の組み合わせ別に，成功・問題あり・失敗の割合を示したものです．</p>
-<ul>
-<li>全体傾向として，<strong>Agile はすべての規模において Waterfall より成功率が高く，失敗率が低い</strong>．</li>
-<li>規模の観点では，<strong>プロジェクトが大型化するほど成功率が急激に低下する</strong></li>
-</ul>
-</section>
-<section id="成功定義の問題点" class="level2">
-<h2 class="anchored" data-anchor-id="成功定義の問題点">「成功」定義の問題点</h2>
-<p><span class="mini-section">① 計画精度を前提とした定義</span></p>
-<p>CHAOSレポートの成功定義は，「期限・予算・機能の計画値と実績値が一致していること」を基準としてます． この評価軸は，<strong>設計段階において納期・予算・機能スコープを正確に見積もれることを暗黙の前提</strong>となってます</p>
-<p>多くのソフトウェア開発プロジェクト，特に探索的・イノベーティブな性質を持つものでは，初期段階で正確な見積もりを立てること自体が構造的に困難． また，不確実性の高いプロジェクトほど計画が外れやすく，「問題あり」に分類されやすいという問題があります．</p>
-<p><span class="mini-section">② 「計画通りに完了したが価値を生まなかった」ケース</span></p>
-<p>予算内・期限内・全機能を実装して「成功」と判定されたプロジェクトが，リリース後にユーザーに使われないケース，あるいは事業目標を達成しないケースは珍しくないです． そもそも，開発したソフトウェアが市場やクライアントのニーズにどれだけ適合したものかどうかは，判断基準に含まれていないです．</p>
-<p>逆に，スコープ変更や期限延長が発生したプロジェクトが「問題あり」に分類されながらも，市場での大きな成功を収めることもありえます．</p>
-<p><span class="mini-section">③ 計画変更を「失敗」として扱う問題</span></p>
-<p>アジャイル開発など，学習を前提とした反復型アプローチでは，要件の変化や優先度の見直しはプロジェクトの健全なシグナルですが， CHAOSの基準では，計画との乖離はカテゴリを問わず評価を下げる方向に働きます．<strong>計画の変更そのものを失敗の証拠として扱う</strong>この設計は， アジャイル型プロジェクトの実態を正しく測定できていないリスクがあります．</p>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>CHAOSレポートでは成功だが，どうみても「成功でない」ケース
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>納品１ヶ月後にクラッシュしたプログラム</li>
-<li>ユーザーから簡単な機能追加を依頼されたが，実現が簡単ではない．機能追加には多大な時間が必要だし，新たなバグを生む可能性が高い</li>
-<li>二度とその顧客から発注が来なくなった</li>
-</ul>
-</div>
-</div>
-
-
-</section>
-
- ]]></description>
-  <category>方法論</category>
-  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-06-03-thoughts-on-project-evaluation/</guid>
-  <pubDate>Tue, 09 Jun 2026 00:00:00 GMT</pubDate>
 </item>
 </channel>
 </rss>
