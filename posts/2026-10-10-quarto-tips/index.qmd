@@ -1,0 +1,167 @@
+---
+title: "Quarto Tips"
+author: "Ryo Nakagami"
+date: "2026-10-10"
+date-modified: "2026-10-10"
+categories: [quarto]
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## Tips 1: Table Listingからの除外
+
+
+::: {.callout-note}
+### `posts/以下の特定のサブディレクトリのみをListingから除外`
+
+```yml
+title: "Regmonkey Datascience Blog"
+subtitle: "こつこつ勉強日記"
+listing:
+  - id: All-listings
+    contents:
+      - posts
+      - "!posts/**/resources/**"
+```
+
+:::
+
+### Listingとは？
+
+::: {#def- .custom_problem .blog-custom-border}
+[Listing]{.def-title}
+
+- Listingとは，Quarto documentの一覧（または任意のデータ）から，ページの内容を自動生成する機能
+- 対象documentの追加・更新・削除に応じて，一覧も自動的に更新される
+- 各itemは対象documentのfront matter（`title`, `date`, `categories` など）から生成される
+- itemとして表示されるには，少なくとも `title` が必要
+
+:::
+
+Listingはページのfront matterに `listing` keyを書くことで有効になります．
+
+::: {#exm- .custom_problem }
+[Listingはページのfront matter]{.def-title}
+
+```yml
+---
+title: "Listing Example"
+listing: default
+---
+```
+
+この場合，同じディレクトリにあるdocumentのうち，自分自身を除くすべてが一覧に表示されます．
+
+
+:::
+***
+
+
+[Listingの表示位置]{.mini-section}
+
+Listingはデフォルトではページ本文の末尾に追加されます．表示位置を指定したい場合は，`id` を設定したうえで，同じidをもつdivを本文中に置きます．
+
+```markdown
+---
+listing:
+  id: All-listings
+  contents: posts
+---
+
+::: {#All-listings}
+:::
+```
+
+`listing` をリストで書けば，1ページに複数のListingを定義できます．その場合はListingごとに `id` を割り当て，それぞれ対応するdivで配置します．
+
+### Listingの挙動
+
+どのdocumentを一覧に含めるかは `contents` で指定します．指定したパスは，project rootではなく **Listingを置いたページからの相対パス** として解決されます．
+
+:::: {.no-border-top-table}
+
+| 指定方法 | 例 | 挙動 |
+|---|---|---|
+| ディレクトリ名 | `posts` | `posts/**` として扱われ，配下のdocumentを再帰的に探索する |
+| glob pattern | `"reports/*.qmd"` | patternにマッチしたdocumentのみを含める |
+| YAMLファイル | `items.yml` | ファイルに書いたmetadataをitemとして含める |
+: {tbl-colwidths="[20,25,55]"}
+
+::::
+
+[ディレクトリ名とglob patternの違い]{.mini-section}
+
+```yml
+listing:
+  contents: posts            # posts/ 以下を再帰的に探索
+```
+
+```yml
+listing:
+  contents:
+    - "posts/*/index.qmd"    # posts/<記事名>/index.qmd のみ
+```
+
+- `contents: posts` は再帰的に探索するため，`posts/<記事名>/resources/` のようなサブディレクトリに置いた `.qmd` もitemとして拾われる
+- `*.qmd` のようなglob patternは，マッチする階層を自分で制御できる
+- 冒頭の設定は，`posts` で全体を拾ったうえで `"!posts/**/resources/**"` によって `resources/` 以下だけを除外している
+
+
+[YAMLファイルによるitemの追加]{.mini-section}
+
+Quarto documentとして存在しないページ（外部サイトの記事など）も，YAMLファイルに書くことで一覧に含められます．
+
+```yml
+- title: "Archived Item 1"
+  author: Norah Jones
+  date: 2020-01-01
+  path: "archived/archived-item-1.html"
+  categories: [archived, technology]
+```
+
+
+### 設定可能項目
+
+[`type`: 一覧の見た目]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| `type` | 見た目 | `page-size` のデフォルト |
+|---|---|---|
+| `default` | ブログ形式（1記事1行で，画像と説明文つき） | 25 |
+| `table` | 表形式 | 30 |
+| `grid` | カード形式 | 18 |
+: {tbl-colwidths="[20,55,25]"}
+
+::::
+
+[共通の設定項目]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| 項目 | デフォルト | 内容 |
+|---|---|---|
+| `id` | なし | Listingの識別子．divによる配置に使う |
+| `sort` | `title` | 並び順．`"date desc"` のようにfieldと `asc` / `desc` を指定する．リストで複数fieldも指定できる．`false` で元の順序を保つ |
+| `max-items` | - | 一覧に含めるitem数の上限 |
+| `page-size` | `type` による | 1ページあたりのitem数 |
+| `fields` | `type` による | 表示するfield．例: `[date, title, categories, reading-time]` |
+| `field-display-names` | なし | fieldの表示名．例: `title: "Report"` |
+| `date-format` | - | 日付の書式．`full` / `long` / `medium` / `short` / `iso` または `d-M-yyyy` のような書式文字列 |
+| `max-description-length` | 175 | 説明文の最大文字数 |
+| `sort-ui` | `title`, `date`, `author` | 並び替えUI．`false` で非表示，リストで対象fieldを指定 |
+| `filter-ui` | 有効（表示中の全field） | 絞り込み用の検索ボックス．`false` で無効，リストで対象fieldを指定 |
+| `categories` | - | カテゴリ一覧の表示．`true` / `numbered` / `unnumbered` / `cloud` |
+| `feed` | - | RSS feedの生成．`_quarto.yml` の `website` に `site-url` が必要 |
+: {tbl-colwidths="[25,25,50]"}
+
+::::
+
+
+References
+-----------
+
+- [Quarto > Document Listings](https://quarto.org/docs/websites/website-listings.html)
