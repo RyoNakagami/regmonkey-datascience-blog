@@ -1,0 +1,70 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+% ディレクトリ枠（左下 #1）と中の3ファイル
+\newcommand{\dirbox}[1]{
+  \draw[draw=navy, fill=aliceblue, rounded corners=3pt] #1 rectangle ++(2.6,2.1);
+  \node[font=\scriptsize\bfseries, text=navy, anchor=north west] at ($#1+(0.1,2.08)$) {speedtest/};
+  \foreach \y/\n in {1.25/speedtest, 0.7/speedtest.5, 0.15/speedtest.md} {
+    \draw[draw=navy, fill=white] ($#1+(0.2,\y)$) rectangle ++(2.2,0.42);
+    \node[font=\scriptsize\ttfamily] at ($#1+(1.3,\y+0.21)$) {\n};
+  }
+}
+\begin{tikzpicture}[
+    >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    step/.style={font=\footnotesize\bfseries, text=azureblue},
+    head/.style={font=\bfseries, text=navy, anchor=west},
+    file/.style={draw=navy, fill=white, minimum width=2.2cm, minimum height=0.42cm,
+                 inner sep=0pt, font=\scriptsize\ttfamily},
+    wire/.style={->, draw=navy},
+  ]
+  % ================= 上段：まとめない場合 =================
+  \node[head] at (-0.1,3.75) {まとめない場合：ファイルを1つずつ送る};
+  \dirbox{(0,1.0)}
+  % 受け手側：バラバラに届く
+  \node[file] (r1) at (11.1,2.46) {speedtest};
+  \node[file] (r2) at (11.1,1.91) {speedtest.5};
+  \node[file] (r3) at (11.1,1.36) {speedtest.md};
+  \foreach \y/\k in {2.46/①, 1.91/②, 1.36/③} {
+    \draw[wire] (2.4,\y) -- node[pos=0.5, above=-1pt, font=\scriptsize, text=darkgray] {\k} (r1.west |- 0,\y);
+  }
+  \node[sig, anchor=north, align=center] at (6.4,1.15) {ファイルの数だけ転送が必要\\（数千ファイルなら数千回）};
+  \node[font=\footnotesize, text=crimsonred, anchor=north, align=center] at (11.1,1.05)
+    {ディレクトリ構造や実行権限は\\引き継がれないことがある};
+
+  % 区切り線
+  \draw[draw=lightgray] (-0.1,0.0) -- (12.4,0.0);
+
+  % ================= 下段：tar でまとめる場合 =================
+  \node[head] at (-0.1,-0.55) {tar でまとめる場合：1ファイルにして送る};
+  \dirbox{(0,-3.3)}
+
+  % tar ファイル：各エントリ = ヘッダ（メタ情報）＋ 中身
+  \draw[wire] (2.75,-2.25) -- node[midway, above, step] {tar -cf} (4.15,-2.25);
+  \draw[draw=navy, fill=aliceblue, rounded corners=3pt] (4.3,-3.3) rectangle (7.9,-1.2);
+  \node[font=\scriptsize\bfseries\ttfamily, text=navy, anchor=north west] at (4.4,-1.22) {speedtest.tar};
+  \foreach \y/\n in {-1.95/speedtest, -2.5/speedtest.5, -3.05/speedtest.md} {
+    \draw[draw=navy, fill=paleskyblue] (4.5,\y) rectangle (5.7,\y+0.42);
+    \node[font=\scriptsize] at (5.1,\y+0.21) {ヘッダ};
+    \draw[draw=navy, fill=white] (5.7,\y) rectangle (7.7,\y+0.42);
+    \node[font=\scriptsize\ttfamily] at (6.7,\y+0.21) {\n};
+  }
+  \node[font=\scriptsize, text=azureblue, anchor=north, align=center] at (5.1,-3.38)
+    {名前・権限・\\更新日時など};
+
+  % 転送と展開
+  \draw[wire] (8.05,-2.25) -- node[midway, above, step] {1回で転送}
+    node[midway, below, step] {→ tar -xf} (9.65,-2.25);
+  \dirbox{(9.8,-3.3)}
+  \node[font=\footnotesize, text=azureblue, anchor=north, align=center] at (11.1,-3.4)
+    {構造・権限ごと\\元どおりに復元};
+\end{tikzpicture}
