@@ -1,8 +1,8 @@
 ---
-title: "VSCode Tips"
+title: "VSCode Tips and Settings"
 author: "Ryo Nakagami"
 date: "2026-08-21"
-date-modified: "2026-08-21"
+date-modified: "2026-10-20"
 categories: [vscode]
 listing_category: development
 comments:
@@ -74,8 +74,87 @@ def process(records):
 
 ::::
 
+## 2. Settingsの観点
+
+### General
+
+::: {.callout-note}
+### Rule 2-1: 「探さないもの」は `search.exclude`，「見張らないもの」は `files.watcherExclude` に登録する
+
+- `search.exclude`: 全文検索・Quick Open（`Ctrl` + `P`）の走査対象から外す
+- `files.watcherExclude`: ファイル変更監視（file watcher）の対象から外す
+- どちらも glob パターンをキー，`true` を値にして指定する
+
+:::
+
+:::: {.no-border-top-table}
+
+|**設定**|**除外されるもの**|**Explorer 表示**|**comment**|
+|--------|----------------|----------------|-----------|
+|`files.exclude`|Explorer 表示・検索の両方|非表示|ファイルの存在自体を隠したいとき用．検索からも外れる|
+|`search.exclude`|全文検索・Quick Open|表示される|ファイルは開けるが検索には出てこない|
+|`files.watcherExclude`|ファイル変更監視|表示される|外部プロセスによる変更が Explorer やエディタに自動反映されなくなる|
+
+: {tbl-colwidths="[22,26,14,38]"}
+
+::::
+
+[**`search.exclude` の効能**]{.mini-section}
+
+```json
+"search.exclude": {
+  "data/**": true,
+  "**/*.parquet": true
+}
+```
+
+この設定をすると
+
+- `Cmd+Shift+F` で `user_id` を検索しても，`data/train.csv` などの一致は結果に出ず，コードの一致だけが並ぶ
+- `data/` 配下や `.parquet` ファイルを走査しなくなるので，検索が速くなる
+- `Cmd+P`（Quick Open）の候補からも外れる
+- エクスプローラーには表示されたままで，クリックすれば開ける
+
+なお，`search.useIgnoreFiles` が `true`（デフォルト）なら，`.gitignore` に書いたパスは指定しなくても検索から外れてます.`gitignore` していないファイルを検索から外したいときにだけ設定します．
+
+[**`files.watcherExclude` の効能**]{.mini-section}
+
+```json
+"files.watcherExclude": {
+  "data/**": true,
+  "mlruns/**": true,
+  "outputs/**": true
+}
+```
+
+この設定をすると
+
+- 学習ジョブが `mlruns/` に大量にログを書き込んでも，VS Code がその変更イベントを処理しなくなり，CPU やメモリの消費が抑えられる
+- `data/` に数万ファイルがあっても，監視上限の警告（Linux の inotify 上限など）が出にくくなる
+- `outputs/` に新しいファイルができてもエクスプローラーにすぐ出てこない（更新ボタンで反映）
+
+なお，`.gitignore` に書いてあっても監視はされるので，監視を止めたい場合は明示的に記載することが必要です
+
+### Python
+
+:::: {.no-border-top-table}
+
+|**カテゴリー**|**項目**|**設定値**|**挙動**|
+|-----------|--------|---------|--------|
+|Jupyter|`jupyter.notebookFileRoot`|`"${fileDirname}"`|Notebook / Interactive Window のカーネルの作業ディレクトリを，開いているファイルのディレクトリにする．相対パスでの `open()` や `read_csv()` はファイル位置基準で解決される|
+|Jupyter|`jupyter.interactiveWindow.creationMode`|`"perFile"`|`# %%` セル実行時の Interactive Window を `.py` ファイルごとに1つ作る．ファイル間でカーネル・変数は共有されない|
+|Terminal|`python-envs.terminal.autoActivationType`|`"off"`|新しいターミナルを開いても venv を自動 activate しない（`uv run` 運用前提）|
+|Pylance|`python.analysis.ignore`|`["**/Interactive-*.interactive.py"]`|Interactive Window が内部生成する一時ファイルに対して Pylance の診断を出さない|
+|Pylance|`python.analysis.diagnosticSeverityOverrides`|`{ "reportAssignmentType": "warning" }`|宣言型と互換性のない代入を error ではなく warning として表示する|
+|Formatter|`[python]` > `editor.defaultFormatter`|`"charliermarsh.ruff"`|Python ファイルの「ドキュメントのフォーマット」で Ruff を使う|
+
+: {tbl-colwidths="[12,28,22,38]"}
+
+::::
+
 
 References
 ----------
 - [regmonkey post > 自分用ショートカットシート](../2024-12-19-shortcuts/index.qmd)
 - [Visual Studio Code > Basic Editing](https://code.visualstudio.com/docs/editing/codebasics)
+- [Linuxのファイル監視とVS CodeのENOSPCエラー](../2026-08-20-file-watcher-in-linux/index.qmd)
