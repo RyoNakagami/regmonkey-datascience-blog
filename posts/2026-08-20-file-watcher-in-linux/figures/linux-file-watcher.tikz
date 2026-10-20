@@ -1,0 +1,114 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.0cm, inner sep=5pt},
+    dir/.style={block, minimum width=2.8cm, minimum height=0.8cm, font=\small\ttfamily},
+    excl/.style={dir, draw=darkgray, dashed, fill=white, text=darkgray},
+    accent/.style={block, fill=paleskyblue},
+    ext/.style={draw=darkgray, dashed, fill=white, rounded corners=3pt,
+                align=center, inner sep=5pt, text=darkgray, font=\footnotesize},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south, font=\bfseries, text=navy},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt, align=center},
+    step/.style={font=\footnotesize\bfseries, text=azureblue},
+    note/.style={font=\footnotesize, text=darkgray, align=left},
+    wire/.style={->, draw=navy},
+    link/.style={draw=navy, densely dotted, line width=0.6pt},
+  ]
+
+  % ---------------- ディスク（ワークスペース） ----------------
+  \node[dir]  (ws)   at (0, 0)    {ws/};
+  \node[dir]  (src)  at (0,-1.2)  {ws/src/};
+  \node[dir]  (pkg)  at (0,-2.4)  {ws/src/pkg/};
+  \node[excl] (data) at (0,-3.6)  {ws/data/};
+  \node[excl] (venv) at (0,-4.8)  {ws/.venv/};
+  \node[note, anchor=north] at (0,-5.45)
+    {破線：\texttt{files.watcherExclude}\\に一致 → watch を張らない};
+
+  \node[ext] (writer) at (0, 3.1) {保存・\texttt{uv sync}・学習ジョブ\\などの書き込み};
+  \draw[->, draw=darkgray, dashed] (writer.west) -- ++(-0.6,0) |- (pkg.west);
+
+  % ---------------- Linux カーネル（inotify） ----------------
+  \node[block, text width=3.7cm, align=left] (wlist) at (6.6,-1.2)
+    {\textbf{watch リスト}\\[2pt]
+     \texttt{wd=1 → ws/}\\
+     \texttt{wd=2 → ws/src/}\\
+     \texttt{wd=3 → ws/src/pkg/}};
+  \node[accent, text width=3.7cm, align=left] (queue) at (6.6,-4.4)
+    {\textbf{イベントキュー}\\[2pt]
+     \texttt{wd=3 IN\_CREATE a.svg}\\
+     \texttt{wd=3 IN\_MODIFY b.py}};
+  \node[note, anchor=north] at (6.6,-5.45) {1 ディレクトリにつき\\watch が 1 つ};
+
+  % ③ 変更 → カーネルがイベントを積む
+  \draw[wire] (pkg.east) -- ++(1.5,0) coordinate (bend) |- (queue.west);
+  \node[sig, anchor=west, align=left] at ($(bend)+(0.1,-0.75)$) {③ 書き込みを検知し\\イベントを積む};
+
+  % watch の照合：watch があるディレクトリの変更だけがイベントになる
+  \draw[wire] (wlist.south) -- (queue.north)
+    node[sig, midway, right, align=left] {watch のある\\ディレクトリの変更\\だけを積む};
+
+  % ---------------- ファイル監視プロセス ----------------
+  \node[block, text width=4.0cm] (scan) at (14.2,-1.2)
+    {\textbf{起動時：ツリーを走査}\\除外 glob に一致した\\ディレクトリには降りない};
+  \node[block, text width=4.0cm] (read) at (14.2,-4.4)
+    {\textbf{イベントを読み取る}\\短時間ぶんをまとめ，\\重複を除いて渡す};
+  \node[note, anchor=north] at (14.2,-5.45)
+    {新しいディレクトリの \texttt{IN\_CREATE}\\→ そこにも watch を追加};
+  \node[sig] at (14.45, 0.2) {\texttt{@parcel/watcher}（ユーザー空間）};
+
+  % ① 走査（上を回る）
+  \draw[wire] (scan.north) ++(-1.95,0) coordinate (s0) -- ($(s0)+(0,1.75)$) coordinate (sc) -| ($(ws.north)+(0.9,0)$);
+  \node[sig, anchor=south] at (6.6, 0 |- sc) {① ディレクトリを列挙（\texttt{readdir}）};
+  % ② watch 登録
+  \draw[wire] (scan.west) -- (wlist.east)
+    node[sig, midway, above, font=\scriptsize] {② \texttt{inotify\_add\_watch()}}
+    node[sig, midway, below] {ディレクトリごとに 1 回};
+  % ④ 読み取り
+  \draw[wire] (queue.east) -- (read.west)
+    node[sig, midway, above] {④ \texttt{read()}};
+
+  % ---------------- VS Code ----------------
+  \node[block, minimum width=3.0cm] (core) at (19.6,-1.2) {VS Code 本体};
+  \node[block, minimum width=3.0cm] (exp)  at (19.6,-2.7) {エクスプローラー};
+  \node[block, minimum width=3.0cm] (git)  at (19.6,-3.9) {Git 拡張};
+  \node[block, minimum width=3.0cm] (extn) at (19.6,-5.1) {拡張機能\\{\footnotesize（Pylance など）}};
+  \draw[wire] (read.east) -- ++(0.75,0) coordinate (rb) |- (core.west);
+  \node[sig, anchor=south] at ($(rb |- core.west)!0.5!(core.west)$) {⑤ 通知};
+  \draw[wire] (core.east) -- ++(0.35,0) |- (exp.east);
+  \draw[wire] (core.east) ++(0.35,0) |- (git.east);
+  \draw[wire] (core.east) ++(0.35,0) |- (extn.east);
+  \node[note, anchor=north] at (19.6,-5.85) {ツリー更新・\texttt{git status}・\\再インデックスなどが走る};
+
+  % ---------------- ゾーン ----------------
+  \coordinate (ztop) at (0, 1.45);
+  \coordinate (zbot) at (0,-6.45);
+  \begin{scope}[on background layer]
+    \node[zone, fit=(ws)(venv)(ws |- ztop)(ws |- zbot), minimum width=4.7cm] (z1) {};
+    \node[zone, fit=(wlist)(queue)(wlist |- ztop)(wlist |- zbot), minimum width=5.0cm] (z2) {};
+    \node[zone, fit=(scan)(read)(scan |- ztop)(scan |- zbot), minimum width=5.0cm] (z3) {};
+    \node[zone, fit=(core)(extn)(core |- ztop)(core |- zbot), minimum width=3.9cm] (z4) {};
+  \end{scope}
+  \node[zlabel] at (z1.north) {ディスク（ワークスペース）};
+  \node[zlabel] at (z2.north) {Linux カーネル（inotify）};
+  \node[zlabel] at (z3.north) {ファイル監視プロセス};
+  \node[zlabel] at (z4.north) {VS Code};
+
+  % ---------------- 上限 ----------------
+  \node[note, anchor=north west] at ($(z1.south west)+(0,-0.3)$)
+    {\textbf{inotify の上限}（\texttt{/proc/sys/fs/inotify/}）\\
+     \texttt{max\_user\_watches}：watch 数，超えると ENOSPC（watch 1 つ ≈ 約 1KB のカーネルメモリ）\\
+     \texttt{max\_user\_instances}：インスタンス数\quad
+     \texttt{max\_queued\_events}：キュー長，溢れると \texttt{IN\_Q\_OVERFLOW}};
+\end{tikzpicture}

@@ -1,0 +1,93 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.0cm, inner sep=5pt},
+    card/.style={draw=navy, fill=white, rounded corners=3pt, align=left,
+                 text width=4.3cm, minimum height=2.2cm, inner sep=6pt},
+    accent/.style={block, fill=paleskyblue},
+    old/.style={block, draw=darkgray, dashed, fill=white, text=darkgray},
+    ext/.style={draw=darkgray, dashed, fill=white, rounded corners=3pt,
+                align=center, inner sep=5pt, text=darkgray, font=\footnotesize},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south west, font=\bfseries, text=navy},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt, align=center},
+    ttl/.style={font=\small\bfseries, text=azureblue},
+    note/.style={font=\footnotesize, text=darkgray, align=left},
+    wire/.style={->, draw=navy},
+  ]
+
+  % ================= ユーザー空間：普段の使われ方 =================
+  \node[card] (c1) at (5.4,0)
+    {{\color{azureblue}\bfseries 開発ツール}\\[3pt]
+     ・ホットリロード（Vite，\\\phantom{・}\texttt{uvicorn -{}-reload} など）\\
+     ・VS Code，JetBrains の監視};
+  \node[card] (c2) at (0,0)
+    {{\color{azureblue}\bfseries OS・コマンド}\\[3pt]
+     ・systemd の \texttt{.path} ユニット\\
+     \phantom{・}（変更でサービス起動）\\
+     ・\texttt{tail -f}（追記を待つ）};
+  \node[card] (c3) at (10.8,0)
+    {{\color{azureblue}\bfseries デスクトップ}\\[3pt]
+     ・ファイルマネージャーの\\\phantom{・}表示更新\\
+     ・検索インデックス\\\phantom{・}（Tracker など）};
+  \node[card] (c4) at (16.2,0)
+    {{\color{azureblue}\bfseries 同期・運用}\\[3pt]
+     ・Dropbox，Syncthing\\
+     ・lsyncd（変更 → rsync）\\
+     ・設定ファイルの自動再読込};
+
+  \node[block, text width=14.6cm] (lib) at (10.8,-2.75)
+    {言語のライブラリ経由で使うことが多い\\[2pt]
+     {\footnotesize Node.js \texttt{fs.watch}（chokidar）\quad Python watchdog / watchfiles\quad Go fsnotify\quad Rust notify}};
+  \draw[wire] (c1.south) -- (c1.south |- lib.north);
+  \draw[wire] (c3.south) -- (c3.south |- lib.north);
+  \draw[wire] (c4.south) -- (c4.south |- lib.north);
+  \node[ext, text width=4.1cm, minimum height=1.2cm] (direct) at (0,-2.75) {ライブラリを介さず\\直接呼ぶ};
+  \draw[->, draw=darkgray, dashed] (c2.south) -- (direct.north);
+
+  % ================= カーネル =================
+  \node[ext]   (sys)   at (0,-6.6)   {アプリの書き込み・作成・削除\\\texttt{write / rename / unlink …}};
+  \node[block] (vfs)   at (4.2,-6.6) {VFS\\{\footnotesize（全 FS 共通の層）}};
+  \node[block] (fsn)   at (8.0,-6.6) {fsnotify\\{\footnotesize（共通の通知基盤）}};
+  \node[accent, minimum width=2.6cm] (ino) at (12.0,-5.2) {inotify};
+  \node[block,  minimum width=2.6cm] (fan) at (12.0,-6.6) {fanotify};
+  \node[old,    minimum width=2.6cm] (dno) at (12.0,-8.0) {dnotify};
+
+  \draw[wire] (sys) -- (vfs);
+  \draw[wire] (vfs) -- (fsn) node[sig, midway, above] {通知};
+  \draw[wire] (fsn.east) -- ++(0.6,0) coordinate (fb) |- (ino.west);
+  \draw[wire] (fb) -- (fan.west);
+  \draw[wire] (fb) |- (dno.west);
+
+  \node[note, anchor=west] at ($(ino.east)+(0.35,0)$)
+    {ファイル・ディレクトリ単位で監視．Linux 2.6.13〜\\上の用途のほとんどはこれ};
+  \node[note, anchor=west] at ($(fan.east)+(0.35,0)$)
+    {マウント・FS 全体を監視．アクセスの許可／拒否も可\\例：ウイルス対策のオンアクセススキャン（ClamAV）};
+  \node[note, anchor=west] at ($(dno.east)+(0.35,0)$)
+    {旧方式（ディレクトリ単位，シグナルで通知）};
+
+  % ライブラリ → inotify（syscall）
+  \draw[wire] (lib.south -| ino.north) -- (ino.north)
+    node[sig, pos=0.42, right, align=left] {\texttt{inotify\_init1()}\\\texttt{inotify\_add\_watch()}\\\texttt{read()}};
+  % systemd・tail の直接呼び出し
+  \draw[->, draw=darkgray, dashed] (direct.south) -- ++(0,-0.75) coordinate (d0) -- ($(d0 -| ino.north)+(-0.6,0)$) -- ($(ino.north)+(-0.6,0)$);
+
+  % ================= ゾーン =================
+  \begin{scope}[on background layer]
+    \node[zone, fit=(c2)(c4)(lib)(direct)] (zu) {};
+    \node[zone, fit=(sys)(dno)(ino)(fan)($(fan.east)+(7.2,0)$)] (zk) {};
+  \end{scope}
+  \node[zlabel] at (zu.north west) {ユーザー空間：普段の使われ方};
+  \node[zlabel, anchor=south east] at (zk.north east) {Linux カーネル};
+\end{tikzpicture}

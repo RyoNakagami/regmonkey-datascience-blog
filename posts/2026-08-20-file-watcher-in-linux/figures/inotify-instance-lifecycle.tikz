@@ -1,0 +1,91 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.2cm, inner sep=6pt},
+    inner/.style={draw=navy, fill=white, rounded corners=3pt,
+                  align=left, minimum height=1.1cm, inner sep=5pt, text width=2.5cm},
+    old/.style={block, draw=darkgray, dashed, fill=white, text=darkgray},
+    inst/.style={draw=azureblue, line width=1.2pt, fill=aliceblue,
+                 rounded corners=6pt, inner sep=8pt},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south west, font=\bfseries, text=navy},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt, align=center},
+    step/.style={font=\small\bfseries, text=azureblue},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    wire/.style={->, draw=navy},
+  ]
+
+  % ---------------- ステージ見出し ----------------
+  \node[step] at (0, 1.35)  {① 作成};
+  \node[step] at (7, 1.35)  {② 使用};
+  \node[step] at (14, 1.35) {③ 破棄};
+
+  % ---------------- ユーザー空間：アプリ ----------------
+  \node[block, minimum width=4.6cm] (a1) at (0,0)
+    {アプリが呼ぶ\\\texttt{fd = inotify\_init1(0)}};
+  \node[block, minimum width=5.4cm] (a2) at (7,0)
+    {\texttt{inotify\_add\_watch(fd, …)} で登録\\\texttt{read(fd)} でイベントを読む};
+  \node[block, minimum width=4.6cm] (a3) at (14,0)
+    {\texttt{close(fd)}\\またはプロセス終了};
+  \draw[wire] (a1) -- (a2);
+  \draw[wire] (a2) -- (a3);
+
+  % ---------------- カーネル空間 ----------------
+  \node[block, minimum width=4.6cm] (k1) at (0,-4.65)
+    {inotify インスタンスを作成\\fd をアプリに返す};
+
+  \node[font=\small\bfseries, text=navy] (ttl) at (7,-3.85) {inotify インスタンス（fd = 3）};
+  \node[inner] (wl) at (5.4,-5.05)
+    {\textbf{watch リスト}\\\texttt{wd=1 → ws/}};
+  \node[inner] (qu) at (8.6,-5.05)
+    {\textbf{イベントキュー}\\\texttt{IN\_MODIFY b.py}};
+  \begin{scope}[on background layer]
+    \node[inst, fit=(ttl)(wl)(qu)] (inst) {};
+  \end{scope}
+
+  \node[old, minimum width=4.6cm] (k3) at (14,-4.65)
+    {インスタンスを破棄\\watch・キューもまとめて解放};
+
+  \draw[wire] (k1) -- (k1 -| inst.west);
+  \draw[wire] (k3 -| inst.east) -- (k3);
+
+  % ---------------- システムコール（縦の矢印） ----------------
+  % ① 作成
+  \draw[wire] ($(a1.south)+(-0.9,0)$) -- ($(k1.north)+(-0.9,0)$)
+    node[sig, pos=0.38, left] {システム\\コール};
+  \draw[wire] ($(k1.north)+(0.9,0)$) -- ($(a1.south)+(0.9,0)$)
+    node[sig, pos=0.62, right] {fd（例：3）\\を返す};
+  % ② 使用
+  \draw[wire] (a2.south -| wl) -- (inst.north -| wl)
+    node[sig, pos=0.38, left] {watch を\\追加};
+  \draw[wire] (inst.north -| qu) -- (a2.south -| qu)
+    node[sig, pos=0.62, right] {イベントを\\受け取る};
+  % ③ 破棄
+  \draw[wire] (a3) -- (k3)
+    node[sig, pos=0.38, right] {fd を閉じる};
+
+  % ---------------- ゾーン ----------------
+  \coordinate (zl) at (-2.6,0);
+  \coordinate (zr) at (16.6,0);
+  \begin{scope}[on background layer]
+    \node[zone, fit=(a1)(a3)(zl)(zr)($(a2.north)+(0,1.0)$)] (zu) {};
+    \node[zone, fit=(k1)(k3)(inst)(zl |- inst.south)(zr |- inst.north)] (zk) {};
+  \end{scope}
+  \node[zlabel] at (zu.north west) {ユーザー空間：アプリのプロセス};
+  \node[zlabel] at (zk.north west) {カーネル空間};
+
+  % ---------------- 補足 ----------------
+  \node[note, anchor=north] at ($(zk.south)+(0,-0.25)$)
+    {inotify のための常駐プロセスはない．インスタンスはアプリが fd を持っている間だけ存在する};
+\end{tikzpicture}
