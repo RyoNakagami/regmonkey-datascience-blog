@@ -1,0 +1,1395 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="ja" xml:lang="ja"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.19">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Ryo Nakagami">
+<meta name="dcterms.date" content="2026-08-20">
+
+<title>Linuxのファイル監視とVS CodeのENOSPCエラー – regmonkey datascience blog</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<link href="../../img/favicon.ico" rel="icon">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-5c1318cf63eba56dbef7ba16bc7d56f5.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark-6453f418aeef366c23116eb9cb0b6816.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-5c1318cf63eba56dbef7ba16bc7d56f5.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-4d7bc2ad69636a1adccb3b801ee1c591.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark-aa57a16df149dc269e65c014c76f68b5.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../site_libs/bootstrap/bootstrap-4d7bc2ad69636a1adccb3b801ee1c591.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script src="../../site_libs/quarto-contrib/pseudocode-2.4.1/pseudocode.min.js"></script>
+<link href="../../site_libs/quarto-contrib/pseudocode-2.4.1/pseudocode.min.css" rel="stylesheet">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "一致なし",
+    "search-matching-documents-text": "一致した文書",
+    "search-copy-link-title": "検索へのリンクをコピー",
+    "search-hide-matches-text": "追加の検索結果を非表示",
+    "search-more-match-text": "追加の検索結果",
+    "search-more-matches-text": "追加の検索結果",
+    "search-clear-button-title": "消去",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "取消",
+    "search-submit-button-title": "検索",
+    "search-label": "サーチ"
+  }
+}</script>
+<script async="" src="https://www.googletagmanager.com/gtag/js?id=G-EX9H7GRLTH"></script>
+
+<script type="text/javascript">
+
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
+</script>
+<style>
+
+      .quarto-title-block .quarto-title-banner h1,
+      .quarto-title-block .quarto-title-banner h2,
+      .quarto-title-block .quarto-title-banner h3,
+      .quarto-title-block .quarto-title-banner h4,
+      .quarto-title-block .quarto-title-banner h5,
+      .quarto-title-block .quarto-title-banner h6
+      {
+        color: #ffffff;
+      }
+
+      .quarto-title-block .quarto-title-banner {
+        color: #ffffff;
+      }
+</style>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-M27Z2BWG');</script>
+    <!-- End Google Tag Manager -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&amp;display=swap" rel="stylesheet">
+<script>
+    MathJax = {
+        tex: {
+            inlineMath: [['$','$'], ['\\(','\\)']],
+            displayMath: [['$$','$$'], ['\\[','\\]']],
+            processEscapes: true,
+            processEnvironments: true,
+            tags: 'all',
+        }
+    }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml-full.js" integrity="sha256-kbAFUDxdHwlYv01zraGjvjNZayxKtdoiJ38bDTFJtaQ=" crossorigin="anonymous">
+</script>
+<link rel="stylesheet" href="../../js/regmonkey_glossary_generator/regmonkey_glossary_generator.css">
+<script type="text/javascript" src="../../js/regmonkey_glossary_generator/regmonkey_glossary_generator.js"></script>
+
+
+<link rel="stylesheet" href="../../styles.css">
+<meta property="og:title" content="Linuxのファイル監視とVS CodeのENOSPCエラー – regmonkey datascience blog">
+<meta property="og:description" content="日々の徒然勉強日記">
+<meta property="og:image" content="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-08-20-file-watcher-in-linux/figures/inotify-instance-lifecycle.svg">
+<meta property="og:site_name" content="regmonkey datascience blog">
+</head>
+
+<body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top quarto-banner">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">Home</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="サーチ"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="ナビゲーションを切り替える" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-bi-book" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+      <i class="bi bi-book" role="img">
+</i> 
+ <span class="menu-text"></span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-bi-book">    
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/statistics-for-regression-monkey/">
+ <span class="dropdown-text">Statistics Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/python-statisticalpackage-techniques/">
+ <span class="dropdown-text">Python package building Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/regmonkey_datavisualization/">
+ <span class="dropdown-text">Data Visualization Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/regmonkey-presentation/">
+ <span class="dropdown-text">Presentation Blog</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../link_list/link_table.html"> 
+<span class="menu-text">便利リンク集</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../dictionary/dict.html"> 
+<span class="menu-text">備忘録</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../FAQ/faq.html"> 
+<span class="menu-text">FAQ</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../about.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/RyoNakagami/regmonkey-datascience-blog"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="../../index.xml"> <i class="bi bi-rss" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="ダークモードの切り替え"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">Linuxのファイル監視とVS CodeのENOSPCエラー</h1>
+                                <div class="quarto-categories">
+                <div class="quarto-category">Linux</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      <div>
+      <div class="quarto-title-meta-heading">作者</div>
+      <div class="quarto-title-meta-contents">
+               <p>Ryo Nakagami </p>
+            </div>
+    </div>
+      
+      <div>
+      <div class="quarto-title-meta-heading">公開</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">2026-08-20</p>
+      </div>
+    </div>
+    
+      <div>
+      <div class="quarto-title-meta-heading">更新日</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date-modified">2026-10-20</p>
+      </div>
+    </div>
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">目次</h2>
+   
+  <ul>
+  <li><a href="#この記事について" id="toc-この記事について" class="nav-link active" data-scroll-target="#この記事について">この記事について</a></li>
+  <li><a href="#きっかけvs-code-の警告" id="toc-きっかけvs-code-の警告" class="nav-link" data-scroll-target="#きっかけvs-code-の警告">きっかけ：VS Code の警告</a></li>
+  <li><a href="#なぜファイル監視はカーネルの機能なのか" id="toc-なぜファイル監視はカーネルの機能なのか" class="nav-link" data-scroll-target="#なぜファイル監視はカーネルの機能なのか">なぜファイル監視はカーネルの機能なのか</a>
+  <ul class="collapse">
+  <li><a href="#inotifyはカーネルに組み込まれた機能-システムコール" id="toc-inotifyはカーネルに組み込まれた機能-システムコール" class="nav-link" data-scroll-target="#inotifyはカーネルに組み込まれた機能-システムコール">inotifyはカーネルに組み込まれた機能 = システムコール</a></li>
+  </ul></li>
+  <li><a href="#inotifyの仕組み" id="toc-inotifyの仕組み" class="nav-link" data-scroll-target="#inotifyの仕組み">inotifyの仕組み</a></li>
+  <li><a href="#vs-code-はどうやってファイルを監視しているか" id="toc-vs-code-はどうやってファイルを監視しているか" class="nav-link" data-scroll-target="#vs-code-はどうやってファイルを監視しているか">VS Code はどうやってファイルを監視しているか</a></li>
+  <li><a href="#なぜerror-enospcにつながるのか" id="toc-なぜerror-enospcにつながるのか" class="nav-link" data-scroll-target="#なぜerror-enospcにつながるのか">なぜerror ENOSPCにつながるのか？</a></li>
+  <li><a href="#対処の手順" id="toc-対処の手順" class="nav-link" data-scroll-target="#対処の手順">対処の手順</a>
+  <ul class="collapse">
+  <li><a href="#step-1現在の上限と使用量を確認する" id="toc-step-1現在の上限と使用量を確認する" class="nav-link" data-scroll-target="#step-1現在の上限と使用量を確認する">Step 1：現在の上限と使用量を確認する</a></li>
+  <li><a href="#step-2まず監視対象を減らすfiles.watcherexclude" id="toc-step-2まず監視対象を減らすfiles.watcherexclude" class="nav-link" data-scroll-target="#step-2まず監視対象を減らすfiles.watcherexclude">Step 2：まず監視対象を減らす（<code>files.watcherExclude</code>）</a></li>
+  <li><a href="#step-3非推奨-それでも足りなければ上限を引き上げる" id="toc-step-3非推奨-それでも足りなければ上限を引き上げる" class="nav-link" data-scroll-target="#step-3非推奨-それでも足りなければ上限を引き上げる">Step 3：(非推奨) それでも足りなければ上限を引き上げる</a></li>
+  </ul></li>
+  <li><a href="#appendix-inotify-status" id="toc-appendix-inotify-status" class="nav-link" data-scroll-target="#appendix-inotify-status">Appendix: inotify の状態を確認する</a></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>問題を報告</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content">
+
+
+
+
+
+
+<section id="この記事について" class="level2">
+<h2 class="anchored" data-anchor-id="この記事について">この記事について</h2>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 30%">
+<col style="width: 70%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>観点</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>What：何のドキュメントか</strong></td>
+<td>Linux のファイル監視の仕組み（inotify）と，VS Code で出る「unable to watch for file changes」（ENOSPC）エラーの原因と対処をまとめたドキュメント</td>
+</tr>
+<tr class="even">
+<td><strong>Who：誰に向けたものか</strong></td>
+<td>Linux 上で VS Code を使っていて，大きなワークスペースを開いたときに上記のエラーに出会った人</td>
+</tr>
+<tr class="odd">
+<td><strong>Why：なぜ重要か</strong></td>
+<td><code>max_user_watches</code> を上げるだけでも直るが，仕組みを知らないと「何をどれだけ上げればよいか」「先に何を除外すべきか」が判断できないため</td>
+</tr>
+<tr class="even">
+<td><strong>How：どう使うか</strong></td>
+<td>前半で仕組みを理解し，後半の「確認 → 除外 → 上限の引き上げ」の順で対処する</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="きっかけvs-code-の警告" class="level2">
+<h2 class="anchored" data-anchor-id="きっかけvs-code-の警告">きっかけ：VS Code の警告</h2>
+<p>Python の <code>.venv</code> や学習データを含む大きなリポジトリを VS Code で開くと，次の警告が出ることがあります．</p>
+<pre><code>Visual Studio Code is unable to watch for file changes in this large workspace (error ENOSPC)</code></pre>
+<p>この状態になると，ファイルを外部で変更してもエクスプローラーに反映されない，Git の変更が出てこない，といった症状が起きます．</p>
+<p><span class="mini-section">何が起こっているのか</span></p>
+<ul>
+<li>ENOSPC は本来「ディスクの空き容量がない」という意味のエラーですが，ここではディスクは関係はない</li>
+<li>足りなくなっているのは <strong>Linux カーネルが管理する「ファイル監視（watch）」の数</strong></li>
+</ul>
+<p>この意味を理解するために，まず Linux でファイルの変更がどうやってアプリに伝わるのかを見ていきます．</p>
+</section>
+<section id="なぜファイル監視はカーネルの機能なのか" class="level2">
+<h2 class="anchored" data-anchor-id="なぜファイル監視はカーネルの機能なのか">なぜファイル監視はカーネルの機能なのか</h2>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>原則
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>どのプロセスがどのファイルに書き込んだかをすべて見ているのは，カーネル</li>
+</ul>
+</div>
+</div>
+<p>GNOME などのデスクトップ環境では，「ファイルマネージャーの表示をすぐ更新したい」「検索インデックスを最新に保ちたい」という需要があります． しかしカーネルによる監視の仕組みがないと，アプリが変更を知る手段は <strong>ポーリング</strong>，つまり数秒ごとに全ファイルの更新時刻を <code>stat()</code> で調べ直す方法しかありません．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode c code-with-copy"><code class="sourceCode c"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="cf">while</span> <span class="kw">true</span><span class="op">:</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> f in 全ファイル<span class="op">:</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>        今の更新時刻 <span class="op">=</span> stat<span class="op">(</span>f<span class="op">).</span>mtime</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> 今の更新時刻 <span class="op">!=</span> 前回の更新時刻<span class="op">:</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>            「f が変わった」と処理する</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    x秒待つ</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p><span class="mini-section">ポーリングの問題点</span></p>
+<ul>
+<li><strong>遅い</strong>：変更を検知できるのは次の確認のときなので，反映が遅れる</li>
+<li><strong>重い</strong>：ファイルが数万個あれば，何も変わっていなくても毎回すべてを確認するので，CPU やディスク I/O を無駄に消費する</li>
+</ul>
+<p>そのため，Linuxでは，カーネルが「変わったときだけ知らせる」仕組み，<strong>inotify</strong> を準備しています．</p>
+<section id="inotifyはカーネルに組み込まれた機能-システムコール" class="level3">
+<h3 class="anchored" data-anchor-id="inotifyはカーネルに組み込まれた機能-システムコール">inotifyはカーネルに組み込まれた機能 = システムコール</h3>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>REMARKS
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>inotify は常駐するサービス（デーモン）ではなく，カーネルに組み込まれた機能</li>
+<li>アプリはシステムコール <code>inotify_init1()</code> を呼んで使う</li>
+<li>systemd のユニットとしては存在せず，<code>systemctl start</code> のように起動・停止するものではない（状態の確認方法は <a href="#appendix-inotify-status">Appendix</a> を参照）</li>
+</ul>
+</div>
+</div>
+<p><span class="mini-section">システムコールとサービスの違い</span></p>
+<ul>
+<li><strong>システムコール</strong> は，アプリがカーネルに仕事を頼むための窓口</li>
+<li><strong>サービス</strong> は，バックグラウンドで動き続ける普通のプロセス（ユーザー空間のプログラム）</li>
+</ul>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 40%">
+<col style="width: 40%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>観点</th>
+<th>システムコール（inotify）</th>
+<th>サービス（例：<code>sshd</code>，<code>cron</code>）</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>正体</td>
+<td>カーネル内の関数</td>
+<td>独立したプロセス</td>
+</tr>
+<tr class="even">
+<td>動いている場所</td>
+<td>カーネル空間</td>
+<td>ユーザー空間</td>
+</tr>
+<tr class="odd">
+<td>起動・停止</td>
+<td>不要．カーネルが動いていれば常に使える</td>
+<td>systemd などが起動・停止する</td>
+</tr>
+<tr class="even">
+<td>使い方</td>
+<td>アプリが関数として呼ぶ</td>
+<td>ソケットや D-Bus などで通信する</td>
+</tr>
+<tr class="odd">
+<td><code>ps</code> に出るか</td>
+<td>出ない（呼び出したアプリが出る）</td>
+<td>出る</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><span class="mini-section">inotify は「誰かが動かしておくもの」ではなく，使うアプリがそのつど借りるもの</span></p>
+<p>inotify の場合，アプリが <code>inotify_init1()</code> を呼ぶとカーネル内に「inotify インスタンス」が作られ，それを指すファイルディスクリプタがアプリに返ります． watch やイベントキューはこのインスタンスに属します． アプリがファイルディスクリプタを閉じるか終了すれば，インスタンスも消えます．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="figures/inotify-instance-lifecycle.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+<figcaption>inotify インスタンスのライフサイクル．アプリの fd とともに作られ，fd を閉じると消える</figcaption>
+</figure>
+</div>
+</section>
+</section>
+<section id="inotifyの仕組み" class="level2">
+<h2 class="anchored" data-anchor-id="inotifyの仕組み">inotifyの仕組み</h2>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="figures/linux-inotify-overview.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+<figcaption>inotify の使われ方（上段）とカーネル内の位置づけ（下段）</figcaption>
+</figure>
+</div>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 80%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>分類</th>
+<th>例</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>OS・コマンド</td>
+<td>systemd の <code>.path</code> ユニット（ファイルが変わったらサービスを起動），<code>tail -f</code>．ライブラリを介さず inotify を直接呼ぶ</td>
+</tr>
+<tr class="even">
+<td>開発ツール</td>
+<td>ホットリロード（Vite，<code>uvicorn --reload</code>），VS Code・JetBrains のファイル監視</td>
+</tr>
+<tr class="odd">
+<td>デスクトップ</td>
+<td>ファイルマネージャーの表示更新，検索インデックス（Tracker）</td>
+</tr>
+<tr class="even">
+<td>同期・運用</td>
+<td>Dropbox，Syncthing，lsyncd，設定ファイルの自動再読み込み</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="vs-code-はどうやってファイルを監視しているか" class="level2">
+<h2 class="anchored" data-anchor-id="vs-code-はどうやってファイルを監視しているか">VS Code はどうやってファイルを監視しているか</h2>
+<p>VS Code は Linux では <code>@parcel/watcher</code> というライブラリを使い，inotify でワークスペースを監視しています．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="figures/linux-file-watcher.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+<figcaption>VS Code のファイル監視の流れ．watch はディレクトリごとに 1 つ張られる</figcaption>
+</figure>
+</div>
+<ol type="1">
+<li>起動時にワークスペースのディレクトリツリーを走査する（<code>readdir</code>）</li>
+<li>見つけた <strong>ディレクトリごとに 1 回</strong> <code>inotify_add_watch()</code> を呼び，watch を登録する</li>
+<li>ファイルが保存・作成されると，カーネルが watch のあるディレクトリのイベントだけをキューに積む</li>
+<li>監視プロセスがキューを <code>read()</code> し，短時間ぶんのイベントをまとめて重複を除く</li>
+<li>VS Code 本体に通知し，エクスプローラーの更新・<code>git status</code>・拡張機能の再インデックスなどが走る</li>
+</ol>
+</section>
+<section id="なぜerror-enospcにつながるのか" class="level2">
+<h2 class="anchored" data-anchor-id="なぜerror-enospcにつながるのか">なぜerror ENOSPCにつながるのか？</h2>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>TL;DRs
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>inotify には「このディレクトリ以下を再帰的に全部見る」という機能がない</li>
+<li>監視プロセスは <strong>ディレクトリの数だけ watch を張る</strong>．</li>
+<li>数千〜数万のディレクトリが一気に作られたとき，監視上限(= watch数の上限)に達して，error ENOSPC</li>
+</ul>
+</div>
+</div>
+<p><code>.venv</code> や <code>node_modules</code> は，数千〜数万のディレクトリを含むことが珍しくありません． これらを監視対象に含めると，watch の数はあっという間に膨らみます．</p>
+<p><span class="mini-section"><code>/proc/sys/fs/inotify/max_user_watches</code> という上限</span></p>
+<p>watch はカーネルのメモリを消費するので，無制限には作れません． 上限は <code>/proc/sys/fs/inotify/</code> 以下のファイルで確認できます．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 45%">
+<col style="width: 30%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>ファイル</th>
+<th>意味</th>
+<th>超えたとき</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>max_user_watches</code></td>
+<td>1 ユーザーが作れる watch の総数</td>
+<td><code>inotify_add_watch()</code> が ENOSPC で失敗する</td>
+</tr>
+<tr class="even">
+<td><code>max_user_instances</code></td>
+<td>1 ユーザーが作れる inotify インスタンス（<code>inotify_init()</code> の数）</td>
+<td><code>inotify_init()</code> が EMFILE で失敗する</td>
+</tr>
+<tr class="odd">
+<td><code>max_queued_events</code></td>
+<td>1 インスタンスのイベントキューの長さ</td>
+<td>イベントが捨てられ <code>IN_Q_OVERFLOW</code> が届く</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>error ENOSPC は，1 行目の <code>max_user_watches</code> を使い切ったことを意味します． ここでポイントは，この上限が <strong>プロセスごとではなくユーザーごと</strong> だという点です． VS Code のウィンドウを複数開いている場合や，同じユーザーで Dropbox やホットリロード付きの開発サーバーを動かしている場合，それらの watch はすべて同じ枠を共有します．</p>
+<p>なお，<code>max_user_watches</code> の初期値は Linux 5.11 以降，搭載メモリから自動で決まります（メモリの約 1% を上限に，8,192〜1,048,576 の範囲）． そのため，同じ設定でもマシンによって値が異なります．</p>
+</section>
+<section id="対処の手順" class="level2">
+<h2 class="anchored" data-anchor-id="対処の手順">対処の手順</h2>
+<section id="step-1現在の上限と使用量を確認する" class="level3">
+<h3 class="anchored" data-anchor-id="step-1現在の上限と使用量を確認する">Step 1：現在の上限と使用量を確認する</h3>
+<p>まず上限を確認します．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> /proc/sys/fs/inotify/max_user_watches</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="co"># 65536</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>次に，どのプロセスが watch をいくつ使っているかを数えます． 各プロセスの <code>/proc/&lt;pid&gt;/fdinfo/</code> には，inotify の watch 1 つにつき <code>inotify wd:...</code> という行が 1 行出るので，その行数を数えれば watch 数が分かります．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># bash で実行する（zsh では一致しないグロブがエラーになる）</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> p <span class="kw">in</span> /proc/<span class="pp">[</span><span class="ss">0</span><span class="pp">-</span><span class="ss">9</span><span class="pp">]*</span><span class="kw">;</span> <span class="cf">do</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  <span class="va">n</span><span class="op">=</span><span class="va">$(</span><span class="fu">cat</span> <span class="st">"</span><span class="va">$p</span><span class="st">"</span>/fdinfo/<span class="pp">*</span> <span class="dv">2</span><span class="op">&gt;</span>/dev/null <span class="kw">|</span> <span class="fu">grep</span> <span class="at">-c</span> <span class="st">'^inotify'</span><span class="va">)</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  <span class="bu">[</span> <span class="st">"</span><span class="va">$n</span><span class="st">"</span> <span class="ot">-gt</span> 0 <span class="bu">]</span> <span class="kw">&amp;&amp;</span> <span class="bu">echo</span> <span class="st">"</span><span class="va">$n</span><span class="st"> </span><span class="va">$(</span><span class="fu">cat</span> <span class="st">"</span><span class="va">$p</span><span class="st">"</span>/comm<span class="va">)</span><span class="st">"</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="cf">done</span> <span class="kw">|</span> <span class="fu">sort</span> <span class="at">-rn</span> <span class="kw">|</span> <span class="fu">head</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<pre><code>32079 code
+28263 code
+4146 code
+184 xdg-desktop-por
+176 gsd-xsettings</code></pre>
+<p>VS Code（<code>code</code>）の 3 プロセスだけで約 64,500 個の watch を使っており，上限 65,536 にほぼ達しています． この状態でさらにワークスペースを開くと ENOSPC になります．</p>
+</section>
+<section id="step-2まず監視対象を減らすfiles.watcherexclude" class="level3">
+<h3 class="anchored" data-anchor-id="step-2まず監視対象を減らすfiles.watcherexclude">Step 2：まず監視対象を減らす（<code>files.watcherExclude</code>）</h3>
+<p>上限を上げる前に，<strong>そもそも監視する必要のないディレクトリを除外する</strong> のが先です． 仮想環境・データ・ビルド成果物などは，VS Code がリアルタイムで変更を追う必要がほとんどありません．</p>
+<p><code>files.watcherExclude</code> の初期値は <code>node_modules</code> と <code>.git</code> 以下の一部のフォルダのみを除外しています．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="st">"files.watcherExclude"</span><span class="er">:</span> <span class="fu">{</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"**/.git/objects/**"</span><span class="fu">:</span> <span class="kw">true</span><span class="fu">,</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"**/.git/subtree-cache/**"</span><span class="fu">:</span> <span class="kw">true</span><span class="fu">,</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"**/node_modules/*/**"</span><span class="fu">:</span> <span class="kw">true</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>統計分析 with Python を行うレポジトリをメインで扱う場合，例えば次のように追加します．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="st">"files.watcherExclude"</span><span class="er">:</span> <span class="fu">{</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"**/.git/objects/**"</span><span class="fu">:</span> <span class="kw">true</span><span class="fu">,</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"**/.git/subtree-cache/**"</span><span class="fu">:</span> <span class="kw">true</span><span class="fu">,</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"**/node_modules/*/**"</span><span class="fu">:</span> <span class="kw">true</span><span class="fu">,</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"**/.venv/**"</span><span class="fu">:</span> <span class="kw">true</span><span class="fu">,</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"**/data/**"</span><span class="fu">:</span> <span class="kw">true</span><span class="fu">,</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"**/__pycache__/**"</span><span class="fu">:</span> <span class="kw">true</span><span class="fu">,</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"**/.mypy_cache/**"</span><span class="fu">:</span> <span class="kw">true</span><span class="fu">,</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"**/.pytest_cache/**"</span><span class="fu">:</span> <span class="kw">true</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>設定後に VS Code を再読み込みし，Step 1 のコマンドで watch 数が減ったことを確認します． また，他のアプリケーションも同じ枠を使っているので，不要なアプリを閉じるだけで解消することもあります．</p>
+</section>
+<section id="step-3非推奨-それでも足りなければ上限を引き上げる" class="level3">
+<h3 class="anchored" data-anchor-id="step-3非推奨-それでも足りなければ上限を引き上げる">Step 3：(非推奨) それでも足りなければ上限を引き上げる</h3>
+<p>除外しても足りない場合は，<code>max_user_watches</code> を引き上げます．</p>
+<p><span class="mini-section">一時的に変更する場合</span></p>
+<p>一時的に変更するだけなら次のコマンドで足ります（再起動で元に戻ります）．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> sysctl fs.inotify.max_user_watches=524288</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p><span class="mini-section">永続的に変更する場合</span></p>
+<p>永続化するには設定ファイル <code>/etc/sysctl.d/*.conf</code> に書きます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">'fs.inotify.max_user_watches=524288'</span> <span class="kw">|</span> <span class="fu">sudo</span> tee /etc/sysctl.d/60-inotify.conf</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> sysctl <span class="at">--system</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> /proc/sys/fs/inotify/max_user_watches</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="co"># 524288</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>上限を上げるとメモリはどれだけ使うか
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>VS Code のドキュメントによると，watch 1 つあたり約 1,080 バイトのカーネルメモリを使います． 524,288 個をすべて使い切った場合，上限は約 540 MiB です． 上限値を設定しただけでメモリが確保されるわけではなく，実際に watch を張った分だけ消費されます． とはいえメモリの少ない環境では，より小さい値を選んでください．</p>
+</div>
+</div>
+</section>
+</section>
+<section id="appendix-inotify-status" class="level2">
+<h2 class="anchored" data-anchor-id="appendix-inotify-status">Appendix: inotify の状態を確認する</h2>
+<p>inotify はサービスではないので，<code>systemctl status</code> では確認できません． 代わりに次の 3 つの観点で確認します．</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 40%">
+<col style="width: 60%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>確認したいこと</th>
+<th>見る場所</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>カーネルで inotify が使えるか</td>
+<td><code>/proc/sys/fs/inotify/</code></td>
+</tr>
+<tr class="even">
+<td>カーネルに組み込まれているか</td>
+<td><code>/boot/config-$(uname -r)</code> の <code>CONFIG_INOTIFY_USER</code></td>
+</tr>
+<tr class="odd">
+<td>どのプロセスが使っているか</td>
+<td><code>/proc/&lt;pid&gt;/fd/</code> の <code>anon_inode:inotify</code></td>
+</tr>
+</tbody>
+</table>
+<p><span class="mini-section">カーネルで使えるかと上限値</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 機能が有効なら，このディレクトリと上限値が見える</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ls</span> /proc/sys/fs/inotify/</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> /proc/sys/fs/inotify/max_user_watches</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>/proc/sys/fs/inotify/</code> は，カーネルの設定値をファイルとして見せている場所です． このディレクトリがあれば，カーネルで inotify が使える状態です．</p>
+<p><span class="mini-section">カーネルのビルド設定</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># カーネルのビルド設定で有効か（=y なら有効）</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="fu">grep</span> INOTIFY_USER /boot/config-<span class="va">$(</span><span class="fu">uname</span> <span class="at">-r</span><span class="va">)</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="co"># CONFIG_INOTIFY_USER=y</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>/boot/config-&lt;バージョン&gt;</code> は，今動いているカーネルをビルドしたときの設定です． <code>CONFIG_INOTIFY_USER=y</code> なら，inotify がカーネルに組み込まれています． Ubuntu などの主要なディストリビューションでは標準で有効です．</p>
+<p><span class="mini-section">inotify を使っているプロセス</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 今 inotify を使っているプロセスの一覧</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> find /proc/<span class="pp">*</span>/fd <span class="at">-lname</span> <span class="st">'anon_inode:inotify'</span> <span class="dv">2</span><span class="op">&gt;</span>/dev/null <span class="dt">\</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">|</span> <span class="fu">cut</span> <span class="at">-d</span>/ <span class="at">-f3</span> <span class="kw">|</span> <span class="fu">sort</span> <span class="at">-u</span> <span class="kw">|</span> <span class="fu">xargs</span> <span class="at">-r</span> ps <span class="at">-o</span> pid,comm <span class="at">-p</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>inotify インスタンスのファイルディスクリプタは，<code>/proc/&lt;pid&gt;/fd/</code> 以下で <code>anon_inode:inotify</code> を指すリンクとして見えます． このコマンドは，そのリンクを持つプロセスの PID を集め（<code>find</code> → <code>cut</code> → <code>sort -u</code>），<code>ps</code> でプロセス名を表示します． <code>sudo</code> を付けないと，自分以外のユーザーのプロセスは見えません．</p>
+<pre><code>    PID COMMAND
+   3891 wireplumber
+   3908 dbus-daemon
+   4196 gnome-session-b
+   ...</code></pre>
+<p>デスクトップ環境の常駐プログラムなど，意識していないプロセスも多く inotify を使っていることが分かります．</p>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<ul>
+<li><a href="https://code.visualstudio.com/docs/setup/linux#_visual-studio-code-is-unable-to-watch-for-file-changes-in-this-large-workspace-error-enospc">Visual Studio Code FAQ: “Visual Studio Code is unable to watch for file changes in this large workspace” (error ENOSPC)</a></li>
+<li><a href="https://man7.org/linux/man-pages/man7/inotify.7.html">inotify(7) — Linux manual page</a></li>
+</ul>
+
+
+</section>
+
+</main> <!-- /main -->
+<script>
+    document.querySelectorAll('.custom_problem .theorem-title').forEach((title) => {
+        let modName = title.innerHTML;
+        modName = modName.replace("Exercise", "Problem");
+        modName = modName.replace("Proposition", "Property");
+        modName = modName.replace("Example", "<strong>&#9654;</strong>&nbsp; Example");
+        title.innerHTML = modName;
+    });
+
+    // Rule: 未使用の Corollary (#cor-, lang: ja では「系」) を Rule として表示する
+    document.querySelectorAll('.custom_rule .theorem-title').forEach((title) => {
+        title.innerHTML = title.innerHTML
+            .replace(/^<strong>(系|Corollary)/, "<strong>Rule")
+            .replace(/\s*\((.*)\)<\/strong>$/, ": $1</strong>");
+        // タイトルの後で改行し，本文を次の行から始める
+        title.style.display = "block";
+        title.style.paddingBottom = "0.5em";
+        title.style.fontSize = "1.1em";
+        // 本文がリスト等で始まると Quarto がタイトル後に &nbsp; を残し空行になるため除去する
+        while (title.nextSibling && title.nextSibling.nodeType === Node.TEXT_NODE
+               && title.nextSibling.textContent.trim() === "") {
+            title.nextSibling.remove();
+        }
+        if (!title.nextSibling) {
+            title.parentElement.style.marginBottom = "0";
+        }
+    });
+ </script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "コピーしました");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "コピーしました");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/ryonakagami\.github\.io\/regmonkey-datascience-blog");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<script src="https://utteranc.es/client.js" repo="RyoNakagami/regmonkey-datascience-blog" issue-term="title" theme="github-light" crossorigin="anonymous" async="">
+</script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+      &nbsp;
+    </div>   
+    <div class="nav-footer-center">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+ © Copyright RyoNak
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="../../LICENSE">
+<p>License</p>
+</a>
+  </li>  
+</ul>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>問題を報告</a></li></ul></div></div>
+    <div class="nav-footer-right">
+      &nbsp;
+    </div>
+  </div>
+</footer>
+    <script type="text/javascript">
+    (function(d) {
+      d.querySelectorAll(".pseudocode-container").forEach(function(el) {
+        let pseudocodeOptions = {
+          indentSize: el.dataset.indentSize || "1.2em",
+          commentDelimiter: el.dataset.commentDelimiter || "//",
+          lineNumber: el.dataset.lineNumber === "true" ? true : false,
+          lineNumberPunc: el.dataset.lineNumberPunc || ":",
+          noEnd: el.dataset.noEnd === "true" ? true : false,
+          titlePrefix: el.dataset.captionPrefix || "Algorithm"
+        };
+        pseudocode.renderElement(el.querySelector(".pseudocode"), pseudocodeOptions);
+      });
+    })(document);
+    (function(d) {
+      d.querySelectorAll(".pseudocode-container").forEach(function(el) {
+        let captionSpan = el.querySelector(".ps-root > .ps-algorithm > .ps-line > .ps-keyword")
+        if (captionSpan !== null) {
+          let captionPrefix = el.dataset.captionPrefix + " ";
+          let captionNumber = "";
+          if (el.dataset.pseudocodeNumber) {
+            captionNumber = el.dataset.pseudocodeNumber + " ";
+            if (el.dataset.chapterLevel) {
+              captionNumber = el.dataset.chapterLevel + "." + captionNumber;
+            }
+          }
+          captionSpan.innerHTML = captionPrefix + captionNumber;
+        }
+      });
+    })(document);
+    </script>
+  
+
+
+
+
+</body></html>
