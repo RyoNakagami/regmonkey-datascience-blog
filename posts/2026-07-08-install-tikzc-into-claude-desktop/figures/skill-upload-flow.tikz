@@ -1,0 +1,60 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.3cm, minimum width=3.4cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    ext/.style={draw=darkgray, dashed, fill=white, rounded corners=3pt,
+                align=center, inner sep=5pt},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south, font=\bfseries, text=navy},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    step/.style={font=\footnotesize\bfseries, text=azureblue},
+    wire/.style={->, draw=navy},
+  ]
+
+  % ---- 準備（ローカル） ----
+  \node[block] (build) at (0,0) {cargo build\\\footnotesize musl 静的バイナリ};
+  \node[block] (dir) at (4.9,0) {skill フォルダ\\\footnotesize SKILL.md + bin/tikzc};
+  \node[block] (zip) at (9.8,0) {zip 化\\\footnotesize tikzc/ をトップに};
+  \node[block] (desk) at (14.7,0) {Claude Desktop\\\footnotesize Upload a skill};
+
+  \foreach \n/\t in {build/Step 1, dir/Step 2, zip/Step 3, desk/Step 4}
+    \node[step, anchor=south] at ([yshift=2pt]\n.north) {\t};
+
+  \draw[wire] (build) -- (dir);
+  \draw[wire] (dir) -- (zip);
+  \draw[wire] (zip) -- (desk);
+
+  % ---- 実行（クラウド） ----
+  \node[accent] (store) at (14.7,-3.8) {Skill 登録\\\footnotesize 全デバイスに同期};
+  \node[block] (claude) at (9.8,-3.8) {Claude\\\footnotesize SKILL.md を読む};
+  \node[block] (sbx) at (4.9,-3.8) {Linux サンドボックス\\\footnotesize bin/tikzc を実行};
+  \node[block] (out) at (0,-3.8) {.tikz → SVG / PNG\\\footnotesize 会話に返す};
+
+  \node[ext] (user) at (9.8,-6.0) {ユーザーの依頼\\\footnotesize「〜をブロック線図にして」};
+
+  \draw[wire] (desk) -- node[sig, right] {アップロード} (store);
+  \draw[wire] (store) -- node[sig, above] {トリガー} (claude);
+  \draw[wire] (claude) -- node[sig, above] {呼び出し} (sbx);
+  \draw[wire] (sbx) -- node[sig, above] {出力} (out);
+  \draw[->, draw=darkgray, dashed] (user) -- (claude);
+
+  % ---- ゾーン ----
+  \begin{scope}[on background layer]
+    \node[zone, fit=(build)(desk)([yshift=0.45cm]build.north)] (zlocal) {};
+    \node[zone, fit=(out)(store)(user)] (zcloud) {};
+  \end{scope}
+  \node[zlabel, anchor=south west] at ([xshift=4pt]zlocal.north west) {準備：ローカル PC（x86\_64 Linux）};
+  \node[zlabel, anchor=south west] at ([xshift=4pt]zcloud.north west) {実行：Claude のクラウド};
+\end{tikzpicture}
