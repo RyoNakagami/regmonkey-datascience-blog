@@ -1,0 +1,44 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.2cm, minimum width=3.6cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south, font=\footnotesize\bfseries, text=navy},
+    step/.style={font=\footnotesize\bfseries, text=azureblue},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    wire/.style={->, draw=navy},
+  ]
+  % ---- 主経路：ソースツリー → フロントエンド → backend → 配布物
+  \node[block, fill=white] (src) at (0,0) {ソースツリー\\{\footnotesize \texttt{pyproject.toml} / \texttt{src/<pkg>/}}};
+  \node[block] (fe) at (7.4,0) {ビルドフロントエンド\\{\footnotesize pip / uv build / python -m build}};
+  \node[accent] (be) at (15.6,0) {build backend\\{\footnotesize \texttt{setuptools.build\_meta} / \texttt{uv\_build}}};
+  \node[block, fill=white, minimum width=3.0cm] (sdist) at (22.4,0.95) {sdist\\{\footnotesize \texttt{*.tar.gz}}};
+  \node[block, fill=white, minimum width=3.0cm] (wheel) at (22.4,-0.95) {wheel\\{\footnotesize \texttt{*.whl}}};
+
+  % ---- 隔離ビルド環境（requires を導入した環境で backend が動く）
+  \begin{scope}[on background layer]
+    \node[zone, fit=(be)] (env) {};
+  \end{scope}
+  \node[zlabel] at (env.north) {② 隔離環境に \texttt{requires} を導入};
+
+  % ---- 配線
+  \draw[wire] (src) -- node[midway, above, step] {① 読む} node[midway, below, sig] {\texttt{[build-system]}} (fe);
+  \draw[wire] (fe) -- node[midway, above, step] {③ PEP 517 フック呼出} node[midway, below, sig, align=center] {\texttt{build\_sdist()}\\\texttt{build\_wheel()}} (env.west |- fe);
+  \draw[wire] (env.east |- be) -- ++(1.2,0) |- node[pos=0.5, above, step] {④ 生成} (sdist.west);
+  \draw[wire] (env.east |- be) ++(1.2,0) |- (wheel.west);
+
+  % ---- backend はソースツリーを直接読んで変換する
+  \draw[->, draw=darkgray, dashed] (src.south) -- ++(0,-1.0) -| node[pos=0.25, below, sig] {backend がソースツリーを読み，配布物に変換} (be.south);
+\end{tikzpicture}

@@ -1,0 +1,60 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.2cm, minimum width=3.6cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    ext/.style={draw=darkgray, dashed, fill=white, rounded corners=3pt,
+                align=center, inner sep=5pt, minimum height=1.2cm},
+    step/.style={font=\footnotesize\bfseries, text=azureblue},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    wire/.style={->, draw=navy},
+  ]
+  % ---- 上段：入力 → フロントエンド → バックエンド
+  \node[block, fill=white] (toml) at (0,0) {\texttt{pyproject.toml}\\{\footnotesize （\texttt{setup.py} は任意）}};
+  \node[block] (fe) at (5.4,0) {ビルドフロントエンド\\{\footnotesize pip / uv build / python -m build}};
+  \node[accent] (be) at (12.4,0) {\texttt{setuptools.build\_meta}\\{\footnotesize PEP 517 のフックを実装}};
+  \node[ext] (plug) at (18.0,0) {\texttt{build-system.requires}\\{\footnotesize setuptools-scm 等のプラグイン}};
+
+  \draw[wire] (toml) -- node[midway, above, sig] {読む} (fe);
+  \draw[wire] (fe) -- node[midway, above, sig] {フック呼出} node[midway, below, sig, align=center] {\texttt{build\_sdist()}\\\texttt{build\_wheel()}} (be);
+  \draw[->, draw=darkgray, dashed] (plug) -- node[midway, above, sig] {拡張} (be);
+
+  % ---- 下段：ビルド処理
+  \node[block] (s1) at (0,-3.6) {メタデータ確定\\{\footnotesize \texttt{[project]} + \texttt{dynamic}}};
+  \node[block] (s2) at (4.8,-3.6) {パッケージ探索\\{\footnotesize 自動 or \texttt{find}}};
+  \node[block] (s3) at (9.6,-3.6) {同梱ファイル選定\\{\footnotesize package-data / MANIFEST.in}};
+  \node[block] (s4) at (14.4,-3.6) {\texttt{build\_ext}（wheel のみ）\\{\footnotesize C / C++ / Cython をコンパイル}};
+
+  \node[step, above=2pt of s1] {① metadata};
+  \node[step, above=2pt of s2] {② discovery};
+  \node[step, above=2pt of s3] {③ file selection};
+  \node[step, above=2pt of s4] {④ extension};
+
+  \node[note, below=3pt of s1] {version は attr / file /\\setuptools-scm（git tag）で動的に};
+  \node[note, below=3pt of s2] {src-layout / flat-layout を自動判定\\合わなければ \texttt{packages.find}};
+  \node[note, below=3pt of s3] {\texttt{include-package-data} は既定 true\\ただし MANIFEST.in / scm 経由のみ};
+  \node[note, below=3pt of s4] {コンパイラ・ヘッダが必要\\wheel はプラットフォーム依存に};
+
+  \draw[wire] (be.south) -- (12.4,-1.55) -- (-2.5,-1.55) |- (s1.west);
+  \draw[wire] (s1) -- (s2);
+  \draw[wire] (s2) -- (s3);
+  \draw[wire] (s3) -- (s4);
+
+  % ---- 出力
+  \node[block, fill=white, minimum width=2.6cm] (sd) at (19.0,-2.0) {sdist\\{\footnotesize \texttt{.tar.gz}}};
+  \node[block, fill=white, minimum width=2.6cm] (wh) at (19.0,-3.6) {wheel\\{\footnotesize \texttt{.whl}}};
+  \draw[wire] ($(s3.east)!0.5!(s4.west)$) |- node[pos=0.75, above, sig] {ソースのまま} (sd.west);
+  \draw[wire] (s4) -- (wh);
+\end{tikzpicture}

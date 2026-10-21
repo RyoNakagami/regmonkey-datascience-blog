@@ -1,0 +1,74 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.2cm, minimum width=3.6cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    ng/.style={block, draw=crimsonred, fill=mistyrose},
+    step/.style={font=\footnotesize\bfseries, text=azureblue},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    wire/.style={->, draw=navy},
+  ]
+  % ---- 上段：入力 → フロントエンド → バックエンド（2経路）
+  \node[block, fill=white, minimum width=4.4cm] (toml) at (0,0)
+    {\texttt{pyproject.toml}\\{\footnotesize \texttt{requires = ["uv\_build>=0.13.4,<0.14"]}}};
+  \node[block] (uvb) at (5.6,0.95) {\texttt{uv build}\\{\footnotesize uv 本体から実行}};
+  \node[block] (pip) at (5.6,-0.95) {pip / python -m build\\{\footnotesize 他のフロントエンド}};
+  \node[accent] (bund) at (11.6,0.95) {uv 同梱の backend\\{\footnotesize 追加ダウンロードなし}};
+  \node[accent] (pkg) at (11.6,-0.95) {\texttt{uv\_build} パッケージ\\{\footnotesize 小さなバイナリ}};
+
+  \draw[wire] (toml.east) -- ++(0.4,0) |- (uvb.west);
+  \draw[wire] (toml.east) -- ++(0.4,0) |- (pip.west);
+  \draw[wire] (uvb) -- node[midway, above, sig] {要求と互換なら} (bund);
+  \draw[->, draw=navy, dashed] (uvb.east) ++(0,-0.25) -- ++(0.9,0) |- ([yshift=0.25cm]pkg.west);
+  \node[sig, anchor=west] at (8.35,0.05) {非互換なら};
+  \draw[wire] (pip.east) ++(0,-0.2) -- ([yshift=-0.2cm]pkg.west);
+  \node[sig] at (9.0,-1.4) {常にこちら};
+
+  \node[ng, minimum width=4.2cm] (ngx) at (18.0,0)
+    {拡張モジュールは非対応\\{\footnotesize C / C++ / Rust → 別 backend}};
+  \node[note, below=3pt of ngx] {純 Python のみ};
+
+  % ---- 下段：ビルド処理
+  \node[block] (s1) at (0,-4.0) {メタデータ・構造の検証\\{\footnotesize よくある誤りを早期エラー}};
+  \node[block] (s2) at (4.8,-4.0) {モジュール特定\\{\footnotesize \texttt{src/<正規化名>/\_\_init\_\_.py}}};
+  \node[block] (s3) at (9.6,-4.0) {include / exclude 適用\\{\footnotesize 除外が常に優先}};
+  \node[block] (s4) at (14.4,-4.0) {成果物の組み立て\\{\footnotesize sdist / wheel 別ルール}};
+
+  \node[step, above=2pt of s1] {① validate};
+  \node[step, above=2pt of s2] {② module};
+  \node[step, above=2pt of s3] {③ include / exclude};
+  \node[step, above=2pt of s4] {④ assemble};
+
+  \node[note, below=3pt of s1] {高速・設定ゼロが目標\\ログは uv の verbosity に追従};
+  \node[note, below=3pt of s2] {\texttt{Foo-Bar} → \texttt{foo\_bar}\\\texttt{module-name} / \texttt{module-root}};
+  \node[note, below=3pt of s3] {既定で \texttt{\_\_pycache\_\_}・\texttt{*.pyc} 除外\\include は root 基準，exclude は任意階層};
+  \node[note, below=3pt of s4] {wheel のトップモジュールは1つ\\データは module 内 or \texttt{data}};
+
+  \coordinate (merge) at (11.6,-2.3);
+  \draw[draw=navy] (bund.east) -- ++(0.5,0) |- (merge);
+  \draw[draw=navy] (pkg.south) -- (merge);
+  \draw[wire] (merge) -- (-2.6,-2.3) |- (s1.west);
+  \draw[wire] (s1) -- (s2);
+  \draw[wire] (s2) -- (s3);
+  \draw[wire] (s3) -- (s4);
+
+  % ---- 出力
+  \node[block, fill=white, minimum width=4.4cm] (sd) at (21.0,-3.15)
+    {sdist\\{\footnotesize pyproject を TOML 1.0 で再出力（原本 \texttt{.orig}）}};
+  \node[block, fill=white, minimum width=4.4cm] (wh) at (21.0,-4.95)
+    {wheel\\{\footnotesize license → \texttt{.dist-info}，data → \texttt{.data}}};
+  \draw[wire] (s4.east) -- ++(0.5,0) |- (sd.west);
+  \draw[wire] (s4.east) -- ++(0.5,0) |- (wh.west);
+\end{tikzpicture}
