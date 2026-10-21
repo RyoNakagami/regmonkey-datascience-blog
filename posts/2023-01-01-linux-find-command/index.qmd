@@ -2,9 +2,8 @@
 title: "[過去記事転記] Linuxでファイルを検索する: findコマンド"
 author: "Ryo Nakagami"
 date: "2023-01-01"
-date-modified: "2026-04-27"
+date-modified: "2026-10-21"
 categories: [Linux]
-listing_category: development
 comments:
   utterances:
        repo: RyoNakagami/regmonkey-datascience-blog
@@ -20,9 +19,13 @@ comments:
 `index.quarto_ipynb` および `index.quarto_ipynb_*`（`_1`, `_2`, ...）に
 マッチする通常ファイルを，カレントディレクトリ以下から再帰的に検索し，まとめて削除する．
 
+:::{.padding-left-10}
+
 ```bash
 find . -type f \( -name "index.quarto_ipynb" -o -name "index.quarto_ipynb_*" \) -delete
 ```
+
+:::
 
 :::
 
@@ -41,7 +44,7 @@ find . -type f \( -name "index.quarto_ipynb" -o -name "index.quarto_ipynb_*" \) 
 
 ::::
 
-[評価順序の注意点]{.mini-section}
+[評価順序の注意点 1]{.mini-section}
 
 `find` は `-a`（AND）が `-o`（OR）よりも優先順位が高いため，括弧でグループ化しないと意図しない条件評価になります．
 
@@ -60,6 +63,27 @@ $$
 $$
 
 となり，`-delete` が条件Bにマッチした **すべてのファイル**（ディレクトリ含む）に対して発動してしまう危険性があります．
+
+[評価順序の注意点 2]{.mini-section}
+
+- `find` の式は **左から順に評価** され，`-delete` は条件ではなく「評価された時点で実行されるアクション」
+- `-delete` は必ず最後に置く
+
+```bash
+## NG: 名前判定の前に -delete が走り，docs/figures 以下が全部消える
+find docs/figures -delete -name "*.png"
+
+## OK: 条件をすべて書いた後に -delete を置く
+find docs/figures -name "*.png" -delete
+```
+
+論理式として読み下すと，前者は
+
+$$
+\texttt{-delete} \wedge \texttt{-name "*.png"}
+$$
+
+となり，`-delete` の左側に絞り込み条件がないため，`docs/figures` 以下の **すべてのエントリ**（`docs/figures` 自身を含む）に対して削除が実行されます．後ろの `-name "*.png"` は削除後に評価されるだけで，削除対象の絞り込みにはまったく効きません．
 
 [`-delete` を使うときの作法]{.mini-section}
 
@@ -129,6 +153,58 @@ find . -type f \( -name "index.quarto_ipynb" -o -name "index.quarto_ipynb_*" \) 
 
 ***
 
+## glob パターンでファイル名・パスを指定する
+
+::: {.callout-note}
+### コマンド
+
+`docs/figures` 以下から，`fig_01.png` のような 2 桁連番の図や，`eda` ディレクトリ配下の png を glob で検索する．
+
+```bash
+find docs/figures -type f -name "fig_[0-9][0-9].png"   # fig_01.png など
+find docs/figures -type f -path "*/eda/*.png"           # eda 配下の png
+```
+
+:::
+
+[glob を受け取るオプション]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| オプション               | マッチ対象                                                    |
+| ------------------- | -------------------------------------------------------- |
+| `-name` / `-iname`  | ファイル名 (basename) のみ．`-iname` は大文字小文字を無視                   |
+| `-path` / `-ipath`  | 起点からのパス全体 (`find` が出力するパス文字列，例: `docs/figures/eda/a.png`) |
+
+::::
+
+[使える記号]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| 記号       | 意味                                   | 例                                  |
+| -------- | ------------------------------------ | ---------------------------------- |
+| `*`      | 任意の文字列 (0 文字以上)                      | `"*.png"`                          |
+| `?`      | 任意の 1 文字                             | `"fig_?.png"` → `fig_1.png`        |
+| `[...]`  | 文字クラス．`[0-9]`，`[a-z]`，`[!0-9]` (否定) など | `"fig_[0-9][0-9].png"`             |
+
+::::
+
+::: {.callout-note}
+### REMARKS
+
+- **ブレース展開 `{png,pdf}` は使えない**．ブレース展開はシェルの機能で，`find` の glob には存在しない．
+  - クォートすれば `{png,pdf}` という文字列そのものとして扱われ，何もマッチしない．
+  - クォートしないとシェルが `-name fig.png fig.pdf` に展開し，`find: paths must precede expression` エラーになる．
+  - 複数拡張子は `\( -name "*.png" -o -name "*.pdf" \)` か，正規表現で書く．
+- **`**` (globstar) はない**．ただし `-path` では `*` が `/` にもマッチするので，`"*/eda/*.png"` は `eda/sub/x.png` のような深い階層にもマッチする．
+- `-path` はパス全体への完全一致なので，起点のプレフィックスまで含めて書く．`find docs/figures -path "eda/*.png"` は先頭が `docs/figures/` なのでマッチしない．先頭を `*/` にしておくのが無難．
+- パターンは必ずクォートする．クォートしないと，カレントディレクトリにマッチするファイルがあった場合にシェルが先に展開してしまう．
+
+:::
+
+***
+
 ## 複数パターンのファイルを一括削除する with regex
 
 
@@ -157,14 +233,27 @@ find . -type f -regex '.*/index\.quarto_ipynb.*$'
 
 ::::
 
-::: {.callout-warning}
+::: {.callout-note}
+### REMARKS
 
 - `-regex` は `-name` と違って[パス全体への完全一致]{.regmonkey-bold} (= 暗黙に `^` と `$` で囲まれる) として動作する．
   - `-regex 'index\.quarto_ipynb'` だけでは絶対にマッチしない (パスが `./...` で始まるため)．
 - `.` をエスケープし忘れて `index.quarto_ipynb` と書くと，`indexAquarto_ipynb` のような[別名にも誤マッチ]{.regmonkey-bold}する．
 - `-regex` のデフォルト方言は GNU `find` では `emacs` (BRE 相当) で，`+` や `?`，`|`，`{m,n}` はそのままでは使えない．拡張正規表現を使いたいときは `-regextype posix-extended` を明示する．
+- macOS (BSD `find`) には `-regextype` がない．拡張正規表現を使うときは `find -E <dir> -regex ...` のように `-E` を起点ディレクトリより前に書く．
 
 :::
+
+```bash
+## NG: パス全体と一致しない
+find docs/figures -regex 'fig_[0-9]+\.png'
+
+## OK: 先頭に .*/ を付け，ERE を明示する
+find docs/figures -regextype posix-extended -regex '.*/fig_[0-9]+\.png'
+
+## 複数拡張子を 1 本の正規表現でまとめて削除 (glob のブレース展開の代わり)
+find docs/figures -regextype posix-extended -type f -regex '.*\.(png|pdf|svg)' -delete
+```
 
 [正規表現の方言を切り替える]{.mini-section}
 
@@ -251,7 +340,7 @@ find ~/shellutils/bin -type f -exec chmod +x {} +
 
 `+` 版は `xargs` と同じ方式でコマンドラインを構築するため，`\;` 版より大幅に高速になる．ただし `{}` は引数リストの末尾に 1 か所だけ置けるという制約がある（GNU `find` の仕様）．
 
-::: {.callout-warning}
+::: {.callout-note}
 ### Warning
 
 - `\;` の `\` はシェルに `;` を解釈させないためのエスケープ．
@@ -340,6 +429,205 @@ find ~/shellutils/bin -type f ! -perm /0111 -exec chmod +x {} +
 
 ***
 
+## 更新時刻で絞り込む: `-mtime` / `-mmin`
+
+::: {.callout-note}
+### コマンド
+
+最終更新から 7 日より古い通常ファイルを検索する．
+
+:::{.padding-left-10}
+
+```bash
+find . -type f -mtime +7
+```
+
+:::
+
+:::
+
+`find` はファイルのタイムスタンプを条件に使える．`-mtime` は「最終更新 (modification time) から何日経ったか」で絞り込むテストで，
+経過時間を 24 時間単位で[切り捨て]{.regmonkey-bold}た日数 `n` と比較する．
+
+:::: {.no-border-top-table}
+
+| 書き方          | 意味                                              |
+| ------------ | ----------------------------------------------- |
+| `-mtime +7`  | 経過日数 `n > 7` (切り捨てなので，実質 8 日以上前に更新)              |
+| `-mtime -7`  | 経過日数 `n < 7` (直近 7 日以内に更新)                       |
+| `-mtime 7`   | 経過日数 `n = 7` (7 日以上 8 日未満前に更新)                   |
+| `-mmin +60`  | 分単位版．60 分より前に更新                                  |
+| `-mmin -60`  | 直近 60 分以内に更新                                     |
+
+::::
+
+[見ているタイムスタンプの種類]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| テスト                 | タイムスタンプ                            | 更新されるタイミング                              |
+| ------------------- | ---------------------------------- | --------------------------------------- |
+| `-mtime` / `-mmin`  | mtime (modification time)          | ファイルの中身を書き換えたとき                         |
+| `-atime` / `-amin`  | atime (access time)                | ファイルを読んだとき (`relatime` マウントでは更新が間引かれる) |
+| `-ctime` / `-cmin`  | ctime (status change time)         | 中身に加えて，権限・所有者・名前などのメタデータを変えたとき          |
+| `-newer FILE`       | FILE の mtime との比較                  | `FILE` より後に更新されたファイルにマッチ                  |
+
+::::
+
+::: {.callout-note}
+### WARNING
+
+- `+7` は「7 日以上」ではなく，切り捨て後の日数が 7 より大きい，つまり[実質 8 日以上前]{.regmonkey-bold}を意味する．境界をきっちり指定したいときは `-mmin` を使う．
+- `-mtime` は **更新時刻** を見る．`cp` (`-p` なし) や `git checkout` で mtime が新しくなったファイルは，中身が古くても「新しい」と判定される．
+
+:::
+
+::: {#exm- .custom_problem }
+[データ分析プロジェクトでの活用例]{.def-title}
+
+```bash
+## 古い中間生成物だけ消す: data/interim 以下の parquet のうち 8 日以上前のもの
+find data/interim -type f -name "*.parquet" -mtime +7 -print   # まず確認
+find data/interim -type f -name "*.parquet" -mtime +7 -delete
+
+## 直近 1 時間にパイプラインが書き出したファイルを確認する
+find data/processed -type f -mmin -60
+
+## 生データより古い (= 再生成が必要な) 加工済みファイルを探す
+find data/processed -type f ! -newer data/raw/latest.csv
+```
+
+:::
+
+***
+
+## サイズで絞り込む: `-size`
+
+::: {.callout-note}
+### コマンド
+
+500 MiB を超える通常ファイルを検索する．
+
+```bash
+find . -type f -size +500M
+```
+
+:::
+
+:::: {.no-border-top-table}
+
+| 書き方            | 意味                                                    |
+| -------------- | ----------------------------------------------------- |
+| `-size +500M`  | 500 MiB を超える                                          |
+| `-size -10k`   | 10 KiB 未満 (下記の切り上げに注意)                                |
+| `-size 0`      | 0 バイト (`-empty` でも同じ．`-empty` は空ディレクトリにもマッチする)         |
+| 単位             | `c` (バイト), `k` (KiB), `M` (MiB), `G` (GiB)．省略すると 512 バイトブロック |
+
+::::
+
+::: {.callout-note}
+
+- `-size` はファイルサイズを指定単位で[切り上げ]{.regmonkey-bold}てから比較する．`-size -1M` は「1 MiB 未満」ではなく「切り上げて 0 MiB」，つまり空ファイルにしかマッチしない．小さい閾値は `-size -1024k` のように細かい単位で書く．
+- 単位を省略した `-size +100` は 100 バイトではなく 100 ブロック (= 51200 バイト) の意味になる．バイト指定は `c` を付ける．
+
+:::
+
+::: {#exm- .custom_problem }
+[データ分析プロジェクトでの活用例]{.def-title}
+
+```bash
+## 巨大ファイルを確認する: サイズを人間が読める形式で表示
+find data -type f -size +500M -exec ls -lh {} +
+
+## 大きい順に並べる
+find data -type f -size +500M -exec du -h {} + | sort -hr
+
+## 書き出しに失敗した空の出力ファイルを探す
+find outputs -type f -empty
+```
+
+:::
+
+***
+
+## 探索を打ち切る: `-prune`
+
+::: {.callout-note}
+### コマンド
+
+`.venv` と `.git` の中は探索せずに，`.py` ファイルを検索する．
+
+```bash
+find . \( -name ".venv" -o -name ".git" \) -prune -o -type f -name "*.py" -print
+```
+
+:::
+
+`-prune` は「マッチしたディレクトリの[中には潜らない]{.regmonkey-bold}」ことを `find` に指示するアクションで，評価結果は常に真になる．
+探索そのものを打ち切るので，巨大な `.venv` や `node_modules` を除外すると検索が速くなる．
+
+[`A -prune -o B -print` の読み方]{.mini-section}
+
+```bash
+find . \( -name ".venv" -o -name ".git" \) -prune -o -type f -name "*.py" -print
+```
+
+論理式として読み下すと
+
+$$
+(\texttt{除外条件} \wedge \texttt{-prune}) \vee (\texttt{検索条件} \wedge \texttt{-print})
+$$
+
+となる．
+
+- 除外条件にマッチしたディレクトリ: `-prune` が真を返すので `-o` の右側は評価されず，中にも潜らない
+- それ以外: 左側が偽になり，右側の検索条件で判定される
+
+::: {.callout-note}
+
+- 末尾の `-print` を省略すると，暗黙の `-print` が式全体にかかり，除外したはずの `./.venv` や `./.git` 自体が出力される．`-prune -o` を使うときは右側に必ずアクションを明示する．
+- `-prune` は `-depth` が有効なときは効かない．`-delete` は暗黙に `-depth` を有効にするため，`-prune` と `-delete` は組み合わせられない．
+
+:::
+
+[中身のあるディレクトリを消す: `-prune` + `-exec rm -rf`]{.mini-section}
+
+`-prune` は「これから消すディレクトリの中を探索しない」用途にも使える．
+`-delete` はディレクトリに対しては `rmdir` 相当の動作しかせず，[空のディレクトリしか消せない]{.regmonkey-bold}ため，中身ごと消すときは `-exec rm -rf {} +` を使う．
+
+```bash
+## NG: 中身があるので消えない
+find . -type d -name "__pycache__" -delete
+## find: cannot delete './a/__pycache__': Directory not empty
+
+## NG: -prune なしで \; を使うと，削除直後に find が中へ潜ろうとしてエラーになる
+find . -type d -name "__pycache__" -exec rm -rf {} \;
+## find: './a/__pycache__': No such file or directory
+
+## OK: -prune で中に潜らず，rm -rf でまとめて削除する
+find . -type d -name "__pycache__" -prune -exec rm -rf {} +
+```
+
+::: {#exm- .custom_problem }
+[データ分析プロジェクトでの活用例]{.def-title}
+
+```bash
+## Jupyter / Python のゴミ掃除
+find . -type d -name ".ipynb_checkpoints" -prune -exec rm -rf {} +
+find . -type d -name "__pycache__" -prune -exec rm -rf {} +
+
+## 上の 2 本を 1 本にまとめ，まず対象を確認してから削除する
+find . -type d \( -name ".ipynb_checkpoints" -o -name "__pycache__" \) -prune -print
+find . -type d \( -name ".ipynb_checkpoints" -o -name "__pycache__" \) -prune -exec rm -rf {} +
+
+## .venv と data を除外して notebook を一覧する (data 以下の大量ファイルを走査しない)
+find . \( -name ".venv" -o -path "./data" \) -prune -o -type f -name "*.ipynb" -print
+```
+
+:::
+
+***
+
 ## Appendix: Linuxのファイル
 
 Linuxで扱われるオブジェクトは大きく分けると４つあります
@@ -386,11 +674,45 @@ ls -X
 拡張子を含めファイルに適切な名前を付与することはLinuxでも重要です．
 
 
+## Appendix: 用語集
 
+:::{.glossary-container}
 
+```yaml
+glossary:
+  - def: NUL文字
+    description: |
+      文字コード 0 の制御文字で，`\0` と表記される．
+      Linux のファイル名には `/` と NUL文字以外のすべての文字（スペース・改行・引用符を含む）を使えるため，
+      NUL文字はファイル名の区切りとして絶対に衝突しない唯一の文字である．
+      `find -print0` と `xargs -0` はこの性質を利用して，ファイル名を安全に受け渡す．
 
+  - def: ブレース展開 (brace expansion)
+    description: |
+      `{a,b,c}` や `{1..5}` のような記述を，コマンド実行前に複数の単語へ展開するシェル (bash, zsh) の機能．
+      例えば `ls *.{png,pdf}` はシェルによって `ls *.png *.pdf` に展開されてから実行される．
+      展開はシェルが行うため，クォートして `find` に渡した文字列には適用されない．
 
+  - def: globstar
+    description: |
+      `**` を「0 個以上のディレクトリ階層」にマッチさせる bash のオプション．`shopt -s globstar` で有効化する
+      （zsh ではデフォルトで有効）．例えば `ls **/*.png` でカレントディレクトリ以下すべての `.png` を列挙できる．
+      シェルの機能であり，`find` の `-name` / `-path` の glob パターンには存在しない．
 
+  - def: -regextype posix-extended
+    description: |
+      GNU `find` で `-regex` / `-iregex` が解釈する正規表現の方言を POSIX 拡張正規表現 (ERE) に指定するオプション．
+      ERE では `+`, `?`, `|`, `()`, `{m,n}` をエスケープなしでメタ文字として使える．
+      最初の `-regex` より前に置く必要がある．BSD `find` (macOS) では代わりに `find -E` を使う．
+
+  - def: MiB (メビバイト)
+    description: |
+      2 の累乗に基づく情報量の単位で，1 MiB = 1024 KiB = 1,048,576 バイト．
+      SI 接頭辞の MB (1 MB = 1,000,000 バイト) と区別するために IEC が定めた 2 進接頭辞．
+      `find -size` の `k`, `M`, `G` はそれぞれ KiB, MiB, GiB を意味する．
+```
+
+:::
 
 
 
