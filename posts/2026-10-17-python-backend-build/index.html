@@ -1,0 +1,1722 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="ja" xml:lang="ja"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.19">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Ryo Nakagami">
+<meta name="dcterms.date" content="2026-10-17">
+
+<title>setuptools vs uv_build — build backend 比較まとめ – regmonkey datascience blog</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<link href="../../img/favicon.ico" rel="icon">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-5c1318cf63eba56dbef7ba16bc7d56f5.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark-6453f418aeef366c23116eb9cb0b6816.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-5c1318cf63eba56dbef7ba16bc7d56f5.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-4d7bc2ad69636a1adccb3b801ee1c591.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark-aa57a16df149dc269e65c014c76f68b5.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../site_libs/bootstrap/bootstrap-4d7bc2ad69636a1adccb3b801ee1c591.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script src="../../site_libs/quarto-contrib/pseudocode-2.4.1/pseudocode.min.js"></script>
+<link href="../../site_libs/quarto-contrib/pseudocode-2.4.1/pseudocode.min.css" rel="stylesheet">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "一致なし",
+    "search-matching-documents-text": "一致した文書",
+    "search-copy-link-title": "検索へのリンクをコピー",
+    "search-hide-matches-text": "追加の検索結果を非表示",
+    "search-more-match-text": "追加の検索結果",
+    "search-more-matches-text": "追加の検索結果",
+    "search-clear-button-title": "消去",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "取消",
+    "search-submit-button-title": "検索",
+    "search-label": "サーチ"
+  }
+}</script>
+<script async="" src="https://www.googletagmanager.com/gtag/js?id=G-EX9H7GRLTH"></script>
+
+<script type="text/javascript">
+
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
+</script>
+<style>
+
+      .quarto-title-block .quarto-title-banner h1,
+      .quarto-title-block .quarto-title-banner h2,
+      .quarto-title-block .quarto-title-banner h3,
+      .quarto-title-block .quarto-title-banner h4,
+      .quarto-title-block .quarto-title-banner h5,
+      .quarto-title-block .quarto-title-banner h6
+      {
+        color: #ffffff;
+      }
+
+      .quarto-title-block .quarto-title-banner {
+        color: #ffffff;
+      }
+</style>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-M27Z2BWG');</script>
+    <!-- End Google Tag Manager -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&amp;display=swap" rel="stylesheet">
+<script>
+    MathJax = {
+        tex: {
+            inlineMath: [['$','$'], ['\\(','\\)']],
+            displayMath: [['$$','$$'], ['\\[','\\]']],
+            processEscapes: true,
+            processEnvironments: true,
+            tags: 'all',
+        }
+    }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml-full.js" integrity="sha256-kbAFUDxdHwlYv01zraGjvjNZayxKtdoiJ38bDTFJtaQ=" crossorigin="anonymous">
+</script>
+<link rel="stylesheet" href="../../js/regmonkey_glossary_generator/regmonkey_glossary_generator.css">
+<script type="text/javascript" src="../../js/regmonkey_glossary_generator/regmonkey_glossary_generator.js"></script>
+
+
+<link rel="stylesheet" href="../../styles.css">
+<meta property="og:title" content="setuptools vs uv_build — build backend 比較まとめ – regmonkey datascience blog">
+<meta property="og:description" content="日々の徒然勉強日記">
+<meta property="og:image" content="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-17-python-backend-build/figures/fig0_build_backend_mechanism.svg">
+<meta property="og:site_name" content="regmonkey datascience blog">
+</head>
+
+<body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top quarto-banner">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">Home</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="サーチ"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="ナビゲーションを切り替える" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-bi-book" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+      <i class="bi bi-book" role="img">
+</i> 
+ <span class="menu-text"></span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-bi-book">    
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/statistics-for-regression-monkey/">
+ <span class="dropdown-text">Statistics Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/python-statisticalpackage-techniques/">
+ <span class="dropdown-text">Python package building Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/regmonkey_datavisualization/">
+ <span class="dropdown-text">Data Visualization Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/regmonkey-presentation/">
+ <span class="dropdown-text">Presentation Blog</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../link_list/link_table.html"> 
+<span class="menu-text">便利リンク集</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../dictionary/dict.html"> 
+<span class="menu-text">備忘録</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../FAQ/faq.html"> 
+<span class="menu-text">FAQ</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../about.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/RyoNakagami/regmonkey-datascience-blog"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="../../index.xml"> <i class="bi bi-rss" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="ダークモードの切り替え"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">setuptools vs uv_build — build backend 比較まとめ</h1>
+                                <div class="quarto-categories">
+                <div class="quarto-category">python</div>
+                <div class="quarto-category">uv</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      <div>
+      <div class="quarto-title-meta-heading">作者</div>
+      <div class="quarto-title-meta-contents">
+               <p>Ryo Nakagami </p>
+            </div>
+    </div>
+      
+      <div>
+      <div class="quarto-title-meta-heading">公開</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">2026-10-17</p>
+      </div>
+    </div>
+    
+      <div>
+      <div class="quarto-title-meta-heading">更新日</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date-modified">2026-10-21</p>
+      </div>
+    </div>
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">目次</h2>
+   
+  <ul>
+  <li><a href="#前提build-backend-とは" id="toc-前提build-backend-とは" class="nav-link active" data-scroll-target="#前提build-backend-とは">1. 前提：build backend とは</a></li>
+  <li><a href="#build-backend-それぞれの動作" id="toc-build-backend-それぞれの動作" class="nav-link" data-scroll-target="#build-backend-それぞれの動作">2. build backend それぞれの動作</a>
+  <ul class="collapse">
+  <li><a href="#setuptools" id="toc-setuptools" class="nav-link" data-scroll-target="#setuptools">2-1. setuptools</a></li>
+  <li><a href="#uv_build" id="toc-uv_build" class="nav-link" data-scroll-target="#uv_build">2-2. uv_build</a></li>
+  </ul></li>
+  <li><a href="#生成物一覧" id="toc-生成物一覧" class="nav-link" data-scroll-target="#生成物一覧">3. 生成物一覧</a>
+  <ul class="collapse">
+  <li><a href="#ソースツリーに生成されるもの" id="toc-ソースツリーに生成されるもの" class="nav-link" data-scroll-target="#ソースツリーに生成されるもの">3-1. ソースツリーに生成されるもの</a></li>
+  <li><a href="#sdist.tar.gzの中身" id="toc-sdist.tar.gzの中身" class="nav-link" data-scroll-target="#sdist.tar.gzの中身">3-2. sdist（<code>.tar.gz</code>）の中身</a></li>
+  <li><a href="#wheel.whlの中身" id="toc-wheel.whlの中身" class="nav-link" data-scroll-target="#wheel.whlの中身">3-3. wheel（<code>.whl</code>）の中身</a></li>
+  <li><a href="#editable-installuv-pip-install--e-.で生成されるもの" id="toc-editable-installuv-pip-install--e-.で生成されるもの" class="nav-link" data-scroll-target="#editable-installuv-pip-install--e-.で生成されるもの">3-4. editable install（<code>uv pip install -e .</code>）で生成されるもの</a></li>
+  <li><a href="#setuptools-のデータ漏れを防ぐには" id="toc-setuptools-のデータ漏れを防ぐには" class="nav-link" data-scroll-target="#setuptools-のデータ漏れを防ぐには">3-5. setuptools のデータ漏れを防ぐには</a></li>
+  </ul></li>
+  <li><a href="#パッケージ化にあたっての注意点と選択観点" id="toc-パッケージ化にあたっての注意点と選択観点" class="nav-link" data-scroll-target="#パッケージ化にあたっての注意点と選択観点">4. パッケージ化にあたっての注意点と選択観点</a></li>
+  <li><a href="#appendix-用語集" id="toc-appendix-用語集" class="nav-link" data-scroll-target="#appendix-用語集">Appendix: 用語集</a></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>問題を報告</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content">
+
+
+
+
+
+
+<section id="前提build-backend-とは" class="level2">
+<h2 class="anchored" data-anchor-id="前提build-backend-とは">1. 前提：build backend とは</h2>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title">build backend</span></p>
+<ul>
+<li>build backend は <strong>ソースツリー（ディレクトリ）を sdist / wheel に変換する役</strong></li>
+<li><code>pip</code> / <code>uv build</code> / <code>python -m build</code> などの <strong>フロントエンド</strong>が，<code>pyproject.toml</code> の <code>[build-system]</code> を読んで backend を呼び出す（<a href="https://peps.python.org/pep-0517/">PEP 517</a>）</li>
+<li>uv はどの PEP 517 backend でも使えるが，それとは別にネイティブ backend <code>uv_build</code> を持っている</li>
+</ul>
+</div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="figures/fig0_build_backend_mechanism.svg" class="img-fluid figure-img"></p>
+<figcaption>build backend の機序</figcaption>
+</figure>
+</div>
+<p><span class="mini-section">生成物: sdist と wheel</span></p>
+<p><code>test-package</code> というプロジェクトで <code>uv build</code> を実行すると，<code>dist/</code> に2つのファイルができます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> uv build</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">Building</span> source distribution...</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ex">Building</span> wheel from source distribution...</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="ex">Successfully</span> built dist/test_package-0.1.0.tar.gz</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="ex">Successfully</span> built dist/test_package-0.1.0-py3-none-any.whl</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>ファイル名ではパッケージ名が正規化され，<code>-</code> が <code>_</code> に変わります（<code>test-package</code> → <code>test_package</code>）．</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th></th>
+<th>sdist（<code>.tar.gz</code>）</th>
+<th>wheel（<code>.whl</code>）</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>正式名</td>
+<td>source distribution</td>
+<td>built distribution（<a href="https://peps.python.org/pep-0427/">PEP 427</a>）</td>
+</tr>
+<tr class="even">
+<td>中身</td>
+<td>ソースコード，<code>pyproject.toml</code>，<code>PKG-INFO</code>，README / LICENSE など，<strong>ビルド前の材料</strong></td>
+<td><code>site-packages</code> にそのまま置けるファイルと <code>.dist-info/</code>（メタデータ）．<strong>ビルド済みの完成品</strong></td>
+</tr>
+<tr class="odd">
+<td>形式</td>
+<td>tar + gzip</td>
+<td>zip（拡張子が <code>.whl</code>）</td>
+</tr>
+<tr class="even">
+<td>インストール時の動作</td>
+<td>利用者の環境で <strong>build backend を動かして wheel を作り</strong>，それをインストールする</td>
+<td>展開してコピーするだけ．<strong>ビルドは走らない</strong></td>
+</tr>
+<tr class="odd">
+<td>環境依存</td>
+<td>なし．どの環境でもビルドを試せる</td>
+<td>ファイル名のタグで対応環境が決まる</td>
+</tr>
+</tbody>
+</table>
+<p>wheel のファイル名は <code>{名前}-{バージョン}-{Python タグ}-{ABI タグ}-{プラットフォームタグ}.whl</code> という形です．<code>py3-none-any</code> は「Python 3 ならどれでも，C 拡張の ABI に依存せず，どの OS / CPU でも動く」，つまり <strong>純 Python の wheel</strong> を表します．C 拡張を含む場合は <code>cp312-cp312-manylinux_2_17_x86_64</code> のように，環境ごとに別の wheel が必要です．</p>
+<p><strong>なぜ2種類あるのか</strong></p>
+<ul>
+<li><strong>wheel はインストールを速く，安全にするため．</strong> 利用者の環境で backend やコンパイラを動かさずに済み，<code>setup.py</code> のような任意コードも実行されません．<code>pip</code> / <code>uv</code> は対応する wheel があればそちらを優先します</li>
+<li><strong>sdist は wheel がない環境の受け皿と，ソースの原本を残すため．</strong> 対応する wheel がない OS / Python では，installer が sdist から wheel をビルドします．</li>
+</ul>
+<p><code>uv build</code> のログにある「Building wheel from source distribution」は，ソースツリーから直接ではなく，<strong>一度作った sdist を展開してから wheel をビルドしている</strong>ことを示しています．こうすると sdist に必要なファイルが欠けていた場合にこの時点でビルドが失敗するので，「sdist からは wheel が作れない」という壊れた配布物を事前に防げます</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>パッケージを配布する場合の選択肢
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 35%">
+<col style="width: 40%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>配り方</th>
+<th>コマンド例</th>
+<th>備考</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>PyPI / 社内 index に公開</td>
+<td><code>uv publish</code>（既定で <code>dist/*</code> をアップロード）</td>
+<td>sdist と wheel を <strong>両方</strong> 上げるのが慣例．index 側は環境に合うものを選ばせる</td>
+</tr>
+<tr class="even">
+<td>ファイルを直接渡す</td>
+<td><code>uv pip install ./dist/test_package-0.1.0-py3-none-any.whl</code></td>
+<td>GitHub Releases に添付したり，共有ストレージに置いたりする．純 Python なら wheel 1つで全環境をカバーできる</td>
+</tr>
+<tr class="odd">
+<td>sdist から入れる</td>
+<td><code>uv pip install ./dist/test_package-0.1.0.tar.gz</code></td>
+<td>利用者側でビルドが走るので，build backend の取得が必要</td>
+</tr>
+</tbody>
+</table>
+</div>
+<ul>
+<li>純 Python のパッケージなら，<strong>wheel（<code>py3-none-any</code>）1つ + sdist 1つ</strong> をセットで配れば十分です．</li>
+</ul>
+</div>
+</div>
+</section>
+<section id="build-backend-それぞれの動作" class="level2">
+<h2 class="anchored" data-anchor-id="build-backend-それぞれの動作">2. build backend それぞれの動作</h2>
+<p>PEP 517 に従っていれば誰でも backend を作れるので，選択肢は複数あります．代表的なものは次のとおりです．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 30%">
+<col style="width: 30%">
+<col style="width: 40%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>backend</th>
+<th><code>build-backend</code></th>
+<th>特徴</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>setuptools</td>
+<td><code>setuptools.build_meta</code></td>
+<td>最古参で，事実上の標準．C 拡張・動的メタデータ・<code>setup.py</code> との互換まで何でもこなす</td>
+</tr>
+<tr class="even">
+<td>hatchling</td>
+<td><code>hatchling.build</code></td>
+<td>Hatch の backend．設定が素直で，プラグイン（hatch-vcs など）で拡張できる</td>
+</tr>
+<tr class="odd">
+<td>flit-core</td>
+<td><code>flit_core.buildapi</code></td>
+<td>純 Python 専用の最小構成．依存がほぼ無く軽い</td>
+</tr>
+<tr class="even">
+<td>pdm-backend</td>
+<td><code>pdm.backend</code></td>
+<td>PDM の backend．ビルドスクリプトも書ける</td>
+</tr>
+<tr class="odd">
+<td>poetry-core</td>
+<td><code>poetry.core.masonry.api</code></td>
+<td>Poetry の backend．<code>[tool.poetry]</code> の設定も読む</td>
+</tr>
+<tr class="even">
+<td>uv_build</td>
+<td><code>uv_build</code></td>
+<td>uv ネイティブ．純 Python 専用で，設定ゼロかつ高速</td>
+</tr>
+<tr class="odd">
+<td>scikit-build-core / meson-python / maturin</td>
+<td><code>scikit_build_core.build</code> など</td>
+<td>C / C++（CMake・Meson）や Rust（maturin）の拡張モジュールをビルドする専用 backend</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>ざっくり使い方を分けると，</p>
+<ul>
+<li><strong>純 Python なら uv_build / hatchling / flit-core</strong></li>
+<li><strong>コンパイルが必要なら setuptools か言語別の専用 backend</strong></li>
+</ul>
+<p>以下では，汎用 backend の代表として setuptools を，uv 環境での既定として uv_build を取り上げます．</p>
+<section id="setuptools" class="level3">
+<h3 class="anchored" data-anchor-id="setuptools">2-1. setuptools</h3>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>REMARKS
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li><strong>柔軟で何でもできる代わりに，設定経路が多い</strong>（pyproject / setup.cfg / setup.py / MANIFEST.in / プラグイン）</li>
+</ul>
+</div>
+</div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="figures/fig1_setuptools_flow.svg" class="img-fluid figure-img"></p>
+<figcaption>setuptools の動作</figcaption>
+</figure>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode toml code-with-copy"><code class="sourceCode toml"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[build-system]</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="dt">requires</span> <span class="op">=</span> <span class="op">[</span><span class="st">"setuptools"</span><span class="op">,</span> <span class="st">"setuptools-scm"</span><span class="op">]</span>   <span class="co"># プラグインもここに並べる</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="dt">build-backend</span> <span class="op">=</span> <span class="st">"setuptools.build_meta"</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="kw">[project]</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="dt">name</span> <span class="op">=</span> <span class="st">"my_package"</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="dt">dynamic</span> <span class="op">=</span> <span class="op">[</span><span class="st">"version"</span><span class="op">]</span>                          <span class="co"># version をビルド時に決める</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="kw">[tool.setuptools.packages.find]</span>                <span class="co"># 自動探索で足りないときだけ</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="dt">where</span> <span class="op">=</span> <span class="op">[</span><span class="st">"src"</span><span class="op">]</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="dt">exclude</span> <span class="op">=</span> <span class="op">[</span><span class="st">"my_package.tests*"</span><span class="op">]</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 75%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>ステップ</th>
+<th>中身</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>① metadata</td>
+<td><code>[project]</code> を読む．<code>dynamic</code> に挙げた項目は <code>tool.setuptools.dynamic</code>（<code>attr</code> / <code>file</code>）やプラグイン（setuptools-scm が git から version を算出）で埋める</td>
+</tr>
+<tr class="even">
+<td>② discovery</td>
+<td><code>packages</code> / <code>py-modules</code> 未指定なら <strong>自動探索</strong>（src-layout / flat-layout を判定）．合わなければ <code>find</code> ディレクティブや明示リスト</td>
+</tr>
+<tr class="odd">
+<td>③ file selection</td>
+<td><code>include-package-data</code> は pyproject 利用時 <strong>既定 true</strong>．ただし拾うのは <strong>MANIFEST.in か setuptools-scm（git 管理下）で sdist に載ったファイルだけ</strong>．明示するなら <code>package-data</code> / <code>exclude-package-data</code></td>
+</tr>
+<tr class="even">
+<td>④ extension</td>
+<td><code>setup.py</code> の <code>Extension</code> や（実験的な）<code>ext-modules</code> で C / C++ / Cython をコンパイル → プラットフォーム依存 wheel</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="uv_build" class="level3">
+<h3 class="anchored" data-anchor-id="uv_build">2-2. uv_build</h3>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>ポイント
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>：<strong>設定ゼロ・高速・検証付き</strong>，ただし <strong>純 Python 専用</strong></li>
+<li>ビルドスクリプトや柔軟なレイアウトが要るなら hatchling の検討推奨</li>
+</ul>
+</div>
+</div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="figures/fig2_uv_build_flow.svg" class="img-fluid figure-img"></p>
+<figcaption>uv_build の動作</figcaption>
+</figure>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode toml code-with-copy"><code class="sourceCode toml"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[build-system]</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="dt">requires</span> <span class="op">=</span> <span class="op">[</span><span class="st">"uv_build&gt;=0.13.4,&lt;0.14"</span><span class="op">]</span>   <span class="co"># 上限付きが公式推奨</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="dt">build-backend</span> <span class="op">=</span> <span class="st">"uv_build"</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="co"># 既定 (src/&lt;正規化名&gt;/__init__.py) から外れるときだけ</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="kw">[tool.uv.build-backend]</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="dt">module-name</span> <span class="op">=</span> <span class="st">"FOO"</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="dt">module-root</span> <span class="op">=</span> <span class="st">""</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 75%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>ステップ</th>
+<th>中身</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>フロントエンド</td>
+<td><code>uv build</code> は <strong>uv 本体に同梱の backend</strong>を使う（<code>requires</code> と互換な場合）．非互換なら，また pip / <code>python -m build</code> からは <strong>常に <code>uv_build</code> パッケージ</strong>を取得して使う</td>
+</tr>
+<tr class="even">
+<td>① validate</td>
+<td>メタデータとプロジェクト構造を検証し，よくあるミスをビルド前に弾く</td>
+</tr>
+<tr class="odd">
+<td>② module</td>
+<td>既定は <code>src/&lt;正規化名&gt;/__init__.py</code> 1つ．名前は小文字化＋<code>.</code>/<code>-</code>→<code>_</code>（<code>Foo-Bar</code>→<code>foo_bar</code>）．<code>module-name</code> / <code>module-root</code> で変更，<code>foo.bar</code> 形式で namespace，<code>-stubs</code> で型スタブ</td>
+</tr>
+<tr class="even">
+<td>③ include / exclude</td>
+<td>追加 → 除外の順で適用，<strong>除外が常に勝つ</strong>．既定で <code>__pycache__</code> / <code>*.pyc</code> / <code>*.pyo</code> を除外．include は root 基準（anchored），exclude は任意階層にマッチ（<code>/dist</code> で root 固定）</td>
+</tr>
+<tr class="odd">
+<td>④ assemble</td>
+<td>sdist：pyproject.toml を TOML 1.0 で書き直して同梱（原本は <code>.orig</code>）＋ readme / license / <code>data</code> / <code>source-include</code>．wheel：module・license（→<code>.dist-info</code>）・<code>data</code>（→<code>.data</code>）．wheel 専用の include は無く，トップレベルモジュールは1つ</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</section>
+<section id="生成物一覧" class="level2">
+<h2 class="anchored" data-anchor-id="生成物一覧">3. 生成物一覧</h2>
+<p>同じプロジェクトを両 backend でビルドし，<strong>何がどこに生成されるか</strong>を実物で確認してみます．</p>
+<p>検証用プロジェクト（<code>demo-pkg</code>）：</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="dt">demo-pkg/</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="dt">├── pyproject.toml          # </span><span class="kw">[project]</span><span class="dt"> 共通，</span><span class="kw">[build-system]</span><span class="dt"> だけ差し替え</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="dt">├── README.md               # readme</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="dt">├── LICENSE                 # license-files </span><span class="ot">=</span><span class="st"> ["LICENSE"]（PEP 639）</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="dt">├── src/</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="dt">│   └── demo_pkg/</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="dt">│       ├── __init__.py     # </span><span class="kw">[project.scripts]</span><span class="dt"> demo </span><span class="ot">=</span><span class="st"> "demo_pkg:main"</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="dt">│       ├── data/</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="dt">│       │   └── sample.csv  # パッケージ内データ</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="dt">│       └── __pycache__/</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="dt">│           └── x.pyc       # キャッシュ</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="dt">├── tests/</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="dt">│   └── test_x.py</span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a><span class="dt">├── notebooks/</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a><span class="dt">│   └── eda.ipynb</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a><span class="dt">└── data/</span></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a><span class="dt">    └── raw.csv             # パッケージ外の生データ</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<ul>
+<li>setuptools は <strong>84.0.0</strong>（<code>setuptools.build_meta</code>．MANIFEST.in・setuptools-scm なし）</li>
+<li>uv_build は <strong>0.13.4</strong>（uv 0.13.4 同梱の backend による <code>uv build</code> と，PyPI の <code>uv_build</code> パッケージを使う <code>uv build --force-pep517</code> の両方で確認．結果は同じ）</li>
+</ul>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="figures/fig5_generated_artifacts.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+<figcaption>生成されるもの一覧</figcaption>
+</figure>
+</div>
+<section id="ソースツリーに生成されるもの" class="level3">
+<h3 class="anchored" data-anchor-id="ソースツリーに生成されるもの">3-1. ソースツリーに生成されるもの</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>場所</th>
+<th>setuptools</th>
+<th>uv_build</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>dist/*.tar.gz</code> / <code>dist/*.whl</code></td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr class="even">
+<td><code>src/&lt;pkg&gt;.egg-info/</code><br>（<code>PKG-INFO</code> <code>SOURCES.txt</code> <code>entry_points.txt</code> <code>top_level.txt</code> <code>dependency_links.txt</code>）</td>
+<td>✅ <strong>ツリー内に残る</strong></td>
+<td>—</td>
+</tr>
+<tr class="odd">
+<td><code>build/lib/</code>, <code>build/bdist.&lt;platform&gt;/</code></td>
+<td>✅ ツリーから直接 wheel を作ったとき（<code>uv build --wheel</code>，<code>pip wheel .</code> など）</td>
+<td>—</td>
+</tr>
+<tr class="even">
+<td><code>dist/.gitignore</code>（中身は <code>*</code>）</td>
+<td><code>uv build</code> 経由なら作られる（フロントエンド側の挙動）</td>
+<td>同左</td>
+</tr>
+</tbody>
+</table>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>REMARKS
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>setuptools では <code>.gitignore</code> に <code>build/</code> と <code>*.egg-info/</code> が必須</li>
+</ul>
+</div>
+</div>
+</section>
+<section id="sdist.tar.gzの中身" class="level3">
+<h3 class="anchored" data-anchor-id="sdist.tar.gzの中身">3-2. sdist（<code>.tar.gz</code>）の中身</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>ファイル</th>
+<th>setuptools</th>
+<th>uv_build</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>PKG-INFO</code>（Metadata-Version 2.4）</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr class="even">
+<td><code>pyproject.toml</code></td>
+<td>✅ そのまま</td>
+<td>✅ TOML 1.0 で再出力</td>
+</tr>
+<tr class="odd">
+<td><code>pyproject.toml.orig</code></td>
+<td>—</td>
+<td>✅ 原本をそのまま同梱</td>
+</tr>
+<tr class="even">
+<td><code>README.md</code> / <code>LICENSE</code></td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr class="odd">
+<td><code>src/demo_pkg/__init__.py</code></td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr class="even">
+<td><code>src/demo_pkg/data/sample.csv</code></td>
+<td>❌ <strong>落ちる</strong></td>
+<td>✅ module 配下なので入る</td>
+</tr>
+<tr class="odd">
+<td><code>setup.cfg</code>（<code>[egg_info] tag_build / tag_date</code>）</td>
+<td>✅ 自動生成</td>
+<td>—</td>
+</tr>
+<tr class="even">
+<td><code>src/demo_pkg.egg-info/*</code></td>
+<td>✅</td>
+<td>—</td>
+</tr>
+<tr class="odd">
+<td><code>tests/test_x.py</code></td>
+<td>✅ 既定で <code>tests/test*.py</code> を同梱</td>
+<td>—</td>
+</tr>
+<tr class="even">
+<td><code>notebooks/</code> / <code>data/</code> / <code>__pycache__</code></td>
+<td>—</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p><span class="mini-section">なぜ <code>tests</code> が同梱されるのか？</span></p>
+<ul>
+<li>sdist は開発やビルドに使う材料一式という位置づけ</li>
+<li>実行時には不要なテスト・ドキュメント・サンプルなども入れてよいとされている（<a href="https://setuptools.pypa.io/en/latest/userguide/miscellaneous.html#id3">setuptools docs</a>）</li>
+</ul>
+<p>上記の理由から， setuptools は既定で <code>tests/test*.py</code> を sdist に入れます．</p>
+</section>
+<section id="wheel.whlの中身" class="level3">
+<h3 class="anchored" data-anchor-id="wheel.whlの中身">3-3. wheel（<code>.whl</code>）の中身</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>ファイル</th>
+<th>setuptools</th>
+<th>uv_build</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>demo_pkg/__init__.py</code></td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr class="even">
+<td><code>demo_pkg/data/sample.csv</code></td>
+<td>❌ <strong>なし</strong>（sdist に載っていないため）</td>
+<td>✅</td>
+</tr>
+<tr class="odd">
+<td><code>*.dist-info/METADATA</code></td>
+<td>✅（<code>Dynamic: license-file</code> 行が付く）</td>
+<td>✅</td>
+</tr>
+<tr class="even">
+<td><code>*.dist-info/WHEEL</code></td>
+<td>✅ <code>Generator: setuptools (84.0.0)</code></td>
+<td>✅ <code>Generator: uv 0.13.4</code></td>
+</tr>
+<tr class="odd">
+<td><code>*.dist-info/RECORD</code></td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr class="even">
+<td><code>*.dist-info/entry_points.txt</code></td>
+<td>✅ <code>[console_scripts] demo = demo_pkg:main</code></td>
+<td>✅ 同内容</td>
+</tr>
+<tr class="odd">
+<td><code>*.dist-info/licenses/LICENSE</code></td>
+<td>✅（PEP 639 形式）</td>
+<td>✅</td>
+</tr>
+<tr class="even">
+<td><code>*.dist-info/top_level.txt</code></td>
+<td>✅</td>
+<td>—</td>
+</tr>
+<tr class="odd">
+<td><code>&lt;name&gt;-&lt;ver&gt;.data/…</code></td>
+<td><code>data-files</code> 指定時のみ</td>
+<td><code>tool.uv.build-backend.data</code> 指定時のみ</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="editable-installuv-pip-install--e-.で生成されるもの" class="level3">
+<h3 class="anchored" data-anchor-id="editable-installuv-pip-install--e-.で生成されるもの">3-4. editable install（<code>uv pip install -e .</code>）で生成されるもの</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>場所</th>
+<th>setuptools</th>
+<th>uv_build</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>site-packages の <code>.pth</code></td>
+<td><code>__editable__.demo_pkg-0.1.0.pth</code>（<code>src/</code> を指す）</td>
+<td><code>demo_pkg.pth</code>（<code>src/</code> を指す）</td>
+</tr>
+<tr class="even">
+<td>site-packages の <code>*.dist-info/</code></td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr class="odd">
+<td>ソースツリーの残骸</td>
+<td>なし（84.0.0 は一時ディレクトリで egg_info を処理）</td>
+<td>なし</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="setuptools-のデータ漏れを防ぐには" class="level3">
+<h3 class="anchored" data-anchor-id="setuptools-のデータ漏れを防ぐには">3-5. setuptools のデータ漏れを防ぐには</h3>
+<p><span class="mini-section">方法1：MANIFEST.in に追記する</span></p>
+<p>1行足せば，<code>sample.csv</code> が sdist と wheel の両方に入ります．</p>
+<pre class="text"><code># MANIFEST.in
+recursive-include src/demo_pkg/data *.csv</code></pre>
+<p><span class="mini-section">方法2：<code>package-data</code> で明示する</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode toml code-with-copy"><code class="sourceCode toml"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[tool.setuptools.package-data]</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="dt">demo_pkg</span> <span class="op">=</span> <span class="op">[</span><span class="st">"data/*.csv"</span><span class="op">]</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p><span class="mini-section">方法3：setuptools-scm を使う</span></p>
+<p><code>requires</code> に入れると，git 管理下のファイルを自動で拾わせることができます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode toml code-with-copy"><code class="sourceCode toml"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[build-system]</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="dt">requires</span> <span class="op">=</span> <span class="op">[</span><span class="st">"setuptools"</span><span class="op">,</span> <span class="st">"setuptools-scm"</span><span class="op">]</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>どの方法でも，ビルド後に <code>unzip -l dist/*.whl</code> で確認するのが確実</strong>です．</p>
+</section>
+</section>
+<section id="パッケージ化にあたっての注意点と選択観点" class="level2">
+<h2 class="anchored" data-anchor-id="パッケージ化にあたっての注意点と選択観点">4. パッケージ化にあたっての注意点と選択観点</h2>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 30%">
+<col style="width: 70%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>注意点</th>
+<th>具体的に</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>そもそもパッケージ化が要るか</strong></td>
+<td>分析ノートブック・単発スクリプトだけなら build backend 不要（<code>uv run</code> + lockfile で十分）．社内で <code>import</code> して使い回す段階になったら backend を入れる</td>
+</tr>
+<tr class="even">
+<td><strong>import 名と配布名のズレ</strong></td>
+<td><code>my-analysis</code> → import 名は <code>my_analysis</code>．uv_build はこの正規化名で <code>src/</code> 配下を探すので，ディレクトリ名を合わせる</td>
+</tr>
+<tr class="odd">
+<td><strong>flat layout の罠</strong></td>
+<td>ノートブックと同階層にパッケージを置く flat layout は，uv_build では <code>module-root = ""</code> が必要．setuptools は自動探索で拾えるが，<code>notebooks/</code> や <code>data/</code> まで誤検出しやすい → どちらでも <strong>src layout 推奨</strong></td>
+</tr>
+<tr class="even">
+<td><strong>データ・モデル同梱</strong></td>
+<td>uv_build は <code>src/&lt;pkg&gt;/</code> 内の CSV / JSON をそのまま同梱する．<strong>setuptools は MANIFEST.in・<code>package-data</code>・setuptools-scm のどれかがないと落ちる</strong>（§3-2・§3-3 の実測，対策は §3-5）．大きなモデル重みや生データは wheel に入れない（<code>source-exclude</code> / <code>wheel-exclude</code>，setuptools なら <code>exclude-package-data</code>）</td>
+</tr>
+<tr class="odd">
+<td><strong>ノートブックの紛れ込み</strong></td>
+<td>sdist に <code>.ipynb</code> / 出力データが入っていないか <code>tar tzf dist/*.tar.gz</code> で確認</td>
+</tr>
+<tr class="even">
+<td><strong>Cython・C 拡張</strong></td>
+<td>自作の Cython / pybind11 を含むなら uv_build は不可 → setuptools（or scikit-build-core）．numba のような JIT は純 Python 扱いで問題なし</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><span class="mini-section">意思決定フロー</span></p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="figures/fig4_selection_flow.svg" class="img-fluid figure-img"></p>
+<figcaption>意思決定フロー</figcaption>
+</figure>
+</div>
+<ul>
+<li>Q1〜Q3 のどれかが Yes → setuptools 系（or 目的特化の backend）</li>
+<li>全部 No で Q4 が Yes → <strong>uv_build</strong></li>
+<li>Q4 が No（複数トップモジュール・特殊配置・build hook が欲しい）→ hatchling</li>
+</ul>
+</section>
+<section id="appendix-用語集" class="level2">
+<h2 class="anchored" data-anchor-id="appendix-用語集">Appendix: 用語集</h2>
+<div class="glossary-container">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">glossary</span><span class="kw">:</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> sdist (source distribution)</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>      ソースコードと `pyproject.toml`・`PKG-INFO` などのメタデータをまとめた配布物（`.tar.gz`）．</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>      インストール時に backend を呼んで wheel をビルドしてから入れるため，ビルド環境が必要になる．</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> wheel</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>      ビルド済みの配布物（`.whl`，中身は zip）．展開して site-packages に置くだけでインストールでき，ビルド処理は走らない．</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>      ファイル名のタグ（例: `py3-none-any`，`cp313-cp313-linux_x86_64`）で対応する Python・ABI・プラットフォームを表す．</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> ビルドフロントエンド (build frontend)</span></span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>      `pyproject.toml` の `[build-system]` を読み，`requires` を入れた環境で build backend を呼び出すツール（PEP 517）．</span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>      `pip`，`uv build`，`python -m build` などが該当する．実際に sdist / wheel を作るのは backend 側．</span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> hatchling</span></span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>      Hatch プロジェクトの build backend．純 Python 向けで，ビルドフックや柔軟なファイル選択・レイアウト指定に対応する．</span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>      uv_build で表現できない構成のとき，uv の公式ドキュメントが代替として勧めている．</span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> setuptools-scm</span></span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a>      git などの VCS の情報（tag・コミット）から version を算出する setuptools のプラグイン．</span>
+<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a>      `[build-system] requires` に入れて `dynamic = ["version"]` と組み合わせる．git 管理下のファイルを sdist に自動で含める機能も持つ．</span>
+<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> setup.py</span></span>
+<span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a>      setuptools の従来の設定ファイル．Python スクリプトとして `setup()` を呼び，メタデータやパッケージ構成を定義する．</span>
+<span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a>      現在はメタデータを `pyproject.toml` に書くのが推奨で，C 拡張（`Extension`）などコードでしか書けない設定に使う．</span>
+<span id="cb8-31"><a href="#cb8-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-32"><a href="#cb8-32" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> setup.cfg</span></span>
+<span id="cb8-33"><a href="#cb8-33" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb8-34"><a href="#cb8-34" aria-hidden="true" tabindex="-1"></a>      setuptools の宣言的な設定ファイル（INI 形式）．`[metadata]`・`[options]` セクションに，`setup.py` に書いていた内容をコードなしで記述できる．</span>
+<span id="cb8-35"><a href="#cb8-35" aria-hidden="true" tabindex="-1"></a>      `pyproject.toml` の `[project]` が使えるようになってからは，新規プロジェクトで使う必要はない．</span>
+<span id="cb8-36"><a href="#cb8-36" aria-hidden="true" tabindex="-1"></a>      setuptools でビルドした sdist には，`[egg_info]`（`tag_build` / `tag_date`）だけを書いた `setup.cfg` が自動生成されて同梱される）．</span>
+<span id="cb8-37"><a href="#cb8-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-38"><a href="#cb8-38" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> MANIFEST.in</span></span>
+<span id="cb8-39"><a href="#cb8-39" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb8-40"><a href="#cb8-40" aria-hidden="true" tabindex="-1"></a>      setuptools で sdist に含めるファイルを指定するテンプレートファイル（例: `recursive-include src/demo_pkg/data *.csv`）．</span>
+<span id="cb8-41"><a href="#cb8-41" aria-hidden="true" tabindex="-1"></a>      `include-package-data = true` の下では，ここで sdist に載せたパッケージ内ファイルが wheel にも入る．</span>
+<span id="cb8-42"><a href="#cb8-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-43"><a href="#cb8-43" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> C 拡張 (C extension module)</span></span>
+<span id="cb8-44"><a href="#cb8-44" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb8-45"><a href="#cb8-45" aria-hidden="true" tabindex="-1"></a>      C / C++（Cython・Rust なども同様）で書かれ，ビルド時に共有ライブラリ（`.so` / `.pyd`）へコンパイルされる Python モジュール．</span>
+<span id="cb8-46"><a href="#cb8-46" aria-hidden="true" tabindex="-1"></a>      コンパイラが必要で，生成物が OS・CPU・Python バージョンに依存するため，wheel は環境ごとに別ファイル（例: `cp313-cp313-manylinux_2_17_x86_64`）になる．</span>
+<span id="cb8-47"><a href="#cb8-47" aria-hidden="true" tabindex="-1"></a>      numpy などの高速化に使われる．uv_build は対応しておらず，setuptools や scikit-build-core・maturin などの backend を使う．</span>
+<span id="cb8-48"><a href="#cb8-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-49"><a href="#cb8-49" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> 動的メタデータ (dynamic metadata)</span></span>
+<span id="cb8-50"><a href="#cb8-50" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb8-51"><a href="#cb8-51" aria-hidden="true" tabindex="-1"></a>      `pyproject.toml` の `[project]` に直接書かず，ビルド時に backend が値を決めるメタデータ．`dynamic = ["version"]` のように項目名を列挙して宣言する．</span>
+<span id="cb8-52"><a href="#cb8-52" aria-hidden="true" tabindex="-1"></a>      例: setuptools-scm で git tag から version を算出する，`tool.setuptools.dynamic` で `__init__.py` の `__version__` を読む．</span>
+<span id="cb8-53"><a href="#cb8-53" aria-hidden="true" tabindex="-1"></a>      静的に書いた項目と違い，ビルドするまで値が確定しない．</span>
+<span id="cb8-54"><a href="#cb8-54" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-55"><a href="#cb8-55" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> 型スタブ (type stub)</span></span>
+<span id="cb8-56"><a href="#cb8-56" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb8-57"><a href="#cb8-57" aria-hidden="true" tabindex="-1"></a>      関数・クラスの型情報だけを書いたファイル（拡張子 `.pyi`）．実装は持たず，mypy・pyright などの型チェッカーや IDE の補完が読む．</span>
+<span id="cb8-58"><a href="#cb8-58" aria-hidden="true" tabindex="-1"></a>      型注釈のないライブラリや C 拡張に型を付けるために使い，`&lt;パッケージ名&gt;-stubs` という名前の別パッケージとして配布できる（PEP 561，例: `pandas-stubs`）．</span>
+<span id="cb8-59"><a href="#cb8-59" aria-hidden="true" tabindex="-1"></a>      uv_build では `module-name` を `foo-stubs` の形にすると，型スタブパッケージとしてビルドできる．</span>
+<span id="cb8-60"><a href="#cb8-60" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-61"><a href="#cb8-61" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> PEP 639 (license-files)</span></span>
+<span id="cb8-62"><a href="#cb8-62" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb8-63"><a href="#cb8-63" aria-hidden="true" tabindex="-1"></a>      パッケージのライセンス情報の書き方を定めた PEP．`[project]` に `license = "MIT"` のような SPDX 式と，`license-files = ["LICENSE"]` のような同梱ファイルの glob パターンを書く．</span>
+<span id="cb8-64"><a href="#cb8-64" aria-hidden="true" tabindex="-1"></a>      メタデータには `License-Expression` / `License-File` 項目（Metadata-Version 2.4）として記録され，wheel ではライセンスファイルが `*.dist-info/licenses/` に入る．</span>
+<span id="cb8-65"><a href="#cb8-65" aria-hidden="true" tabindex="-1"></a>      従来の `license = {file = "LICENSE"}` / `license = {text = "..."}` や `License ::` classifier は非推奨になった．</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<ul>
+<li><a href="https://docs.astral.sh/uv/concepts/build-backend/">uv docs — Build backend</a></li>
+<li><a href="https://setuptools.pypa.io/en/latest/userguide/pyproject_config.html">setuptools — Configuring setuptools using pyproject.toml</a>（2026-10-21 時点，setuptools docs は 84.2.1）</li>
+</ul>
+
+
+</section>
+
+</main> <!-- /main -->
+<script>
+    document.querySelectorAll('.custom_problem .theorem-title').forEach((title) => {
+        let modName = title.innerHTML;
+        modName = modName.replace("Exercise", "Problem");
+        modName = modName.replace("Proposition", "Property");
+        modName = modName.replace("Example", "<strong>&#9654;</strong>&nbsp; Example");
+        title.innerHTML = modName;
+    });
+
+    // Rule: 未使用の Corollary (#cor-, lang: ja では「系」) を Rule として表示する
+    document.querySelectorAll('.custom_rule .theorem-title').forEach((title) => {
+        title.innerHTML = title.innerHTML
+            .replace(/^<strong>(系|Corollary)/, "<strong>Rule")
+            .replace(/\s*\((.*)\)<\/strong>$/, ": $1</strong>");
+        // タイトルの後で改行し，本文を次の行から始める
+        title.style.display = "block";
+        title.style.paddingBottom = "0.5em";
+        title.style.fontSize = "1.1em";
+        // 本文がリスト等で始まると Quarto がタイトル後に &nbsp; を残し空行になるため除去する
+        while (title.nextSibling && title.nextSibling.nodeType === Node.TEXT_NODE
+               && title.nextSibling.textContent.trim() === "") {
+            title.nextSibling.remove();
+        }
+        if (!title.nextSibling) {
+            title.parentElement.style.marginBottom = "0";
+        }
+    });
+ </script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "コピーしました");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "コピーしました");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/ryonakagami\.github\.io\/regmonkey-datascience-blog");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<script src="https://utteranc.es/client.js" repo="RyoNakagami/regmonkey-datascience-blog" issue-term="title" theme="github-light" crossorigin="anonymous" async="">
+</script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+      &nbsp;
+    </div>   
+    <div class="nav-footer-center">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+ © Copyright RyoNak
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="../../LICENSE">
+<p>License</p>
+</a>
+  </li>  
+</ul>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>問題を報告</a></li></ul></div></div>
+    <div class="nav-footer-right">
+      &nbsp;
+    </div>
+  </div>
+</footer>
+    <script type="text/javascript">
+    (function(d) {
+      d.querySelectorAll(".pseudocode-container").forEach(function(el) {
+        let pseudocodeOptions = {
+          indentSize: el.dataset.indentSize || "1.2em",
+          commentDelimiter: el.dataset.commentDelimiter || "//",
+          lineNumber: el.dataset.lineNumber === "true" ? true : false,
+          lineNumberPunc: el.dataset.lineNumberPunc || ":",
+          noEnd: el.dataset.noEnd === "true" ? true : false,
+          titlePrefix: el.dataset.captionPrefix || "Algorithm"
+        };
+        pseudocode.renderElement(el.querySelector(".pseudocode"), pseudocodeOptions);
+      });
+    })(document);
+    (function(d) {
+      d.querySelectorAll(".pseudocode-container").forEach(function(el) {
+        let captionSpan = el.querySelector(".ps-root > .ps-algorithm > .ps-line > .ps-keyword")
+        if (captionSpan !== null) {
+          let captionPrefix = el.dataset.captionPrefix + " ";
+          let captionNumber = "";
+          if (el.dataset.pseudocodeNumber) {
+            captionNumber = el.dataset.pseudocodeNumber + " ";
+            if (el.dataset.chapterLevel) {
+              captionNumber = el.dataset.chapterLevel + "." + captionNumber;
+            }
+          }
+          captionSpan.innerHTML = captionPrefix + captionNumber;
+        }
+      });
+    })(document);
+    </script>
+  
+
+
+
+
+</body></html>

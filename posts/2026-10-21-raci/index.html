@@ -1,0 +1,1346 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="ja" xml:lang="ja"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.19">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Ryo Nakagami">
+<meta name="dcterms.date" content="2026-10-21">
+
+<title>分析プロジェクトにおいて，RACIはいつ使うべきなのか？ – regmonkey datascience blog</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<link href="../../img/favicon.ico" rel="icon">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-5c1318cf63eba56dbef7ba16bc7d56f5.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark-6453f418aeef366c23116eb9cb0b6816.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-5c1318cf63eba56dbef7ba16bc7d56f5.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-4d7bc2ad69636a1adccb3b801ee1c591.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark-aa57a16df149dc269e65c014c76f68b5.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../site_libs/bootstrap/bootstrap-4d7bc2ad69636a1adccb3b801ee1c591.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script src="../../site_libs/quarto-contrib/pseudocode-2.4.1/pseudocode.min.js"></script>
+<link href="../../site_libs/quarto-contrib/pseudocode-2.4.1/pseudocode.min.css" rel="stylesheet">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "一致なし",
+    "search-matching-documents-text": "一致した文書",
+    "search-copy-link-title": "検索へのリンクをコピー",
+    "search-hide-matches-text": "追加の検索結果を非表示",
+    "search-more-match-text": "追加の検索結果",
+    "search-more-matches-text": "追加の検索結果",
+    "search-clear-button-title": "消去",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "取消",
+    "search-submit-button-title": "検索",
+    "search-label": "サーチ"
+  }
+}</script>
+<script async="" src="https://www.googletagmanager.com/gtag/js?id=G-EX9H7GRLTH"></script>
+
+<script type="text/javascript">
+
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
+</script>
+<style>
+
+      .quarto-title-block .quarto-title-banner h1,
+      .quarto-title-block .quarto-title-banner h2,
+      .quarto-title-block .quarto-title-banner h3,
+      .quarto-title-block .quarto-title-banner h4,
+      .quarto-title-block .quarto-title-banner h5,
+      .quarto-title-block .quarto-title-banner h6
+      {
+        color: #ffffff;
+      }
+
+      .quarto-title-block .quarto-title-banner {
+        color: #ffffff;
+      }
+</style>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-M27Z2BWG');</script>
+    <!-- End Google Tag Manager -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&amp;display=swap" rel="stylesheet">
+<script>
+    MathJax = {
+        tex: {
+            inlineMath: [['$','$'], ['\\(','\\)']],
+            displayMath: [['$$','$$'], ['\\[','\\]']],
+            processEscapes: true,
+            processEnvironments: true,
+            tags: 'all',
+        }
+    }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml-full.js" integrity="sha256-kbAFUDxdHwlYv01zraGjvjNZayxKtdoiJ38bDTFJtaQ=" crossorigin="anonymous">
+</script>
+<link rel="stylesheet" href="../../js/regmonkey_glossary_generator/regmonkey_glossary_generator.css">
+<script type="text/javascript" src="../../js/regmonkey_glossary_generator/regmonkey_glossary_generator.js"></script>
+
+
+<link rel="stylesheet" href="../../styles.css">
+<meta property="og:title" content="分析プロジェクトにおいて，RACIはいつ使うべきなのか？ – regmonkey datascience blog">
+<meta property="og:description" content="日々の徒然勉強日記">
+<meta property="og:image" content="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-21-raci/figures/project-timeline.svg">
+<meta property="og:site_name" content="regmonkey datascience blog">
+</head>
+
+<body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top quarto-banner">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">Home</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="サーチ"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="ナビゲーションを切り替える" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-bi-book" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+      <i class="bi bi-book" role="img">
+</i> 
+ <span class="menu-text"></span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-bi-book">    
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/statistics-for-regression-monkey/">
+ <span class="dropdown-text">Statistics Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/python-statisticalpackage-techniques/">
+ <span class="dropdown-text">Python package building Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/regmonkey_datavisualization/">
+ <span class="dropdown-text">Data Visualization Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/regmonkey-presentation/">
+ <span class="dropdown-text">Presentation Blog</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../link_list/link_table.html"> 
+<span class="menu-text">便利リンク集</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../dictionary/dict.html"> 
+<span class="menu-text">備忘録</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../FAQ/faq.html"> 
+<span class="menu-text">FAQ</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../about.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/RyoNakagami/regmonkey-datascience-blog"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="../../index.xml"> <i class="bi bi-rss" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="ダークモードの切り替え"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">分析プロジェクトにおいて，RACIはいつ使うべきなのか？</h1>
+                                <div class="quarto-categories">
+                <div class="quarto-category">方法論</div>
+                <div class="quarto-category">マネジメント</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      <div>
+      <div class="quarto-title-meta-heading">作者</div>
+      <div class="quarto-title-meta-contents">
+               <p>Ryo Nakagami </p>
+            </div>
+    </div>
+      
+      <div>
+      <div class="quarto-title-meta-heading">公開</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">2026-10-21</p>
+      </div>
+    </div>
+    
+      <div>
+      <div class="quarto-title-meta-heading">更新日</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date-modified">2026-10-21</p>
+      </div>
+    </div>
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">目次</h2>
+   
+  <ul>
+  <li><a href="#raciとは" id="toc-raciとは" class="nav-link active" data-scroll-target="#raciとは">RACIとは</a></li>
+  <li><a href="#raciの前提" id="toc-raciの前提" class="nav-link" data-scroll-target="#raciの前提">RACIの前提</a>
+  <ul class="collapse">
+  <li><a href="#作業がタスクとして分解できていること" id="toc-作業がタスクとして分解できていること" class="nav-link" data-scroll-target="#作業がタスクとして分解できていること">1. 作業がタスクとして分解できていること</a></li>
+  <li><a href="#役割がある程度安定していること" id="toc-役割がある程度安定していること" class="nav-link" data-scroll-target="#役割がある程度安定していること">2. 役割がある程度安定していること</a></li>
+  <li><a href="#基本ルールを守ること" id="toc-基本ルールを守ること" class="nav-link" data-scroll-target="#基本ルールを守ること">3. 基本ルールを守ること</a></li>
+  <li><a href="#作る手間に見合う規模であること" id="toc-作る手間に見合う規模であること" class="nav-link" data-scroll-target="#作る手間に見合う規模であること">4. 作る手間に見合う規模であること</a></li>
+  </ul></li>
+  <li><a href="#raciを使うべきタイミング" id="toc-raciを使うべきタイミング" class="nav-link" data-scroll-target="#raciを使うべきタイミング">RACIを使うべきタイミング</a></li>
+  <li><a href="#受託分析プロジェクトにraciを導入する" id="toc-受託分析プロジェクトにraciを導入する" class="nav-link" data-scroll-target="#受託分析プロジェクトにraciを導入する">受託分析プロジェクトにRACIを導入する</a>
+  <ul class="collapse">
+  <li><a href="#契約時に決めること探索後に決まること" id="toc-契約時に決めること探索後に決まること" class="nav-link" data-scroll-target="#契約時に決めること探索後に決まること">契約時に決めること，探索後に決まること</a></li>
+  <li><a href="#段階0契約business-sowキックオフ前" id="toc-段階0契約business-sowキックオフ前" class="nav-link" data-scroll-target="#段階0契約business-sowキックオフ前">段階0：契約・business SOW（キックオフ前）</a></li>
+  <li><a href="#段階1キックオフ" id="toc-段階1キックオフ" class="nav-link" data-scroll-target="#段階1キックオフ">段階1：キックオフ</a></li>
+  <li><a href="#段階2探索フェーズ終了時分析計画書の承認" id="toc-段階2探索フェーズ終了時分析計画書の承認" class="nav-link" data-scroll-target="#段階2探索フェーズ終了時分析計画書の承認">段階2：探索フェーズ終了時（分析計画書の承認）</a></li>
+  <li><a href="#決める順序" id="toc-決める順序" class="nav-link" data-scroll-target="#決める順序">決める順序</a></li>
+  <li><a href="#記入後のチェック" id="toc-記入後のチェック" class="nav-link" data-scroll-target="#記入後のチェック">記入後のチェック</a></li>
+  </ul></li>
+  <li><a href="#まとめ" id="toc-まとめ" class="nav-link" data-scroll-target="#まとめ">まとめ</a></li>
+  <li><a href="#appendix-この記事での用語集" id="toc-appendix-この記事での用語集" class="nav-link" data-scroll-target="#appendix-この記事での用語集">Appendix: この記事での用語集</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>問題を報告</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content">
+
+
+
+
+
+
+<section id="raciとは" class="level2">
+<h2 class="anchored" data-anchor-id="raciとは">RACIとは</h2>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title">RACI</span></p>
+<ul>
+<li>RACI（レイシー）は，プロジェクトのタスクごとに「誰がどのように関わるか」を明確にするための責任分担のフレームワーク</li>
+</ul>
+</div>
+<p><span class="mini-section">4つの役割</span></p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 10%">
+<col style="width: 45%">
+<col style="width: 45%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>記号</th>
+<th>役割</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>R</td>
+<td>Responsible（実行責任者）</td>
+<td>実際に作業を行う人</td>
+</tr>
+<tr class="even">
+<td>A</td>
+<td>Accountable（説明責任者）</td>
+<td>結果に最終責任を持ち，完了を承認する人</td>
+</tr>
+<tr class="odd">
+<td>C</td>
+<td>Consulted（相談先）</td>
+<td>作業の途中で意見や専門知識を求める人</td>
+</tr>
+<tr class="even">
+<td>I</td>
+<td>Informed（報告先）</td>
+<td>進捗や結果を共有する人</td>
+</tr>
+</tbody>
+</table>
+</div>
+<ul>
+<li>RACIチャートは，行にタスク，列に人や役割を並べ，交差するマスにR・A・C・Iを記入して作ります</li>
+<li>「誰がやるのか」「誰が決めるのか」「誰に聞くのか」「誰に伝えるのか」が一目でわかるため，担当の重複や抜け漏れ，「誰かがやっていると思っていた」といった行き違いを防ぐメリットがある</li>
+</ul>
+</section>
+<section id="raciの前提" class="level2">
+<h2 class="anchored" data-anchor-id="raciの前提">RACIの前提</h2>
+<p>RACIは便利なツールですが，効果を発揮するにはいくつかの前提条件があります．</p>
+<section id="作業がタスクとして分解できていること" class="level3">
+<h3 class="anchored" data-anchor-id="作業がタスクとして分解できていること">1. 作業がタスクとして分解できていること</h3>
+<ul class="task-list">
+<li><label><input type="checkbox">RACIは「タスク × 人」の表なので，まずプロジェクトの作業や成果物，意思決定のポイントが洗い出されている必要がある</label></li>
+<li><label><input type="checkbox">何をするか決まっていない段階では，割り当てる対象そのものがありません．</label></li>
+</ul>
+</section>
+<section id="役割がある程度安定していること" class="level3">
+<h3 class="anchored" data-anchor-id="役割がある程度安定していること">2. 役割がある程度安定していること</h3>
+<p>RACIは役割を固定することで明確さを生み出します．RACIは，作業が成果物と締め切りを持つ計画として固まってから導入するのが適切です．</p>
+<ul class="task-list">
+<li><label><input type="checkbox">担当が週ごとに入れ替わるような実験的な作業や，初期の探索・リサーチのフェーズには向かない</label></li>
+<li><label><input type="checkbox">こうした段階では，手を挙げた人がその作業のオーナーになるような緩い進め方のほうが，柔軟に動けて成果につながりやすい</label></li>
+</ul>
+</section>
+<section id="基本ルールを守ること" class="level3">
+<h3 class="anchored" data-anchor-id="基本ルールを守ること">3. 基本ルールを守ること</h3>
+<ul class="task-list">
+<li><label><input type="checkbox"><strong>Aは各タスクに必ず1人</strong>：2人以上いると，互いに相手が責任を持つと考え，結果的に誰も責任を持たなくなります．</label></li>
+<li><label><input type="checkbox"><strong>Rは最低1人</strong>：Rがいないタスクは実行されません．</label></li>
+<li><label><input type="checkbox"><strong>特定の人に役割を集中させない</strong>：1人にRが偏っていないか，人ごとにも確認</label></li>
+<li><label><input type="checkbox"><strong>CとIを増やしすぎない</strong>：関係者を広げすぎると，相談や連絡の負担が増えて意思決定が遅くなります．</label></li>
+</ul>
+</section>
+<section id="作る手間に見合う規模であること" class="level3">
+<h3 class="anchored" data-anchor-id="作る手間に見合う規模であること">4. 作る手間に見合う規模であること</h3>
+<ul class="task-list">
+<li><label><input type="checkbox">2〜3人の小さな作業で，全員が自分の役割を把握しているなら，わざわざ表にする必要はない</label></li>
+<li><label><input type="checkbox">チャートを作ることが目的にならないよう，必要性を見極めること</label></li>
+</ul>
+</section>
+</section>
+<section id="raciを使うべきタイミング" class="level2">
+<h2 class="anchored" data-anchor-id="raciを使うべきタイミング">RACIを使うべきタイミング</h2>
+<p>上記の前提を踏まえると，RACIは次のような場面で特に効果を発揮します．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 30%">
+<col style="width: 70%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>タイミング</th>
+<th>期待効果</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>プロジェクトの開始時</td>
+<td>キックオフの段階で役割を定義しておくと，各メンバーに期待されることと誰と連絡を取ればよいかが最初から明確になる．曖昧さが減って連携がスムーズになり，締め切りを守りやすくなる</td>
+</tr>
+<tr class="even">
+<td>関係者が多い複雑なプロジェクト</td>
+<td>部署をまたぐなど関係者が多いと，責任の重複や誤解が起きやすい．役割と連絡経路を整理することで，調整の手間と混乱を減らせる</td>
+</tr>
+<tr class="odd">
+<td>組織変更や人事異動があるとき</td>
+<td>体制が変わっても役割の連続性を保てる．新メンバーが誰が何を担っているかを把握するオンボーディング資料としても役立つ</td>
+</tr>
+<tr class="even">
+<td>アジャイルへの移行時</td>
+<td>プロダクトオーナーやスクラムマスターといった新しい役割の責任範囲や，スプリント計画・コードレビューなどへの参加の仕方を整理でき，新しい進め方に慣れるまでの足がかりになる</td>
+</tr>
+<tr class="odd">
+<td>プロジェクトのレビュー時</td>
+<td>特定の人に負荷が集中しているボトルネックや計画からのずれを見つけやすくなる．課題やスコープの変化に合わせて定期的に更新し，役割を割り当て直すことで変化に対応できる</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="受託分析プロジェクトにraciを導入する" class="level2">
+<h2 class="anchored" data-anchor-id="受託分析プロジェクトにraciを導入する">受託分析プロジェクトにRACIを導入する</h2>
+<p>ここからは，具体例として受託分析プロジェクトを考えます．受託分析は「開始時に役割を定義したい」「クライアントと受託側をまたいで関係者が多い」という点で，上で挙げたRACIが効く場面にそのまま当てはまります．</p>
+<p>一方で，キックオフでいきなりRACIチャートを埋めようとしても，たいていうまくいきません．行（タスク）が曖昧で，Aを1人に絞る根拠もないまま，空欄を埋めるだけの作業になるからです．RACIの前提を満たすには，チャートを書く前に決めておくべきことがあります．</p>
+<p>ただし，それらを一度にすべて決めることはできません．受託分析プロジェクトは，時系列で見るとおおよそ次のように進みます．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="figures/project-timeline.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+<figcaption>受託分析プロジェクトの時系列と，各段階で決めること．RACIはキックオフ時の暫定RACIと，分析計画書承認後の本RACIの2段階で作る</figcaption>
+</figure>
+</div>
+<p>契約の時点では，まだデータを見ていません．そのため「どの分析をするか」「何が含まれていれば完了か」といった中身は，探索フェーズでデータを見てからでないと決まりません．つまり，決められることはプロジェクトの進行に合わせて段階的に増えていきます．</p>
+<p>そこで以下説明では，この流れに沿って決める時点を3つに分けます．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="figures/three-stages.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+<figcaption>決める時点の3段階．契約時は枠組み，キックオフ時は体制と暫定RACI，分析計画書の承認時は中身と本RACIを決める</figcaption>
+</figure>
+</div>
+<p>RACIを1枚で作るのではなく，暫定RACIと本RACIの2段階で作るのがポイントです．</p>
+<section id="契約時に決めること探索後に決まること" class="level3">
+<h3 class="anchored" data-anchor-id="契約時に決めること探索後に決まること">契約時に決めること，探索後に決まること</h3>
+<p>特に混ざりやすいのが「問い」「成果物」「検収基準」です．これらは，契約時（business SOW）に決められるレイヤーと，分析計画書で決まるレイヤーに分けて考えます．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 12%">
+<col style="width: 44%">
+<col style="width: 44%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>項目</th>
+<th>契約時（business SOW）で決められること</th>
+<th>分析計画書で決まること</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>問い</td>
+<td><strong>ビジネス上の問い</strong>：クライアントが下したい意思決定（例：来期の販促予算をどのチャネルに配分するか）</td>
+<td><strong>分析上の問い</strong>：検証可能な形に分解したもの（例：チャネル別の増分効果の推定，比較の単位と期間）</td>
+</tr>
+<tr class="even">
+<td>成果物</td>
+<td>種類・形式・回数（レポート，データマート，報告会×2など）</td>
+<td>各成果物の中身（どの分析を載せるか，どのモデルを作るか）</td>
+</tr>
+<tr class="odd">
+<td>検収基準</td>
+<td><strong>手続き的な基準</strong>：誰が，いつ，何をもって検収するか（例：報告会後10営業日以内に検収者が確認）</td>
+<td><strong>内容的な基準</strong>：その成果物に何が含まれていれば完了か（例：仮説H1〜H3の検証結果と，感度分析が含まれる）</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>内容的な検収基準を契約時に書き込むのは，そもそも危険です．分析の結論は事前に保証できず，データを見て問いを修正するのはむしろ健全だからです．また，契約形態（準委任か請負か）によって「完了」の意味自体も変わります．SOWで固定すべきなのは，手続きの側です．</p>
+<p>この2層を前提に，決めることを次の3段階に振り分けます．</p>
+</section>
+<section id="段階0契約business-sowキックオフ前" class="level3">
+<h3 class="anchored" data-anchor-id="段階0契約business-sowキックオフ前">段階0：契約・business SOW（キックオフ前）</h3>
+<section id="成果物と検収手続き-前提1タスク分解" class="level4">
+<h4 class="anchored" data-anchor-id="成果物と検収手続き-前提1タスク分解">成果物と検収手続き（→ 前提1：タスク分解）</h4>
+<p>RACIの行は，成果物と意思決定ポイントから作ります．受託分析では「何を問うのか」が曖昧なまま走り出しやすいので，まずは次の項目を契約・SOWのレベルで確定させます．</p>
+<ul class="task-list">
+<li><label><input type="checkbox"><strong>ビジネス上の問い</strong>：クライアントがこの分析を使って下したい意思決定</label></li>
+<li><label><input type="checkbox"><strong>成果物の種類と形式</strong>：例として，分析用データマート，分析レポート，モデル，ダッシュボード，報告会など</label></li>
+<li><label><input type="checkbox"><strong>スコープ外の事項</strong>：やらないこと</label></li>
+<li><label><input type="checkbox"><strong>検収の手続きと検収者</strong>：誰が，いつ，何をもって検収するか</label></li>
+</ul>
+<p>検収の手続きがないと，Aが「完了を承認する」タイミングと方法が定まりません．その結果，Aは名目だけの存在になります．</p>
+</section>
+<section id="発注側と受託側の責任境界" class="level4">
+<h4 class="anchored" data-anchor-id="発注側と受託側の責任境界">発注側と受託側の責任境界</h4>
+<p>社内プロジェクトとの最大の違いはここです．RACIの列には，クライアント側の人も入ります．特に次の境界を決めておかないと，Aを1人に絞れません．</p>
+<ul class="task-list">
+<li><label><input type="checkbox"><strong>データ品質の責任</strong>：ソースデータの正しさや定義の解釈はクライアントがAか，受託側のETLオーナーはどこから責任を持つか（データ受領時点からか，抽出処理からか）</label></li>
+<li><label><input type="checkbox"><strong>データ提供の前提</strong>：クライアントが提供するデータの範囲，提供時期，アクセス権限</label></li>
+<li><label><input type="checkbox"><strong>業務解釈の責任</strong>：「この指標の定義でよいか」を決めるのは誰か</label></li>
+<li><label><input type="checkbox"><strong>検収者</strong>：クライアント側で検収する人を1人特定する．窓口担当者と実際の意思決定者がずれていることが多いので，ここは名指しで確認します．</label></li>
+</ul>
+</section>
+<section id="変更管理とエスカレーション経路" class="level4">
+<h4 class="anchored" data-anchor-id="変更管理とエスカレーション経路">変更管理とエスカレーション経路</h4>
+<p>受託分析では，途中で「この切り口も見たい」という要望が必ず出ます．次の2点を事前に決めておかないと，RACIが初月で崩れます．</p>
+<ul class="task-list">
+<li><label><input type="checkbox"><strong>スコープ変更の起票・承認フロー</strong>：誰が受け，誰が判断し，クライアント側の誰が合意するか</label></li>
+<li><label><input type="checkbox"><strong>ロール間で対立したときの裁定者</strong>：例えば分析リードとPMの意見が割れたとき，どちらに寄せるか，あるいは上位の誰に上げるか</label></li>
+</ul>
+</section>
+<section id="フェーズ構成-前提2役割の安定" class="level4">
+<h4 class="anchored" data-anchor-id="フェーズ構成-前提2役割の安定">フェーズ構成（→ 前提2：役割の安定）</h4>
+<p>初期のEDAやデータ理解のフェーズは探索的で，前提2で述べた通りRACIには向きません．そこで，プロジェクトを探索フェーズと本分析フェーズに分け，次の点をSOWに明記します．</p>
+<ul class="task-list">
+<li><label><input type="checkbox">探索フェーズを置くこと</label></li>
+<li><label><input type="checkbox">探索フェーズの期間（タイムボックス）と成果物（データ理解メモなど）</label></li>
+<li><label><input type="checkbox">探索フェーズの終了条件：分析計画書の承認</label></li>
+</ul>
+<p>フェーズ区分は，段階0と段階2をつなぐ役割を持ちます．探索フェーズの出口が分析計画書の承認であり，そこが「RACIの行を確定できる時点」になるからです．この出口を契約時に決めておかないと，探索がいつまでも終わらず，本RACIを作るきっかけを失います．</p>
+</section>
+</section>
+<section id="段階1キックオフ" class="level3">
+<h3 class="anchored" data-anchor-id="段階1キックオフ">段階1：キックオフ</h3>
+<section id="受託側ロールの決定権decision-rights-前提3aは1人" class="level4">
+<h4 class="anchored" data-anchor-id="受託側ロールの決定権decision-rights-前提3aは1人">受託側ロールの決定権（decision rights）（→ 前提3：Aは1人）</h4>
+<p>責任境界が決まったら，次は受託側の内部です．ETLオーナー，分析リード，PMを置くこと自体よりも，それぞれが何を単独で決められるかを先に定義します．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 45%">
+<col style="width: 35%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>ロール</th>
+<th>単独で決められること（Aになる領域）</th>
+<th>決められないこと</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>データETLオーナー</td>
+<td>データ仕様，加工ロジック，データ品質問題の一次判断，データマートのリリース</td>
+<td>分析上の除外条件の最終判断（分析リードがC）</td>
+</tr>
+<tr class="even">
+<td>分析リード</td>
+<td>分析設計・手法の選択，結論が妥当かどうか</td>
+<td>スコープ・納期の変更</td>
+</tr>
+<tr class="odd">
+<td>PM（クライアントフェイシング）</td>
+<td>スコープ・納期・優先順位，クライアントへの提出可否，変更要求の受付</td>
+<td>分析結論の中身を書き換えること</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>ここで必ず衝突が起きるのが「クライアントに出す報告書のA」です．中身の正しさは分析リード，提出判断はPMの領域なので，そのままではAが2人になります．</p>
+<p>Aが2人になりそうなときは，タスクを分割します．「分析結果の妥当性レビュー（A：分析リード）」と「報告書の提出（A：PM）」を別の行にすれば，それぞれAは1人で済みます．この分割ができるかどうかで，ロール定義の解像度が試されます．</p>
+</section>
+<section id="探索フェーズ用の暫定raci" class="level4">
+<h4 class="anchored" data-anchor-id="探索フェーズ用の暫定raci">探索フェーズ用の暫定RACI</h4>
+<p>この時点では分析の中身が決まっていないので，作業単位の細かいRACIは作りません．暫定RACIに置くのは次の2種類だけです．</p>
+<ul class="task-list">
+<li><label><input type="checkbox"><strong>プロジェクト管理系のタスク</strong>：定例会，進捗報告，データ受領など</label></li>
+<li><label><input type="checkbox"><strong>「分析計画書の承認」という意思決定のA</strong>：探索フェーズの出口を誰が承認するか</label></li>
+</ul>
+<p>探索中の作業そのものは，手を挙げた人がオーナーになる緩い進め方で構いません．</p>
+</section>
+</section>
+<section id="段階2探索フェーズ終了時分析計画書の承認" class="level3">
+<h3 class="anchored" data-anchor-id="段階2探索フェーズ終了時分析計画書の承認">段階2：探索フェーズ終了時（分析計画書の承認）</h3>
+<p>探索を経て，ようやく契約時には決められなかったレイヤーが決まります．</p>
+<ul class="task-list">
+<li><label><input type="checkbox"><strong>分析上の問い，仮説，データ・手法</strong></label></li>
+<li><label><input type="checkbox"><strong>成果物ごとの内容的な検収基準</strong></label></li>
+</ul>
+<p>これをもとに，本分析フェーズの本RACIを作ります．成果物の中身が決まったことでRACIの行が確定し，役割も安定するので，前提1と前提2がここで初めてそろいます．</p>
+</section>
+<section id="決める順序" class="level3">
+<h3 class="anchored" data-anchor-id="決める順序">決める順序</h3>
+<p>各段階の中では，前の項目が次の項目の前提になります．ビジネス上の問いと成果物の種類が決まらなければ責任境界は引けず，責任境界がなければ決定権も定義できません．一方で，成果物の中身は探索を経ないと決まらないので，段階2まで待ちます．人を当てはめるのは，それぞれの段階の最後です．</p>
+<ol type="1">
+<li><strong>段階0：契約・business SOW</strong>
+<ol type="1">
+<li>ビジネス上の問い，成果物の種類・形式，検収手続き</li>
+<li>責任境界（クライアント／受託），データ提供の前提</li>
+<li>変更管理・エスカレーション</li>
+<li>フェーズ構成（探索フェーズの期間と終了条件）</li>
+</ol></li>
+<li><strong>段階1：キックオフ</strong>
+<ol type="1">
+<li>受託側ロールの決定権</li>
+<li>人のアサイン → 暫定RACIを記入</li>
+</ol></li>
+<li><strong>段階2：探索フェーズ終了時</strong>
+<ol type="1">
+<li>分析上の問い，仮説，内容的な検収基準（分析計画書の承認）</li>
+<li>人のアサインを見直し → 本RACIを記入</li>
+</ol></li>
+</ol>
+</section>
+<section id="記入後のチェック" class="level3">
+<h3 class="anchored" data-anchor-id="記入後のチェック">記入後のチェック</h3>
+<p>本RACIを記入したら，前提3の基本ルールに照らして次の2点を確認します．</p>
+<ul class="task-list">
+<li><label><input type="checkbox"><strong>兼任によるチェック機能の喪失</strong>：小規模案件ではPMと分析リードの兼任がよくあります．この場合，上記の「妥当性レビュー」と「提出」のAが同一人物になり，相互チェックが働かなくなります．兼任するなら，妥当性レビューのCかRに別の人を入れてください．</label></li>
+<li><label><input type="checkbox"><strong>Rの偏り</strong>：ETLオーナーにRが集中していないかを確認します．</label></li>
+</ul>
+</section>
+</section>
+<section id="まとめ" class="level2">
+<h2 class="anchored" data-anchor-id="まとめ">まとめ</h2>
+<ul>
+<li>RACIは「タスク × 人」の表であり，タスク分解・役割の安定・Aは1人という前提が満たされて初めて機能する</li>
+<li>受託分析では，「問い」「成果物」「検収基準」を，契約時に決められるレイヤー（ビジネス上の問い，成果物の種類，検収手続き）と，探索後に決まるレイヤー（分析上の問い，成果物の中身，内容的な検収基準）に分ける</li>
+<li>RACIは1枚で作らず，キックオフ時の暫定RACIと，分析計画書承認後の本RACIの2段階で作る．両者をつなぐ探索フェーズの期間と終了条件は，SOWの段階で決めておく</li>
+<li>Aが2人になりそうなときはタスクを分割し，兼任でチェック機能が失われる箇所には別の人をCかRとして入れる</li>
+</ul>
+</section>
+<section id="appendix-この記事での用語集" class="level2">
+<h2 class="anchored" data-anchor-id="appendix-この記事での用語集">Appendix: この記事での用語集</h2>
+<div class="glossary-container">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">glossary</span><span class="kw">:</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> SOW (Statement of Work, 作業範囲記述書)</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>      発注側と受託側の契約の中で「具体的に何をするか」を定めた文書．契約書の別紙や個別契約として添付されることが多い．</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>      契約が報酬・知的財産権・秘密保持など「どういう条件で取引するか」を定めるのに対し，SOWは「その取引で何を作り，どうなれば完了か」を定める．</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>      一般に，目的・背景，作業範囲（やること／やらないこと），成果物，検収基準，スケジュール，体制・役割，前提条件（クライアントが提供するデータ，その提供時期など），変更管理の手続きを記載する．</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>      成果物や検収基準をSOWに書いておくと，途中で出た追加要望がスコープ内かスコープ外かをSOWと照らして判断でき，変更管理の起点になる．</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>      受託分析では，SOWでは成果物の種類と検収手続きを定め，成果物の中身や内容的な検収基準は探索フェーズ後の分析計画書で具体化する．</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+
+
+</section>
+
+</main> <!-- /main -->
+<script>
+    document.querySelectorAll('.custom_problem .theorem-title').forEach((title) => {
+        let modName = title.innerHTML;
+        modName = modName.replace("Exercise", "Problem");
+        modName = modName.replace("Proposition", "Property");
+        modName = modName.replace("Example", "<strong>&#9654;</strong>&nbsp; Example");
+        title.innerHTML = modName;
+    });
+
+    // Rule: 未使用の Corollary (#cor-, lang: ja では「系」) を Rule として表示する
+    document.querySelectorAll('.custom_rule .theorem-title').forEach((title) => {
+        title.innerHTML = title.innerHTML
+            .replace(/^<strong>(系|Corollary)/, "<strong>Rule")
+            .replace(/\s*\((.*)\)<\/strong>$/, ": $1</strong>");
+        // タイトルの後で改行し，本文を次の行から始める
+        title.style.display = "block";
+        title.style.paddingBottom = "0.5em";
+        title.style.fontSize = "1.1em";
+        // 本文がリスト等で始まると Quarto がタイトル後に &nbsp; を残し空行になるため除去する
+        while (title.nextSibling && title.nextSibling.nodeType === Node.TEXT_NODE
+               && title.nextSibling.textContent.trim() === "") {
+            title.nextSibling.remove();
+        }
+        if (!title.nextSibling) {
+            title.parentElement.style.marginBottom = "0";
+        }
+    });
+ </script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "コピーしました");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "コピーしました");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/ryonakagami\.github\.io\/regmonkey-datascience-blog");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<script src="https://utteranc.es/client.js" repo="RyoNakagami/regmonkey-datascience-blog" issue-term="title" theme="github-light" crossorigin="anonymous" async="">
+</script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+      &nbsp;
+    </div>   
+    <div class="nav-footer-center">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+ © Copyright RyoNak
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="../../LICENSE">
+<p>License</p>
+</a>
+  </li>  
+</ul>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>問題を報告</a></li></ul></div></div>
+    <div class="nav-footer-right">
+      &nbsp;
+    </div>
+  </div>
+</footer>
+    <script type="text/javascript">
+    (function(d) {
+      d.querySelectorAll(".pseudocode-container").forEach(function(el) {
+        let pseudocodeOptions = {
+          indentSize: el.dataset.indentSize || "1.2em",
+          commentDelimiter: el.dataset.commentDelimiter || "//",
+          lineNumber: el.dataset.lineNumber === "true" ? true : false,
+          lineNumberPunc: el.dataset.lineNumberPunc || ":",
+          noEnd: el.dataset.noEnd === "true" ? true : false,
+          titlePrefix: el.dataset.captionPrefix || "Algorithm"
+        };
+        pseudocode.renderElement(el.querySelector(".pseudocode"), pseudocodeOptions);
+      });
+    })(document);
+    (function(d) {
+      d.querySelectorAll(".pseudocode-container").forEach(function(el) {
+        let captionSpan = el.querySelector(".ps-root > .ps-algorithm > .ps-line > .ps-keyword")
+        if (captionSpan !== null) {
+          let captionPrefix = el.dataset.captionPrefix + " ";
+          let captionNumber = "";
+          if (el.dataset.pseudocodeNumber) {
+            captionNumber = el.dataset.pseudocodeNumber + " ";
+            if (el.dataset.chapterLevel) {
+              captionNumber = el.dataset.chapterLevel + "." + captionNumber;
+            }
+          }
+          captionSpan.innerHTML = captionPrefix + captionNumber;
+        }
+      });
+    })(document);
+    </script>
+  
+
+
+
+
+</body></html>
