@@ -1,0 +1,53 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.3cm, minimum width=3.6cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    step/.style={font=\footnotesize\bfseries, text=azureblue, anchor=south},
+    note/.style={font=\footnotesize, text=darkgray, align=center, anchor=north},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south west, font=\bfseries, text=navy},
+    wire/.style={->, draw=navy},
+  ]
+
+  % ---- 上段：xdg-open 本体 ----
+  \node[block] (xdg) {\texttt{xdg-open index.html}};
+  \node[block, right=1.5cm of xdg] (de) {デスクトップ環境\\の判定};
+  \node[block, right=1.5cm of de] (gio) {\texttt{gio open index.html}};
+
+  % ---- 下段：GNOME の場合（gio open の処理） ----
+  \node[block, below=2.6cm of xdg] (mime) {MIME type の判定};
+  \node[block, right=1.5cm of mime] (app) {デフォルトアプリ\\の検索};
+  \node[accent, right=1.5cm of app] (browser) {ブラウザ起動};
+
+  % Step ラベル
+  \foreach \n/\s in {xdg/Step 1, de/Step 2, gio/Step 3,
+                     mime/Step 4, app/Step 5, browser/Step 6}
+    \node[step] at ([yshift=2pt]\n.north) {\s};
+
+  % 補足
+  \node[note] at ([yshift=-3pt]xdg.south) {\texttt{/usr/bin/xdg-open}\\（シェルスクリプト）};
+  \node[note] at ([yshift=-3pt]de.south) {\texttt{\$XDG\_CURRENT\_DESKTOP}\\→ GNOME};
+  \node[note] at ([yshift=-3pt]gio.south) {デスクトップ環境ごとの\\コマンドに委譲};
+  \node[note] at ([yshift=-3pt]mime.south) {拡張子・中身から\\→ \texttt{text/html} など};
+  \node[note] at ([yshift=-3pt]app.south) {\texttt{mimeapps.list}\\→ 対応する \texttt{.desktop}};
+  \node[note] at ([yshift=-3pt]browser.south) {\texttt{.desktop} の \texttt{Exec} を実行};
+
+  % 配線
+  \draw[wire] (xdg) -- (de);
+  \draw[wire] (de) -- (gio);
+  \coordinate (mid) at ($(gio.south)!0.5!(gio.south |- browser.north)$);
+  \draw[wire] (gio.east) -- ++(0.5,0) |- ([xshift=-0.5cm]xdg.west |- mid)
+    |- (mime.west);
+  \draw[wire] (mime) -- (app);
+  \draw[wire] (app) -- (browser);
+\end{tikzpicture}
