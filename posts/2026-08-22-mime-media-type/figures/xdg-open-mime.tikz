@@ -1,0 +1,52 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.3cm, minimum width=3.2cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    ext/.style={draw=darkgray, dashed, fill=white, rounded corners=3pt,
+                align=center, minimum width=3.6cm, minimum height=1.2cm, inner sep=5pt},
+    step/.style={font=\footnotesize\bfseries, text=azureblue},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    note/.style={font=\scriptsize, text=darkgray},
+    wire/.style={->, draw=navy},
+    ref/.style={->, draw=darkgray, dashed},
+  ]
+
+  % ---- 主経路 ----
+  \node[block]  (open)   at (0,0)    {\texttt{open photo.png}\\{\footnotesize (= \texttt{xdg-open})}};
+  \node[accent] (detect) at (4.6,0)  {MIME Typeを判定};
+  \node[accent] (select) at (9.8,0) {既定アプリを選ぶ};
+  \node[block]  (app)    at (14.4,0) {アプリを起動\\{\footnotesize (例：画像ビューア)}};
+
+  \node[step] at ([yshift=3mm]detect.north) {① 種類を調べる};
+  \node[step] at ([yshift=3mm]select.north) {② 開くアプリを決める};
+
+  \draw[wire] (open) -- node[midway, above, sig] {ファイル} (detect);
+  \draw[wire] (detect) -- node[midway, above, sig] {\texttt{image/png}}
+                          node[midway, below, sig] {MIME Type} (select);
+  \draw[wire] (select) -- node[midway, above, sig] {\texttt{.desktop}} (app);
+
+  % ---- 参照するデータベース・設定 ----
+  \node[ext] (db)   at (4.0,-2.8)  {shared-mime-info\\{\footnotesize 拡張子 → 中身で判定}};
+  \node[ext] (cand) at (8.9,-2.8)  {\texttt{*.desktop} の \texttt{MimeType=}\\{\footnotesize → \texttt{mimeinfo.cache}（候補）}};
+  \node[ext] (def)  at (13.1,-2.8) {\texttt{mimeapps.list}（既定）\\{\footnotesize ユーザー設定が最優先}};
+
+  \draw[ref] (db.north) -- node[midway, right, sig] {参照} (db.north |- detect.south);
+  \draw[ref] (cand.north) -- ++(0,0.6) -| node[pos=0.75, left, sig] {開ける候補} ([xshift=-7mm]select.south);
+  \draw[ref] (def.north)  -- ++(0,0.6) -| node[pos=0.75, right, sig] {既定の指定} ([xshift=7mm]select.south);
+
+  % ---- 確認コマンド ----
+  \node[note, below=2mm of db]  {\texttt{xdg-mime query filetype photo.png}};
+  \node[note, below=2mm of def] {\texttt{xdg-mime default <app>.desktop image/png}};
+\end{tikzpicture}

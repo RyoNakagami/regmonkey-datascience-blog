@@ -1,0 +1,68 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    cell/.style={block, minimum width=4.6cm, minimum height=0.9cm},
+    ext/.style={draw=darkgray, dashed, fill=white, rounded corners=3pt,
+                align=center, inner sep=5pt, text=darkgray},
+    proc/.style={block, minimum width=3.6cm},
+    result/.style={accent, minimum width=2.6cm},
+    rowtitle/.style={font=\bfseries\normalsize, text=navy, anchor=west},
+    note/.style={font=\footnotesize, text=darkgray, align=left, anchor=north west},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    wire/.style={->, draw=navy},
+  ]
+
+  % 列の x 位置（2行で揃える）
+  \def\xcell{7.9}
+  \def\xproc{14.0}
+  \def\xres{17.9}
+
+  % ================= 1行目: メール・HTTP =================
+  \node[rowtitle] (t1) at (0,2.35) {メール・HTTP};
+  \node[note] at (t1.south west) {送り手がラベルを付けて\\データと一緒に届ける};
+
+  \node[cell, fill=paleskyblue] (lhead) at (\xcell,2.45) {\texttt{Content-Type: image/png}};
+  \node[cell, below=0pt of lhead] (lbody) {PNG データ（中身）};
+
+  \node[proc] (read) at (\xproc,2.45) {ヘッダのラベルを\\そのまま読む};
+  \node[result] (res1) at (\xres,2.45) {\texttt{image/png}};
+
+  \draw[wire] (lhead.east) -- (read.west);
+  \draw[wire] (read) -- (res1);
+
+  % ================= 区切り線 =================
+  \draw[lightgray, line width=1pt] (0,0.75) -- (19.2,0.75);
+
+  % ================= 2行目: ローカルのファイル =================
+  \node[rowtitle] (t2) at (0,-0.6) {ローカルのファイル};
+  \node[note] at (t2.south west) {ラベルを貼る場所がないので\\ファイル名と中身から判定する};
+
+  \node[ext, minimum width=4.6cm, minimum height=0.9cm] (rhead) at (\xcell,-0.0)
+    {MIME type は書かれていない};
+  \node[cell, fill=white, below=0pt of rhead] (rname) {\texttt{photo.png}};
+  \node[cell, below=0pt of rname] (rbody) {\texttt{89 50 4E 47 …}};
+  \node[sig, anchor=east] at (rname.west) {ファイル名};
+  \node[sig, anchor=east] at (rbody.west) {中身};
+
+  \coordinate (mid2) at ($(rname.east)!0.5!(rbody.east)$);
+  \node[proc, minimum height=1.9cm] (judge) at (\xproc,0 |- mid2)
+    {Ubuntu が判定\\{\footnotesize shared-mime-info}};
+  \node[result] (res2) at (\xres,0 |- mid2) {\texttt{image/png}};
+
+  \draw[wire] (rname.east) -- (judge.west |- rname.east)
+    node[midway, above, sig] {拡張子 \texttt{*.png}};
+  \draw[wire] (rbody.east) -- (judge.west |- rbody.east)
+    node[midway, below, sig] {先頭バイト};
+  \draw[wire] (judge) -- (res2);
+\end{tikzpicture}
