@@ -2,7 +2,7 @@
 title: "VSCode Tips and Settings"
 author: "Ryo Nakagami"
 date: "2026-08-21"
-date-modified: "2026-10-21"
+date-modified: "2026-10-24"
 categories: [vscode]
 listing_category: development
 comments:
@@ -232,10 +232,69 @@ lrwxrwxrwx 1 root root 17 Jul 15  2023 /etc/alternatives/open -> /usr/bin/xdg-op
 
 ## 4. Extensions
 
+### Editorconfig
+
+::: {.callout-note}
+### Rule 4-1: `.editorconfig` を VS Code に効かせるために EditorConfig 拡張（`EditorConfig.EditorConfig`）を入れる
+
+- VS Code は `.editorconfig` をネイティブには読まないので，拡張を入れないとリポジトリに `.editorconfig` を置いても無視される
+- 拡張を入れると，ファイルを開いた・保存したタイミングで `.editorconfig` の改行コード・インデント・末尾改行などの設定が適用される
+- 既存の `settings.json`（`files.eol` や `editor.tabSize` など）よりも `.editorconfig` の値が優先される
+
+:::
+
+[**VS Code はネイティブ対応していない**]{.mini-section}
+
+- [EditorConfig 公式サイト](https://editorconfig.org/) には「No Plugin Necessary」というセクションがあり，「These editors come bundled with native support for EditorConfig.」としてネイティブ対応のエディタが一覧になっている
+- Visual Studio Professional・Vim・Neovim・JetBrains 系の IDE などは含まれているが，VS Code は含まれていない
+- VS Code は「[Download a Plugin](https://editorconfig.org/#download)」側に分類されており，`.editorconfig` を効かせるには EditorConfig 拡張（`EditorConfig.EditorConfig`）のインストールが必要
+
+[**なぜ設定するのか？**]{.mini-section}
+
+- [OS やエディタ設定の違いによる書き方のゆらぎを，リポジトリ側のルールとして固定できるため]{.regmonkey-bold}
+
+
+例えばリポジトリのルートに次のような `.editorconfig` を置きます．
+
+```ini
+# top-most EditorConfig file
+root = true
+
+# Unix-style newlines with a newline ending every file
+[*]
+end_of_line = lf
+insert_final_newline = true
+
+# Matches multiple files with brace expansion notation
+# Set default charset
+[*.{js,py}]
+charset = utf-8
+
+# 4 space indentation
+[*.py]
+indent_style = space
+indent_size = 4
+```
+
+この設定をすると
+
+- `end_of_line = lf`: Windows のエディタはデフォルトで改行コードを CRLF にしがちだが，Windows・Mac・Linux のどこで編集しても LF に揃う
+- `insert_final_newline = true`: 保存時にファイル末尾へ改行が入るので，人によって末尾改行があったりなかったりする状態がなくなる
+- `charset = utf-8`: `.js`・`.py` の文字コードが UTF-8 に揃い，Windows 環境で Shift_JIS などで保存されて文字化けする事故を防げる
+- `indent_style = space` / `indent_size = 4`: `.py` のインデントが4スペースに揃い，タブとスペースの混在が起きない
+
+[editorconfigを導入しないデメリット]{.mini-section}
+
+ゆらぎを放置すると，不要な `git diff` が発生します．
+
+- 1行しか直していないのに，改行コードが CRLF ↔ LF で変わったせいでファイル全行が差分として表示される
+- 末尾改行の有無が変わるたびに `\ No newline at end of file` の差分が出る
+- インデントのタブ・スペースが変わると，見た目は同じなのに行全体が変更扱いになる
+
 ### markdownlint
 
 ::: {.callout-note}
-### Rule 4-1: markdownlint 拡張（`DavidAnson.vscode-markdownlint`）は使わない
+### Rule 4-2: markdownlint 拡張（`DavidAnson.vscode-markdownlint`）は使わない
 
 - 執筆中に lint の warning が常に表示され，内容を書くことへの集中が削がれる
 - 編集のたびに lint が走るので，CPU・メモリのリソース負荷がかかる
@@ -299,4 +358,4 @@ References
 - [regmonkey post > 自分用ショートカットシート](../2024-12-19-shortcuts/index.qmd)
 - [Visual Studio Code > Basic Editing](https://code.visualstudio.com/docs/editing/codebasics)
 - [Linuxのファイル監視とVS CodeのENOSPCエラー](../2026-08-20-file-watcher-in-linux/index.qmd)
-- [MIME Typeとは？](../2026-08-21-how-to-use-vscode-editor/index.qmd)
+- [MIME Typeとは？](../2026-08-22-mime-media-type/index.qmd)
