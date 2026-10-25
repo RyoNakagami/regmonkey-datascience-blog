@@ -1604,6 +1604,155 @@ font-style: inherit;">|</span></span>
   <pubDate>Sat, 17 Oct 2026 00:00:00 GMT</pubDate>
 </item>
 <item>
+  <title>Linuxにおけるディレクトリファイル</title>
+  <dc:creator>Ryo Nakagami</dc:creator>
+  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-16-directory-file/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>TL:DRs
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>Linux（UNIX系OS）では，ディレクトリは「ファイルを入れる箱」ではなく，<strong>ファイル名の一覧表を中身として持つ1つのファイル</strong></li>
+<li>一覧表の1行が <strong>ディレクトリエントリ</strong>（「ファイル名 → inode」の対応）であり，POSIX ではハードリンクと同義</li>
+<li><strong>ファイル名は inode の中ではなく，親ディレクトリのエントリが持っている</strong></li>
+<li><code>ln</code>・<code>rm</code>・<code>mv</code>・ディレクトリの <code>rwx</code> 権限は，すべて「エントリ表の操作」として統一的に理解できる</li>
+</ul>
+</div>
+</div>
+<section id="ディレクトリファイルとは" class="level2">
+<h2 class="anchored" data-anchor-id="ディレクトリファイルとは">ディレクトリファイルとは？</h2>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title">3.103 ディレクトリファイル</span></p>
+<ul>
+<li>「ファイル名」と「ファイルの実体」を対応付けるファイル</li>
+<li>POSIXの定義(3.103)におけるディレクトリを，「ファイル」として見たときの呼び名
+<ul>
+<li>「ディレクトリも通常ファイルと同じくファイルの一種である」 という側面を強調した言い方</li>
+</ul></li>
+<li>同じディレクトリ内に同じ名前のディレクトリエントリは2つ存在しない</li>
+</ul>
+</div>
+<p>Linux（UNIX系OS）では，ディレクトリは「ファイルを入れる箱」ではなく，<strong>ファイル名の一覧表を中身として持つ1つのファイル</strong> です．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-16-directory-file/figures/everything-is-file.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+<figcaption>通常ファイル・ディレクトリファイル・特殊ファイルはどれも「ファイル」</figcaption>
+</figure>
+</div>
+<ul>
+<li>3種類とも，<strong>名前はディレクトリエントリが持ち</strong>，実体は inode で表されるという点で同じ「ファイル」</li>
+<li>違うのは inode に記録された <strong>種類</strong> と，それに応じた <strong>中身の解釈</strong> だけ
+<ul>
+<li>通常ファイル：中身は任意のバイト列</li>
+<li>ディレクトリファイル：中身は「名前 → inode番号」のエントリ表</li>
+<li>特殊ファイル（デバイスファイル）：中身を持たず，<code>read</code> / <code>write</code> はデバイスドライバに渡される</li>
+</ul></li>
+<li>そのため，どれも同じパス名・同じ権限モデル（<code>rwx</code>）・同じシステムコール（<code>open</code> など）で扱える</li>
+</ul>
+<p><span class="mini-section">「ファイル」は inode で表される</span></p>
+<ul>
+<li>POSIXの定義では，ディレクトリエントリが対応付ける相手は抽象的な「ファイル」．</li>
+<li>Linuxの実装（ext4 など）では，ファイルの実体は <strong>inode</strong> というデータ構造で管理され，inode番号で識別される</li>
+<li>つまり，ディレクトリファイルの中身は実質的に「名前 → inode番号」の対応表</li>
+</ul>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-16-directory-file/figures/directory-inode.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+<figcaption>ディレクトリファイル・inode・データブロックの関係</figcaption>
+</figure>
+</div>
+</section>
+<section id="同じディレクトリ内に同じ名前のディレクトリエントリは2つ存在しない" class="level2">
+<h2 class="anchored" data-anchor-id="同じディレクトリ内に同じ名前のディレクトリエントリは2つ存在しない">同じディレクトリ内に同じ名前のディレクトリエントリは2つ存在しない</h2>
+<div id="def-posix-dirent" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 2</strong></span> <span class="def-title">3.104 Directory Entry (or Hard Link)</span></p>
+<ul>
+<li>An object that associates a filename with a file. Several directory entries can associate names with the same file.</li>
+<li>ディレクトリエントリ（ハードリンク）とは，ファイル名とファイルを対応付けるオブジェクト．複数のディレクトリエントリが同じファイルに名前を対応付けてもよい</li>
+</ul>
+</div>
+<p>3.103（冒頭のディレクトリファイルの定義）と 3.104 は，ディレクトリエントリの「名前」と「ファイル」それぞれの側に，次のような制約を課しています．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 10%">
+<col style="width: 45%">
+<col style="width: 45%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>定義</th>
+<th>制約</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>3.103</td>
+<td>同じディレクトリ内で <strong>名前は重複しない</strong></td>
+<td>名前を1つ決めれば，指すファイルは高々1つに決まる</td>
+</tr>
+<tr class="even">
+<td>3.104</td>
+<td>複数のエントリが <strong>同じファイルを指してよい</strong></td>
+<td>1つのファイルが複数の名前を持てる（ハードリンク）</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-16-directory-file/figures/directory-mapping.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+<figcaption>ディレクトリが定める写像 <img src="https://latex.codecogs.com/png.latex?fD">：許される対応と許されない対応</figcaption>
+</figure>
+</div>
+</section>
+<section id="appendix-posix.1-2024" class="level2">
+<h2 class="anchored" data-anchor-id="appendix-posix.1-2024">Appendix: POSIX.1-2024</h2>
+<p>本記事で引用した定義は POSIX.1-2024（The Open Group Base Specifications Issue 8，IEEE Std 1003.1-2024）に基づいています． 規格自身は，その目的を次のように説明しています．</p>
+<blockquote class="blockquote">
+<p>POSIX.1-2024 defines a standard operating system interface and environment, including a command interpreter (or “shell”), and common utility programs to support applications portability at the source code level. It is intended to be used by both application developers and system implementors.</p>
+</blockquote>
+<ul>
+<li>POSIX.1-2024 は，OSのインタフェースと環境を定める標準規格</li>
+<li>対象はシステムコール相当のAPIだけでなく，コマンドインタプリタ（シェル）や共通ユーティリティ（<code>ls</code>，<code>ln</code>，<code>mv</code> など）も含む</li>
+<li>目的は <strong>ソースコードレベルでのアプリケーションの移植性</strong> を確保すること</li>
+<li>読者として，アプリケーション開発者と，OSを実装する側（システム実装者）の両方を想定している</li>
+</ul>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<ul>
+<li><a href="https://pubs.opengroup.org/onlinepubs/9799919799/basedefs/V1_chap03.html">The Open Group Base Specifications Issue 8 (POSIX.1-2024), Base Definitions, Chapter 3 Definitions</a></li>
+<li><a href="https://man7.org/linux/man-pages/man7/inode.7.html">inode(7) — Linux manual page</a></li>
+<li><a href="https://man7.org/linux/man-pages/man2/getdents.2.html">getdents(2) — Linux manual page</a></li>
+<li><a href="https://man7.org/linux/man-pages/man2/unlink.2.html">unlink(2) — Linux manual page</a></li>
+<li><a href="https://docs.kernel.org/filesystems/ext4/directory.html">The Linux Kernel documentation: ext4 Directory Entries</a></li>
+<li>Ritchie, D. M., &amp; Thompson, K. (1974). The UNIX time-sharing system. <em>Communications of the ACM</em>, 17(7), 365–375.</li>
+</ul>
+
+
+</section>
+
+ ]]></description>
+  <category>Linux</category>
+  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-16-directory-file/</guid>
+  <pubDate>Fri, 16 Oct 2026 00:00:00 GMT</pubDate>
+</item>
+<item>
   <title>Quarto Tips</title>
   <dc:creator>Ryo Nakagami</dc:creator>
   <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-10-quarto-tips/</link>
@@ -6420,750 +6569,6 @@ font-style: inherit;">%</span> xdg-mime default firefox_firefox.desktop text/htm
   <category>vscode</category>
   <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-08-21-how-to-use-vscode-editor/</guid>
   <pubDate>Fri, 21 Aug 2026 00:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>Linuxのファイル監視とVS CodeのENOSPCエラー</title>
-  <dc:creator>Ryo Nakagami</dc:creator>
-  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-08-20-file-watcher-in-linux/</link>
-  <description><![CDATA[ 
-
-
-
-
-
-
-<section id="この記事について" class="level2">
-<h2 class="anchored" data-anchor-id="この記事について">この記事について</h2>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 30%">
-<col style="width: 70%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>観点</th>
-<th>内容</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><strong>What：何のドキュメントか</strong></td>
-<td>Linux のファイル監視の仕組み（inotify）と，VS Code で出る「unable to watch for file changes」（ENOSPC）エラーの原因と対処をまとめたドキュメント</td>
-</tr>
-<tr class="even">
-<td><strong>Who：誰に向けたものか</strong></td>
-<td>Linux 上で VS Code を使っていて，大きなワークスペースを開いたときに上記のエラーに出会った人</td>
-</tr>
-<tr class="odd">
-<td><strong>Why：なぜ重要か</strong></td>
-<td><code>max_user_watches</code> を上げるだけでも直るが，仕組みを知らないと「何をどれだけ上げればよいか」「先に何を除外すべきか」が判断できないため</td>
-</tr>
-<tr class="even">
-<td><strong>How：どう使うか</strong></td>
-<td>前半で仕組みを理解し，後半の「確認 → 除外 → 上限の引き上げ」の順で対処する</td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-<section id="きっかけvs-code-の警告" class="level2">
-<h2 class="anchored" data-anchor-id="きっかけvs-code-の警告">きっかけ：VS Code の警告</h2>
-<p>Python の <code>.venv</code> や学習データを含む大きなリポジトリを VS Code で開くと，次の警告が出ることがあります．</p>
-<pre><code>Visual Studio Code is unable to watch for file changes in this large workspace (error ENOSPC)</code></pre>
-<p>この状態になると，ファイルを外部で変更してもエクスプローラーに反映されない，Git の変更が出てこない，といった症状が起きます．</p>
-<p><span class="mini-section">何が起こっているのか</span></p>
-<ul>
-<li>ENOSPC は本来「ディスクの空き容量がない」という意味のエラーですが，ここではディスクは関係はない</li>
-<li>足りなくなっているのは <strong>Linux カーネルが管理する「ファイル監視（watch）」の数</strong></li>
-</ul>
-<p>この意味を理解するために，まず Linux でファイルの変更がどうやってアプリに伝わるのかを見ていきます．</p>
-</section>
-<section id="なぜファイル監視はカーネルの機能なのか" class="level2">
-<h2 class="anchored" data-anchor-id="なぜファイル監視はカーネルの機能なのか">なぜファイル監視はカーネルの機能なのか</h2>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>原則
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>どのプロセスがどのファイルに書き込んだかをすべて見ているのは，カーネル</li>
-</ul>
-</div>
-</div>
-<p>GNOME などのデスクトップ環境では，「ファイルマネージャーの表示をすぐ更新したい」「検索インデックスを最新に保ちたい」という需要があります． しかしカーネルによる監視の仕組みがないと，アプリが変更を知る手段は <strong>ポーリング</strong>，つまり数秒ごとに全ファイルの更新時刻を <code>stat()</code> で調べ直す方法しかありません．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode c code-with-copy"><code class="sourceCode c"><span id="cb2-1"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">while</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">true</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span></span>
-<span id="cb2-2">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> f in 全ファイル<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span></span>
-<span id="cb2-3">        今の更新時刻 <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> stat<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">(</span>f<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">).</span>mtime</span>
-<span id="cb2-4">        <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">if</span> 今の更新時刻 <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">!=</span> 前回の更新時刻<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span></span>
-<span id="cb2-5">            「f が変わった」と処理する</span>
-<span id="cb2-6">    x秒待つ</span></code></pre></div></div>
-<p><span class="mini-section">ポーリングの問題点</span></p>
-<ul>
-<li><strong>遅い</strong>：変更を検知できるのは次の確認のときなので，反映が遅れる</li>
-<li><strong>重い</strong>：ファイルが数万個あれば，何も変わっていなくても毎回すべてを確認するので，CPU やディスク I/O を無駄に消費する</li>
-</ul>
-<p>そのため，Linuxでは，カーネルが「変わったときだけ知らせる」仕組み，<strong>inotify</strong> を準備しています．</p>
-<section id="inotifyはカーネルに組み込まれた機能-システムコール" class="level3">
-<h3 class="anchored" data-anchor-id="inotifyはカーネルに組み込まれた機能-システムコール">inotifyはカーネルに組み込まれた機能 = システムコール</h3>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>REMARKS
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>inotify は常駐するサービス（デーモン）ではなく，カーネルに組み込まれた機能</li>
-<li>アプリはシステムコール <code>inotify_init1()</code> を呼んで使う</li>
-<li>systemd のユニットとしては存在せず，<code>systemctl start</code> のように起動・停止するものではない（状態の確認方法は Appendix を参照）</li>
-</ul>
-</div>
-</div>
-<p><span class="mini-section">システムコールとサービスの違い</span></p>
-<ul>
-<li><strong>システムコール</strong> は，アプリがカーネルに仕事を頼むための窓口</li>
-<li><strong>サービス</strong> は，バックグラウンドで動き続ける普通のプロセス（ユーザー空間のプログラム）</li>
-</ul>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 20%">
-<col style="width: 40%">
-<col style="width: 40%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>観点</th>
-<th>システムコール（inotify）</th>
-<th>サービス（例：<code>sshd</code>，<code>cron</code>）</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>正体</td>
-<td>カーネル内の関数</td>
-<td>独立したプロセス</td>
-</tr>
-<tr class="even">
-<td>動いている場所</td>
-<td>カーネル空間</td>
-<td>ユーザー空間</td>
-</tr>
-<tr class="odd">
-<td>起動・停止</td>
-<td>不要．カーネルが動いていれば常に使える</td>
-<td>systemd などが起動・停止する</td>
-</tr>
-<tr class="even">
-<td>使い方</td>
-<td>アプリが関数として呼ぶ</td>
-<td>ソケットや D-Bus などで通信する</td>
-</tr>
-<tr class="odd">
-<td><code>ps</code> に出るか</td>
-<td>出ない（呼び出したアプリが出る）</td>
-<td>出る</td>
-</tr>
-</tbody>
-</table>
-</div>
-<p><span class="mini-section">inotify は「誰かが動かしておくもの」ではなく，使うアプリがそのつど借りるもの</span></p>
-<p>inotify の場合，アプリが <code>inotify_init1()</code> を呼ぶとカーネル内に「inotify インスタンス」が作られ，それを指すファイルディスクリプタがアプリに返ります． watch やイベントキューはこのインスタンスに属します． アプリがファイルディスクリプタを閉じるか終了すれば，インスタンスも消えます．</p>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-08-20-file-watcher-in-linux/figures/inotify-instance-lifecycle.svg" class="img-fluid figure-img" style="width:100.0%"></p>
-<figcaption>inotify インスタンスのライフサイクル．アプリの fd とともに作られ，fd を閉じると消える</figcaption>
-</figure>
-</div>
-</section>
-</section>
-<section id="inotifyの仕組み" class="level2">
-<h2 class="anchored" data-anchor-id="inotifyの仕組み">inotifyの仕組み</h2>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-08-20-file-watcher-in-linux/figures/linux-inotify-overview.svg" class="img-fluid figure-img" style="width:100.0%"></p>
-<figcaption>inotify の使われ方（上段）とカーネル内の位置づけ（下段）</figcaption>
-</figure>
-</div>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 20%">
-<col style="width: 80%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>分類</th>
-<th>例</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>OS・コマンド</td>
-<td>systemd の <code>.path</code> ユニット（ファイルが変わったらサービスを起動），<code>tail -f</code>．ライブラリを介さず inotify を直接呼ぶ</td>
-</tr>
-<tr class="even">
-<td>開発ツール</td>
-<td>ホットリロード（Vite，<code>uvicorn --reload</code>），VS Code・JetBrains のファイル監視</td>
-</tr>
-<tr class="odd">
-<td>デスクトップ</td>
-<td>ファイルマネージャーの表示更新，検索インデックス（Tracker）</td>
-</tr>
-<tr class="even">
-<td>同期・運用</td>
-<td>Dropbox，Syncthing，lsyncd，設定ファイルの自動再読み込み</td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="vs-code-はどうやってファイルを監視しているか" class="level2">
-<h2 class="anchored" data-anchor-id="vs-code-はどうやってファイルを監視しているか">VS Code はどうやってファイルを監視しているか</h2>
-<p>VS Code は Linux では <code>@parcel/watcher</code> というライブラリを使い，inotify でワークスペースを監視しています．</p>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-08-20-file-watcher-in-linux/figures/linux-file-watcher.svg" class="img-fluid figure-img" style="width:100.0%"></p>
-<figcaption>VS Code のファイル監視の流れ．watch はディレクトリごとに 1 つ張られる</figcaption>
-</figure>
-</div>
-<ol type="1">
-<li>起動時にワークスペースのディレクトリツリーを走査する（<code>readdir</code>）</li>
-<li>見つけた <strong>ディレクトリごとに 1 回</strong> <code>inotify_add_watch()</code> を呼び，watch を登録する</li>
-<li>ファイルが保存・作成されると，カーネルが watch のあるディレクトリのイベントだけをキューに積む</li>
-<li>監視プロセスがキューを <code>read()</code> し，短時間ぶんのイベントをまとめて重複を除く</li>
-<li>VS Code 本体に通知し，エクスプローラーの更新・<code>git status</code>・拡張機能の再インデックスなどが走る</li>
-</ol>
-</section>
-<section id="なぜerror-enospcにつながるのか" class="level2">
-<h2 class="anchored" data-anchor-id="なぜerror-enospcにつながるのか">なぜerror ENOSPCにつながるのか？</h2>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>TL;DRs
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>inotify には「このディレクトリ以下を再帰的に全部見る」という機能がない</li>
-<li>監視プロセスは <strong>ディレクトリの数だけ watch を張る</strong>．</li>
-<li>数千〜数万のディレクトリが一気に作られたとき，監視上限(= watch数の上限)に達して，error ENOSPC</li>
-</ul>
-</div>
-</div>
-<p><code>.venv</code> や <code>node_modules</code> は，数千〜数万のディレクトリを含むことが珍しくありません． これらを監視対象に含めると，watch の数はあっという間に膨らみます．</p>
-<p><span class="mini-section"><code>/proc/sys/fs/inotify/max_user_watches</code> という上限</span></p>
-<p>watch はカーネルのメモリを消費するので，無制限には作れません． 上限は <code>/proc/sys/fs/inotify/</code> 以下のファイルで確認できます．</p>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 25%">
-<col style="width: 45%">
-<col style="width: 30%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>ファイル</th>
-<th>意味</th>
-<th>超えたとき</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>max_user_watches</code></td>
-<td>1 ユーザーが作れる watch の総数</td>
-<td><code>inotify_add_watch()</code> が ENOSPC で失敗する</td>
-</tr>
-<tr class="even">
-<td><code>max_user_instances</code></td>
-<td>1 ユーザーが作れる inotify インスタンス（<code>inotify_init()</code> の数）</td>
-<td><code>inotify_init()</code> が EMFILE で失敗する</td>
-</tr>
-<tr class="odd">
-<td><code>max_queued_events</code></td>
-<td>1 インスタンスのイベントキューの長さ</td>
-<td>イベントが捨てられ <code>IN_Q_OVERFLOW</code> が届く</td>
-</tr>
-</tbody>
-</table>
-</div>
-<p>error ENOSPC は，1 行目の <code>max_user_watches</code> を使い切ったことを意味します． ここでポイントは，この上限が <strong>プロセスごとではなくユーザーごと</strong> だという点です． VS Code のウィンドウを複数開いている場合や，同じユーザーで Dropbox やホットリロード付きの開発サーバーを動かしている場合，それらの watch はすべて同じ枠を共有します．</p>
-<p>なお，<code>max_user_watches</code> の初期値は Linux 5.11 以降，搭載メモリから自動で決まります（メモリの約 1% を上限に，8,192〜1,048,576 の範囲）． そのため，同じ設定でもマシンによって値が異なります．</p>
-</section>
-<section id="対処の手順" class="level2">
-<h2 class="anchored" data-anchor-id="対処の手順">対処の手順</h2>
-<section id="step-1現在の上限と使用量を確認する" class="level3">
-<h3 class="anchored" data-anchor-id="step-1現在の上限と使用量を確認する">Step 1：現在の上限と使用量を確認する</h3>
-<p>まず上限を確認します．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">cat</span> /proc/sys/fs/inotify/max_user_watches</span>
-<span id="cb3-2"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># 65536</span></span></code></pre></div></div>
-<p>次に，どのプロセスが watch をいくつ使っているかを数えます． 各プロセスの <code>/proc/&lt;pid&gt;/fdinfo/</code> には，inotify の watch 1 つにつき <code>inotify wd:...</code> という行が 1 行出るので，その行数を数えれば watch 数が分かります．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># bash で実行する（zsh では一致しないグロブがエラーになる）</span></span>
-<span id="cb4-2"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> p <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> /proc/<span class="pp" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">[</span><span class="ss" style="color: #20794D;
-background-color: null;
-font-style: inherit;">0</span><span class="pp" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">-</span><span class="ss" style="color: #20794D;
-background-color: null;
-font-style: inherit;">9</span><span class="pp" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">]*</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">;</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">do</span></span>
-<span id="cb4-3">  <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">n</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$(</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">cat</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$p</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span>/fdinfo/<span class="pp" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">*</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;</span>/dev/null <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">grep</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-c</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">'^inotify'</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">)</span></span>
-<span id="cb4-4">  <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">[</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$n</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span> <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">-gt</span> 0 <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">]</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">&amp;&amp;</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$n</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;"> </span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$(</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">cat</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$p</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span>/comm<span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">)</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span></span>
-<span id="cb4-5"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">done</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sort</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-rn</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">head</span></span></code></pre></div></div>
-<pre><code>32079 code
-28263 code
-4146 code
-184 xdg-desktop-por
-176 gsd-xsettings</code></pre>
-<p>VS Code（<code>code</code>）の 3 プロセスだけで約 64,500 個の watch を使っており，上限 65,536 にほぼ達しています． この状態でさらにワークスペースを開くと ENOSPC になります．</p>
-</section>
-<section id="step-2まず監視対象を減らすfiles.watcherexclude" class="level3">
-<h3 class="anchored" data-anchor-id="step-2まず監視対象を減らすfiles.watcherexclude">Step 2：まず監視対象を減らす（<code>files.watcherExclude</code>）</h3>
-<p>上限を上げる前に，<strong>そもそも監視する必要のないディレクトリを除外する</strong> のが先です． 仮想環境・データ・ビルド成果物などは，VS Code がリアルタイムで変更を追う必要がほとんどありません．</p>
-<p><code>files.watcherExclude</code> の初期値は <code>node_modules</code> と <code>.git</code> 以下の一部のフォルダのみを除外しています．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb6-1"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"files.watcherExclude"</span><span class="er" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">:</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">{</span></span>
-<span id="cb6-2">    <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"**/.git/objects/**"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">true</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">,</span></span>
-<span id="cb6-3">    <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"**/.git/subtree-cache/**"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">true</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">,</span></span>
-<span id="cb6-4">    <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"**/node_modules/*/**"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">true</span></span>
-<span id="cb6-5"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">}</span></span></code></pre></div></div>
-<p>統計分析 with Python を行うレポジトリをメインで扱う場合，例えば次のように追加します．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb7-1"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"files.watcherExclude"</span><span class="er" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">:</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">{</span></span>
-<span id="cb7-2">    <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"**/.git/objects/**"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">true</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">,</span></span>
-<span id="cb7-3">    <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"**/.git/subtree-cache/**"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">true</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">,</span></span>
-<span id="cb7-4">    <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"**/node_modules/*/**"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">true</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">,</span></span>
-<span id="cb7-5">    <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"**/.venv/**"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">true</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">,</span></span>
-<span id="cb7-6">    <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"**/data/**"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">true</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">,</span></span>
-<span id="cb7-7">    <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"**/__pycache__/**"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">true</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">,</span></span>
-<span id="cb7-8">    <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"**/.mypy_cache/**"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">true</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">,</span></span>
-<span id="cb7-9">    <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"**/.pytest_cache/**"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">true</span></span>
-<span id="cb7-10"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">}</span></span></code></pre></div></div>
-<p>設定後に VS Code を再読み込みし，Step 1 のコマンドで watch 数が減ったことを確認します． また，他のアプリケーションも同じ枠を使っているので，不要なアプリを閉じるだけで解消することもあります．</p>
-</section>
-<section id="step-3非推奨-それでも足りなければ上限を引き上げる" class="level3">
-<h3 class="anchored" data-anchor-id="step-3非推奨-それでも足りなければ上限を引き上げる">Step 3：(非推奨) それでも足りなければ上限を引き上げる</h3>
-<p>除外しても足りない場合は，<code>max_user_watches</code> を引き上げます．</p>
-<p><span class="mini-section">一時的に変更する場合</span></p>
-<p>一時的に変更するだけなら次のコマンドで足ります（再起動で元に戻ります）．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> sysctl fs.inotify.max_user_watches=524288</span></code></pre></div></div>
-<p><span class="mini-section">永続的に変更する場合</span></p>
-<p>永続化するには設定ファイル <code>/etc/sysctl.d/*.conf</code> に書きます．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">'fs.inotify.max_user_watches=524288'</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> tee /etc/sysctl.d/60-inotify.conf</span>
-<span id="cb9-2"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> sysctl <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--system</span></span>
-<span id="cb9-3"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">cat</span> /proc/sys/fs/inotify/max_user_watches</span>
-<span id="cb9-4"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># 524288</span></span></code></pre></div></div>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>上限を上げるとメモリはどれだけ使うか
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>VS Code のドキュメントによると，watch 1 つあたり約 1,080 バイトのカーネルメモリを使います． 524,288 個をすべて使い切った場合，上限は約 540 MiB です． 上限値を設定しただけでメモリが確保されるわけではなく，実際に watch を張った分だけ消費されます． とはいえメモリの少ない環境では，より小さい値を選んでください．</p>
-</div>
-</div>
-</section>
-</section>
-<section id="appendix-inotify-status" class="level2">
-<h2 class="anchored" data-anchor-id="appendix-inotify-status">Appendix: inotify の状態を確認する</h2>
-<p>inotify はサービスではないので，<code>systemctl status</code> では確認できません． 代わりに次の 3 つの観点で確認します．</p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 40%">
-<col style="width: 60%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>確認したいこと</th>
-<th>見る場所</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>カーネルで inotify が使えるか</td>
-<td><code>/proc/sys/fs/inotify/</code></td>
-</tr>
-<tr class="even">
-<td>カーネルに組み込まれているか</td>
-<td><code>/boot/config-$(uname -r)</code> の <code>CONFIG_INOTIFY_USER</code></td>
-</tr>
-<tr class="odd">
-<td>どのプロセスが使っているか</td>
-<td><code>/proc/&lt;pid&gt;/fd/</code> の <code>anon_inode:inotify</code></td>
-</tr>
-</tbody>
-</table>
-<p><span class="mini-section">カーネルで使えるかと上限値</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># 機能が有効なら，このディレクトリと上限値が見える</span></span>
-<span id="cb10-2"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ls</span> /proc/sys/fs/inotify/</span>
-<span id="cb10-3"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">cat</span> /proc/sys/fs/inotify/max_user_watches</span></code></pre></div></div>
-<p><code>/proc/sys/fs/inotify/</code> は，カーネルの設定値をファイルとして見せている場所です． このディレクトリがあれば，カーネルで inotify が使える状態です．</p>
-<p><span class="mini-section">カーネルのビルド設定</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># カーネルのビルド設定で有効か（=y なら有効）</span></span>
-<span id="cb11-2"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">grep</span> INOTIFY_USER /boot/config-<span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$(</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">uname</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-r</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">)</span></span>
-<span id="cb11-3"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># CONFIG_INOTIFY_USER=y</span></span></code></pre></div></div>
-<p><code>/boot/config-&lt;バージョン&gt;</code> は，今動いているカーネルをビルドしたときの設定です． <code>CONFIG_INOTIFY_USER=y</code> なら，inotify がカーネルに組み込まれています． Ubuntu などの主要なディストリビューションでは標準で有効です．</p>
-<p><span class="mini-section">inotify を使っているプロセス</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># 今 inotify を使っているプロセスの一覧</span></span>
-<span id="cb12-2"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> find /proc/<span class="pp" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">*</span>/fd <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-lname</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">'anon_inode:inotify'</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;</span>/dev/null <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">\</span></span>
-<span id="cb12-3">  <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">cut</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-d</span>/ <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-f3</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sort</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-u</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">xargs</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-r</span> ps <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-o</span> pid,comm <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-p</span></span></code></pre></div></div>
-<p>inotify インスタンスのファイルディスクリプタは，<code>/proc/&lt;pid&gt;/fd/</code> 以下で <code>anon_inode:inotify</code> を指すリンクとして見えます． このコマンドは，そのリンクを持つプロセスの PID を集め（<code>find</code> → <code>cut</code> → <code>sort -u</code>），<code>ps</code> でプロセス名を表示します． <code>sudo</code> を付けないと，自分以外のユーザーのプロセスは見えません．</p>
-<pre><code>    PID COMMAND
-   3891 wireplumber
-   3908 dbus-daemon
-   4196 gnome-session-b
-   ...</code></pre>
-<p>デスクトップ環境の常駐プログラムなど，意識していないプロセスも多く inotify を使っていることが分かります．</p>
-</section>
-<section id="references" class="level2">
-<h2 class="anchored" data-anchor-id="references">References</h2>
-<ul>
-<li><a href="https://code.visualstudio.com/docs/setup/linux#_visual-studio-code-is-unable-to-watch-for-file-changes-in-this-large-workspace-error-enospc">Visual Studio Code FAQ: “Visual Studio Code is unable to watch for file changes in this large workspace” (error ENOSPC)</a></li>
-<li><a href="https://man7.org/linux/man-pages/man7/inotify.7.html">inotify(7) — Linux manual page</a></li>
-</ul>
-
-
-</section>
-
- ]]></description>
-  <category>Linux</category>
-  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-08-20-file-watcher-in-linux/</guid>
-  <pubDate>Thu, 20 Aug 2026 00:00:00 GMT</pubDate>
 </item>
 </channel>
 </rss>
