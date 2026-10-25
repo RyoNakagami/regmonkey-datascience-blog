@@ -1,0 +1,69 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    card/.style={block, fill=white, minimum width=4.2cm, minimum height=2.3cm},
+    inode/.style={block, minimum width=4.2cm},
+    ename/.style={draw=navy, fill=white, minimum width=1.9cm, minimum height=0.45cm,
+                  inner sep=2pt, font=\ttfamily\footnotesize},
+    eino/.style={draw=navy, fill=white, minimum width=1.1cm, minimum height=0.45cm,
+                 inner sep=2pt, font=\footnotesize},
+    head/.style={font=\bfseries, text=navy},
+    step/.style={font=\footnotesize, text=azureblue},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    wire/.style={->, draw=navy},
+  ]
+
+  % ---- 共通の抽象：ファイル ----
+  \node[accent, minimum width=15.2cm, minimum height=1.2cm] (file) at (5.5,3.0)
+    {\textbf{ファイル}\quad{\footnotesize 名前はディレクトリエントリ，実体は inode ＋ 中身．open / read / write / chmod など同じ操作・同じ権限モデルで扱う}};
+
+  % ---- 3種類のファイル（列見出し）----
+  \foreach \x/\t in {0/通常ファイル, 5.5/ディレクトリファイル, 11/特殊ファイル} {
+    \node[head] at (\x,1.45) {\t};
+  }
+
+  % ---- inode（どれも同じ形）----
+  \node[inode] (i1) at (0,0.5)    {\textbf{inode}\\[1pt]{\footnotesize 種類＝通常ファイル}};
+  \node[inode] (i2) at (5.5,0.5)  {\textbf{inode}\\[1pt]{\footnotesize 種類＝ディレクトリ}};
+  \node[inode] (i3) at (11,0.5)   {\textbf{inode}\\[1pt]{\footnotesize 種類＝デバイス（主・副番号）}};
+
+  % ---- 中身 ----
+  \node[card, below=0.8cm of i1] (c1)
+    {\textbf{バイト列}\\[3pt]{\ttfamily\footnotesize hello world …}\\[2pt]{\footnotesize テキスト・画像・実行形式}};
+
+  \node[card, below=0.8cm of i2] (c2) {};
+  \node[font=\bfseries\small, anchor=north] at ([yshift=-3pt]c2.north) {エントリ表};
+  \foreach \i/\n/\k [evaluate=\i as \dy using -0.85-\i*0.45] in {0/./120, 1/../2, 2/notes.txt/512} {
+    \node[ename] (n\i) at ([xshift=-0.55cm, yshift=\dy cm]c2.north) {\n};
+    \node[eino, anchor=west] at (n\i.east) {\k};
+  }
+
+  \node[card, below=0.8cm of i3] (c3)
+    {\textbf{データブロックなし}\\[3pt]{\footnotesize read / write は}\\{\footnotesize デバイスドライバへ渡される}};
+
+  % ---- 配線 ----
+  \foreach \k in {1,2,3} {
+    \draw[wire] (i\k) -- (c\k);
+  }
+  \draw[wire] (file.south -| i1) -- ++(0,-0.5);
+  \draw[wire] (file.south -| i2) -- ++(0,-0.5);
+  \draw[wire] (file.south -| i3) -- ++(0,-0.5);
+
+  % ---- 例と ls -l の種別文字 ----
+  \node[note, below=0.25cm of c1] (e1) {例：\texttt{notes.txt}，\texttt{/bin/ls}\\\textcolor{azureblue}{\texttt{ls -l} の先頭文字：\texttt{-}}};
+  \node[note, below=0.25cm of c2] (e2) {例：\texttt{/home}，\texttt{src/}\\\textcolor{azureblue}{\texttt{ls -l} の先頭文字：\texttt{d}}};
+  \node[note, below=0.25cm of c3] (e3) {例：\texttt{/dev/null}，\texttt{/dev/sda}\\\textcolor{azureblue}{\texttt{ls -l} の先頭文字：\texttt{c} / \texttt{b}}};
+\end{tikzpicture}
