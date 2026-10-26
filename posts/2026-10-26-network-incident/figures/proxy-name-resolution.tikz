@@ -1,0 +1,61 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    >={Latex[length=2.4mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    actor/.style={draw=navy, fill=aliceblue, rounded corners=3pt, align=center,
+                  minimum width=2.8cm, minimum height=1.0cm, inner sep=4pt},
+    ext/.style={actor, draw=darkgray, fill=white, dashed},
+    life/.style={draw=darkgray, dashed, line width=0.5pt},
+    msg/.style={->, draw=navy},
+    ret/.style={->, draw=navy, dashed},
+    ml/.style={font=\footnotesize, fill=white, inner sep=1.5pt},
+    num/.style={circle, draw=navy, fill=paleskyblue, font=\footnotesize\bfseries,
+                inner sep=1pt, minimum size=5mm},
+    phase/.style={rounded corners=4pt, line width=0.5pt},
+  ]
+  % ---- 区間の背景 ----
+  \fill[aliceblue] (-1.6,-1.1) rectangle (14.6,-3.1);
+  \fill[mistyrose] (-1.6,-3.3) rectangle (14.6,-8.9);
+  \node[font=\footnotesize\bfseries, text=navy, anchor=north east] at (14.6,-1.1) {PC側：社内DNSで解決};
+  \node[font=\footnotesize\bfseries, text=crimsonred, anchor=north east] at (14.6,-3.3) {プロキシ側：代理で解決・接続};
+
+  % ---- 登場者とライフライン ----
+  \foreach \x/\n/\t/\s in {0/pc/自席PC/actor, 3.5/dns/社内DNSサーバ\\172.16.0.101/actor,
+                           7/proxy/プロキシサーバ\\x.y.z.103/actor,
+                           10.5/edns/外部DNS/ext, 13.5/web/Webサーバ/ext} {
+    \node[\s] (\n) at (\x,0) {\t};
+    \draw[life] (\n.south) -- (\x,-9.1);
+  }
+
+  % ① プロキシ名の解決
+  \draw[msg] (0,-1.8) -- node[ml, above] {proxy.p.example.jp ?} (3.5,-1.8);
+  \draw[ret] (3.5,-2.6) -- node[ml, above] {x.y.z.103} (0,-2.6);
+  \node[num] at (-0.9,-1.8) {1};
+
+  % ② HTTPリクエスト（宛先URLは中身）
+  \draw[msg] (0,-4.0) -- node[ml, above] {GET http://www.example.com/} (7,-4.0);
+  \node[num] at (-0.9,-4.0) {2};
+
+  % ③ 宛先ホスト名の解決
+  \draw[msg] (7,-5.0) -- node[ml, above] {www.example.com ?} (10.5,-5.0);
+  \draw[ret] (10.5,-5.8) -- node[ml, above] {IPアドレス} (7,-5.8);
+  \node[num] at (-0.9,-5.0) {3};
+
+  % ④ 代理接続
+  \draw[msg] (7,-6.8) -- node[ml, above, pos=0.3] {GET /} (13.5,-6.8);
+  \draw[ret] (13.5,-7.6) -- node[ml, above, pos=0.7] {レスポンス} (7,-7.6);
+  \node[num] at (-0.9,-6.8) {4};
+
+  % ⑤ PCへ返す
+  \draw[ret] (7,-8.4) -- node[ml, above] {レスポンス} (0,-8.4);
+  \node[num] at (-0.9,-8.4) {5};
+\end{tikzpicture}

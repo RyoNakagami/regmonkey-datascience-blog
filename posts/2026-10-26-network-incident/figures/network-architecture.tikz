@@ -1,0 +1,93 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt, align=center,
+                  minimum width=2.6cm, minimum height=0.9cm, inner sep=4pt},
+    router/.style={block, fill=paleskyblue, minimum width=1.7cm},
+    host/.style={block, fill=white, minimum width=1.1cm, minimum height=0.8cm},
+    fw/.style={block, draw=crimsonred, fill=mistyrose},
+    cloud/.style={draw=navy, fill=white, ellipse, minimum width=3cm, minimum height=0.9cm},
+    seg/.style={draw=navy, line width=1.6pt},
+    link/.style={draw=navy},
+    zone/.style={draw=darkgray, dashed, rounded corners=4pt},
+    zl/.style={font=\footnotesize\bfseries, text=darkgray, anchor=north west, inner sep=3pt},
+    ip/.style={font=\footnotesize, text=navy, inner sep=1.5pt},
+    fq/.style={font=\footnotesize, text=darkgray, inner sep=1.5pt},
+    port/.style={fill=navy, minimum width=1.6mm, minimum height=1.6mm, inner sep=0pt},
+  ]
+  % ---- インターネット・ファイアウォール ----
+  \node[cloud] (internet) at (1.8,10.6) {インターネット};
+  \node[fw] (firewall) at (1.8,9.0) {ファイアウォール};
+  \draw[link] (internet) -- (firewall);
+
+  % ---- DMZ ----
+  \draw[zone] (4.4,7.0) rectangle (12.6,10.2);
+  \node[zl, anchor=north east] at (12.6,10.2) {DMZ};
+  \draw[seg] (4.9,9.0) -- (12.1,9.0);
+  \draw[link] (firewall.east) -- (4.9,9.0);
+  \node[port] at (5.4,9.0) {};
+  \node[ip, above] at (5.6,9.05) {x.y.z.101};
+  \node[block] (mail) at (7.6,7.9) {メールサーバ};
+  \node[block] (proxy) at (10.6,7.9) {プロキシサーバ};
+  \foreach \s in {mail, proxy} {
+    \draw[link] (\s.north) -- (\s.north |- 0,9.0);
+    \node[port] at (\s.north |- 0,9.0) {};
+  }
+  \node[ip, above] at (7.6,9.05) {x.y.z.102};
+  \node[ip, above] at (10.6,9.05) {x.y.z.103};
+  \node[fq, below] at (mail.south) {mail.p.example.jp};
+  \node[fq, below] at (proxy.south) {proxy.p.example.jp};
+
+  % ---- DNS サーバ ----
+  \node[block] (dns) at (15.2,8.2) {DNSサーバ};
+  \node[fq, above] at (dns.north) {nsp1.p.example.jp};
+
+  % ---- 基幹 LAN (172.16.0.0/24) ----
+  \draw[seg] (-0.4,6.3) -- (19.0,6.3);
+  \node[ip, anchor=east] at (-0.45,6.3) {172.16.0.0/24};
+  \draw[link] (firewall.south) -- (1.8,6.3);
+  \node[port] at (1.8,6.3) {};
+  \node[ip, anchor=west] at (1.85,6.75) {172.16.0.254};
+  \draw[link] (dns.south) -- (15.2,6.3);
+  \node[port] at (15.2,6.3) {};
+  \node[ip, anchor=west] at (15.25,6.75) {172.16.0.101};
+
+  % ---- 部署ごとのサブネット ----
+  % \x: 部署枠の左端，\r: ルータの x 座標
+  \foreach \x/\r/\n/\d in {0.0/2.9/1/調達部, 4.8/7.7/2/総務部,
+                           9.6/12.5/3/販売部, 14.4/17.3/4/企画部} {
+    \draw[zone] (\x,0.6) rectangle ({\x+4.6},5.2);
+    \node[zl] at (\x,5.2) {\d};
+    \node[router] (r\n) at (\r,4.5) {\d\\ルータ};
+    \draw[link] (r\n.north) -- (\r,6.3);
+    \node[port] at (\r,6.3) {};
+    \node[ip, anchor=west] at ({\r+0.05},5.85) {172.16.0.\n};
+    \draw[seg] ({\x+0.3},2.8) -- ({\x+4.3},2.8);
+    \draw[link] (r\n.south) -- (\r,2.8);
+    \node[port] at (\r,2.8) {};
+    \node[ip, anchor=east] at ({\r-0.1},3.25) {172.16.\n.254};
+    \node[host] (pc\n a) at ({\x+0.8},1.5) {PC};
+    \node at ({\x+1.65},1.5) {$\cdots$};
+    \node[host] (pc\n b) at ({\x+2.5},1.5) {PC};
+    \node[host] (fs\n) at ({\x+3.75},1.5) {FS};
+    \foreach \h in {pc\n a, pc\n b, fs\n} {
+      \draw[link] (\h.north) -- (\h.north |- 0,2.8);
+      \node[port] at (\h.north |- 0,2.8) {};
+    }
+  }
+
+  % ---- 注記 ----
+  \node[fq, anchor=west, align=left] at (0,-0.1)
+    {注記1\quad x.y.z.101，x.y.z.102，x.y.z.103 はグローバルIPアドレスを示す．\\
+     注記2\quad p.example.jp はP社のドメイン名である．};
+\end{tikzpicture}

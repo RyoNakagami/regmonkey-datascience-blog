@@ -1,0 +1,50 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    step/.style={draw=navy, fill=aliceblue, rounded corners=3pt, align=center,
+                 minimum width=5.0cm, minimum height=1.0cm, inner sep=4pt},
+    pat/.style={draw=crimsonred, fill=mistyrose, rounded corners=3pt, align=left,
+                text width=7.6cm, minimum height=1.0cm, inner sep=5pt},
+    yes/.style={font=\footnotesize\bfseries, text=navy, inner sep=2pt},
+    no/.style={font=\footnotesize\bfseries, text=crimsonred, inner sep=2pt},
+    lane/.style={font=\footnotesize\bfseries, text=darkgray},
+  ]
+  % ---- 列見出し ----
+  \node[lane] at (0,1.2) {到達性の確認};
+  \node[lane] at (6.4,1.2) {到達はOK → 名前解決・設定の確認};
+  \node[lane] at (13.9,1.2) {原因パターン};
+
+  % ---- 手順 ----
+  \node[step, line width=1.4pt] (s1) at (0,0) {\textbf{1.} ping x.y.z.103\\（プロキシのIPアドレス）};
+  \node[step] (s2) at (6.4,0) {\textbf{2.} nslookup\\proxy.p.example.jp};
+  \node[step] (sb) at (6.4,-2.1) {\textbf{3.} ブラウザのプロキシ設定\\（ホスト名・ポート）};
+  \node[step] (s4) at (0,-4.2) {\textbf{4.} ping 172.16.N.254\\（自部ルータ）};
+  \node[step] (s5) at (0,-6.3) {\textbf{5.} ping 172.16.0.101\\（基幹LAN上のホスト）};
+
+  % ---- 原因パターン ----
+  \node[pat] (pc) at (13.9,0)    {\textbf{① 名前解決}：timeout → PCのDNSサーバ設定誤り\\NXDOMAIN → レコード欠落・名前の誤記};
+  \node[pat] (pe) at (13.9,-2.1) {\textbf{② ブラウザ設定}：プロキシ未設定，ポートの誤り\\（正しければ原因はプロキシより先）};
+  \node[pat] (pa) at (13.9,-4.2) {\textbf{③ 自席〜部LAN}：IPアドレス・\\サブネットマスクの設定，ケーブル};
+  \node[pat] (pb) at (13.9,-6.3) {\textbf{④ 部ルータ〜基幹LAN}：デフォルト\\ゲートウェイの設定，部ルータの経路};
+  \node[pat] (pd) at (13.9,-8.2) {\textbf{⑤ FW〜プロキシ}：FWの許可ルール，\\プロキシサーバの停止};
+
+  % ---- 分岐 ----
+  \draw[->, draw=navy] (s1) -- node[yes, above] {OK} (s2);
+  \draw[->, draw=crimsonred] (s2) -- node[no, above] {NG} (pc);
+  \draw[->, draw=navy] (s2) -- node[yes, right] {OK} (sb);
+  \draw[->, draw=navy] (sb) -- (pe);
+  \draw[->, draw=crimsonred] (s1) -- node[no, right, align=left] {NG：到達性の問題} (s4);
+  \draw[->, draw=crimsonred] (s4) -- node[no, above, pos=0.25] {NG} (pa);
+  \draw[->, draw=navy] (s4) -- node[yes, right] {OK} (s5);
+  \draw[->, draw=crimsonred] (s5) -- node[no, above, pos=0.25] {NG} (pb);
+  \draw[->, draw=navy] (s5) |- node[yes, right, pos=0.25] {OK} (pd);
+\end{tikzpicture}

@@ -1,0 +1,49 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt, align=center,
+                  minimum width=2.6cm, minimum height=1.0cm, inner sep=4pt},
+    zone/.style={draw=darkgray, dashed, rounded corners=4pt},
+    zl/.style={font=\footnotesize\bfseries, text=darkgray, anchor=north west, inner sep=3pt},
+    rel/.style={font=\footnotesize, fill=white, inner sep=2pt},
+  ]
+  % ---- ゾーンとファイアウォール ----
+  \draw[zone] (-1.0,-3.8) rectangle (5.8,1.6);
+  \node[zl] at (-1.0,1.6) {社内LAN（172.16.0.0/16）};
+  \draw[zone] (7.2,-3.8) rectangle (11.0,1.6);
+  \node[zl] at (7.2,1.6) {DMZ};
+  \draw[zone] (12.4,-3.8) rectangle (15.6,1.6);
+  \node[zl] at (12.4,1.6) {インターネット};
+  \foreach \x in {6.5, 11.7} {
+    \draw[draw=crimsonred, line width=2pt] (\x,-3.8) -- (\x,1.6);
+  }
+  \node[font=\footnotesize\bfseries, text=crimsonred] at (9.1,-4.2) {ファイアウォール（区間の境界）};
+
+  % ---- ノード ----
+  \node[block] (pc) at (1.0,0) {自席PC};
+  \node[block] (fs) at (1.0,-2.6) {所属部のFS};
+  \node[block] (proxy) at (9.1,0) {プロキシサーバ};
+  \node[block] (web) at (14.0,0) {Webサーバ};
+
+  % ① Web：プロキシ経由（正常）
+  \draw[->, draw=navy] ([yshift=2.5mm]pc.east) -- node[rel, above] {① Web閲覧（http/https）} ([yshift=2.5mm]proxy.west);
+  \draw[->, draw=navy] (proxy.east) -- node[rel, above] {代理で接続} (web.west);
+
+  % ② FS宛をプロキシへ送ってしまう（失敗）
+  \draw[->, draw=crimsonred, dashed] ([yshift=-2.5mm]pc.east) -- node[rel, below, text=crimsonred] {② FS宛もプロキシへ} ([yshift=-2.5mm]proxy.west);
+  \draw[->, draw=crimsonred, dashed] (proxy.south) |- (fs.east);
+  \node[font=\Large\bfseries, text=crimsonred, fill=white, inner sep=1pt] at (6.5,-2.6) {×};
+  \node[rel, text=crimsonred, align=center] at (9.1,-1.9) {DMZ→社内LANの\\新規接続は遮断\\（踏み台化を防ぐ）};
+
+  % ③ 正しい経路：直接アクセス
+  \draw[->, draw=azureblue, line width=1.2pt] (pc.south) -- node[rel, right, text=azureblue, align=left] {③ 直接\\（プロキシ例外）} (fs.north);
+\end{tikzpicture}
