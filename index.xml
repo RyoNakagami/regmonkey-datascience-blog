@@ -10,7 +10,255 @@
 <atom:link href="https://ryonakagami.github.io/regmonkey-datascience-blog/index.xml" rel="self" type="application/rss+xml"/>
 <description>日々の徒然勉強日記</description>
 <generator>quarto-1.10.19</generator>
-<lastBuildDate>Wed, 21 Oct 2026 00:00:00 GMT</lastBuildDate>
+<lastBuildDate>Mon, 26 Oct 2026 00:00:00 GMT</lastBuildDate>
+<item>
+  <title>社内ネットワークのトラブル切り分け</title>
+  <dc:creator>Ryo Nakagami</dc:creator>
+  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-26-network-incident/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+
+<section id="前提ネットワーク構成" class="level2">
+<h2 class="anchored" data-anchor-id="前提ネットワーク構成">前提：ネットワーク構成</h2>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-26-network-incident/figures/network-architecture.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+<figcaption>本社事業所のネットワーク構成</figcaption>
+</figure>
+</div>
+<ul>
+<li>PCのIPアドレス・DNSサーバ等は<strong>手動設定</strong>（DHCPは不使用）</li>
+<li>Web閲覧は必ずプロキシサーバ（DMZ，<code>proxy.p.example.jp</code> = x.y.z.103）を経由する</li>
+<li>社内の名前解決は DNSサーバ（172.16.0.101）が担う</li>
+</ul>
+<section id="プロキシ経由のwebアクセスの機序" class="level3">
+<h3 class="anchored" data-anchor-id="プロキシ経由のwebアクセスの機序">プロキシ経由のWebアクセスの機序</h3>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-26-network-incident/figures/proxy-name-resolution.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+<figcaption>プロキシ経由のWebアクセスにおける名前解決と通信の流れ</figcaption>
+</figure>
+</div>
+<ol type="1">
+<li>PCが社内DNSサーバに <code>proxy.p.example.jp</code> を問い合わせ，x.y.z.103 を得る</li>
+<li>PCはプロキシにHTTPリクエストを送る．宛先はリクエストの中身（<code>GET http://www.example.com/</code>）としてプロキシに渡すだけで，PCは宛先のIPアドレスを知らない</li>
+<li>プロキシが宛先ホスト名 <code>www.example.com</code> を解決する</li>
+<li>プロキシが自分の名前でWebサーバに接続し，レスポンスを受け取る</li>
+<li>プロキシがレスポンスをPCに返す</li>
+</ol>
+<p>PC自身が解決する必要があるのは<strong>プロキシのホスト名だけ</strong>．外部サイトの名前解決はプロキシ側の仕事．</p>
+</section>
+<section id="この構成のメリット" class="level3">
+<h3 class="anchored" data-anchor-id="この構成のメリット">この構成のメリット</h3>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 35%">
+<col style="width: 65%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>メリット</th>
+<th>理由</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>社内DNSが外部の名前を扱わなくてよい</td>
+<td>社内DNSは社内の名前（<code>proxy.p.example.jp</code> など）を引ければ足りる．インターネットへ問い合わせる設定が要らないため，構成と運用が単純になる</td>
+</tr>
+<tr class="even">
+<td>FWのルールが少なく済む</td>
+<td>社内LAN→インターネットの通信（HTTPもDNSも）を許可する必要がない．外へ出られるのはプロキシだけ，と絞れる</td>
+</tr>
+<tr class="odd">
+<td>PCの通信が外部から見えない</td>
+<td>Webサーバから見える接続元はプロキシ（x.y.z.103）だけ．社内のアドレス（172.16.x.x）は外に出ない</td>
+</tr>
+<tr class="even">
+<td>外向き通信を1か所で管理できる</td>
+<td>アクセスログの取得，URLフィルタリング，キャッシュを，プロキシ1台に集めて実施できる</td>
+</tr>
+<tr class="odd">
+<td>PCの設定が少ない</td>
+<td>PCに入れる設定は「社内DNSサーバ」と「プロキシのホスト名・ポート」だけでよい</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</section>
+<section id="trouble-1-自席からインターネットにアクセスできない" class="level2">
+<h2 class="anchored" data-anchor-id="trouble-1-自席からインターネットにアクセスできない">Trouble 1: 自席からインターネットにアクセスできない</h2>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>ポイント
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>Webアクセスで最初に通る相手はプロキシなので，まず<strong>プロキシのIPアドレスへ <code>ping</code></strong> を打つ．</li>
+<li>原因が「到達性」と「名前解決・設定」のどちら側にあるか判別する</li>
+</ul>
+</div>
+</div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-26-network-incident/figures/troubleshoot-flow.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+<figcaption>切り分けの手順と原因パターン</figcaption>
+</figure>
+</div>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>手順</th>
+<th>確認内容</th>
+<th>結果と次の一手</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1. <code>ping x.y.z.103</code></td>
+<td>プロキシまでの到達性</td>
+<td>OK → 到達性は正常なので手順2 / NG → <strong>到達性の問題</strong>なので手順4</td>
+</tr>
+<tr class="even">
+<td>2. <code>nslookup proxy.p.example.jp</code></td>
+<td>名前解決</td>
+<td>timeout：PCのDNSサーバ設定の誤り / NXDOMAIN：レコードの欠落，プロキシ名の誤記（①）/ OK → 手順3</td>
+</tr>
+<tr class="odd">
+<td>3. ブラウザのプロキシ設定</td>
+<td>使うプロキシの指定</td>
+<td>プロキシの未設定，ホスト名・ポート番号の誤り（②）．正しければ原因はプロキシより先</td>
+</tr>
+<tr class="even">
+<td>4. <code>ping 172.16.N.254</code></td>
+<td>自席〜自部ルータ</td>
+<td>NG → IPアドレス・サブネットマスクの誤り，ケーブル（③）/ OK → 手順5</td>
+</tr>
+<tr class="odd">
+<td>5. <code>ping 172.16.0.101</code></td>
+<td>部ルータ〜基幹LAN</td>
+<td>NG → デフォルトゲートウェイの誤り，部ルータの経路（④）/ OK → FWの許可ルール，プロキシの停止（⑤）</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>手順1がOKで手順2がtimeoutなら，DNSサーバへは届くはずなのに応答がない．原因はPC側の<strong>DNSサーバのアドレス設定</strong>にほぼ絞れる</li>
+<li>手順1〜3がすべてOKなら，原因はプロキシより先（プロキシ自身の名前解決，外向きのFW，外部サイト）にある</li>
+<li><code>ping</code> はFWがICMPを遮断していればNGになる．手順1がNGで手順5までOKのときは，プロキシのポートへのTCP接続（<code>curl -x x.y.z.103:&lt;port&gt; ...</code> など）でも確かめる</li>
+</ul>
+</section>
+<section id="trouble-2-自席から所属部のfsにプロキシ経由でアクセスしてしまった" class="level2">
+<h2 class="anchored" data-anchor-id="trouble-2-自席から所属部のfsにプロキシ経由でアクセスしてしまった">Trouble 2: 自席から所属部のFSにプロキシ経由でアクセスしてしまった</h2>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">重要</span>前提
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>FWは <strong>DMZ（プロキシサーバ）→ 社内LAN（FS）の通信を禁止している</strong> ものとする</li>
+</ul>
+</div>
+</div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-26-network-incident/figures/proxy-fs-path.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+<figcaption>プロキシ経由でFSにアクセスしたときの経路</figcaption>
+</figure>
+</div>
+<section id="何が起きたか" class="level3">
+<h3 class="anchored" data-anchor-id="何が起きたか">何が起きたか</h3>
+<p>FSは自席PCと同じ部のLAN上にあり，本来は直接届く（図の経路③）． ところがブラウザがプロキシ設定のままFSのURLを開くと，FS宛の通信もいったんプロキシへ送られる（経路②）．</p>
+<ol type="1">
+<li>PC → プロキシ：「FSのページを取ってきて」と依頼する</li>
+<li>プロキシ（DMZ）→ FS（社内LAN）：プロキシがFSへ<strong>新しく接続しようとする</strong></li>
+<li>FWが前提のルールによりこの接続を遮断する → FSにアクセスできない</li>
+</ol>
+</section>
+<section id="なぜfwはdmz社内lanを遮断するのか" class="level3">
+<h3 class="anchored" data-anchor-id="なぜfwはdmz社内lanを遮断するのか">なぜFWはDMZ→社内LANを遮断するのか</h3>
+<p>前提としたFWのルールを，通信の向きごとに整理すると次の通り．ルールは「誰が通信を<strong>始めて</strong>よいか」で決まる．</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>通信の向き（開始する側 → 相手）</th>
+<th>可否</th>
+<th>例</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>社内LAN → DMZ</td>
+<td>許可</td>
+<td>PC → プロキシ，PC → メールサーバ</td>
+</tr>
+<tr class="even">
+<td>DMZ → インターネット</td>
+<td>許可</td>
+<td>プロキシ → Webサーバ</td>
+</tr>
+<tr class="odd">
+<td>インターネット → DMZ</td>
+<td>必要なものだけ許可</td>
+<td>外部 → メールサーバ（メール受信）</td>
+</tr>
+<tr class="even">
+<td><strong>DMZ → 社内LAN</strong></td>
+<td><strong>遮断</strong></td>
+<td>プロキシ → FS</td>
+</tr>
+</tbody>
+</table>
+<p>応答パケット（PC→プロキシへの返事など）は，始めた側への返信として通る．遮断されるのは，DMZ側から<strong>新しく</strong>始める通信だけ．</p>
+<p>遮断する意図は，<strong>DMZのサーバが乗っ取られたときに被害を社内へ広げない</strong>ことにある．</p>
+<ul>
+<li>DMZのサーバ（プロキシ・メールサーバ）はインターネットと直接やり取りするため，社内で最も攻撃を受けやすい</li>
+<li>もしDMZ→社内LANを許可していると，乗っ取られたプロキシを踏み台にしてFSへ侵入され，業務データを抜き取られる</li>
+<li>DMZ→社内LANを遮断しておけば，DMZが侵害されても被害をDMZの中に閉じ込められる</li>
+</ul>
+</section>
+<section id="対処" class="level3">
+<h3 class="anchored" data-anchor-id="対処">対処</h3>
+<ul>
+<li>ブラウザのプロキシ例外設定に社内の宛先（<code>172.16.0.0/16</code>，社内のホスト名）を加え，社内宛はプロキシを通さず直接アクセスさせる</li>
+<li>切り分けでは，まず <code>ping</code> でFSに届くか確かめる．届くのにブラウザからだけ開けないなら，原因はプロキシ設定と判断できる</li>
+</ul>
+
+
+</section>
+</section>
+
+ ]]></description>
+  <category>network</category>
+  <category>troubleshooting</category>
+  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-26-network-incident/</guid>
+  <pubDate>Mon, 26 Oct 2026 00:00:00 GMT</pubDate>
+</item>
 <item>
   <title>分析プロジェクトにおいて，RACIはいつ使うべきなのか？</title>
   <dc:creator>Ryo Nakagami</dc:creator>
@@ -5787,788 +6035,6 @@ font-style: inherit;">|</span></span>
   <category>データ形式</category>
   <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-08-22-mime-media-type/</guid>
   <pubDate>Sat, 22 Aug 2026 00:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>VSCode Tips and Settings</title>
-  <dc:creator>Ryo Nakagami</dc:creator>
-  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-08-21-how-to-use-vscode-editor/</link>
-  <description><![CDATA[ 
-
-
-
-
-
-
-<section id="editing" class="level2">
-<h2 class="anchored" data-anchor-id="editing">1. Editing</h2>
-<section id="行ブロックの移動" class="level3">
-<h3 class="anchored" data-anchor-id="行ブロックの移動">1.1: 行・ブロックの移動</h3>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>Rule 1-1: 複数行をまとめて上下に動かすときは <code>Shift</code> 選択 → <code>Alt</code> + <code>↑/↓</code>
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li><code>Shift</code> + <code>↑/↓</code> で移動させたい行を範囲選択する</li>
-<li><code>Alt</code> を押しながら <code>↓</code>/<code>↑</code> で選択範囲ごと移動する</li>
-<li>選択範囲は移動後も保持されるので，<code>Alt</code> + <code>↓</code> を連打して任意の位置まで送れる</li>
-<li>1行だけ動かす場合は範囲選択不要で <code>Alt</code> + <code>↑/↓</code> のみでよい</li>
-</ul>
-</div>
-</div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># before: バリデーションが計算の後に来てしまっている</span></span>
-<span id="cb1-2"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">def</span> process(records):</span>
-<span id="cb1-3">    total <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">sum</span>(r[<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"amount"</span>] <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> r <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> records)</span>
-<span id="cb1-4">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">if</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">not</span> records:                          <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># &lt;- この2行を選択して</span></span>
-<span id="cb1-5">        <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">raise</span> <span class="pp" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">ValueError</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"empty records"</span>)    <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># &lt;- Alt + ↑ を2回</span></span>
-<span id="cb1-6">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">return</span> total</span></code></pre></div></div>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 30%">
-<col style="width: 35%">
-<col style="width: 35%">
-</colgroup>
-<thead>
-<tr class="header">
-<th><strong>command</strong></th>
-<th><strong>動作</strong></th>
-<th><strong>comment</strong></th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>Alt</code> + <code>↑/↓</code></td>
-<td>カーソル行 or 選択範囲を上下に移動</td>
-<td>インデントは移動先の文脈に合わせて自動調整される</td>
-</tr>
-<tr class="even">
-<td><code>Shift</code> + <code>Alt</code> + <code>↑/↓</code></td>
-<td>カーソル行 or 選択範囲を上下に複製</td>
-<td>移動ではなくコピー</td>
-</tr>
-</tbody>
-</table>
-</div>
-<p><span class="mini-section">系 1.1.1: 離れた行への転記</span></p>
-<ul>
-<li><code>Alt</code> + <code>↑/↓</code> は隣接行の入れ替えには強いが，「line 30 のブロックを line 100 に移したい」のように距離があるときは連打が非効率</li>
-<li>この場合は <strong>切り取り → ジャンプ → 貼り付け</strong> の3ステップに分けるほうが速い</li>
-</ul>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>Rule 1-2: 遠くへ動かすときは <code>Ctrl</code> + <code>X</code> → <code>Ctrl</code> + <code>G</code> → <code>Ctrl</code> + <code>V</code>
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li><code>Ctrl</code> + <code>X</code>: 選択範囲（未選択ならカーソル行全体）を切り取る</li>
-<li><code>Ctrl</code> + <code>G</code>: Go to Line 入力を開き，行番号（例 <code>100</code>）を入れて <code>Enter</code> でジャンプ</li>
-<li><code>Ctrl</code> + <code>V</code>: 貼り付け</li>
-</ul>
-</div>
-</div>
-<p><code>Ctrl</code> + <code>G</code> は行番号だけでなく <code>100:5</code>（100行5桁目）の形式も受け付ける． また <code>Ctrl</code> + <code>P</code> のQuick Openで <code>filename.py:100</code> と打てば，別ファイルの特定行へ直接飛べるので，ファイル間の転記にも同じ手順が使える．</p>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 25%">
-<col style="width: 40%">
-<col style="width: 35%">
-</colgroup>
-<thead>
-<tr class="header">
-<th><strong>command</strong></th>
-<th><strong>動作</strong></th>
-<th><strong>comment</strong></th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>Ctrl</code> + <code>G</code></td>
-<td>指定行へジャンプ</td>
-<td><code>:</code>区切りで桁指定も可能</td>
-</tr>
-<tr class="even">
-<td><code>Ctrl</code> + <code>Home</code>/<code>End</code></td>
-<td>ファイル先頭/末尾へ移動</td>
-<td></td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-</section>
-<section id="移動" class="level2">
-<h2 class="anchored" data-anchor-id="移動">2. 移動</h2>
-<section id="directory-作成後の-explorer-でのフォーカス" class="level3">
-<h3 class="anchored" data-anchor-id="directory-作成後の-explorer-でのフォーカス">2.1: Directory 作成後の Explorer でのフォーカス</h3>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>Rule 2-1: Explorer で特定のディレクトリにフォーカスしたいときは，ターミナル上のパスを <code>Ctrl</code> + クリック
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>VS Code の統合ターミナルは出力中のファイル・ディレクトリのパスをリンクとして検出する</li>
-<li>下の例なら <code>pwd</code> の出力に出てきた絶対パスを <code>Ctrl</code> + クリックする</li>
-<li>ワークスペース内のディレクトリであれば，Explorer でそのディレクトリが展開・選択された状態になる</li>
-</ul>
-</div>
-</div>
-<p>ターミナルで新しいディレクトリを作って <code>cd</code> したあと，Explorer でもそのディレクトリを開きたいことがあります． Explorer のツリーを上から辿るのは手間なので，ターミナルに表示されているパスをそのまま使えば，Explorer でフォーカスできます．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb2-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> mkdir 2026-10-17-python-backend-build</span>
-<span id="cb2-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> cd !<span class="pp" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">^</span></span>
-<span id="cb2-3"><span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">cd</span> 2026-10-17-python-backend-build</span>
-<span id="cb2-4"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> pwd</span>
-<span id="cb2-5"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">/home/hogehoge/posts/2026-10-17-python-backend-build</span> <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># ← これをctrl + click</span></span></code></pre></div></div>
-</section>
-</section>
-<section id="vscode-workspaceからhtmlファイルをデフォルトブラウザで開く" class="level2">
-<h2 class="anchored" data-anchor-id="vscode-workspaceからhtmlファイルをデフォルトブラウザで開く">2.2: VSCode workspaceからHTMLファイルをデフォルトブラウザで開く</h2>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>RULE 2-2: VSCode内のターミナルからコマンド経由で開く
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<div class="padding-left-10">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Mac</span></span>
-<span id="cb3-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">open</span> index.html</span>
-<span id="cb3-3"></span>
-<span id="cb3-4"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Linux</span></span>
-<span id="cb3-5"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">xdg-open</span> index.html  <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># openコマンドでもok</span></span></code></pre></div></div>
-</div>
-</div>
-</div>
-<ul>
-<li><code>xdg-open</code> とは，ファイルやURLを，ユーザーが設定したデフォルトアプリケーションで開くコマンド</li>
-</ul>
-<div class="padding-left-10">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">xdg-open</span> index.html              <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># HTMLファイル → デフォルトブラウザ</span></span>
-<span id="cb4-2"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">xdg-open</span> report.pdf              <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># PDF → デフォルトのPDFビューア</span></span>
-<span id="cb4-3"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">xdg-open</span> .                       <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># ディレクトリ → ファイルマネージャー</span></span>
-<span id="cb4-4"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">xdg-open</span> https://quarto.org      <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># URL → デフォルトブラウザ</span></span></code></pre></div></div>
-</div>
-<p><span class="mini-section">なぜLinuxでも <code>open</code> コマンドで開けるのか？</span></p>
-<p>Ubuntuでは <code>/usr/bin/open</code> がalternativesシステム経由で <code>xdg-open</code> へのシンボリックリンクになっています．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> ls <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-l</span> <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$(</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">which</span> xdg-open<span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">)</span></span>
-<span id="cb5-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">-rwxr-xr-x</span> 1 root root 26075 Aug  1  2022 /usr/bin/xdg-open<span class="pp" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">*</span></span>
-<span id="cb5-3"></span>
-<span id="cb5-4"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> ls <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-l</span> <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$(</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">which</span> open<span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">)</span></span>
-<span id="cb5-5"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">lrwxrwxrwx</span> 1 root root 22 Jul 15  2023 /usr/bin/open <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;</span> /etc/alternatives/open<span class="pp" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">*</span></span>
-<span id="cb5-6"></span>
-<span id="cb5-7"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> ls <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-l</span> /etc/alternatives/open</span>
-<span id="cb5-8"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">lrwxrwxrwx</span> 1 root root 17 Jul 15  2023 /etc/alternatives/open <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;</span> /usr/bin/xdg-open<span class="pp" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">*</span></span></code></pre></div></div>
-<ul>
-<li><code>open</code> → <code>/etc/alternatives/open</code> → <code>/usr/bin/xdg-open</code> の順にリンクが辿られ，最終的に <code>xdg-open</code> が実行される</li>
-<li><code>xdg-open</code> はファイルの種類（MIME type）に応じて，デスクトップ環境で設定されたデフォルトアプリケーションで開くコマンド．HTMLファイルならデフォルトブラウザが起動する</li>
-</ul>
-</section>
-<section id="settingsの観点" class="level2">
-<h2 class="anchored" data-anchor-id="settingsの観点">3. Settingsの観点</h2>
-<section id="general" class="level3">
-<h3 class="anchored" data-anchor-id="general">General</h3>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>Rule 3-1: 「探さないもの」は <code>search.exclude</code>，「見張らないもの」は <code>files.watcherExclude</code> に登録する
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li><code>search.exclude</code>: 全文検索・Quick Open（<code>Ctrl</code> + <code>P</code>）の走査対象から外す</li>
-<li><code>files.watcherExclude</code>: ファイル変更監視（file watcher）の対象から外す</li>
-<li>どちらも glob パターンをキー，<code>true</code> を値にして指定する</li>
-</ul>
-</div>
-</div>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 22%">
-<col style="width: 26%">
-<col style="width: 14%">
-<col style="width: 38%">
-</colgroup>
-<thead>
-<tr class="header">
-<th><strong>設定</strong></th>
-<th><strong>除外されるもの</strong></th>
-<th><strong>Explorer 表示</strong></th>
-<th><strong>comment</strong></th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>files.exclude</code></td>
-<td>Explorer 表示・検索の両方</td>
-<td>非表示</td>
-<td>ファイルの存在自体を隠したいとき用．検索からも外れる</td>
-</tr>
-<tr class="even">
-<td><code>search.exclude</code></td>
-<td>全文検索・Quick Open</td>
-<td>表示される</td>
-<td>ファイルは開けるが検索には出てこない</td>
-</tr>
-<tr class="odd">
-<td><code>files.watcherExclude</code></td>
-<td>ファイル変更監視</td>
-<td>表示される</td>
-<td>外部プロセスによる変更が Explorer やエディタに自動反映されなくなる</td>
-</tr>
-</tbody>
-</table>
-</div>
-<p><span class="mini-section"><strong><code>search.exclude</code> の効能</strong></span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb6-1"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"search.exclude"</span><span class="er" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">:</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">{</span></span>
-<span id="cb6-2">  <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"data/**"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">true</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">,</span></span>
-<span id="cb6-3">  <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"**/*.parquet"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">true</span></span>
-<span id="cb6-4"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">}</span></span></code></pre></div></div>
-<p>この設定をすると</p>
-<ul>
-<li><code>Cmd+Shift+F</code> で <code>user_id</code> を検索しても，<code>data/train.csv</code> などの一致は結果に出ず，コードの一致だけが並ぶ</li>
-<li><code>data/</code> 配下や <code>.parquet</code> ファイルを走査しなくなるので，検索が速くなる</li>
-<li><code>Cmd+P</code>（Quick Open）の候補からも外れる</li>
-<li>エクスプローラーには表示されたままで，クリックすれば開ける</li>
-</ul>
-<p>なお，<code>search.useIgnoreFiles</code> が <code>true</code>（デフォルト）なら，<code>.gitignore</code> に書いたパスは指定しなくても検索から外れてます.<code>gitignore</code> していないファイルを検索から外したいときにだけ設定します．</p>
-<p><span class="mini-section"><strong><code>files.watcherExclude</code> の効能</strong></span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb7-1"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"files.watcherExclude"</span><span class="er" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">:</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">{</span></span>
-<span id="cb7-2">  <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"data/**"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">true</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">,</span></span>
-<span id="cb7-3">  <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"mlruns/**"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">true</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">,</span></span>
-<span id="cb7-4">  <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">"outputs/**"</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">:</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">true</span></span>
-<span id="cb7-5"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">}</span></span></code></pre></div></div>
-<p>この設定をすると</p>
-<ul>
-<li>学習ジョブが <code>mlruns/</code> に大量にログを書き込んでも，VS Code がその変更イベントを処理しなくなり，CPU やメモリの消費が抑えられる</li>
-<li><code>data/</code> に数万ファイルがあっても，監視上限の警告（Linux の inotify 上限など）が出にくくなる</li>
-<li><code>outputs/</code> に新しいファイルができてもエクスプローラーにすぐ出てこない（更新ボタンで反映）</li>
-</ul>
-<p>なお，<code>.gitignore</code> に書いてあっても監視はされるので，監視を止めたい場合は明示的に記載することが必要です</p>
-</section>
-<section id="python" class="level3">
-<h3 class="anchored" data-anchor-id="python">Python</h3>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 12%">
-<col style="width: 28%">
-<col style="width: 22%">
-<col style="width: 38%">
-</colgroup>
-<thead>
-<tr class="header">
-<th><strong>カテゴリー</strong></th>
-<th><strong>項目</strong></th>
-<th><strong>設定値</strong></th>
-<th><strong>挙動</strong></th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>Jupyter</td>
-<td><code>jupyter.notebookFileRoot</code></td>
-<td><code>"${fileDirname}"</code></td>
-<td>Notebook / Interactive Window のカーネルの作業ディレクトリを，開いているファイルのディレクトリにする．相対パスでの <code>open()</code> や <code>read_csv()</code> はファイル位置基準で解決される</td>
-</tr>
-<tr class="even">
-<td>Jupyter</td>
-<td><code>jupyter.interactiveWindow.creationMode</code></td>
-<td><code>"perFile"</code></td>
-<td><code># %%</code> セル実行時の Interactive Window を <code>.py</code> ファイルごとに1つ作る．ファイル間でカーネル・変数は共有されない</td>
-</tr>
-<tr class="odd">
-<td>Terminal</td>
-<td><code>python-envs.terminal.autoActivationType</code></td>
-<td><code>"off"</code></td>
-<td>新しいターミナルを開いても venv を自動 activate しない（<code>uv run</code> 運用前提）</td>
-</tr>
-<tr class="even">
-<td>Pylance</td>
-<td><code>python.analysis.ignore</code></td>
-<td><code>["**/Interactive-*.interactive.py"]</code></td>
-<td>Interactive Window が内部生成する一時ファイルに対して Pylance の診断を出さない</td>
-</tr>
-<tr class="odd">
-<td>Pylance</td>
-<td><code>python.analysis.diagnosticSeverityOverrides</code></td>
-<td><code>{ "reportAssignmentType": "warning" }</code></td>
-<td>宣言型と互換性のない代入を error ではなく warning として表示する</td>
-</tr>
-<tr class="even">
-<td>Formatter</td>
-<td><code>[python]</code> &gt; <code>editor.defaultFormatter</code></td>
-<td><code>"charliermarsh.ruff"</code></td>
-<td>Python ファイルの「ドキュメントのフォーマット」で Ruff を使う</td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-</section>
-<section id="extensions" class="level2">
-<h2 class="anchored" data-anchor-id="extensions">4. Extensions</h2>
-<section id="editorconfig" class="level3">
-<h3 class="anchored" data-anchor-id="editorconfig">Editorconfig</h3>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>Rule 4-1: <code>.editorconfig</code> を VS Code に効かせるために EditorConfig 拡張（<code>EditorConfig.EditorConfig</code>）を入れる
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>VS Code は <code>.editorconfig</code> をネイティブには読まないので，拡張を入れないとリポジトリに <code>.editorconfig</code> を置いても無視される</li>
-<li>拡張を入れると，ファイルを開いた・保存したタイミングで <code>.editorconfig</code> の改行コード・インデント・末尾改行などの設定が適用される</li>
-<li>既存の <code>settings.json</code>（<code>files.eol</code> や <code>editor.tabSize</code> など）よりも <code>.editorconfig</code> の値が優先される</li>
-</ul>
-</div>
-</div>
-<p><span class="mini-section"><strong>VS Code はネイティブ対応していない</strong></span></p>
-<ul>
-<li><a href="https://editorconfig.org/">EditorConfig 公式サイト</a> には「No Plugin Necessary」というセクションがあり，「These editors come bundled with native support for EditorConfig.」としてネイティブ対応のエディタが一覧になっている</li>
-<li>Visual Studio Professional・Vim・Neovim・JetBrains 系の IDE などは含まれているが，VS Code は含まれていない</li>
-<li>VS Code は「<a href="https://editorconfig.org/#download">Download a Plugin</a>」側に分類されており，<code>.editorconfig</code> を効かせるには EditorConfig 拡張（<code>EditorConfig.EditorConfig</code>）のインストールが必要</li>
-</ul>
-<p><span class="mini-section"><strong>なぜ設定するのか？</strong></span></p>
-<ul>
-<li><span class="regmonkey-bold">OS やエディタ設定の違いによる書き方のゆらぎを，リポジトリ側のルールとして固定できるため</span></li>
-</ul>
-<p>例えばリポジトリのルートに次のような <code>.editorconfig</code> を置きます．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb8-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># top-most EditorConfig file</span></span>
-<span id="cb8-2"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">root </span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;"> </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">true</span></span>
-<span id="cb8-3"></span>
-<span id="cb8-4"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Unix-style newlines with a newline ending every file</span></span>
-<span id="cb8-5"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">[*]</span></span>
-<span id="cb8-6"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">end_of_line </span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;"> lf</span></span>
-<span id="cb8-7"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">insert_final_newline </span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;"> </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">true</span></span>
-<span id="cb8-8"></span>
-<span id="cb8-9"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Matches multiple files with brace expansion notation</span></span>
-<span id="cb8-10"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Set default charset</span></span>
-<span id="cb8-11"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">[*.{js,py}]</span></span>
-<span id="cb8-12"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">charset </span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;"> utf-8</span></span>
-<span id="cb8-13"></span>
-<span id="cb8-14"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># 4 space indentation</span></span>
-<span id="cb8-15"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">[*.py]</span></span>
-<span id="cb8-16"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">indent_style </span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;"> space</span></span>
-<span id="cb8-17"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">indent_size </span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;"> </span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">4</span></span></code></pre></div></div>
-<p>この設定をすると</p>
-<ul>
-<li><code>end_of_line = lf</code>: Windows のエディタはデフォルトで改行コードを CRLF にしがちだが，Windows・Mac・Linux のどこで編集しても LF に揃う</li>
-<li><code>insert_final_newline = true</code>: 保存時にファイル末尾へ改行が入るので，人によって末尾改行があったりなかったりする状態がなくなる</li>
-<li><code>charset = utf-8</code>: <code>.js</code>・<code>.py</code> の文字コードが UTF-8 に揃い，Windows 環境で Shift_JIS などで保存されて文字化けする事故を防げる</li>
-<li><code>indent_style = space</code> / <code>indent_size = 4</code>: <code>.py</code> のインデントが4スペースに揃い，タブとスペースの混在が起きない</li>
-</ul>
-<p><span class="mini-section">editorconfigを導入しないデメリット</span></p>
-<p>ゆらぎを放置すると，不要な <code>git diff</code> が発生します．</p>
-<ul>
-<li>1行しか直していないのに，改行コードが CRLF ↔︎ LF で変わったせいでファイル全行が差分として表示される</li>
-<li>末尾改行の有無が変わるたびに <code>\ No newline at end of file</code> の差分が出る</li>
-<li>インデントのタブ・スペースが変わると，見た目は同じなのに行全体が変更扱いになる</li>
-</ul>
-</section>
-<section id="markdownlint" class="level3">
-<h3 class="anchored" data-anchor-id="markdownlint">markdownlint</h3>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>Rule 4-2: markdownlint 拡張（<code>DavidAnson.vscode-markdownlint</code>）は使わない
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>執筆中に lint の warning が常に表示され，内容を書くことへの集中が削がれる</li>
-<li>編集のたびに lint が走るので，CPU・メモリのリソース負荷がかかる</li>
-<li>既にインストール済みなら，Extensions ビュー（<code>Ctrl</code> + <code>Shift</code> + <code>X</code>）から Uninstall または Disable する</li>
-</ul>
-</div>
-</div>
-<p><span class="mini-section"><strong>warning が busy で集中が切れる</strong></span></p>
-<ul>
-<li>markdownlint は見出し前後の空行，行長，リストのインデント，HTML タグの使用などを細かくチェックし，該当箇所に波線を引いて Problems パネルに warning を並べる</li>
-<li>文章を書いている最中に波線や Problems の件数が目に入ると，つい体裁の修正に手が止まり，内容を考える思考が途切れる</li>
-<li>体裁は レンダリング結果を見て確認すれば十分で，執筆中にリアルタイムで指摘される必要はない</li>
-</ul>
-<p><span class="mini-section"><strong>lint によるリソース負荷</strong></span></p>
-<ul>
-<li>markdownlint はデフォルトで入力のたびに（<code>markdownlint.run: "onType"</code>）開いている Markdown ドキュメントを再解析する</li>
-<li>lint 処理は Extension Host プロセス上で動くため，長い記事を書いているときや複数ファイルを開いているときは，その分 CPU・メモリを消費する</li>
-<li>Extension Host が重くなると，補完や他の拡張機能の応答も遅くなる</li>
-</ul>
-<p>どうしても lint を使いたい場合は，<code>"markdownlint.run": "onSave"</code> にして保存時だけ走らせると，入力中の warning 表示と負荷はある程度抑えられる．</p>
-</section>
-</section>
-<section id="appendix-xdg-open-の動作" class="level2">
-<h2 class="anchored" data-anchor-id="appendix-xdg-open-の動作">Appendix : <code>xdg-open</code> の動作</h2>
-<p><code>xdg-open</code> 自体はファイルを開く処理を持たず，「どのデスクトップ環境か」を判定したうえで，そのデスクトップ環境のコマンドに処理を委譲します．GNOME（Ubuntuの標準）の場合の流れは以下</p>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-08-21-how-to-use-vscode-editor/figures/xdg-open-flow.svg" class="img-fluid figure-img" style="width:100.0%"></p>
-<figcaption><code>xdg-open index.html</code> からブラウザが起動するまでの流れ（GNOMEの場合）</figcaption>
-</figure>
-</div>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 10%">
-<col style="width: 25%">
-<col style="width: 65%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Step</th>
-<th>処理</th>
-<th>内容</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>1</td>
-<td><code>xdg-open</code> の実行</td>
-<td><code>/usr/bin/xdg-open</code> が引数のファイルパスを受け取る</td>
-</tr>
-<tr class="even">
-<td>2</td>
-<td>デスクトップ環境の判定</td>
-<td>環境変数 <code>$XDG_CURRENT_DESKTOP</code>（例: <code>ubuntu:GNOME</code>）を見て，GNOME / KDE / Xfce などを判定する</td>
-</tr>
-<tr class="odd">
-<td>3</td>
-<td>コマンドへの委譲</td>
-<td>GNOMEなら <code>gio open</code>，KDEなら <code>kde-open</code> のように，デスクトップ環境ごとのコマンドを呼ぶ．どれにも該当しなければ <code>xdg-open</code> 自身の汎用処理（<code>open_generic</code>）で開く</td>
-</tr>
-<tr class="even">
-<td>4</td>
-<td>MIME typeの判定</td>
-<td>拡張子やファイルの中身から，<code>text/html</code> のようなMIME typeを判定する</td>
-</tr>
-<tr class="odd">
-<td>5</td>
-<td>デフォルトアプリの検索</td>
-<td><code>~/.config/mimeapps.list</code> などから，MIME typeに対応する <code>.desktop</code> ファイル（例: <code>firefox.desktop</code>）を探す</td>
-</tr>
-<tr class="even">
-<td>6</td>
-<td>アプリの起動</td>
-<td><code>.desktop</code> ファイルの <code>Exec=</code> に書かれたコマンドに，ファイルパスを渡して実行する</td>
-</tr>
-</tbody>
-</table>
-</div>
-<p><span class="mini-section">デフォルトアプリの確認と変更</span></p>
-<p>Step 4・5で何が選ばれるかは <code>xdg-mime</code> コマンドで確認・変更できます．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Step 4: ファイルのMIME typeを確認</span></span>
-<span id="cb9-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> xdg-mime query filetype index.html</span>
-<span id="cb9-3"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">text/html</span></span>
-<span id="cb9-4"></span>
-<span id="cb9-5"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Step 5: MIME typeに対応するデフォルトアプリを確認</span></span>
-<span id="cb9-6"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> xdg-mime query default text/html</span>
-<span id="cb9-7"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">google-chrome.desktop</span></span>
-<span id="cb9-8"></span>
-<span id="cb9-9"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># デフォルトアプリを変更（~/.config/mimeapps.list に書き込まれる）</span></span>
-<span id="cb9-10"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> xdg-mime default firefox_firefox.desktop text/html</span></code></pre></div></div>
-</section>
-<section id="references" class="level2">
-<h2 class="anchored" data-anchor-id="references">References</h2>
-<ul>
-<li><a href="../../posts/2024-12-19-shortcuts/index.html">regmonkey post &gt; 自分用ショートカットシート</a></li>
-<li><a href="https://code.visualstudio.com/docs/editing/codebasics">Visual Studio Code &gt; Basic Editing</a></li>
-<li><a href="../../posts/2026-08-20-file-watcher-in-linux/index.html">Linuxのファイル監視とVS CodeのENOSPCエラー</a></li>
-<li><a href="../../posts/2026-08-22-mime-media-type/index.html">MIME Typeとは？</a></li>
-</ul>
-
-
-</section>
-
- ]]></description>
-  <category>vscode</category>
-  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-08-21-how-to-use-vscode-editor/</guid>
-  <pubDate>Fri, 21 Aug 2026 00:00:00 GMT</pubDate>
 </item>
 </channel>
 </rss>
