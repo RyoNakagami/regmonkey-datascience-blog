@@ -1,0 +1,92 @@
+#| mainfont: IPAexGothic
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    ng/.style={block, draw=crimsonred, fill=mistyrose},
+    head/.style={block, minimum width=3.4cm, minimum height=1.4cm},
+    lane/.style={draw=darkgray, dashed, line width=0.5pt},
+    zonebox/.style={draw=paleskyblue, rounded corners=8pt, line width=0.9pt},
+    zlabel/.style={anchor=south, font=\bfseries, text=navy},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt, align=right},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    dot/.style={circle, fill=navy, inner sep=1.4pt},
+    wire/.style={->, draw=navy},
+  ]
+
+  % ---------------- レーン（左の見出し＋破線） ----------------
+  \node[head] (hA1) at (0, 4.5)  {\textbf{AP1}（社内）\\{\footnotesize SSID: OFFICE}};
+  \node[head, fill=paleskyblue] (hT) at (0, 0) {\textbf{端末}\\{\footnotesize 設定SSID: OFFICE}};
+  \node[head] (hA2) at (0, -4.5) {\textbf{AP2}（隣の会社）\\{\footnotesize SSID: NEIGHBOR}};
+  \foreach \h in {hA1, hT, hA2} { \draw[lane] (\h.east) -- (\h.east -| 32.6,0); }
+
+  % ---------------- ゾーン枠 ----------------
+  \foreach \x/\y/\t in {2.3/8.1/①-a パッシブスキャン,
+                        9.0/17.3/①-b アクティブスキャン,
+                        18.5/25.5/② アソシエーション,
+                        26.6/32.4/③ 参加後の通信} {
+    \draw[zonebox] (\x,-5.3) rectangle (\y,5.3);
+    \node[zlabel] at ({(\x+\y)/2}, 5.35) {\t};
+  }
+  % BSSID の受け渡しは azureblue の文字で追えるようにする
+
+  % ---------------- ①-a パッシブスキャン ----------------
+  \node[accent] (C1) at (6.2,0) {端末が照合\\AP1 ○ ／ AP2 ×\\\textcolor{navy}{AP1のBSSIDを記録}};
+  \coordinate (a1) at (5.6,4.5);
+  \coordinate (a2) at (6.8,-4.5);
+  \draw[wire] (a1) -- (a1 |- C1.north);
+  \draw[wire] (a2) -- (a2 |- C1.south);
+  \node[sig, anchor=east] at (5.5, 2.4) {ビーコン\\SSID: OFFICE\\\textcolor{azureblue}{BSSID: AP1のMAC}};
+  \node[sig, anchor=east] at (6.7,-2.4) {ビーコン\\SSID: NEIGHBOR\\\textcolor{azureblue}{BSSID: AP2のMAC}};
+
+  % ---------------- ①-b アクティブスキャン ----------------
+  \node[dot] (bp) at (11.6,0) {};
+  \node[accent] (P1) at (11.6,4.5)  {AP1が照合 ○\\→ 応答する};
+  \node[ng]     (P2) at (11.6,-4.5) {\textcolor{crimsonred}{AP2が照合 ×}\\→ 応答しない};
+  \draw[wire] (bp) -- (P1.south);
+  \draw[wire] (bp) -- (P2.north);
+  \node[sig, anchor=east] at (11.5, 2.25) {プローブ要求\\SSID: OFFICE};
+  \node[sig, anchor=east] at (11.5,-2.25) {同じ要求が\\ブロードキャスト\\で届く};
+  \node[accent] (R1) at (14.3,0) {端末が再確認 ○\\\textcolor{navy}{AP1のBSSIDを記録}};
+  \coordinate (r1) at (14.3,4.5);
+  \draw[wire] (r1) -- (R1.north);
+  \node[sig, anchor=west, align=left] at (14.4, 2.4) {プローブ応答\\SSID: OFFICE\\\textcolor{azureblue}{BSSID: AP1のMAC}};
+
+  % ---------------- ② アソシエーション ----------------
+  \node[accent] (AS) at (21.8,4.5) {AP1が照合 ○\\受理（最終判断）};
+  \coordinate (s1) at (21.8,0);
+  \draw[wire] (s1) -- (AS.south);
+  \node[sig, anchor=east] at (21.7, 2.4) {アソシエーション要求\\\textcolor{azureblue}{宛先: 記録したBSSID}\\SSID: OFFICE};
+  \coordinate (s2) at (24.0,4.5);
+  \draw[wire] (s2) -- (24.0,0);
+  \node[sig, anchor=west, align=left] at (24.1, 2.25) {応答\\（成功）};
+
+  % ---------------- ③ 参加後の通信 ----------------
+  \node[accent] (D1) at (29.6,0) {端末が\textcolor{navy}{記録したBSSID}で仕分け\\AP1宛 受信 ／ AP2宛 破棄};
+  \coordinate (d1) at (29.0,4.5);
+  \coordinate (d2) at (30.2,-4.5);
+  \draw[wire] (d1) -- (d1 |- D1.north);
+  \draw[wire] (d2) -- (d2 |- D1.south);
+  \node[sig, anchor=west, align=left] at (29.1, 2.25) {データ\\\textcolor{azureblue}{BSSID = AP1のMAC}};
+  \node[sig, anchor=east] at (30.1,-2.25) {データ\\\textcolor{azureblue}{BSSID = AP2のMAC}};
+
+  % ---------------- ゾーン下の要約（誰が・何と・どの情報で） ----------------
+  \node[note] at (5.2,-6.05)  {\textcolor{azureblue}{確認者：端末}\\ビーコンのSSID ↔ 設定SSID\\一致したAPのBSSIDを記録};
+  \node[note] at (13.15,-6.05) {\textcolor{azureblue}{確認者：AP → 端末}\\要求のSSID ↔ 自分のSSID\\応答を再確認しBSSIDを記録};
+  \node[note] at (22.0,-6.05) {\textcolor{azureblue}{確認者：AP}\\記録したBSSID宛てに要求\\SSIDを照合（不一致なら拒否）};
+  \node[note] at (29.5,-6.05) {\textcolor{azureblue}{確認者：端末（APも同様）}\\SSIDではなく\\記録したBSSID（48bit）で判定};
+
+  \node[font=\bfseries, text=navy] at (15.2,-7.75)
+    {スキャンでSSIDとBSSIDを組で受け取り，SSIDで選んだAPのBSSIDをその後の通信に使う};
+\end{tikzpicture}

@@ -1,0 +1,76 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.25cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    ng/.style={block, draw=crimsonred, fill=mistyrose},
+    step/.style={font=\bfseries, text=azureblue},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    dot/.style={circle, fill=navy, inner sep=1.4pt},
+    wire/.style={->, draw=navy},
+    sym/.style={accent, minimum width=4.4cm},
+    chk/.style={block, minimum width=4.8cm},
+    cause/.style={ng, minimum width=4.4cm},
+    act/.style={block, fill=white, minimum width=5.1cm},
+  ]
+  \def\xs{0}   \def\xc{5.9}   \def\xr{11.5}   \def\xa{17.1}
+
+  % ---- column headers ----
+  \node[step] at (\xs,5.3) {① ログで症状を見る};
+  \node[step] at (\xc,5.3) {② 設定を確認};
+  \node[step] at (\xr,5.3) {③ 原因};
+  \node[step] at (\xa,5.3) {④ 対処};
+  \node[note] at (\xs,4.75) {\texttt{journalctl -u wpa\_supplicant}};
+  \node[note] at (\xc,4.75) {\texttt{iw scan} ／ 設定ファイル};
+  \node[note] at (\xa,4.75) {\texttt{wpa\_cli reconfigure} で反映};
+
+  % ---- row A : SSID string ----
+  \node[sym]   (sA) at (\xs,3.4) {接続を試みていない\\{\footnotesize\texttt{NETWORK-NOT-FOUND}}};
+  \node[chk]   (cA) at (\xc,3.4) {スキャン結果と設定の SSID を\\バイト単位で比べると違う};
+  \node[cause] (rA) at (\xr,3.4) {A. SSID 文字列の不一致\\末尾スペース・全角混在};
+  \node[act]   (aA) at (\xa,3.4) {設定の \texttt{ssid=} を\\実際の SSID に合わせる};
+
+  % ---- symptom shared by B / D ----
+  \node[sym]   (sBD) at (\xs,0) {4ウェイで鍵が合わない\\{\footnotesize\texttt{reason=WRONG\_KEY}}\\{\footnotesize\texttt{4-Way Handshake failed}}};
+
+  % ---- row B : stale hex PSK ----
+  \node[chk]   (cB) at (\xc,1.2) {\texttt{psk=} が引用符なし64桁 hex\\新 SSID で再計算すると不一致};
+  \node[cause] (rB) at (\xr,1.2) {B. 旧 SSID で計算した\\PSK が残っている};
+  \node[act]   (aB) at (\xa,1.2) {\texttt{psk="パスフレーズ"} に戻す\\または \texttt{wpa\_passphrase} で再計算};
+
+  % ---- row D : passphrase itself ----
+  \node[chk]   (cD) at (\xc,-1.2) {\texttt{psk=} が \texttt{"…"} 形式\\または再計算値と一致する};
+  \node[cause] (rD) at (\xr,-1.2) {C. パスフレーズ自体の誤り\\（SSID 変更とは別問題）};
+  \node[act]   (aD) at (\xa,-1.2) {AP 側の設定値と照合し\\正しい値を入れ直す};
+
+  % ---- row C : WPA3 ----
+  \node[sym]   (sC) at (\xs,-3.4) {SAE（WPA3）で失敗\\{\footnotesize\texttt{SAE:} … ／ \texttt{AUTH-REJECT}}};
+  \node[chk]   (cC) at (\xc,-3.4) {AP が SAE のみ（WPA3 専用）\\端末は hex PSK ／ SAE 未設定};
+  \node[cause] (rC) at (\xr,-3.4) {D. SAE に必要な\\パスフレーズがない};
+  \node[act]   (aC) at (\xa,-3.4) {\texttt{key\_mgmt=SAE}，\texttt{ieee80211w=2}\\\texttt{sae\_password="…"} を設定};
+
+  % ---- wiring ----
+  \foreach \r in {A,B,D,C} {
+    \draw[wire] (c\r) -- (r\r);
+    \draw[wire] (r\r) -- (a\r);
+  }
+  \draw[wire] (sA) -- (cA);
+  \draw[wire] (sC) -- (cC);
+  \coordinate (br) at (3.0,0);
+  \draw[draw=navy] (sBD.east) -- (br);
+  \node[dot] at (br) {};
+  \draw[wire] (br) |- (cB.west);
+  \draw[wire] (br) |- (cD.west);
+  \node[note, anchor=north] at (\xs,-0.95) {AP 側: \texttt{AP-STA-POSSIBLE-PSK-MISMATCH}};
+\end{tikzpicture}

@@ -1,0 +1,73 @@
+#| mainfont: IPAexGothic
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    ng/.style={block, draw=crimsonred, fill=mistyrose},
+    card/.style={block, minimum width=5.6cm, minimum height=1.9cm},
+    zonebox/.style={draw=paleskyblue, rounded corners=8pt, line width=0.9pt},
+    zlabel/.style={anchor=south, font=\bfseries, text=navy},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt, align=center},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    other/.style={draw=darkgray, dashed, line width=0.5pt},
+    main/.style={draw=navy, fill=paleskyblue, fill opacity=0.55, line width=0.9pt},
+  ]
+  % 周波数 f [MHz] を x = (f - 2400) * 0.2 [cm] に写す
+
+  % ---------------- 上段：2.4GHz 帯のチャネル配置 ----------------
+  \draw[zonebox] (-1.0,-1.6) rectangle (18.0,4.0);
+  \node[zlabel] at (8.5,4.05) {2.4GHz 帯のチャネル（IEEE 802.11b/g/n）};
+
+  % 重なるチャネル（破線）
+  \foreach \n in {2,3,4,5,7,8,9,10,12,13} {
+    \pgfmathsetmacro{\c}{(12+5*(\n-1))*0.2}
+    \draw[other] plot[domain=-10:10, samples=41, smooth]
+      ({\c+\x*0.2},{2.2*sqrt(max(0,1-(\x/10)^2))});
+    \node[sig] at (\c,-0.35) {\n};
+  }
+  % 互いに重ならない 1・6・11（強調）
+  \foreach \n in {1,6,11} {
+    \pgfmathsetmacro{\c}{(12+5*(\n-1))*0.2}
+    \draw[main] plot[domain=-10:10, samples=41, smooth]
+      ({\c+\x*0.2},{2.2*sqrt(max(0,1-(\x/10)^2))}) -- cycle;
+    \node[font=\footnotesize, text=navy] at (\c,-0.35) {\n};
+  }
+
+  % 周波数軸
+  \draw[->, draw=navy] (0,0) -- (17.2,0);
+  \node[sig, anchor=north] at (0,-0.75) {2.400 GHz};
+  \node[sig, anchor=north] at (16.7,-0.75) {2.4835 GHz};
+  \node[sig, anchor=west] at (17.25,0) {周波数};
+  \node[sig, anchor=east] at (-0.1,-0.35) {ch};
+
+  % 寸法：チャネル幅と中心周波数の間隔
+  \draw[<->, draw=azureblue] (0.4,2.65) -- (4.4,2.65);
+  \node[font=\footnotesize, text=azureblue] at (2.4,3.0) {1チャネルの幅：約20 MHz};
+  \draw[<->, draw=azureblue] (2.4,-1.15) -- (3.4,-1.15);
+  \node[font=\footnotesize, text=azureblue, anchor=west] at (3.5,-1.15) {中心周波数の間隔：5 MHz};
+
+  \node[note, anchor=west] at (9.6,3.0)
+    {\textcolor{navy}{1・6・11}だけを使えば互いに重ならない};
+
+  % ---------------- 下段：2台の AP のチャネルの組み合わせ ----------------
+  \node[card] (S1) at (2.3,-3.6)
+    {\textbf{同じチャネル}（1 と 1）\\{\footnotesize CSMA/CA で順番に送信する}\\{\footnotesize → 帯域を分け合う（遅くなる）}};
+  \node[ng, minimum width=5.6cm, minimum height=1.9cm] (S2) at (8.5,-3.6)
+    {\textcolor{crimsonred}{重なる隣接チャネル}（1 と 3）\\{\footnotesize 互いの電波が雑音になる}\\{\footnotesize → 順番待ちもできず最も悪い}};
+  \node[accent, minimum width=5.6cm, minimum height=1.9cm] (S3) at (14.7,-3.6)
+    {\textbf{重ならないチャネル}（1 と 6）\\{\footnotesize 互いに干渉しない}\\{\footnotesize → それぞれが帯域を使える}};
+
+  \node[font=\bfseries, text=navy] at (8.5,-5.2)
+    {隣り合う AP は重ならないチャネルに分け，同じチャネルの AP どうしは SSID で見分ける};
+\end{tikzpicture}

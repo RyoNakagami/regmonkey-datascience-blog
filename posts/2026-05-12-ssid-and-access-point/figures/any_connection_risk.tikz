@@ -1,0 +1,66 @@
+#| mainfont: IPAexGothic
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.3cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    ng/.style={block, draw=crimsonred, fill=mistyrose},
+    ap/.style={block, minimum width=4.4cm},
+    res/.style={block, minimum width=5.6cm},
+    zonebox/.style={draw=paleskyblue, rounded corners=8pt, line width=0.9pt},
+    zlabel/.style={anchor=south, font=\bfseries, text=navy},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt, align=center},
+    dot/.style={circle, fill=navy, inner sep=1.4pt},
+    wire/.style={->, draw=navy},
+    none/.style={->, draw=darkgray, dashed},
+  ]
+
+  % ---------------- ゾーン枠 ----------------
+  \foreach \x/\y/\t in {-2.3/2.3/① 端末がSSID空で探索,
+                        5.6/10.6/② 周囲のAPの反応,
+                        13.0/19.2/③ 起こること} {
+    \draw[zonebox] (\x,-4.4) rectangle (\y,4.4);
+    \node[zlabel] at ({(\x+\y)/2}, 4.45) {\t};
+  }
+
+  % ---------------- ① 端末 ----------------
+  \node[accent, minimum width=3.8cm] (T) at (0,0)
+    {\textbf{端末}\\{\footnotesize 設定SSID: 空（ANY）}\\{\footnotesize 暗号化なしのAPにも自動接続}};
+  \node[dot] (bp) at (4.5,0) {};
+  \draw[draw=navy] (T.east) -- (bp);
+  \node[sig, anchor=south] at (3.4,0.1) {プローブ要求\\SSID: 空};
+
+  % ---------------- ② AP ----------------
+  \node[ap] (A1) at (8.1, 3.0) {\textbf{AP1}（社内）\\{\footnotesize SSID: OFFICE}\\{\footnotesize \textcolor{azureblue}{ANY接続: 許可}}};
+  \node[ap] (A2) at (8.1, 0)   {\textbf{AP2}（社内）\\{\footnotesize SSID: OFFICE-2}\\{\footnotesize \textcolor{azureblue}{ANY接続: 拒否}}};
+  \node[ap, draw=crimsonred, fill=mistyrose] (A3) at (8.1,-3.0)
+    {\textcolor{crimsonred}{\textbf{偽AP}（攻撃者）}\\{\footnotesize SSID: FREE-WiFi}\\{\footnotesize \textcolor{azureblue}{ANY接続: 許可}・暗号化なし}};
+  \draw[wire] (bp) |- (A1.west);
+  \draw[wire] (bp) -- (A2.west);
+  \draw[wire] (bp) |- (A3.west);
+
+  % ---------------- ③ 結果 ----------------
+  \node[ng]    (R1) at (16.1, 3.0) [minimum width=5.6cm]
+    {\textcolor{crimsonred}{SSID「OFFICE」が判明}\\{\footnotesize 部外者の端末も接続を試行できる}};
+  \node[block] (R2) at (16.1, 0)   [minimum width=5.6cm]
+    {応答しない\\{\footnotesize SSIDを知らない端末からは見えにくい}};
+  \node[ng]    (R3) at (16.1,-3.0) [minimum width=5.6cm]
+    {\textcolor{crimsonred}{端末が偽APに自動接続}\\{\footnotesize 通信の盗聴・改ざんが可能になる}};
+  \draw[wire] (A1.east) -- (R1.west) node[midway, above, sig] {プローブ応答\\SSID: OFFICE};
+  \draw[none] (A2.east) -- (R2.west) node[midway, above, sig] {応答なし};
+  \draw[wire, draw=crimsonred] (A3.east) -- (R3.west) node[midway, above, sig] {プローブ応答\\→ 接続};
+
+  % ---------------- 要約 ----------------
+  \node[font=\bfseries, text=navy] at (8.45,-5.2)
+    {ANY接続拒否は「見えにくくする」だけ．守りの本体は WPA2/WPA3 による認証と暗号化};
+\end{tikzpicture}

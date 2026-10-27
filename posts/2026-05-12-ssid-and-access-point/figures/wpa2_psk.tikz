@@ -1,0 +1,81 @@
+#| mainfont: IPAexGothic
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    head/.style={block, minimum width=3.4cm, minimum height=1.4cm},
+    lane/.style={draw=darkgray, dashed, line width=0.5pt},
+    zonebox/.style={draw=paleskyblue, rounded corners=8pt, line width=0.9pt},
+    zlabel/.style={anchor=south, font=\bfseries, text=navy},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt, align=right},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    wire/.style={->, draw=navy},
+  ]
+
+  % ---------------- レーン（左の見出し＋破線） ----------------
+  \node[head] (hA) at (0, 3)  {\textbf{AP}\\{\footnotesize SSID: OFFICE}};
+  \node[head, fill=paleskyblue] (hT) at (0,-3) {\textbf{端末}\\{\footnotesize 設定SSID: OFFICE}};
+  \foreach \h in {hA, hT} { \draw[lane] (\h.east) -- (\h.east -| 33.2,0); }
+
+  % ---------------- ゾーン枠 ----------------
+  \foreach \x/\y/\t in {2.3/8.0/事前準備,
+                        9.0/17.7/① 認証,
+                        18.4/26.6/② 共通鍵の共有,
+                        27.4/33.0/③ 暗号化通信} {
+    \draw[zonebox] (\x,-3.8) rectangle (\y,3.8);
+    \node[zlabel] at ({(\x+\y)/2}, 3.85) {\t};
+  }
+
+  % ---------------- 事前準備 ----------------
+  \node[accent] at (5.15, 3) {パスフレーズ ＋ SSID\\→ \textcolor{navy}{PMK} を計算};
+  \node[accent] at (5.15,-3) {パスフレーズ ＋ SSID\\→ \textcolor{navy}{PMK} を計算};
+  \node[note] at (5.15,0) {同じパスフレーズ\\（8〜63文字）を\\両方に設定しておく};
+
+  % ---------------- ① 認証（メッセージ1・2） ----------------
+  \coordinate (m1) at (10.4,3);
+  \node[block] (T1) at (12.4,-3) {PMK＋2つの乱数\\→ PTK を生成};
+  \draw[wire] (m1) -- (m1 |- T1.north);
+  \node[sig, anchor=east] at (10.3,0) {1. 乱数\\\textcolor{azureblue}{ANonce}};
+  \coordinate (m2) at (14.2,-3);
+  \node[accent] (A1) at (16.0,3) {PTK を生成\\MIC を検証 ○};
+  \draw[wire] (m2) -- (m2 |- A1.south);
+  \node[sig, anchor=east] at (14.1,0) {2. 乱数\\\textcolor{azureblue}{SNonce}\\＋ MIC};
+
+  % ---------------- ② 共通鍵の共有（メッセージ3・4） ----------------
+  \coordinate (m3) at (21.3,3);
+  \node[accent] (T2) at (23.0,-3) {MIC を検証 ○\\鍵を確定};
+  \draw[wire] (m3) -- (m3 |- T2.north);
+  \node[sig, anchor=east] at (21.2,0) {3. \textcolor{azureblue}{GTK}\\（PTKで暗号化）\\＋ MIC};
+  \coordinate (m4) at (24.8,-3);
+  \node[block] (A2) at (24.8,3) {鍵を確定};
+  \draw[wire] (m4) -- (A2.south);
+  \node[sig, anchor=west, align=left] at (24.9,0) {4. 確認応答\\（ACK）};
+
+  % ---------------- ③ 暗号化通信 ----------------
+  \coordinate (d1) at (29.4,3);
+  \coordinate (d2) at (30.8,-3);
+  \draw[wire] (d1) -- (d1 |- d2);
+  \draw[wire] (d2) -- (d2 |- d1);
+  \node[sig, anchor=east] at (29.3,0) {データ\\\textcolor{azureblue}{AES-CCMP}};
+  \node[sig, anchor=west, align=left] at (30.9,0) {データ\\\textcolor{azureblue}{AES-CCMP}};
+
+  % ---------------- ゾーン下の要約（誰が・何を） ----------------
+  \node[note] at (5.15,-4.55) {\textcolor{azureblue}{誰が：端末・AP（各自）}\\パスフレーズ＋SSID → PMK\\パスフレーズ自体は送らない};
+  \node[note] at (13.5,-4.55) {\textcolor{azureblue}{確認者：AP}\\MIC で相手も同じ PMK を持つか確認\\＝パスフレーズの一致を確認};
+  \node[note] at (22.5,-4.55) {\textcolor{azureblue}{確認者：端末}\\AP の MIC を確認し GTK を受け取る\\双方が PTK・GTK を確定};
+  \node[note] at (30.2,-4.55) {\textcolor{azureblue}{以降の通信}\\PTK から導いた鍵で暗号化\\PTK 自体は一度も送らない};
+
+  \node[font=\bfseries, text=navy] at (16.6,-6.25)
+    {鍵そのものは送らず，パスフレーズとSSIDから同じ鍵を双方で導くのが WPA2-PSK の要点};
+\end{tikzpicture}
