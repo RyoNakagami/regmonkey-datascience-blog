@@ -86,9 +86,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../../site_libs/quarto-html/quarto-syntax-highlighting-5c1318cf63eba56dbef7ba16bc7d56f5.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
 <script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../../site_libs/bootstrap/bootstrap-4d7bc2ad69636a1adccb3b801ee1c591.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="../../site_libs/bootstrap/bootstrap-dark-aa57a16df149dc269e65c014c76f68b5.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="../../site_libs/bootstrap/bootstrap-4d7bc2ad69636a1adccb3b801ee1c591.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-57d445943f4d0de142fd7a618c64f0ad.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark-14570065716747922adca04f36bcf16c.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../site_libs/bootstrap/bootstrap-57d445943f4d0de142fd7a618c64f0ad.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script src="../../site_libs/quarto-contrib/pseudocode-2.4.1/pseudocode.min.js"></script>
 <link href="../../site_libs/quarto-contrib/pseudocode-2.4.1/pseudocode.min.css" rel="stylesheet">
 <script id="quarto-search-options" type="application/json">{
@@ -177,6 +177,7 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 <link rel="stylesheet" href="../../styles.css">
 <meta property="og:title" content="Secure Shellの仕組み – regmonkey datascience blog">
 <meta property="og:description" content="日々の徒然勉強日記">
+<meta property="og:image" content="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2024-12-18-secure-shell/figures/ssh-auth-overview.svg">
 <meta property="og:site_name" content="regmonkey datascience blog">
 </head>
 
@@ -460,11 +461,13 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
     <h2 id="toc-title">目次</h2>
    
   <ul>
-  <li><a href="#sshの仕組み" id="toc-sshの仕組み" class="nav-link active" data-scroll-target="#sshの仕組み">SSHの仕組み</a>
+  <li><a href="#sshの仕組み" id="toc-sshの仕組み" class="nav-link active" data-scroll-target="#sshの仕組み">SSHの仕組み</a></li>
+  <li><a href="#ssh接続の認証手順" id="toc-ssh接続の認証手順" class="nav-link" data-scroll-target="#ssh接続の認証手順">SSH接続の認証手順</a>
   <ul class="collapse">
-  <li><a href="#ホスト認証" id="toc-ホスト認証" class="nav-link" data-scroll-target="#ホスト認証">ホスト認証</a></li>
-  <li><a href="#ユーザー認証" id="toc-ユーザー認証" class="nav-link" data-scroll-target="#ユーザー認証">ユーザー認証</a></li>
+  <li><a href="#step-1-ホスト認証" id="toc-step-1-ホスト認証" class="nav-link" data-scroll-target="#step-1-ホスト認証">Step 1: ホスト認証</a></li>
+  <li><a href="#step-2-ユーザー認証" id="toc-step-2-ユーザー認証" class="nav-link" data-scroll-target="#step-2-ユーザー認証">Step 2: ユーザー認証</a></li>
   </ul></li>
+  <li><a href="#暗号化のための共通鍵はどこで作っているのか" id="toc-暗号化のための共通鍵はどこで作っているのか" class="nav-link" data-scroll-target="#暗号化のための共通鍵はどこで作っているのか">暗号化のための共通鍵はどこで作っているのか</a></li>
   <li><a href="#ssh-コマンドの実践" id="toc-ssh-コマンドの実践" class="nav-link" data-scroll-target="#ssh-コマンドの実践"><code>ssh</code> コマンドの実践</a>
   <ul class="collapse">
   <li><a href="#ssh-keygenコマンドによる認証鍵生成" id="toc-ssh-keygenコマンドによる認証鍵生成" class="nav-link" data-scroll-target="#ssh-keygenコマンドによる認証鍵生成"><code>ssh-keygen</code>コマンドによる認証鍵生成</a></li>
@@ -473,6 +476,7 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
   <li><a href="#scp-コマンド-ホストとクライアント間のファイル転送" id="toc-scp-コマンド-ホストとクライアント間のファイル転送" class="nav-link" data-scroll-target="#scp-コマンド-ホストとクライアント間のファイル転送"><code>scp</code> コマンド: ホストとクライアント間のファイル転送</a></li>
   </ul></li>
   <li><a href="#appendix-tcpとudpの比較表" id="toc-appendix-tcpとudpの比較表" class="nav-link" data-scroll-target="#appendix-tcpとudpの比較表">Appendix: TCPとUDPの比較表</a></li>
+  <li><a href="#appendix-この記事での用語集" id="toc-appendix-この記事での用語集" class="nav-link" data-scroll-target="#appendix-この記事での用語集">Appendix: この記事での用語集</a></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>問題を報告</a></li></ul></div></nav>
     </div>
@@ -490,18 +494,37 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 <p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title">Secure Shell</span></p>
 <ul>
 <li>SSH(Secure SHell)は，ネットワークで接続された他コンピューターを遠隔操作するためのプロトコルのこと</li>
+<li>SSH はアプリケーション層のプロトコル</li>
 <li>TCP/IPプロトコルスイートの上で動作する</li>
 </ul>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> cat /etc/services <span class="kw">|</span> <span class="fu">grep</span> ^ssh </span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ssh</span>     22/tcp              <span class="co"># SSH Remote Login Protocol</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>SSHプロトコルには現在，SSH1とSSH2という２つのプロトコルがあります. それぞれのプロトコルには互換性はありません. 一般的には，SSH1プロトコルには脆弱性が発見されているのでSSH2を用います. Ubuntu Serverでは，デフォルトでSSH2のみが有効となっています.</p>
-<p><strong> ▶&nbsp; 特徴</strong></p>
+<p><span class="mini-section">特徴</span></p>
 <ol type="1">
 <li>強力な認証機能と暗号化により，ファイル転送やリモート操作を安全に行うことができる</li>
 <li>ユーザーログイン時のユーザー認証に先立って，<strong>クライアントがサーバーの正当性を確認するホスト認証が毎回行われる</strong>ため偽サーバーに接続することで発生する情報漏えいリスクを低減することができる</li>
 <li>クライアント側から <code>ssh</code> コマンドを用いてSSH接続を試みる場合は，接続先のコンピュータで<code>sshd</code>（SSH daemon：SSHのサーバプログラム）が 動作している必要がある</li>
 </ol>
+<p><span class="mini-section">SSH接続の全体像</span></p>
+<p>SSH接続は，鍵交換 → ホスト認証 → ユーザー認証 → 暗号通信 の順に進みます. 最初の鍵交換でクライアントとサーバーは共通鍵（セッション鍵）を共有します. ホスト認証はこの鍵交換の一部として同じやりとりの中で行われ， ユーザー認証以降が共通鍵で暗号化された通信路の中で行われます.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="figures/ssh-auth-overview.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+<figcaption>SSH接続の流れ．Step 1–2 の鍵交換で共通鍵を共有するとともにクライアントがサーバーを確認する．鍵を導出して NEWKEYS を送り合うと暗号化が始まり，Step 3 でサーバーがユーザーを確認したうえで，Step 4 の暗号通信に入る</figcaption>
+</figure>
+</div>
+<ul>
+<li><strong>鍵交換</strong>: 双方が一時的な鍵を作り，その公開値だけを交換して同じ共通鍵を計算します. 共通鍵そのものはネットワークに流れません</li>
+<li><strong>ホスト認証</strong>: サーバーは鍵交換の応答に，公開値・ホスト公開鍵・鍵交換の結果に対するホスト秘密鍵の署名をまとめて入れて返します. クライアントは <code>known_hosts</code> に保存した公開鍵と照合したうえで署名を検証します</li>
+<li><strong>ユーザー認証</strong>: クライアントがユーザー秘密鍵で署名し，サーバーは <code>authorized_keys</code> に登録された公開鍵と照合したうえで署名を検証します</li>
+<li><strong>暗号通信</strong>: 共通鍵でデータを暗号化・復号しながら，コマンド実行やファイル転送を行います</li>
+</ul>
+<p>公開鍵暗号（署名）は「相手が本物か」の確認に，共通鍵暗号は「通信内容の秘匿」に，と役割を分けて使っています.</p>
+</section>
+<section id="ssh接続の認証手順" class="level2">
+<h2 class="anchored" data-anchor-id="ssh接続の認証手順">SSH接続の認証手順</h2>
 <!--::: {.callout-note collapse="true" icon=false}-->
 <div class="callout callout-style-default callout-note no-icon callout-titled">
 <div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-1-contents" aria-controls="callout-1" aria-expanded="true" aria-label="Toggle callout">
@@ -522,7 +545,7 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 <li>ユーザー認証</li>
 </ul>
 <p>の２段階に分かれます</p>
-<p><strong> ▶&nbsp; ホスト認証</strong></p>
+<p><span class="mini-section">Step 1: ホスト認証</span></p>
 <div class="cell" data-layout-align="default">
 <div class="cell-output-display">
 <div>
@@ -542,7 +565,7 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 </div>
 </div>
 </div>
-<p><strong> ▶&nbsp; 秘密鍵公開鍵によるユーザー認証</strong></p>
+<p><span class="mini-section">秘密鍵公開鍵によるユーザー認証</span></p>
 <p>ユーザー認証はホスト認証完了後に行われる処理となります.</p>
 <div class="cell" data-layout-align="default">
 <div class="cell-output-display">
@@ -567,13 +590,17 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 </div>
 </div>
 </div>
-<section id="ホスト認証" class="level3">
-<h3 class="anchored" data-anchor-id="ホスト認証">ホスト認証</h3>
+<section id="step-1-ホスト認証" class="level3">
+<h3 class="anchored" data-anchor-id="step-1-ホスト認証">Step 1: ホスト認証</h3>
 <div id="def-" class="custom_problem blog-custom-border theorem definition">
 <p><span class="theorem-title"><strong>Definition 2</strong></span> <span class="def-title">ホスト認証</span></p>
-<p>接続先が正当な相手であるのかどうかの認証のこと</p>
+<ul>
+<li>接続先が正当な相手であるのかどうかの認証のこと</li>
+<li>公開鍵認証の仕組みを用いて，「この公開鍵に対応する秘密鍵を、いま通信している相手が持っている」かの検証をおこなる</li>
+<li>ホスト認証で使う公開鍵・秘密鍵は、接続先サーバー側で用意する</li>
+</ul>
 </div>
-<p><code>ssh</code>コマンドで初めてサーバーに接続するとき，サーバーから送られてきた公開鍵のフィンガープリントの値が表示される. このフィンガープリントをクライアント側で受け入れると，<code>~/.ssh/known_hosts</code>に以下の情報が登録されます</p>
+<p><code>ssh</code>コマンドで初めてサーバーに接続するとき，サーバーから送られてきた公開鍵のフィンガープリントの値が表示されます. このフィンガープリントをクライアント側で受け入れると，<code>~/.ssh/known_hosts</code>に以下の情報が登録されます</p>
 <ul>
 <li>接続先サーバーのホスト名</li>
 <li>接続先サーバーのIPアドレス</li>
@@ -611,11 +638,78 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 <span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ssh-keygen</span> <span class="at">-f</span> <span class="st">"/home/hogehoge/.ssh/known_hosts"</span> <span class="at">-R</span> <span class="st">"12.3.4.56"</span></span>
 <span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a><span class="ex">ECDSA</span> host key for 12.3.4.56 has changed and you have requested strict checking.</span>
 <span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a><span class="ex">Host</span> key verification failed.</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="ホスト認証の目的" class="level4">
+<h4 class="anchored" data-anchor-id="ホスト認証の目的">ホスト認証の目的</h4>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>ホスト認証の目的
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>ホスト認証の目的は，<strong>いま通信している相手が，以前接続したサーバーと同じ（またはあらかじめ信頼したサーバーである）ことを確かめる</strong>ことです.</li>
+</ul>
+</div>
+</div>
+<p>ホスト認証では，サーバーがホスト秘密鍵で署名し，クライアントがホスト公開鍵でその署名を検証します. ただし，検証に使う公開鍵そのものもサーバーから送られてきます. そのため署名の検証で確かめられるのは「送られてきた公開鍵に対応する秘密鍵を，相手が持っている」ことまでで， 「その公開鍵が本物のサーバーのものか」は分かりません.</p>
+<p>初回接続でクライアントと本物のサーバーの間に攻撃者が割り込み，自分の公開鍵を送って自分の秘密鍵で署名すれば，検証はそのまま通ってしまいます.</p>
+<ul>
+<li>known_hosts に何も登録されていない初回接続（TOFU: Trust On First Use）では中間者攻撃を防げない</li>
+<li>ホスト認証の安全性は「サーバーから送られてきた公開鍵」ではなく，<strong>クライアントがすでに信頼している情報と照合できること</strong>から生まれる</li>
+</ul>
+<p><span class="mini-section">それでもホスト認証を行う理由</span></p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="figures/host-auth-tofu.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+<figcaption>接続ごとに偽サーバーを検知できるか．TOFU で無防備なのは初回だけで，事前に配布すれば初回から検知できる</figcaption>
+</figure>
+</div>
+<ol type="1">
+<li><strong>ホスト認証がなければ毎回が初回と同じになる</strong>: 鍵交換だけでも通信は暗号化されますが，相手が誰かは分かりません. 攻撃者はどの接続にも割り込め，クライアントはそれに気づけません. TOFU であれば，無防備なのは初回の1回だけになります</li>
+<li><strong>攻撃を続けるのが難しくなる</strong>: 2回目以降は known_hosts と照合されるため，攻撃者は「初回接続にちょうど割り込み，以後も毎回割り込み続ける」必要があります. 一度でも本物のサーバーに直接つながると鍵が一致せず，<code>REMOTE HOST IDENTIFICATION HAS CHANGED!</code> の警告で発覚します</li>
+<li><strong>ユーザーの認証情報を守る</strong>: ホスト認証がないと，偽サーバーにパスワードをそのまま送ってしまいます</li>
+</ol>
+<p>初回のリスクもなくしたい場合は，信頼できる情報を<strong>別の経路で事前に</strong>クライアントへ渡します.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 30%">
+<col style="width: 70%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>方法</th>
+<th>やり方</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>fingerprint を別の経路で照合する</td>
+<td>管理者から聞く，クラウドのコンソールログで確認するなどして，初回接続時に表示される値と比べる</td>
+</tr>
+<tr class="even">
+<td><code>known_hosts</code> を事前に配る</td>
+<td>Ansible などの構成管理ツールで配布する</td>
+</tr>
+<tr class="odd">
+<td>SSHFP レコード</td>
+<td>DNS に fingerprint を登録し，<code>VerifyHostKeyDNS yes</code> で照合する（DNSSEC と組み合わせる）</td>
+</tr>
+<tr class="even">
+<td>ホスト証明書</td>
+<td>認証局（CA）がホスト鍵に署名し，クライアントは <code>known_hosts</code> に <code>@cert-authority</code> で CA の公開鍵だけを登録する</td>
+</tr>
+</tbody>
+</table>
 </section>
-<section id="ユーザー認証" class="level3">
-<h3 class="anchored" data-anchor-id="ユーザー認証">ユーザー認証</h3>
+</section>
+<section id="step-2-ユーザー認証" class="level3">
+<h3 class="anchored" data-anchor-id="step-2-ユーザー認証">Step 2: ユーザー認証</h3>
 <p>ホスト認証後に実施されるユーザー認証は，デフォルトでは，公開鍵認証，パスワード認証の順に実施されます. <strong>公開鍵認証を行うには予めクライアントの公開鍵を接続先サーバーに登録する必要があります</strong>.</p>
-<p><strong> ▶&nbsp; 公開鍵の置き場所</strong></p>
+<p><span class="mini-section">公開鍵の置き場所</span></p>
 <p>公開鍵によるユーザー認証を行うにはクライアントが作成した秘密鍵/公開鍵キーペアのうち，後者をサーバー側にコピーする必要があります. 一般的には</p>
 <ul>
 <li><code>~/.ssh/authorized_keys</code>ファイルに登録する</li>
@@ -628,6 +722,125 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 <p>と設定することで <code>.ssh/authorized_keys</code>，<code>.ssh/authorized_keys2</code> の２つを公開鍵読み込みファイルとして認識させることができます</p>
 </div>
 </section>
+</section>
+<section id="暗号化のための共通鍵はどこで作っているのか" class="level2">
+<h2 class="anchored" data-anchor-id="暗号化のための共通鍵はどこで作っているのか">暗号化のための共通鍵はどこで作っているのか</h2>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>Key Points
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>共通鍵は<strong>ネットワークで送られることはなく，クライアントとサーバーがそれぞれ手元で計算</strong>している</li>
+</ul>
+</div>
+</div>
+<p>共通鍵計算の材料になるのが，Step 1 の鍵交換（Diffie-Hellman 鍵交換）で得られる共通の値 <span class="math inline"><em>K</em></span> です.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="figures/ssh-session-key.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+<figcaption>共通鍵ができるまで．公開値 <span class="math inline"><em>A</em></span>，<span class="math inline"><em>B</em></span> だけを交換して双方で同じ <span class="math inline"><em>K</em></span> を計算し，ホスト認証の検証が通った後に <span class="math inline"><em>K</em></span> と <span class="math inline"><em>H</em></span> から用途別の鍵を導出する</figcaption>
+</figure>
+</div>
+<p><span class="mini-section">Step 1: 公開値の交換と共通の値 <span class="math inline"><em>K</em></span></span></p>
+<ol type="1">
+<li>クライアントは秘密の値 <span class="math inline"><em>a</em></span>，サーバーは秘密の値 <span class="math inline"><em>b</em></span> をその場で作ります</li>
+<li>それぞれ <span class="math inline"><em>A</em> = <em>g</em><sup><em>a</em></sup>&nbsp;mod &nbsp;<em>p</em></span>，<span class="math inline"><em>B</em> = <em>g</em><sup><em>b</em></sup>&nbsp;mod &nbsp;<em>p</em></span> を計算し，<strong>この <span class="math inline"><em>A</em></span>，<span class="math inline"><em>B</em></span> だけ</strong>を相手に送ります</li>
+<li>自分の秘密と相手の公開値から <span class="math inline"><em>K</em></span> を計算します. クライアントは <span class="math inline"><em>B</em><sup><em>a</em></sup>&nbsp;mod &nbsp;<em>p</em></span>，サーバーは <span class="math inline"><em>A</em><sup><em>b</em></sup>&nbsp;mod &nbsp;<em>p</em></span> で，どちらも <span class="math inline"><em>g</em><sup><em>a</em><em>b</em></sup>&nbsp;mod &nbsp;<em>p</em></span> になります</li>
+</ol>
+<p>通信を盗み見る攻撃者が手に入れられるのは <span class="math inline"><em>A</em></span>，<span class="math inline"><em>B</em></span>（と公開されている <span class="math inline"><em>g</em></span>，<span class="math inline"><em>p</em></span>）だけです. ここから <span class="math inline"><em>a</em></span> や <span class="math inline"><em>b</em></span> を求めるのは計算量的に困難なので，<span class="math inline"><em>K</em></span> は分かりません.</p>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Exmaple 2</strong></span> <strong>: 小さな数での計算例</strong> <br></p>
+<p><span class="math inline"><em>p</em> = 23,&nbsp;<em>g</em> = 5</span> とし，クライアントが <span class="math inline"><em>a</em> = 6</span>，サーバーが <span class="math inline"><em>b</em> = 15</span> を選んだとします.</p>
+<ul>
+<li>クライアントが送る値: <span class="math inline"><em>A</em> = 5<sup>6</sup>&nbsp;mod &nbsp;23 = 8</span></li>
+<li>サーバーが送る値: <span class="math inline"><em>B</em> = 5<sup>15</sup>&nbsp;mod &nbsp;23 = 19</span></li>
+<li>クライアントの計算: <span class="math inline"><em>K</em> = 19<sup>6</sup>&nbsp;mod &nbsp;23 = 2</span></li>
+<li>サーバーの計算: <span class="math inline"><em>K</em> = 8<sup>15</sup>&nbsp;mod &nbsp;23 = 2</span></li>
+</ul>
+<p>ネットワークに流れたのは <span class="math inline">8</span> と <span class="math inline">19</span> だけですが，双方とも <span class="math inline"><em>K</em> = 2</span> を得ています. 実際には数百桁の素数や楕円曲線（Curve25519 など）を使います.</p>
+</div>
+<p><span class="mini-section">Step 2: <span class="math inline"><em>K</em></span> を含む値への署名</span></p>
+<p>サーバーは，<span class="math inline"><em>K</em></span> や交換した公開値などをまとめてハッシュした値 <span class="math inline"><em>H</em></span> を計算し，ホスト秘密鍵で署名して送ります. クライアントも自分の <span class="math inline"><em>K</em></span> で <span class="math inline"><em>H</em></span> を計算して署名を検証します. 中間者が割り込んでいると双方の <span class="math inline"><em>K</em></span> がずれ，<span class="math inline"><em>H</em></span> も一致しないので検証に失敗します.</p>
+<p><span class="mini-section">Step 2 の後: 鍵の導出</span></p>
+<p><span class="math inline"><em>K</em></span> はそのまま暗号鍵として使うのではなく，ハッシュ関数に通して用途別の鍵に加工します.</p>
+<p><span class="math display">Key<sub><em>X</em></sub> = HASH(<em>K</em> ∥ <em>H</em> ∥ <em>X</em> ∥ sid)</span></p>
+<p><span class="math inline">∥</span> は<strong>連結</strong>（データを順番につなげて 1 本のバイト列にすること）を表す記号です. つまり「<span class="math inline"><em>K</em></span>，<span class="math inline"><em>H</em></span>，<span class="math inline"><em>X</em></span>，<span class="math inline">sid</span> をこの順につなげたものを，まとめてハッシュ関数に入れる」という意味です.</p>
+<ul>
+<li><span class="math inline"><em>K</em></span>: Step 1 で双方が計算した共通の値（鍵の素になる秘密）</li>
+<li><span class="math inline"><em>H</em></span>: Step 2 でサーバーが署名した値（<span class="math inline"><em>K</em></span> や公開値などをまとめたハッシュ）</li>
+<li><span class="math inline"><em>X</em></span>: 用途を区別するための 1 文字．“A”〜“F” を入れ替えて 6 本の鍵を作り分ける</li>
+<li><span class="math inline">sid</span>（セッション ID）: その接続で最初に計算した <span class="math inline"><em>H</em></span></li>
+</ul>
+<p>例えば暗号鍵（クライアント→サーバー）は，<span class="math inline"><em>K</em></span> と <span class="math inline"><em>H</em></span> の後ろに文字 “C” と <span class="math inline">sid</span> をつなげてハッシュを取ったものです. 材料のうち <span class="math inline"><em>X</em></span> の 1 文字だけが違うので，6 本の鍵はまったく別の値になります.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 15%">
+<col style="width: 45%">
+<col style="width: 40%">
+</colgroup>
+<thead>
+<tr class="header">
+<th><span class="math inline"><em>X</em></span></th>
+<th>作られる鍵</th>
+<th>向き</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>“A”</td>
+<td>初期化ベクトル（IV）</td>
+<td>クライアント→サーバー</td>
+</tr>
+<tr class="even">
+<td>“B”</td>
+<td>初期化ベクトル（IV）</td>
+<td>サーバー→クライアント</td>
+</tr>
+<tr class="odd">
+<td>“C”</td>
+<td>暗号鍵</td>
+<td>クライアント→サーバー</td>
+</tr>
+<tr class="even">
+<td>“D”</td>
+<td>暗号鍵</td>
+<td>サーバー→クライアント</td>
+</tr>
+<tr class="odd">
+<td>“E”</td>
+<td>MAC 鍵（改ざん検知用）</td>
+<td>クライアント→サーバー</td>
+</tr>
+<tr class="even">
+<td>“F”</td>
+<td>MAC 鍵（改ざん検知用）</td>
+<td>サーバー→クライアント</td>
+</tr>
+</tbody>
+</table>
+<p>双方が <code>NEWKEYS</code> メッセージを送り合った時点で，以降の通信はこれらの鍵で暗号化されます. Step 3 のユーザー認証でパスワードを送っても盗み見られないのはこのためです.</p>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ヒント</span>ホスト鍵は暗号化には使わない
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>ホスト鍵（およびユーザー鍵）は「相手が本物か」を確かめる署名にだけ使い，通信の暗号化には使いません.</li>
+<li>暗号化に使う鍵は接続ごとに使い捨ての <span class="math inline"><em>a</em></span>，<span class="math inline"><em>b</em></span> から作るので，将来ホスト秘密鍵が漏れても，過去に記録された通信は復号できません（前方秘匿性）.</li>
+</ul>
+</div>
+</div>
 </section>
 <section id="ssh-コマンドの実践" class="level2">
 <h2 class="anchored" data-anchor-id="ssh-コマンドの実践"><code>ssh</code> コマンドの実践</h2>
@@ -822,7 +1035,7 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 <h3 class="anchored" data-anchor-id="ssh-copy-idコマンド-接続先ホストへの公開鍵登録"><code>ssh-copy-id</code>コマンド: 接続先ホストへの公開鍵登録</h3>
 <p>鍵ペア作成後，公開鍵を接続先ホストへ登録する必要あります. この時使われるコマンドが <code>ssh-copy-id</code>コマンドです. なお，初回登録時点では接続先ホストではパスワード認証によるログインが許可されている必要があります.</p>
 <div id="exm-" class="custom_problem theorem example">
-<p><span class="theorem-title"><strong>Exmaple 2</strong></span> <strong>: <code>ssh-copy-id</code>コマンド</strong> <br></p>
+<p><span class="theorem-title"><strong>Exmaple 3</strong></span> <strong>: <code>ssh-copy-id</code>コマンド</strong> <br></p>
 <p>以下のコマンドで接続先サーバーの<code>.ssh/authorized_keys</code>に公開鍵を追記することができます</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> ssh-copy-id <span class="pp">[</span><span class="op">-</span><span class="st">p ポート番号</span><span class="pp">]</span> <span class="at">-i</span> 公開鍵ファイル名 USERNAME@<span class="va">$HOST</span></span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a></span>
@@ -1003,15 +1216,14 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 <li>受信パケットを正しい順番で並び替える（パケットのシーケンス制御）</li>
 <li>受信データのエラー訂正機能あり</li>
 </ul>
-<p><span class="mini-section">UDPの直腸</span></p>
+<p><span class="mini-section">UDPの特徴</span></p>
 <ul>
 <li>User Datagram Protocol</li>
 <li>コネクションを確立しない</li>
 <li>TCPのような，喪失パケットの再送・シーケンス制御・エラー訂正機能はない（→その分，オーバーヘッドはない）</li>
 </ul>
 <div id="exm-" class="custom_problem theorem example">
-<p><span class="theorem-title"><strong>Exmaple 3</strong></span> <span class="def-title"><code>/etc/services</code> から http で始まるサービス名を抽出</span></p>
-<p><br></p>
+<p><span class="theorem-title"><strong>Exmaple 4</strong></span> <span class="def-title"><code>/etc/services</code> から http で始まるサービス名を抽出</span></p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb24"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> cat /etc/services <span class="kw">|</span> <span class="fu">grep</span> ^http</span>
 <span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a><span class="ex">http</span>        80/tcp      www     <span class="co"># WorldWideWeb HTTP</span></span>
 <span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a><span class="ex">https</span>       443/tcp             <span class="co"># http protocol over TLS/SSL</span></span>
@@ -1019,6 +1231,83 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 <span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a><span class="ex">http-alt</span>    8080/tcp    webcache    <span class="co"># WWW caching service</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <hr>
+</section>
+<section id="appendix-この記事での用語集" class="level2">
+<h2 class="anchored" data-anchor-id="appendix-この記事での用語集">Appendix: この記事での用語集</h2>
+<div class="glossary-container">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb25"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="fu">glossary</span><span class="kw">:</span></span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> SSH (Secure Shell)</span></span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>      ネットワーク越しに他のコンピューターを安全に遠隔操作するためのプロトコル．</span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>      TCP/IP 上で動作し，既定のポート番号は 22/tcp．</span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> sshd (SSH daemon)</span></span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a>      接続を受け付けるサーバー側の SSH プログラム．</span>
+<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a>      設定ファイルは `/etc/ssh/sshd_config`．</span>
+<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> ホスト認証</span></span>
+<span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb25-14"><a href="#cb25-14" aria-hidden="true" tabindex="-1"></a>      クライアントが接続先サーバーの正当性を確認する手続き．</span>
+<span id="cb25-15"><a href="#cb25-15" aria-hidden="true" tabindex="-1"></a>      サーバーがホスト秘密鍵で署名し，クライアントがホスト公開鍵で検証する．</span>
+<span id="cb25-16"><a href="#cb25-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-17"><a href="#cb25-17" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> ホスト鍵 (host key)</span></span>
+<span id="cb25-18"><a href="#cb25-18" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb25-19"><a href="#cb25-19" aria-hidden="true" tabindex="-1"></a>      サーバーが自分を証明するために持つ鍵ペア．</span>
+<span id="cb25-20"><a href="#cb25-20" aria-hidden="true" tabindex="-1"></a>      OpenSSH のインストール時や初回起動時に自動生成され，`/etc/ssh/ssh_host_*_key` に置かれる．</span>
+<span id="cb25-21"><a href="#cb25-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-22"><a href="#cb25-22" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> ユーザー認証</span></span>
+<span id="cb25-23"><a href="#cb25-23" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb25-24"><a href="#cb25-24" aria-hidden="true" tabindex="-1"></a>      ホスト認証の後に，サーバーが接続ユーザーの正当性を確認する手続き．</span>
+<span id="cb25-25"><a href="#cb25-25" aria-hidden="true" tabindex="-1"></a>      既定では公開鍵認証，パスワード認証の順に試される．</span>
+<span id="cb25-26"><a href="#cb25-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-27"><a href="#cb25-27" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> 公開鍵認証</span></span>
+<span id="cb25-28"><a href="#cb25-28" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb25-29"><a href="#cb25-29" aria-hidden="true" tabindex="-1"></a>      秘密鍵と公開鍵のペアを使い，「公開鍵に対応する秘密鍵を相手が持っている」ことを署名の検証で確かめる認証方式．</span>
+<span id="cb25-30"><a href="#cb25-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-31"><a href="#cb25-31" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> フィンガープリント (fingerprint)</span></span>
+<span id="cb25-32"><a href="#cb25-32" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb25-33"><a href="#cb25-33" aria-hidden="true" tabindex="-1"></a>      公開鍵をハッシュ関数（SHA256 など）にかけて得られる短い値．</span>
+<span id="cb25-34"><a href="#cb25-34" aria-hidden="true" tabindex="-1"></a>      公開鍵が同一かどうかを人が目で照合するために使う．`ssh-keygen -lf` で確認できる．</span>
+<span id="cb25-35"><a href="#cb25-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-36"><a href="#cb25-36" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> known_hosts</span></span>
+<span id="cb25-37"><a href="#cb25-37" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb25-38"><a href="#cb25-38" aria-hidden="true" tabindex="-1"></a>      クライアント側で接続済みサーバーのホスト名・IP アドレス・ホスト公開鍵を記録するファイル（`~/.ssh/known_hosts`）．</span>
+<span id="cb25-39"><a href="#cb25-39" aria-hidden="true" tabindex="-1"></a>      2回目以降の接続ではここに記録された鍵と照合する．</span>
+<span id="cb25-40"><a href="#cb25-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-41"><a href="#cb25-41" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> authorized_keys</span></span>
+<span id="cb25-42"><a href="#cb25-42" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb25-43"><a href="#cb25-43" aria-hidden="true" tabindex="-1"></a>      サーバー側でログインを許可するユーザー公開鍵を登録するファイル（`~/.ssh/authorized_keys`）．</span>
+<span id="cb25-44"><a href="#cb25-44" aria-hidden="true" tabindex="-1"></a>      参照先は `sshd_config` の `AuthorizedKeysFile` で変更できる．</span>
+<span id="cb25-45"><a href="#cb25-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-46"><a href="#cb25-46" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> TOFU (Trust On First Use)</span></span>
+<span id="cb25-47"><a href="#cb25-47" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb25-48"><a href="#cb25-48" aria-hidden="true" tabindex="-1"></a>      初回接続時に受け取った公開鍵を信頼して保存し，以後はその鍵と照合する方式．</span>
+<span id="cb25-49"><a href="#cb25-49" aria-hidden="true" tabindex="-1"></a>      初回接続だけは中間者攻撃を防げない．</span>
+<span id="cb25-50"><a href="#cb25-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-51"><a href="#cb25-51" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> 中間者攻撃 (Man-in-the-Middle attack)</span></span>
+<span id="cb25-52"><a href="#cb25-52" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb25-53"><a href="#cb25-53" aria-hidden="true" tabindex="-1"></a>      攻撃者が通信の間に割り込み，双方に対して相手になりすまして通信を盗聴・改ざんする攻撃．</span>
+<span id="cb25-54"><a href="#cb25-54" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-55"><a href="#cb25-55" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> SSHFP レコード</span></span>
+<span id="cb25-56"><a href="#cb25-56" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb25-57"><a href="#cb25-57" aria-hidden="true" tabindex="-1"></a>      DNS にホスト公開鍵のフィンガープリントを登録するレコード．</span>
+<span id="cb25-58"><a href="#cb25-58" aria-hidden="true" tabindex="-1"></a>      クライアントは `VerifyHostKeyDNS yes` で照合できる（DNSSEC と組み合わせて使う）．</span>
+<span id="cb25-59"><a href="#cb25-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-60"><a href="#cb25-60" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> ホスト証明書</span></span>
+<span id="cb25-61"><a href="#cb25-61" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb25-62"><a href="#cb25-62" aria-hidden="true" tabindex="-1"></a>      認証局（CA）がホスト公開鍵に署名したもの．</span>
+<span id="cb25-63"><a href="#cb25-63" aria-hidden="true" tabindex="-1"></a>      クライアントは `known_hosts` に `@cert-authority` で CA の公開鍵だけを登録すればよい．</span>
+<span id="cb25-64"><a href="#cb25-64" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-65"><a href="#cb25-65" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> ED25519</span></span>
+<span id="cb25-66"><a href="#cb25-66" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb25-67"><a href="#cb25-67" aria-hidden="true" tabindex="-1"></a>      楕円曲線暗号を使った署名方式．RSA より短い鍵長で同等の強度が得られ，計算も高速．</span>
+<span id="cb25-68"><a href="#cb25-68" aria-hidden="true" tabindex="-1"></a>      GitHub・GitLab が SSH 鍵として推奨している．</span>
+<span id="cb25-69"><a href="#cb25-69" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-70"><a href="#cb25-70" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> scp (secure copy)</span></span>
+<span id="cb25-71"><a href="#cb25-71" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb25-72"><a href="#cb25-72" aria-hidden="true" tabindex="-1"></a>      SSH を使ってホストとクライアントの間でファイルを転送するコマンド．</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
 
 
 </section>
