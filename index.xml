@@ -2937,624 +2937,6 @@ font-style: inherit;"> thmgroup</span></span></code></pre></div></div>
   <pubDate>Sat, 10 Oct 2026 00:00:00 GMT</pubDate>
 </item>
 <item>
-  <title>tee コマンドのすすめ</title>
-  <dc:creator>Ryo Nakagami</dc:creator>
-  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-01-stdout-log/</link>
-  <description><![CDATA[ 
-
-
-
-
-
-
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>TL;DRs
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 50%">
-<col style="width: 50%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>やりたいこと</th>
-<th>書き方</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>画面とファイルの両方に出す</td>
-<td><code>cmd | tee out.log</code></td>
-</tr>
-<tr class="even">
-<td>stderr も含める</td>
-<td><code>cmd 2&gt;&amp;1 | tee out.log</code></td>
-</tr>
-<tr class="odd">
-<td>追記する</td>
-<td><code>cmd | tee -a out.log</code></td>
-</tr>
-<tr class="even">
-<td>複数ファイルに保存する</td>
-<td><code>cmd | tee a.log b.log</code></td>
-</tr>
-<tr class="odd">
-<td>終了ステータスを保つ</td>
-<td><code>set -o pipefail</code> または <code>${PIPESTATUS[0]}</code></td>
-</tr>
-<tr class="even">
-<td>色を残しつつログは素のテキストにする</td>
-<td><code>cmd --color=always 2&gt;&amp;1 | tee &gt;(sed ... &gt; out.log)</code></td>
-</tr>
-<tr class="odd">
-<td>root 権限のファイルに書く</td>
-<td><code>echo ... | sudo tee -a file &gt; /dev/null</code></td>
-</tr>
-<tr class="even">
-<td>Python の出力を即時表示する</td>
-<td><code>python -u script.py 2&gt;&amp;1 | tee out.log</code></td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-<section id="tee-コマンドとは" class="level2">
-<h2 class="anchored" data-anchor-id="tee-コマンドとは">tee コマンドとは</h2>
-<div id="def-" class="custom_problem blog-custom-border theorem definition">
-<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title">tee コマンド</span></p>
-<ul>
-<li><code>tee</code> は標準入力から受け取った内容を，標準出力とファイルの両方に書き出すコマンド</li>
-<li>ファイルへの保存と標準出力への出力を同時に行える</li>
-<li>複数のファイルへの出力も可能</li>
-</ul>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">コマンド1</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">tee</span> ファイル <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">コマンド2</span></span>
-<span id="cb1-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">コマンド</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">tee</span> ファイル1 ファイル2 ファイル3 ...</span></code></pre></div></div>
-</div>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 25%">
-<col style="width: 30%">
-<col style="width: 45%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>短いオプション</th>
-<th>長いオプション</th>
-<th>意味</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>-a</code></td>
-<td><code>--append</code></td>
-<td>既存ファイルを上書きせず追記する(リダイレクトの <code>&gt;&gt;</code> に相当)</td>
-</tr>
-<tr class="even">
-<td><code>-i</code></td>
-<td><code>--ignore-interrupts</code></td>
-<td>割り込みシグナル(<code>SIGINT</code>)を無視する</td>
-</tr>
-</tbody>
-</table>
-</div>
-<p>「画面で進捗を見ながら，同じ内容をログとして残す」という，データ分析や開発で頻出する要求を1つのコマンドで満たせます．</p>
-<p><span class="mini-section">リダイレクトとの違い</span></p>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>書き方</th>
-<th>画面</th>
-<th>ファイル</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>cmd &gt; out.log</code></td>
-<td>出ない</td>
-<td>出る</td>
-</tr>
-<tr class="even">
-<td><code>cmd | tee out.log</code></td>
-<td>出る</td>
-<td>出る</td>
-</tr>
-<tr class="odd">
-<td><code>cmd | tee -a out.log</code></td>
-<td>出る</td>
-<td>追記される</td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-<section id="基本の使い方" class="level2">
-<h2 class="anchored" data-anchor-id="基本の使い方">基本の使い方</h2>
-<div id="exm-" class="custom_problem theorem example">
-<p><span class="theorem-title"><strong>Exmaple 1</strong></span> <span class="def-title">リダイレクトとパイプを同時に行う</span></p>
-<p><code>コマンド &gt; ファイル</code> と <code>コマンド | コマンド</code> を同時に行いたい場合は，間に <code>tee</code> を挟みます．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">find</span> /bin /usr/bin <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-type</span> f <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">tee</span> cmdlist <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">less</span></span></code></pre></div></div>
-<p><code>find</code> の結果を <code>cmdlist</code> に保存しつつ，<code>less</code> で閲覧しています．</p>
-</div>
-<hr>
-<div id="exm-" class="custom_problem theorem example">
-<p><span class="theorem-title"><strong>Exmaple 2</strong></span> <span class="def-title">複数のファイルに保存する</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ls</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">tee</span> a.lst b.lst c.lst</span></code></pre></div></div>
-<p><code>tee</code> は標準出力にも書き出すので，画面に出したくない場合は出力先の1つをリダイレクトにします．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ls</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">tee</span> a.lst b.lst <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;</span> c.lst</span></code></pre></div></div>
-</div>
-<hr>
-<div id="exm-" class="custom_problem theorem example">
-<p><span class="theorem-title"><strong>Exmaple 3</strong></span> <span class="def-title">stderr も一緒に残す</span></p>
-<p>パイプが渡すのは stdout だけです．エラーメッセージや進捗表示は stderr に出ることが多いので，ログを取るときは <code>2&gt;&amp;1</code> でまとめてから <code>tee</code> に渡します．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">cargo</span> test <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--locked</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;&amp;</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">tee</span> test.log</span></code></pre></div></div>
-<p>cargo はビルドの進捗を stderr に，テスト結果を stdout に出すため，<code>2&gt;&amp;1</code> がないとビルドログがファイルに残りません．</p>
-</div>
-<hr>
-</section>
-<section id="開発での使いどころ" class="level2">
-<h2 class="anchored" data-anchor-id="開発での使いどころ">開発での使いどころ</h2>
-<section id="終了ステータスを保持する" class="level3">
-<h3 class="anchored" data-anchor-id="終了ステータスを保持する">終了ステータスを保持する</h3>
-<p>パイプにすると，終了コードは最後のコマンドである <code>tee</code> のもの(ほぼ常に 0)になります． テストが失敗してもスクリプトや CI が成功扱いになってしまうので，次のどちらかで対処します．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">set</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-o</span> pipefail</span>
-<span id="cb6-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">cargo</span> test <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--locked</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;&amp;</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">tee</span> test.log</span></code></pre></div></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">cargo</span> test <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--locked</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;&amp;</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">tee</span> test.log</span>
-<span id="cb7-2"><span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">exit</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">${PIPESTATUS</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">[</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">]</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">}</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span></span></code></pre></div></div>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-ノート
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li><code>PIPESTATUS</code> は bash の配列</li>
-<li>zsh では小文字の <code>pipestatus</code> で，添字が1始まりになります(<code>${pipestatus[1]}</code>)．</li>
-</ul>
-</div>
-</div>
-</section>
-<section id="画面の色を残す" class="level3">
-<h3 class="anchored" data-anchor-id="画面の色を残す">画面の色を残す</h3>
-<p>パイプ先は TTY ではないため，多くのコマンドは色を自動で無効にします． cargo の場合，cargo 本体とテストハーネスの両方に指定します．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">cargo</span> test <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--locked</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--color</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span>always <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--color</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span>always <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;&amp;</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">tee</span> test.log</span></code></pre></div></div>
-<p>ただしこの方法ではログにも ANSI エスケープが入ります． ログをプレーンテキストにしたい場合は，プロセス置換を使ってファイルに書く側だけで除去します．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">cargo</span> test <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--locked</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--color</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span>always <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--color</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span>always <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;&amp;</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span> <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">\</span></span>
-<span id="cb9-2">  <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">tee</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;(</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sed</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-E</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">'s/\x1b\[[0-9;]*[mK]//g'</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;</span> test.log<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">)</span></span></code></pre></div></div>
-<p>他のツールでも考え方は同じで，色を強制するオプションが異なるだけです．</p>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>ツール</th>
-<th>色を強制する指定</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>cargo</code></td>
-<td><code>--color=always</code></td>
-</tr>
-<tr class="even">
-<td><code>pytest</code></td>
-<td><code>--color=yes</code></td>
-</tr>
-<tr class="odd">
-<td><code>git</code></td>
-<td><code>-c color.ui=always</code></td>
-</tr>
-<tr class="even">
-<td><code>grep</code> / <code>ls</code></td>
-<td><code>--color=always</code></td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="root-権限が必要なファイルに書き込む" class="level3">
-<h3 class="anchored" data-anchor-id="root-権限が必要なファイルに書き込む">root 権限が必要なファイルに書き込む</h3>
-<p><code>sudo echo ... &gt; /etc/...</code> は，リダイレクトを処理するのが sudo 前の自分のシェルなので権限エラーになります． 書き込みを <code>tee</code> に任せ，<code>tee</code> を sudo で実行します．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"127.0.0.1 mlflow.local"</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sudo</span> tee <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-a</span> /etc/hosts <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;</span> /dev/null</span></code></pre></div></div>
-<p>末尾の <code>&gt; /dev/null</code> は画面へのエコーを捨てるためのものです．<code>-a</code> を忘れるとファイルが上書きされる点に注意してください．</p>
-</section>
-</section>
-<section id="データ分析での使いどころ" class="level2">
-<h2 class="anchored" data-anchor-id="データ分析での使いどころ">データ分析での使いどころ</h2>
-<div id="exm-" class="custom_problem theorem example">
-<p><span class="theorem-title"><strong>Exmaple 4</strong></span> <span class="def-title">学習・バッチ処理のログを残す</span></p>
-<p>長時間かかる学習やバッチ処理では，進捗を画面で追いながらログを残します．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">python</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-u</span> train.py <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--config</span> config.yml <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;&amp;</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">tee</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"logs/train_</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$(</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">date</span> +%Y%m%d_%H%M%S<span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">)</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">.log"</span></span></code></pre></div></div>
-<p>Python は出力先が TTY でないと stdout をブロックバッファリングするため，そのままでは画面への表示がまとまって遅れて出ます． <code>-u</code>(または環境変数 <code>PYTHONUNBUFFERED=1</code>)でバッファリングを無効にします．</p>
-<p>Python 以外のコマンドでは <code>stdbuf</code> が使えます．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">stdbuf</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-oL</span> ./long_job <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;&amp;</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">tee</span> job.log</span></code></pre></div></div>
-</div>
-<hr>
-<div id="exm-" class="custom_problem theorem example">
-<p><span class="theorem-title"><strong>Exmaple 5</strong></span> <span class="def-title">同じログに追記していく</span></p>
-<p>ハイパーパラメータを変えながら繰り返し実行する場合は，<code>-a</code> で1つのファイルに追記します．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb13-1"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> lr <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> 0.1 0.01 0.001<span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">;</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">do</span></span>
-<span id="cb13-2">  <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"=== lr=</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">${lr}</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;"> ==="</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">tee</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-a</span> sweep.log</span>
-<span id="cb13-3">  <span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">python</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-u</span> train.py <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--lr</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">${lr}</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;&amp;</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">tee</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-a</span> sweep.log</span>
-<span id="cb13-4"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">done</span></span></code></pre></div></div>
-</div>
-<hr>
-<div id="exm-" class="custom_problem theorem example">
-<p><span class="theorem-title"><strong>Exmaple 6</strong></span> <span class="def-title">パイプラインの中間結果を保存する</span></p>
-<p>前処理をパイプでつないでいるとき，途中段階のデータをファイルに落としておくと，後から件数や中身を検証できます．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb14-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">zcat</span> access.log.gz <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">\</span></span>
-<span id="cb14-2">  <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">grep</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-v</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"healthcheck"</span> <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">\</span></span>
-<span id="cb14-3">  <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">tee</span> filtered.log <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">\</span></span>
-<span id="cb14-4">  <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">awk</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">'{print $1}'</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sort</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">uniq</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-c</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sort</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-rn</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">head</span></span></code></pre></div></div>
-</div>
-<hr>
-</section>
-<section id="references" class="level2">
-<h2 class="anchored" data-anchor-id="references">References</h2>
-<ul>
-<li><a href="https://atmarkit.itmedia.co.jp/ait/articles/1611/16/news022.html">tee コマンド: ―標準出力とファイルの両方に出力する</a></li>
-</ul>
-
-
-</section>
-
- ]]></description>
-  <category>環境構築</category>
-  <category>shellscript</category>
-  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-01-stdout-log/</guid>
-  <pubDate>Thu, 01 Oct 2026 00:00:00 GMT</pubDate>
-</item>
-<item>
   <title>メール作成術</title>
   <dc:creator>Ryo Nakagami</dc:creator>
   <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-01-how-to-write-email/</link>
@@ -6248,9 +5630,903 @@ font-style: inherit;">|</span></span>
 
  ]]></description>
   <category>security</category>
-  <category>netowrk</category>
+  <category>network</category>
+  <category>firewall</category>
   <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-08-23-security-101/</guid>
   <pubDate>Sun, 23 Aug 2026 00:00:00 GMT</pubDate>
+</item>
+<item>
+  <title>MIME Type: データの種類を表すためのラベル</title>
+  <dc:creator>Ryo Nakagami</dc:creator>
+  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-08-22-mime-media-type/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>TL;DRs
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>MIME type（正式名称は media type）は「このデータは何か」を受け手に伝えるための <code>type/subtype</code> 形式のラベル</li>
+<li>ラベルはファイルの中ではなく，HTTP やメールのヘッダなど<strong>データの外側</strong>に付く</li>
+<li>ラベルのないファイルの MIME type は，ツールが拡張子や中身から推測する．ツールによって推測方法が違うので，結果が食い違うことがある</li>
+</ul>
+<div class="padding-left-10">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 40%">
+<col style="width: 60%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>やりたいこと</th>
+<th>書き方</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>ファイルの中身から判定する</td>
+<td><code>file --mime-type FILE</code></td>
+</tr>
+<tr class="even">
+<td>GNOME の判定結果を見る</td>
+<td><code>gio info -a standard::content-type FILE</code></td>
+</tr>
+<tr class="odd">
+<td>デスクトップ環境の判定結果を見る</td>
+<td><code>xdg-mime query filetype FILE</code></td>
+</tr>
+<tr class="even">
+<td>MIME type に対応する既定アプリを見る</td>
+<td><code>xdg-mime query default image/png</code></td>
+</tr>
+<tr class="odd">
+<td>Webサーバーが返すラベルを見る</td>
+<td><code>curl -sI URL \| grep -i content-type</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<section id="mime-typeとは" class="level2">
+<h2 class="anchored" data-anchor-id="mime-typeとは">MIME Typeとは</h2>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title">MIME Type</span></p>
+<ul>
+<li>データの種類を表すための標準的なラベル．「このデータは HTML 」「これは PNG 画像」と受け手に伝えるために使う</li>
+<li><code>type/subtype</code> の形で書き，必要に応じて <code>;</code> 区切りでパラメータを付ける</li>
+<li>種類の一覧は IANA が管理しており，現在の正式名称は <strong>media type</strong></li>
+</ul>
+<p><span class="mini-section">形式</span></p>
+<p><code>タイプ/サブタイプ</code> の形 + 必要に応じてパラメータを付与して，以下のように記述</p>
+<div class="padding-left-10">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb1-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># HTML 形式のテキストで，文字コードは UTF-8</span></span>
+<span id="cb1-2"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">text/html; charset</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">utf-8</span></span></code></pre></div></div>
+</div>
+</div>
+<p><span class="mini-section">MIME Typeの構成要素</span></p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 30%">
+<col style="width: 20%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>部分</th>
+<th>例</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>type（トップレベルタイプ）</td>
+<td><code>text</code></td>
+<td>データの大分類．人が読めるテキスト</td>
+</tr>
+<tr class="even">
+<td>subtype</td>
+<td><code>html</code></td>
+<td>大分類の中での具体的な形式</td>
+</tr>
+<tr class="odd">
+<td>パラメータ</td>
+<td><code>charset=utf-8</code></td>
+<td>解釈に必要な追加情報．<code>text</code> では文字コードを指定することが多い</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><span class="mini-section">代表的な MIME type</span></p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 35%">
+<col style="width: 65%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>MIME type</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>text/plain</code></td>
+<td>プレーンテキスト</td>
+</tr>
+<tr class="even">
+<td><code>text/html</code></td>
+<td>HTML</td>
+</tr>
+<tr class="odd">
+<td><code>text/csv</code></td>
+<td>CSV</td>
+</tr>
+<tr class="even">
+<td><code>application/json</code></td>
+<td>JSON</td>
+</tr>
+<tr class="odd">
+<td><code>application/pdf</code></td>
+<td>PDF</td>
+</tr>
+<tr class="even">
+<td><code>image/png</code></td>
+<td>PNG 画像</td>
+</tr>
+<tr class="odd">
+<td><code>multipart/form-data</code></td>
+<td>複数のパートをまとめたもの（フォームの送信など）</td>
+</tr>
+<tr class="even">
+<td><code>application/octet-stream</code></td>
+<td>種類不明の汎用バイナリ</td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="電子メールの-mime-との関係" class="level3">
+<h3 class="anchored" data-anchor-id="電子メールの-mime-との関係">電子メールの MIME との関係</h3>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 2</strong></span> <span class="def-title">電子メール文脈でのMIME</span></p>
+<ul>
+<li>Multipurpose Internet Mail Extensions の略</li>
+<li>テキスト（ASCII）しか送れなかった電子メールで日本語・画像・添付ファイルを送るための拡張規格</li>
+</ul>
+</div>
+<p>もともとの電子メール（RFC 822）は，本文に ASCII のテキストを入れることしか想定していませんでした． 画像や添付ファイル，日本語のような ASCII 以外のテキストを送るために，MIME という仕組みが利用されています．</p>
+<p><span class="mini-section">MIMEの機能</span></p>
+<ul>
+<li><strong>構造化</strong>: 本文がどんな種類のデータかを <code>Content-Type</code> ヘッダで示す</li>
+<li><strong>符号化</strong>: 画像などのバイナリを，7bit のテキストしか通さないメールの経路に乗せられる形に変換する．方法は <code>Content-Transfer-Encoding</code> ヘッダで示す</li>
+</ul>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Exmaple 1</strong></span> <span class="def-title">MIME メールの例</span></p>
+<p>GIF 画像を1つ添付したメールの中身は以下のようになります．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb2-1"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">From: "Taro Yamada" &lt;taro@example.com&gt;</span></span>
+<span id="cb2-2"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">To: "Hanako Suzuki" &lt;hanako@example.jp&gt;</span></span>
+<span id="cb2-3"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">Subject: 画像です</span></span>
+<span id="cb2-4"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">MIME-Version: 1.0</span></span>
+<span id="cb2-5"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">Content-Type: image/gif; name</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"logo.gif"</span></span>
+<span id="cb2-6"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">Content-Disposition: attachment; filename</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"logo.gif"</span></span>
+<span id="cb2-7"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">Content-Transfer-Encoding: base64</span></span>
+<span id="cb2-8"></span>
+<span id="cb2-9"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">R0lGODlhcwA4AOYAAP/////++Pj9+/749fn49/H2+eX27+/v7+H07N3z6eXs8dXw5OLl6N/l68/u</span></span>
+<span id="cb2-10"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">...</span></span>
+<span id="cb2-11"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">VYVxGKjjlEqJQAAAOw</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">=</span></span></code></pre></div></div>
+<ul>
+<li><code>From</code>〜<code>Subject</code> は通常のメールのヘッダで，<code>MIME-Version</code> 以下の4つが MIME で追加されたヘッダ</li>
+<li>空行のあとが本文で，GIF のバイナリが Base64 でテキストに変換されて入っている</li>
+</ul>
+<p><span class="mini-section">MIME で追加されたヘッダ</span></p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 28%">
+<col style="width: 47%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>ヘッダ</th>
+<th>役割</th>
+<th>例</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>MIME-Version</code></td>
+<td>MIME のバージョン．<code>1.0</code> しか存在しない</td>
+<td><code>1.0</code></td>
+</tr>
+<tr class="even">
+<td><code>Content-Type</code></td>
+<td>本文のデータの種類（media type）とパラメータ</td>
+<td><code>image/gif; name="logo.gif"</code></td>
+</tr>
+<tr class="odd">
+<td><code>Content-Disposition</code></td>
+<td>本文の扱い方．<code>inline</code> は本文と一緒に表示，<code>attachment</code> は添付ファイルとして扱う．<code>filename</code> で元のファイル名を伝える</td>
+<td><code>attachment; filename="logo.gif"</code></td>
+</tr>
+<tr class="even">
+<td><code>Content-Description</code></td>
+<td>本文につける説明（コメント）</td>
+<td><code>"This is My Picture"</code></td>
+</tr>
+<tr class="odd">
+<td><code>Content-Transfer-Encoding</code></td>
+<td>本文をテキストに変換した方法</td>
+<td><code>base64</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code>Content-Disposition</code> は送り手の意図を伝えるもので，受け手のメーラがその通りに表示する保証はありません．</p>
+</div>
+<hr>
+</section>
+</section>
+<section id="htmlやpngファイルのどこにmime-typeがあるのか" class="level2">
+<h2 class="anchored" data-anchor-id="htmlやpngファイルのどこにmime-typeがあるのか">HTMLやPNGファイルのどこにMIME Typeがあるのか？</h2>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>MIME Type はファイルには書かれていない
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>電子メールでは，<code>Content-Type: image/gif</code> のように MIME type がメッセージのヘッダに書かれて，データと一緒に届く</li>
+<li>一方，ローカルにある HTML や PNG のファイルには，MIME type はどこにも書かれていない．ファイルの中身はただの HTML や PNG のデータである</li>
+<li>ファイルの MIME type は OS（Ubuntu ならデスクトップ環境）がその都度判定して分類している</li>
+</ul>
+</div>
+</div>
+<p>PNG や HTML という<strong>形式</strong>と，MIME type という<strong>ラベル</strong>は別のものです． メールや HTTP では送り手がラベルを貼ってくれますが，ローカルのファイルにはラベルを貼る場所がありません． ファイルに付いているのはファイル名（拡張子）と中身だけなので，Ubuntu はこの2つを手がかりに「このファイルは <code>image/png</code> だ」と分類しています．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-08-22-mime-media-type/figures/mime-label-vs-file.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+<figcaption>メール・HTTP ではラベルがデータと一緒に届くが，ローカルのファイルでは OS が判定する</figcaption>
+</figure>
+</div>
+<section id="ubuntu-が-mime-type-を判定する仕組み" class="level3">
+<h3 class="anchored" data-anchor-id="ubuntu-が-mime-type-を判定する仕組み">Ubuntu が MIME type を判定する仕組み</h3>
+<ul>
+<li>Ubuntu（GNOME）では，<strong>shared-mime-info</strong> というデータベースに「どんなファイルをどの MIME type に分類するか」のルールがまとめている</li>
+<li>ルールは MIME type ごとに XML で定義されいる</li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode xml code-with-copy"><code class="sourceCode xml"><span id="cb3-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;!-- /usr/share/mime/packages/freedesktop.org.xml より抜粋 --&gt;</span></span>
+<span id="cb3-2">&lt;<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">mime-type</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">type=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"image/png"</span>&gt;</span>
+<span id="cb3-3">  &lt;<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">comment</span>&gt;PNG image&lt;/<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">comment</span>&gt;</span>
+<span id="cb3-4">  &lt;<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">magic</span>&gt;</span>
+<span id="cb3-5">    &lt;<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">match</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">type=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"string"</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">value=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"\x89PNG\r\n\x1A\n"</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">offset=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"0"</span>/&gt;</span>
+<span id="cb3-6">  &lt;/<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">magic</span>&gt;</span>
+<span id="cb3-7">  &lt;<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">glob</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">pattern=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"*.png"</span>/&gt;</span>
+<span id="cb3-8">&lt;/<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">mime-type</span>&gt;</span></code></pre></div></div>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 15%">
+<col style="width: 15%">
+<col style="width: 70%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>要素</th>
+<th>手がかり</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>&lt;glob&gt;</code></td>
+<td>拡張子</td>
+<td>ファイル名が <code>*.png</code> にマッチすれば <code>image/png</code></td>
+</tr>
+<tr class="even">
+<td><code>&lt;magic&gt;</code></td>
+<td>中身</td>
+<td>ファイルの先頭（<code>offset="0"</code>）が <code>\x89PNG\r\n\x1A\n</code> で始まれば <code>image/png</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>GNOME のアプリやファイルマネージャは，<code>gio</code>（GLib）を通じてこのデータベースを引き，ファイルの MIME type を決めています． 判定結果は以下のコマンドで確認できます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> gio info <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-a</span> standard::content-type photo.png</span>
+<span id="cb4-2">  <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">standard::content-type:</span> image/png</span>
+<span id="cb4-3"></span>
+<span id="cb4-4"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> xdg-mime query filetype photo.png</span>
+<span id="cb4-5"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">image/png</span></span></code></pre></div></div>
+<p><span class="mini-section">拡張子との違い</span></p>
+<p>拡張子（<code>.png</code> など）は MIME type を判定するための手がかりの1つにすぎず，MIME type そのものではありません．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 24%">
+<col style="width: 38%">
+<col style="width: 38%">
+</colgroup>
+<thead>
+<tr class="header">
+<th></th>
+<th>拡張子</th>
+<th>MIME type</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>付いている場所</td>
+<td>ファイル名</td>
+<td>メールや HTTP のヘッダ．ローカルのファイルには付いておらず，OS が判定する</td>
+</tr>
+<tr class="even">
+<td>ファイル名がない場面</td>
+<td>使えない（HTTP の URL や API のレスポンスには拡張子がないことが多い）</td>
+<td>使える</td>
+</tr>
+<tr class="odd">
+<td>中身との一致</td>
+<td>保証されない（名前は自由に変えられる）</td>
+<td>保証されない（送り手の自己申告，または OS の推測）</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Exmaple 2</strong></span> <span class="def-title"><code>open</code> コマンドでデフォルトアプリケーション起動ができる機序</span></p>
+<p>Ubuntu の <code>open</code> は <code>xdg-open</code> へのリンクです．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> readlink <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-f</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$(</span><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">command</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-v</span> open<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">)</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span></span>
+<span id="cb5-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">/usr/bin/xdg-open</span></span></code></pre></div></div>
+<p><code>open photo.png</code> を実行すると画像ビューアが起動するのは，<code>xdg-open</code> が「ファイル → MIME type → アプリ」の2段階で開くアプリを決めているからです． ファイルとアプリを直接結びつけるのではなく，間に MIME type を挟んでいるのがポイントです．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-08-22-mime-media-type/figures/xdg-open-mime.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+<figcaption><code>open photo.png</code> で既定アプリが起動するまでの流れ</figcaption>
+</figure>
+</div>
+<p><span class="mini-section">① 種類を調べる: ファイル → MIME type</span></p>
+<p>前節の shared-mime-info を使って，<code>photo.png</code> を <code>image/png</code> に分類します．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> xdg-mime query filetype photo.png</span>
+<span id="cb6-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">image/png</span></span></code></pre></div></div>
+<p><span class="mini-section">② 開くアプリを決める: MIME type → <code>.desktop</code></span></p>
+<p>アプリ側は，自分が開ける MIME type を <code>.desktop</code> ファイル（アプリの起動設定）の <code>MimeType=</code> に宣言しています．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb7-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># /usr/share/applications/org.gnome.eog.desktop（画像ビューア）より抜粋</span></span>
+<span id="cb7-2"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">Exec</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">eog %U</span></span>
+<span id="cb7-3"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">MimeType</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">image/bmp;image/gif;image/jpeg;image/png;...</span></span></code></pre></div></div>
+<p>これを MIME type ごとに集計したものが <code>mimeinfo.cache</code> で，「<code>image/png</code> を開けるアプリの候補一覧」になります． 候補の中からどれを使うかは <code>mimeapps.list</code> の既定の指定で決まり，ユーザー設定（<code>~/.config/mimeapps.list</code>）が最優先されます．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 28%">
+<col style="width: 37%">
+<col style="width: 35%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>ファイル</th>
+<th>役割</th>
+<th>例</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>*.desktop</code> の <code>MimeType=</code></td>
+<td>アプリが開ける MIME type の宣言</td>
+<td><code>MimeType=image/png;...</code></td>
+</tr>
+<tr class="even">
+<td><code>mimeinfo.cache</code></td>
+<td>上を MIME type ごとにまとめた候補一覧</td>
+<td><code>image/png=org.gnome.eog.desktop;...</code></td>
+</tr>
+<tr class="odd">
+<td><code>mimeapps.list</code></td>
+<td>MIME type ごとの既定アプリ</td>
+<td><code>image/png=org.gnome.eog.desktop</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># image/png の既定アプリを確認</span></span>
+<span id="cb8-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> xdg-mime query default image/png</span>
+<span id="cb8-3"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">org.gnome.eog.desktop</span></span>
+<span id="cb8-4"></span>
+<span id="cb8-5"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 既定アプリを変更（~/.config/mimeapps.list に書き込まれる）</span></span>
+<span id="cb8-6"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> xdg-mime default org.gnome.Shotwell-Viewer.desktop image/png</span></code></pre></div></div>
+<p><span class="mini-section">アプリを起動する</span></p>
+<p>最後に，選ばれた <code>.desktop</code> ファイルの <code>Exec=</code> の行（<code>eog %U</code>）の <code>%U</code> をファイルの URI に置き換えて実行します． ファイルの種類の判定（①）と，種類ごとのアプリの割り当て（②）が分かれているので，<code>mimeapps.list</code> を1行変えるだけで，すべての PNG ファイルを開くアプリを切り替えられます．</p>
+</div>
+<hr>
+</section>
+</section>
+<section id="データ分析で使う場面" class="level2">
+<h2 class="anchored" data-anchor-id="データ分析で使う場面">データ分析で使う場面</h2>
+<p><span class="mini-section">API のレスポンスを確認する</span></p>
+<p><code>requests</code> のレスポンスを <code>.json()</code> で読もうとしてエラーになる場合は，まず <code>Content-Type</code> を確認すると原因の切り分けが早くなります．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> requests</span>
+<span id="cb9-2"></span>
+<span id="cb9-3">r <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> requests.get(url)</span>
+<span id="cb9-4"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(r.headers[<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Content-Type"</span>])  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># application/json を期待していたのに text/html（エラーページ）だった，など</span></span></code></pre></div></div>
+<p><code>curl</code> でもヘッダだけを確認できます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> curl <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-sI</span> https://example.com <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">grep</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-i</span> content-type</span>
+<span id="cb10-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">content-type:</span> text/html</span></code></pre></div></div>
+<p><span class="mini-section">Jupyter の出力表示</span></p>
+<p>Jupyter Notebook でセルの出力が表やグラフになるのも MIME type の仕組みです． カーネルは1つの出力を複数の MIME type で同時に返し，フロントエンドが表示できる中で最もリッチなものを選びます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb11-1"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"data"</span><span class="er" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">:</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">{</span></span>
+<span id="cb11-2">  <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">"text/plain"</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">:</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"   a  b</span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">\n</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">0  1  3</span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">\n</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">1  2  4"</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">,</span></span>
+<span id="cb11-3">  <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">"text/html"</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">:</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"&lt;table&gt;...&lt;/table&gt;"</span></span>
+<span id="cb11-4"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">}</span></span></code></pre></div></div>
+<p>上は pandas の DataFrame を表示したときの <code>.ipynb</code> の中身です． Jupyter Lab では <code>text/html</code> が表として表示され，ターミナルの IPython では <code>text/plain</code> が使われます．</p>
+<p><span class="mini-section">よく見る MIME type</span></p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 18%">
+<col style="width: 42%">
+<col style="width: 40%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>形式</th>
+<th>MIME type</th>
+<th>備考</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>CSV</td>
+<td><code>text/csv</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td>TSV</td>
+<td><code>text/tab-separated-values</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td>JSON</td>
+<td><code>application/json</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td>JSON Lines</td>
+<td><code>application/x-ndjson</code>, <code>application/jsonl</code> など</td>
+<td>IANA 未登録で，ツールによって表記が揺れる</td>
+</tr>
+<tr class="odd">
+<td>Parquet</td>
+<td><code>application/vnd.apache.parquet</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td>Excel (<code>.xlsx</code>)</td>
+<td><code>application/vnd.openxmlformats-officedocument.spreadsheetml.sheet</code></td>
+<td>古い <code>.xls</code> は <code>application/vnd.ms-excel</code></td>
+</tr>
+<tr class="odd">
+<td>Jupyter Notebook</td>
+<td><code>application/x-ipynb+json</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td>Markdown</td>
+<td><code>text/markdown</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td>SVG</td>
+<td><code>image/svg+xml</code></td>
+<td><code>+xml</code> は中身が XML であることを表す</td>
+</tr>
+<tr class="even">
+<td>gzip / zip</td>
+<td><code>application/gzip</code> / <code>application/zip</code></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>subtype の <code>vnd.</code> はベンダー（Apache，Microsoft など）が登録したもの，<code>x-</code> は IANA に登録されていない慣習的なものを表します．</p>
+</section>
+<section id="appendix-用語集" class="level2">
+<h2 class="anchored" data-anchor-id="appendix-用語集">Appendix: 用語集</h2>
+<div class="glossary-container">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb12-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">glossary</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span></span>
+<span id="cb12-2"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> IANA (Internet Assigned Numbers Authority)</span></span>
+<span id="cb12-3"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb12-4">      インターネットで使う番号や名前を管理する組織．</span>
+<span id="cb12-5">      IP アドレスの割り当てやポート番号の一覧と並んで，media type の登録簿も管理している．</span>
+<span id="cb12-6"></span>
+<span id="cb12-7"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> Content-Type ヘッダ</span></span>
+<span id="cb12-8"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb12-9">      メールや HTTP のメッセージで，本文のデータの MIME type を伝えるヘッダ．</span>
+<span id="cb12-10">      `Content-Type: text/html; charset=utf-8` のように，MIME type とパラメータをそのまま書く．</span>
+<span id="cb12-11"></span>
+<span id="cb12-12"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> マジックナンバー</span></span>
+<span id="cb12-13"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb12-14">      ファイル形式を識別するために，ファイルの先頭に置かれる決まったバイト列．</span>
+<span id="cb12-15">      例えば PNG は `\x89PNG\r\n\x1a\n`，PDF は `%PDF`，ZIP は `PK\x03\x04` で始まる．</span>
+<span id="cb12-16">      `file` コマンドはこれを使って，拡張子に頼らずにファイルの種類を判定する．</span>
+<span id="cb12-17"></span>
+<span id="cb12-18"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> shared-mime-info</span></span>
+<span id="cb12-19"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb12-20">      freedesktop.org が管理する，Linux デスクトップ向けの MIME type データベース．</span>
+<span id="cb12-21">      拡張子のパターン（`globs2`）とマジックナンバーの両方の判定ルールを持ち，`gio` や GNOME / KDE のファイルマネージャが利用する．</span>
+<span id="cb12-22"></span>
+<span id="cb12-23"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> mimeapps.list</span></span>
+<span id="cb12-24"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb12-25">      MIME type ごとの既定アプリを書く設定ファイル．</span>
+<span id="cb12-26">      `[Default Applications]` セクションに `image/png=org.gnome.Loupe.desktop` のように書く．</span>
+<span id="cb12-27">      `xdg-mime default` で変更すると `~/.config/mimeapps.list` に書き込まれる．</span>
+<span id="cb12-28"></span>
+<span id="cb12-29"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> MIME sniffing</span></span>
+<span id="cb12-30"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb12-31">      受け手（主にブラウザ）が，送り手の付けた MIME type を信用せずに中身から種類を推測し直す動作．</span>
+<span id="cb12-32">      ラベルの付け忘れを補える一方，意図しない解釈によるセキュリティ問題の原因にもなる．</span></code></pre></div></div>
+</div>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<ul>
+<li><a href="https://www.rfc-editor.org/rfc/rfc2045">RFC 2045: MIME Part One: Format of Internet Message Bodies</a></li>
+<li><a href="https://www.rfc-editor.org/rfc/rfc2046">RFC 2046: MIME Part Two: Media Types</a></li>
+<li><a href="https://www.rfc-editor.org/rfc/rfc6838">RFC 6838: Media Type Specifications and Registration Procedures</a></li>
+<li><a href="https://www.iana.org/assignments/media-types/media-types.xhtml">IANA &gt; Media Types</a></li>
+<li><a href="https://specifications.freedesktop.org/mime-apps-spec/latest/">freedesktop.org &gt; Association between MIME types and applications</a></li>
+<li><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/MIME_types">MDN &gt; MIME types</a></li>
+<li><a href="../../posts/2026-08-21-how-to-use-vscode-editor/index.html">regmonkey post &gt; VS Code の使い方（Appendix: <code>xdg-open</code> の動作）</a></li>
+</ul>
+
+
+</section>
+
+ ]]></description>
+  <category>データ形式</category>
+  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-08-22-mime-media-type/</guid>
+  <pubDate>Sat, 22 Aug 2026 00:00:00 GMT</pubDate>
 </item>
 </channel>
 </rss>
