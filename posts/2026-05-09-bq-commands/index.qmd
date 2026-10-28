@@ -12,6 +12,133 @@ comments:
        issue-term: title
 ---
 
+## データセットとアクセス権限の確認
+
+### データセット一覧の取得
+
+::: {.callout-note}
+### Command
+
+`${PROJECTID}` GCPプロジェクト内のBigQueryデータセットを一覧表示するコマンド
+
+```bash
+bq ls --project_id=${PROJECTID} --max_results=1000
+```
+
+:::
+
+[Options]{.mini-section}
+
+:::{.glossary-container}
+
+```yaml
+glossary:
+  - def: bq ls
+    description: |
+      `ls` は `list` の略．プロジェクト内のデータセット，データセット内のテーブルなどを一覧表示するサブコマンド．
+
+  - def: --project_id=${PROJECTID}
+    description: |
+      一覧を取得する対象のプロジェクトを指定．省略時は `gcloud` / `bq` のデフォルトプロジェクトが使われる．
+
+  - def: --max_results=1000
+    description: |
+      返す件数の上限．`bq ls` はデフォルトで最大 50 件しか返さないため，
+      データセットが多いプロジェクトでは取りこぼしを防ぐために指定する．
+```
+
+:::
+
+### データセットごとのアクセス権限（ACL）の確認
+
+`bq show --format=json` の出力の `access` フィールドに，データセット単位の ACL（ロール × 付与先）が入っている．
+これを全データセットについてループで取得し，Python で整形する．
+
+[整形スクリプト: `acl.py`]{.mini-section}
+
+```python
+import sys, json
+
+j = json.load(sys.stdin)
+print("location:", j.get("location"))
+for a in j.get("access", []):
+    r = a.get("role", "-")
+    k = [x for x in a if x != "role"][0]  # userByEmail / specialGroup / groupByEmail / view など
+    v = a[k]
+    print("  %-8s %-14s %s" % (r, k, v if isinstance(v, str) else json.dumps(v)))
+```
+
+[実行コマンド]{.mini-section}
+
+```bash
+for d in $(bq ls --project_id=${PROJECTID} --max_results=1000 | tail -n +3); do
+  echo "=== $d"
+  bq show --format=json ${PROJECTID}:$d | python3 acl.py
+done
+```
+
+- `tail -n +3` で `bq ls` のヘッダ 2 行（`datasetId` と区切り線）を除いている
+
+出力例は以下のようになる．
+
+```text
+=== ${DATASET}
+location: asia-northeast1
+  OWNER    specialGroup   projectOwners
+  WRITER   specialGroup   projectWriters
+  READER   specialGroup   projectReaders
+  OWNER    userByEmail    user-a@example.com
+  WRITER   userByEmail    sa-name@${PROJECTID}.iam.gserviceaccount.com
+```
+
+### プロジェクトレベルの IAM ポリシーの確認
+
+データセット ACL の `specialGroup`（`projectOwners` / `projectWriters` / `projectReaders`）が
+実際に誰を指すかは，プロジェクトの IAM を見ないと分からない．
+BigQuery 関連ロールと基本ロールに絞って取得する．
+
+```bash
+gcloud projects get-iam-policy ${PROJECTID} --format=json | python3 -c '
+import sys, json
+p = json.load(sys.stdin)
+for b in p.get("bindings", []):
+    if "bigquery" in b["role"] or b["role"] in ("roles/owner", "roles/editor", "roles/viewer"):
+        print(b["role"])
+        for m in b["members"]:
+            print("   ", m)'
+```
+
+`specialGroup` とプロジェクトロールの対応は以下．
+
+| データセット ACL のロール | `specialGroup` | 対応するプロジェクトのロール |
+|---|---|---|
+| OWNER | `projectOwners` | `roles/owner` |
+| WRITER | `projectWriters` | `roles/editor` |
+| READER | `projectReaders` | `roles/viewer` |
+
+::: {.callout-tip}
+### 結果を読むときのポイント
+
+- プロジェクトの `roles/editor` や `roles/bigquery.dataEditor` を持つユーザーは，
+  データセット ACL に個別付与がなくても全データセットに書き込める
+- 逆に，プロジェクトロールを持たないユーザーでも，データセット ACL への個別付与だけで
+  そのデータセットのオーナーになっていることがある
+- `roles/bigquery.dataOwner` をプロジェクトレベルで持つサービスアカウント（例: Looker Studio 連携用）は
+  全データセットに対してオーナー相当になるので，意図した付与か確認する
+- Workbench などのサービスアカウントは，必要なデータセットにだけ
+  READER / WRITER が付与されているかを確認する
+
+:::
+
+::: {.callout-warning}
+### この方法で確認できない範囲
+
+- テーブル単位の IAM，行レベルセキュリティ（row access policy），列レベルのポリシータグ
+- カスタムロールやその他のロール（上のスクリプトは BigQuery 関連ロールと `owner` / `editor` / `viewer` に絞っている）
+- 組織・フォルダから継承される IAM（`gcloud projects get-iam-policy` はプロジェクトに直接付いたバインディングのみ返す）
+
+:::
+
 ## Datasetの作成
 
 ::: {.callout-note}
