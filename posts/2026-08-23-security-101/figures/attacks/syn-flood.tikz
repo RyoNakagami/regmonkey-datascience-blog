@@ -1,0 +1,63 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.3cm, minimum width=3.2cm, inner sep=5pt},
+    attacker/.style={block, draw=crimsonred, fill=mistyrose},
+    title/.style={font=\large\bfseries, text=navy, anchor=west},
+    subtitle/.style={font=\footnotesize, text=darkgray, anchor=west},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    step/.style={font=\footnotesize, text=fontblack, align=left, inner sep=2pt},
+    num/.style={font=\footnotesize\bfseries, text=azureblue},
+    wire/.style={->, draw=navy},
+    atk/.style={->, draw=crimsonred},
+    data/.style={draw=lightgray, fill=white, rounded corners=2pt, font=\footnotesize\ttfamily,
+                 align=left, inner sep=4pt},
+    measure/.style={font=\footnotesize, text=fontblack, anchor=west},
+  ]
+  % タイトル
+  \node[title] at (0,4.2) {SYNフラッド攻撃};
+  \node[subtitle] at (0,3.6) {TCPの接続要求（SYN）だけを大量に送り，サーバーの接続待ちの枠を使い切らせる};
+
+  % 登場人物
+  \node[attacker] (atk) at (1.6,1.6) {攻撃者};
+  \node[block] (srv) at (7.6,1.6) {サーバー};
+  \node[block, minimum height=1.0cm] (usr) at (1.6,-0.7) {正規利用者};
+  \node[note, below=2mm of atk] {ACKを返さない\\（送信元も偽装）};
+
+  % ① SYN
+  \draw[atk] ([yshift=0.3cm]atk.east) -- ([yshift=0.3cm]srv.west)
+    node[midway, above=4pt, step] {\textcolor{azureblue}{\textbf{①}} SYN（大量）};
+  \draw[atk] ([yshift=0.1cm]atk.east) -- ([yshift=0.1cm]srv.west);
+  % ② SYN-ACK
+  \draw[wire] ([yshift=-0.3cm]srv.west) -- ([yshift=-0.3cm]atk.east)
+    node[midway, below=4pt, step] {\textcolor{azureblue}{\textbf{②}} SYN-ACK};
+
+  % 接続待ちテーブル
+  \foreach \y in {2.3, 1.85, 1.4, 0.95} {
+    \node[draw=crimsonred, fill=mistyrose, minimum width=3.4cm, minimum height=0.45cm, font=\footnotesize] at (12.8,\y) {ACK待ち（半開き）};
+  }
+  \node[step, anchor=south] at (12.8,2.6) {\textcolor{azureblue}{\textbf{③}} 接続待ちテーブルが満杯};
+  \node[note, anchor=north] at (12.8,0.65) {空きなし};
+  \draw[wire] (srv.east) -- (11.0,1.6) node[midway, above=2pt, note] {登録して待つ};
+
+  % ④ 正規の接続
+  \draw[wire] (usr.east) -| ([xshift=-0.6cm]srv.south)
+    node[pos=0.25, above=2pt, step] {\textcolor{azureblue}{\textbf{④}} SYN};
+  \node[font=\large\bfseries, text=crimsonred] at (7.0,0.55) {×};
+  \node[note, anchor=west] at (7.4,-0.7) {接続を受け付けられない\\（サービス停止）};
+
+  % 対策
+  \draw[lightgray] (0,-2.0) -- (15,-2.0);
+  \node[measure] at (0,-2.5) {\textcolor{navy}{\textbf{対策}}\quad SYN cookie／半開き接続のタイムアウト短縮／IPS・ファイアウォールでの流量制限};
+\end{tikzpicture}

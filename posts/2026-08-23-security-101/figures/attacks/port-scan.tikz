@@ -1,0 +1,65 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.3cm, minimum width=3.2cm, inner sep=5pt},
+    attacker/.style={block, draw=crimsonred, fill=mistyrose},
+    title/.style={font=\large\bfseries, text=navy, anchor=west},
+    subtitle/.style={font=\footnotesize, text=darkgray, anchor=west},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    step/.style={font=\footnotesize, text=fontblack, align=left, inner sep=2pt},
+    num/.style={font=\footnotesize\bfseries, text=azureblue},
+    wire/.style={->, draw=navy},
+    atk/.style={->, draw=crimsonred},
+    data/.style={draw=lightgray, fill=white, rounded corners=2pt, font=\footnotesize\ttfamily,
+                 align=left, inner sep=4pt},
+    measure/.style={font=\footnotesize, text=fontblack, anchor=west},
+  ]
+  % タイトル
+  \node[title] at (0,4.2) {ポートスキャン};
+  \node[subtitle] at (0,3.6) {標的のポートに順に接続を試み，どのサービスが動いているか（侵入口）を調べる};
+
+  % 標的のサーバ
+  \draw[draw=navy, fill=aliceblue, rounded corners=3pt] (7.2,-0.55) rectangle (15.0,3.05);
+  \node[font=\footnotesize\bfseries, text=navy, anchor=north west] at (7.3,3.0) {標的のサーバ};
+  \node[num, anchor=north west] at (11.0,3.0) {②\ \textcolor{fontblack}{応答}};
+
+  % ポート
+  \foreach \p/\s/\y in {22/SSH/2.2, 80/HTTP/1.4, 443/HTTPS/0.6, 3306/MySQL/-0.2} {
+    \node[block, fill=white, minimum width=2.6cm, minimum height=0.55cm, inner sep=2pt, font=\footnotesize] (p\p) at (9.2,\y) {\p\ \ \s};
+  }
+  \node[step, anchor=west] at (11.0,2.2) {応答あり → \textcolor{crimsonred}{\textbf{開いている}}};
+  \node[step, anchor=west] at (11.0,1.4) {応答あり → \textcolor{crimsonred}{\textbf{開いている}}};
+  \node[step, anchor=west] at (11.0,0.6) {応答あり → \textcolor{crimsonred}{\textbf{開いている}}};
+  \node[step, anchor=west] at (11.0,-0.2) {拒否 → 閉じている};
+
+  % 攻撃者
+  \node[attacker] (atk) at (1.6,1.0) {攻撃者};
+  \node[note, below=2mm of atk] {スキャンツールを使用};
+
+  % ① 接続を試す
+  \draw[atk] (atk.east) -- (p22.west);
+  \draw[atk] (atk.east) -- (p80.west);
+  \draw[atk] (atk.east) -- (p443.west);
+  \draw[atk] (atk.east) -- (p3306.west);
+  \node[step] at (4.6,2.4) {\textcolor{azureblue}{\textbf{①}} 順に接続を試す};
+
+  % ③ 結果
+  \node[data, anchor=north] (res) at (4.6,-0.1)
+    {22/tcp\ \ \ open\\80/tcp\ \ \ open\\443/tcp\ \ open\\3306/tcp closed};
+  \node[note, anchor=west] at (res.east) {③ 開いているポートを\\侵入口の候補にする};
+
+  % 対策
+  \draw[lightgray] (0,-2.0) -- (15,-2.0);
+  \node[measure] at (0,-2.5) {\textcolor{navy}{\textbf{対策}}\quad 不要なポートを閉じる・不要なサービスを止める／ファイアウォールで接続元を制限／IDS・IPSで検知};
+\end{tikzpicture}

@@ -1,0 +1,66 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.0cm, minimum width=2.8cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=12pt},
+    zlabel/.style={anchor=south, font=\bfseries, text=navy},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt, align=center},
+    num/.style={font=\footnotesize\bfseries, text=azureblue},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    wire/.style={->, draw=navy},
+    ext/.style={->, draw=darkgray, dashed},
+    data/.style={draw=lightgray, fill=white, rounded corners=2pt, font=\footnotesize,
+                 align=left, inner sep=5pt},
+  ]
+  % 送信者
+  \node[block] (sd) at (0,2.2) {データ};
+  \node[block] (sh) at (0,0.6) {ハッシュ値};
+  \node[accent] (ss) at (0,-1.0) {署名};
+  \node[block] (sc) at (0,-2.8) {電子証明書\\{\footnotesize\color{darkgray}送信者の公開鍵入り}};
+  \draw[wire] (sd) -- (sh) node[midway, right, sig] {ハッシュ関数};
+  \draw[wire] (sh) -- (ss) node[midway, right, sig] {送信者の\textbf{秘密鍵}で署名};
+
+  % 受信者
+  \node[block] (rd) at (7.0,2.2) {データ};
+  \node[accent] (rs) at (7.0,-1.0) {署名};
+  \node[block] (rc) at (7.0,-2.8) {電子証明書\\{\footnotesize\color{darkgray}送信者の公開鍵入り}};
+  \node[block] (rh1) at (12.2,2.2) {ハッシュ値 A};
+  \node[block] (rh2) at (12.2,-1.0) {ハッシュ値 B};
+  \node[draw=navy, fill=white, diamond, aspect=1.6, inner sep=2pt, font=\small] (cmp) at (15.6,0.6) {一致？};
+  \node[accent, minimum width=3.0cm] (ok) at (19.2,0.6) {改ざんなし\\送信者本人};
+
+  \draw[wire] (sd) -- (rd) node[midway, above, sig] {\textcolor{azureblue}{\textbf{①}} 3つを送る};
+  \draw[wire] (ss) -- (rs);
+  \draw[wire] (sc) -- (rc);
+  \draw[wire] (rd) -- (rh1) node[midway, above, sig] {\textcolor{azureblue}{\textbf{②}} ハッシュ関数};
+  \draw[wire] (rs) -- (rh2) node[midway, above, sig] {\textcolor{azureblue}{\textbf{③}} 送信者の\\\textbf{公開鍵}で検証};
+  \draw[wire] (rc.east) -| ($(rs.east)!0.5!(rh2.west)$)
+    node[pos=0.75, right, sig, align=left] {証明書から\\公開鍵を取り出す};
+  \node[note, anchor=west, align=left] at ($(rh2.west |- rc.east)+(0.2,0)$) {※ 証明書そのものは，認証局の公開鍵で\\検証しておく（→ 認証局の仕組み）};
+  \draw[wire] (rh1) -| (cmp.north);
+  \draw[wire] (rh2) -| (cmp.south);
+  \draw[wire] (cmp) -- (ok) node[midway, above, sig] {\textcolor{azureblue}{\textbf{④}} 一致};
+
+  % ゾーン
+  \begin{scope}[on background layer]
+    \node[zone, fit=(sd)(sc)] (zs) {};
+    \node[zone, fit=(rd)(rc)(ok)(cmp)] (zr) {};
+  \end{scope}
+  \node[zlabel] at (zs.north) {送信者};
+  \node[zlabel] at (zr.north) {受信者};
+
+  \node[note, anchor=north west] at ([yshift=-0.25cm]zs.south west)
+    {※ 秘密鍵は送信者だけが持ち，公開鍵は誰でも入手できる．一致しなければ，データが改ざんされたか，別人の秘密鍵で署名されている};
+\end{tikzpicture}

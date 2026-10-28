@@ -1,0 +1,54 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.3cm, minimum width=3.2cm, inner sep=5pt},
+    attacker/.style={block, draw=crimsonred, fill=mistyrose},
+    title/.style={font=\large\bfseries, text=navy, anchor=west},
+    subtitle/.style={font=\footnotesize, text=darkgray, anchor=west},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    step/.style={font=\footnotesize, text=fontblack, align=left, inner sep=2pt},
+    num/.style={font=\footnotesize\bfseries, text=azureblue},
+    wire/.style={->, draw=navy},
+    atk/.style={->, draw=crimsonred},
+    data/.style={draw=lightgray, fill=white, rounded corners=2pt, font=\footnotesize\ttfamily,
+                 align=left, inner sep=4pt},
+    measure/.style={font=\footnotesize, text=fontblack, anchor=west},
+  ]
+  % タイトル
+  \node[title] at (0,4.6) {IPスプーフィング};
+  \node[subtitle] at (0,4.0) {パケットの送信元IPアドレスを偽装し，IPアドレスによるアクセス制御をすり抜ける};
+
+  % 登場人物
+  \node[attacker] (atk) at (1.6,2.2) {攻撃者\\203.0.113.66};
+  \node[data] (pkt) at (7.4,2.2)
+    {送信元: \textcolor{crimsonred}{10.0.0.5}（偽）\\宛先　: 10.0.0.10};
+  \node[block] (srv) at (13.2,2.2) {サーバー\\10.0.0.10};
+  \node[block] (host) at (1.6,-0.3) {信頼されたホスト\\10.0.0.5};
+  \node[note, above=2mm of srv] {10.0.0.5からの接続のみ許可};
+  \node[note, anchor=south] at (pkt.north) {偽装したパケット};
+
+  % ① 偽装して送信
+  \draw[atk] (atk.east) -- (pkt.west)
+    node[midway, below=4pt, step] {\textcolor{azureblue}{\textbf{①}} 送信元を偽装};
+  % ② 受け入れ
+  \draw[atk] (pkt.east) -- (srv.west)
+    node[midway, below=4pt, step] {\textcolor{azureblue}{\textbf{②}} 誤って受理};
+  % ③ 応答
+  \draw[wire] (srv.south) |- (host.east)
+    node[pos=0.75, below=4pt, step] {\textcolor{azureblue}{\textbf{③}} 応答は本物の10.0.0.5へ届く（攻撃元は隠れる）};
+
+  % 対策
+  \draw[lightgray] (0,-1.5) -- (15,-1.5);
+  \node[measure] at (0,-2.0) {\textcolor{navy}{\textbf{対策}}\quad ingress/egressフィルタリング（不正な送信元アドレスの破棄）／IPアドレスだけに頼らない認証};
+\end{tikzpicture}

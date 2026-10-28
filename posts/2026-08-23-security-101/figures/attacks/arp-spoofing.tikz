@@ -1,0 +1,61 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.3cm, minimum width=3.2cm, inner sep=5pt},
+    attacker/.style={block, draw=crimsonred, fill=mistyrose},
+    title/.style={font=\large\bfseries, text=navy, anchor=west},
+    subtitle/.style={font=\footnotesize, text=darkgray, anchor=west},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    step/.style={font=\footnotesize, text=fontblack, align=left, inner sep=2pt},
+    num/.style={font=\footnotesize\bfseries, text=azureblue},
+    wire/.style={->, draw=navy},
+    atk/.style={->, draw=crimsonred},
+    data/.style={draw=lightgray, fill=white, rounded corners=2pt, font=\footnotesize\ttfamily,
+                 align=left, inner sep=4pt},
+    measure/.style={font=\footnotesize, text=fontblack, anchor=west},
+  ]
+  % タイトル
+  \node[title] at (0,4.6) {ARPスプーフィング};
+  \node[subtitle] at (0,4.0) {偽のARP応答で，ゲートウェイのMACアドレスを攻撃者のものと誤って覚えさせる};
+
+  % 登場人物
+  \node[block] (pc) at (1.6,1.6) {利用者のPC};
+  \node[attacker] (atk) at (7.6,1.6) {攻撃者\\MAC: EE:EE};
+  \node[block] (gw) at (13.2,1.6) {ゲートウェイ\\192.168.1.1\\MAC: 11:11};
+  \node[note, below=2mm of gw] {同じLAN内のルーター};
+
+  % 本来の経路
+  \draw[wire, dashed] (pc.north) -- ++(0,0.9) -| (gw.north)
+    node[pos=0.25, above=2pt, note] {本来の経路};
+
+  % ① 偽のARP応答
+  \draw[atk] ([yshift=0.3cm]atk.west) -- ([yshift=0.3cm]pc.east)
+    node[midway, above=4pt, step] {\textcolor{azureblue}{\textbf{①}} 偽のARP応答};
+  % ② 通信が攻撃者へ
+  \draw[atk] ([yshift=-0.3cm]pc.east) -- ([yshift=-0.3cm]atk.west)
+    node[midway, below=4pt, step] {\textcolor{azureblue}{\textbf{②}} GW宛の通信};
+  % ③ 転送
+  \draw[atk] (atk.east) -- (gw.west)
+    node[midway, above=4pt, step] {\textcolor{azureblue}{\textbf{③}} 盗聴・改ざん}
+    node[midway, below=4pt, step] {GWへ転送};
+
+  % ARPテーブル
+  \node[data, anchor=north] (tbl) at (pc.south |- 0,0.4)
+    {192.168.1.1 → \textcolor{crimsonred}{EE:EE}};
+  \node[note, anchor=north] at (tbl.south) {① で書き換わった\\ARPテーブル};
+
+  % 対策
+  \draw[lightgray] (0,-1.5) -- (15,-1.5);
+  \node[measure] at (0,-2.0) {\textcolor{navy}{\textbf{対策}}\quad 静的ARPエントリ／ARP監視ツール・スイッチのDynamic ARP Inspection／TLSで通信を暗号化};
+\end{tikzpicture}
