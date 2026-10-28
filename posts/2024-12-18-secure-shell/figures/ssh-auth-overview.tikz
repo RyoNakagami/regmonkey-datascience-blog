@@ -1,0 +1,79 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, minimum width=3.1cm, inner sep=5pt},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south, font=\footnotesize\bfseries, text=navy},
+    lane/.style={anchor=west, align=left, font=\small\bfseries, text=navy},
+    step/.style={font=\footnotesize\bfseries, text=azureblue},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt, align=left},
+    wire/.style={->, draw=navy},
+  ]
+  \def\xa{5.0}
+  \def\xb{8.9}
+  \def\xc{14.9}
+  \def\xd{18.8}
+
+  % レーン
+  \node[lane] at (0,0) {クライアント（ssh）\\[2pt]{\footnotesize\mdseries\color{darkgray} ユーザー秘密鍵}\\{\footnotesize\mdseries\color{darkgray} known\_hosts}};
+  \node[lane] at (0,-3.2) {サーバー（sshd）\\[2pt]{\footnotesize\mdseries\color{darkgray} ホスト秘密鍵}\\{\footnotesize\mdseries\color{darkgray} authorized\_keys}};
+
+  % Step 1: 鍵交換
+  \node[block] (c1) at (\xa,0) {一時的な鍵を作り\\公開値を送る};
+  \node[block] (s1) at (\xa,-3.2) {一時的な鍵を作り\\公開値を送る};
+  \draw[wire] ([xshift=-6mm]c1.south) -- ([xshift=-6mm]s1.north);
+  \draw[wire] ([xshift=6mm]s1.north) -- ([xshift=6mm]c1.south);
+  \node[note, fill=white, inner sep=1pt] at (\xa,-1.6) {公開値};
+  \node[note, below=2mm of s1] {共通鍵そのものは送らず\\双方で同じ鍵を計算};
+
+  % Step 2: ホスト認証
+  \node[block] (c2) at (\xb,0) {known\_hosts と照合し\\署名を検証};
+  \node[block] (s2) at (\xb,-3.2) {鍵交換の結果に\\ホスト秘密鍵で署名};
+  \draw[wire] (s2) -- (c2) node[midway, right, sig] {署名＋\\ホスト公開鍵};
+  \node[note, below=2mm of s2] {偽サーバーを検知};
+
+  % Step 3: ユーザー認証
+  \node[block] (c3) at (\xc,0) {ユーザー秘密鍵で\\署名};
+  \node[block] (s3) at (\xc,-3.2) {authorized\_keys と\\照合し署名を検証};
+  \draw[wire] (c3) -- (s3) node[midway, right, sig] {署名＋\\ユーザー公開鍵};
+  \node[note, below=2mm of s3] {パスワード認証も可};
+
+  % Step 4: 暗号通信
+  \node[block] (c4) at (\xd,0) {共通鍵で\\暗号化・復号};
+  \node[block] (s4) at (\xd,-3.2) {共通鍵で\\暗号化・復号};
+  \draw[<->, draw=navy] (c4) -- (s4) node[midway, right, sig] {コマンド・\\ファイル転送};
+
+  % Step ラベル
+  \foreach \n/\s in {c1/Step 1：鍵交換, c2/Step 2：ホスト認証, c3/Step 3：ユーザー認証, c4/Step 4：暗号通信} {
+    \node[step, above=3mm of \n] {\s};
+  }
+
+  % Step 1–2 は同じやりとり（暗号化前），Step 3 以降は暗号化された通信路の中
+  \coordinate (ztop) at ($(c1.north)+(0,0.75)$);
+  \coordinate (zbot) at ($(s1.south)+(0,-0.9)$);
+  \begin{scope}[on background layer]
+    \node[zone, draw=lightgray, fit=(c1)(c2)(c1 |- ztop)(c1 |- zbot)(c2.east |- zbot)] (kex) {};
+    \node[zone, fit=(c3)(c4)(c3 |- ztop)(c3 |- zbot)(c4.east |- zbot)] (enc) {};
+  \end{scope}
+  \node[zlabel, text=darkgray] at (kex.north) {鍵交換：Step 1–2 は同じやりとりで行う（暗号化前）};
+  \node[zlabel] at (enc.north) {共通鍵で暗号化された通信路};
+
+  % 境目：鍵を導出して NEWKEYS を送り合う
+  \coordinate (nk) at ($(kex.east)!0.5!(enc.west)$);
+  \draw[<->, draw=azureblue] (nk |- c2.south) -- (nk |- s2.north);
+  \node[font=\footnotesize\bfseries, text=azureblue, fill=white, inner sep=2pt] at (nk |- 0,-1.6) {NEWKEYS};
+  \node[note, anchor=south] at ($(nk |- c2.north)+(0,0.1)$) {鍵を導出};
+  \node[note, anchor=north] at ($(nk |- s2.south)+(0,-0.1)$) {ここから\\暗号化};
+\end{tikzpicture}

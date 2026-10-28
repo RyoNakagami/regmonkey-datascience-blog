@@ -1,0 +1,77 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.25cm, minimum width=4.0cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    wire/.style={->, draw=navy},
+    step/.style={font=\bfseries, text=azureblue},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    rowl/.style={font=\bfseries, text=navy, anchor=west},
+    rows/.style={font=\footnotesize, text=darkgray, anchor=west, align=left},
+  ]
+  % ---- 列1：公開値の交換 ----
+  \node[block] (c1) at (0,0) {秘密 $a$ を生成\\$A = g^{a}\,\mathrm{mod}\,p$};
+  \node[block] (s1) at (0,-3.9) {秘密 $b$ を生成\\$B = g^{b}\,\mathrm{mod}\,p$};
+  % ---- 列2：K を計算 ----
+  \node[block, right=1.5cm of c1] (c2) {$K = B^{a}\,\mathrm{mod}\,p$};
+  \node[block, ] at (c2 |- s1) (s2) {$K = A^{b}\,\mathrm{mod}\,p$};
+  % ---- 列3：H と署名 ----
+  \node[block, right=1.5cm of c2] (c3) {自分の $K$ で $H$ を計算し\\署名を検証};
+  \node[block, ] at (c3 |- s1) (s3) {$K$ を含む $H$ を計算し\\ホスト秘密鍵で署名};
+  % ---- 列4：鍵の導出 ----
+  \node[accent, right=1.5cm of c3] (c4) {$\mathrm{HASH}(K \| H \| X \| \mathrm{sid})$\\IV・暗号鍵・MAC 鍵};
+  \node[accent] at (c4 |- s1) (s4) {$\mathrm{HASH}(K \| H \| X \| \mathrm{sid})$\\IV・暗号鍵・MAC 鍵};
+
+  % Step ラベル
+  \node[step, above=3mm of c1] {Step 1：公開値の交換};
+  \node[step, above=3mm of c2] {Step 1：共通の値 $K$};
+  \node[step, above=3mm of c3] {Step 2：署名で検証};
+  \node[step, above=3mm of c4] {Step 2 の後：鍵の導出};
+
+  % 行ラベル
+  \node[rowl] (rc) at ($(c1.west)+(-3.6,0.25)$) {クライアント（ssh）};
+  \node[rows, below=0mm of rc.south west, anchor=north west] {秘密 $a$};
+  \node[rowl] (rs) at ($(s1.west)+(-3.6,0.25)$) {サーバー（sshd）};
+  \node[rows, below=0mm of rs.south west, anchor=north west] {秘密 $b$・ホスト秘密鍵};
+
+  % 公開値の交換（縦）
+  \draw[wire] ([xshift=-7mm]c1.south) -- node[sig, left] {$A$} ([xshift=-7mm]s1.north);
+  \draw[wire] ([xshift=7mm]s1.north) -- node[sig, right] {$B$} ([xshift=7mm]c1.south);
+
+  % 自分の秘密と相手の公開値で K
+  \draw[wire] (c1) -- node[sig, above] {$a$ と $B$} (c2);
+  \draw[wire] (s1) -- node[sig, above] {$b$ と $A$} (s2);
+  \draw[wire] (c2) -- (c3);
+  \draw[wire] (s2) -- (s3);
+  \draw[wire] (c3) -- node[sig, above] {検証 OK} (c4);
+  \draw[wire] (s3) -- (s4);
+
+  % 署名の送信（縦）
+  \draw[wire] (s3.north) -- node[sig, right, align=left] {署名＋\\ホスト公開鍵} (c3.south);
+
+  % 列2：一致の補足
+  \node[note] at ($(c2.south)!0.5!(s2.north)$) {どちらも\\$g^{ab}\,\mathrm{mod}\,p$ に一致};
+  % 列4：補足
+  \node[note] at ($(c4.south)!0.5!(s4.north)$) {$X$ = “A”〜“F” で\\用途別の6本を導出};
+
+  % 下段の補足
+  \node[note, below=3mm of s2] {$K$ 自体は送らない};
+  \node[note, below=3mm of s3] {$K$ がずれていれば失敗};
+  \node[note, below=3mm of s4] {NEWKEYS 以降，\\この鍵で暗号通信};
+
+  % 数値例
+  \node[font=\footnotesize, text=darkgray, anchor=north west] at ($(rs.west)+(0,-2.2)$)
+    {例：$p=23,\ g=5,\ a=6,\ b=15$ のとき　$A=8,\ B=19$　→　$K = 19^{6}\,\mathrm{mod}\,23 = 8^{15}\,\mathrm{mod}\,23 = 2$};
+\end{tikzpicture}
