@@ -2,7 +2,7 @@
 title: "APTによるパッケージ管理"
 author: "Ryo Nakagami"
 date: "2025-07-10"
-date-modified: "2026-04-27"
+date-modified: "2026-10-28"
 categories: [環境構築, Linux]
 listing_category: development
 comments:
@@ -260,7 +260,6 @@ APT (Advanced Packaging Tool) は Debian系ディストリビューションで�
 
 [`apt` vs `dpkg`]{.mini-section}
 
-
 `dpkg` と `apt` は次のように役割が分かれています．
 
 :::: {.no-border-top-table}
@@ -269,7 +268,7 @@ APT (Advanced Packaging Tool) は Debian系ディストリビューションで�
 | ----- | ---------- | ----------------------------------- |
 | `dpkg` | 低レベル | パッケージのインストール・削除のみ．依存関係の問題はエラー表示するだけ |
 | `apt`  | 高レベル | 依存関係を解決しながらインストール．内部では `dpkg` を呼び出す |
-: {tbl-colwidths="[20,20,60]"}
+: {tbl-colwidths="[18,18,64]"}
 
 ::::
 
@@ -301,21 +300,21 @@ apt [option] subcommand
 
 :::: {.no-border-top-table}
 
-| サブコマンド                       | 説明                                       |
-| ---------------------------- | ---------------------------------------- |
-| `update`                     | パッケージリストを更新                              |
-| `search <keyword>`           | 正規表現でパッケージの説明文を検索                        |
-| `install <package>`          | パッケージをインストール                             |
-| `remove <package>`           | パッケージを削除（設定ファイルは残る）                      |
-| `purge <package>`            | パッケージと設定ファイルを削除（依存パッケージは残る）              |
-| `upgrade`                    | インストール済みパッケージを新しいバージョンへアップグレード           |
-| `show <package>`             | 指定したパッケージの情報を表示                          |
-| `list`                       | パッケージリストを表示                              |
-| `list --installed`           | インストール済みパッケージの一覧                         |
-| `list --upgradable`          | アップグレード可能なパッケージの一覧                       |
-| `depends <package>`          | パッケージの依存関係を表示                            |
-| `autoremove`                 | 不要となった依存パッケージを削除                         |
-: {tbl-colwidths="[30,70]"}
+| サブコマンド | 説明 | `dpkg` コマンド |
+| ------------ | ---- | --------------- |
+| `update` | パッケージリストを更新 | - |
+| `search <keyword>` | リポジトリ上の全パッケージ（未インストール含む）を対象に，名前と説明文を正規表現で検索 | `dpkg -l '<pattern>'`（インストール済み・設定ファイルが残っているものが対象．名前を glob で検索） |
+| `install <package>` | パッケージをインストール（`./file.deb` 指定で依存解決付きのローカルインストールも可） | `dpkg -i <file.deb>`（ローカルの .deb が必要．依存解決はしない） |
+| `remove <package>` | パッケージを削除（設定ファイルは残る） | `dpkg -r/--remove <package>` |
+| `purge <package>` | パッケージと設定ファイルを削除（依存パッケージは残る） | `dpkg -P/--purge <package>` |
+| `upgrade` | インストール済みパッケージを新しいバージョンへアップグレード | - |
+| `show <package>` | パッケージの情報を表示（未インストールも可） | `dpkg -s <package>`（インストール済み・設定ファイルが残っているもののみ），`dpkg -I <file.deb>`（.deb ファイル） |
+| `list` | リポジトリ上の全パッケージ一覧を表示 | - |
+| `list --installed` | インストール済みパッケージの一覧 | `dpkg -l \| grep '^ii'`（`dpkg -l` 単体では設定ファイルのみ残った `rc` 状態も含む） |
+| `list --upgradable` | アップグレード可能なパッケージの一覧 | - |
+| `depends <package>` | パッケージの依存関係（`Depends`・`Recommends` など）を表示 | `dpkg -s <package>` の `Depends:` 行を参照（インストール済みのみ） |
+| `autoremove` | 不要となった依存パッケージを削除 | - |
+: {tbl-colwidths="[20,45,35]"}
 
 ::::
 
@@ -399,12 +398,12 @@ install, reinstall, remove, purge (apt-get(8))
 
 :::: {.no-border-top-table}
 
-| サブコマンド       | 動作                                       |
-| ------------ | ---------------------------------------- |
-| `remove`     | パッケージ本体を削除．ユーザー設定ファイルは残る                 |
-| `purge`      | 設定ファイルも含めて削除．ただし依存関係上不要となったパッケージは残る      |
-| `autoremove` | 他のパッケージの依存対象でなくなり，かつ自動でインストールされたパッケージを削除 |
-: {tbl-colwidths="[20,80]"}
+| サブコマンド       | 動作                                       | `dpkg` コマンド | 
+| ------------ | ---------------------------------------- | ------------- | 
+| `remove`     | パッケージ本体を削除．ユーザー設定ファイルは残る                 | `dpkg -r/--remove pkgname` |
+| `purge`      | 設定ファイルも含めて削除．ただし依存関係上不要となったパッケージは残る      | `dpkg -P/--purge pkgname` |
+| `autoremove` | 他のパッケージの依存対象でなくなり，かつ自動でインストールされたパッケージを削除 | - |
+: {tbl-colwidths="[15,57,28]"}
 
 ::::
 
