@@ -2,7 +2,7 @@
 title: "Quarto Tips"
 author: "Ryo Nakagami"
 date: "2026-10-10"
-date-modified: "2026-10-22"
+date-modified: "2026-10-28"
 categories: [quarto]
 comments:
   utterances:
@@ -398,6 +398,116 @@ This extension has been written by a teacher who hopes that students read the co
 - 同じ `group` に属するclass（ここでは `Example` と `Definition`）は番号を共有する
 - `#TeacherHopes` のようにidを付けたブロックは `@TeacherHopes` で参照できる
 
+## Tips 5: Lightboxで画像をクリック拡大する
+
+::: {.callout-note}
+### 記事内の画像をすべてクリックで拡大表示できるようにする
+
+記事のfront matterに以下を追加
+
+```yml
+lightbox: true
+```
+
+:::
+
+### Lightboxとは？
+
+::: {#def- .custom_problem .blog-custom-border}
+[Lightbox]{.def-title}
+
+- Lightboxとは，ページ内の画像をクリックすると，ページの上にオーバーレイで拡大表示する機能
+- QuartoはJavaScriptライブラリの [GLightbox](https://biati-digital.github.io/glightbox/) を使って実装している
+- 同じグループ（gallery）に属する画像は，拡大表示したまま左右に送って閲覧できる
+- HTML出力でのみ有効
+
+:::
+
+### 有効化の方法
+
+:::: {.no-border-top-table}
+
+| 設定 | 対象となる画像 |
+|---|---|
+| `lightbox: true` | 記事内のすべての画像（`.nolightbox` classを付けた画像を除く） |
+| `lightbox: auto` | `true` と同じ．figureやブロックとして置いた画像が対象で，インライン画像は対象外 |
+| 指定なし + `{.lightbox}` | `.lightbox` classを付けた画像のみ．front matterの設定は不要 |
+| `lightbox: false` | なし．`.lightbox` classを付けた画像も含めて無効になる |
+: {tbl-colwidths="[30,70]"}
+
+::::
+
+```markdown
+![拡大できる画像](figures/sample.svg){.lightbox}
+
+![拡大させたくない画像](figures/logo.svg){.nolightbox}
+```
+
+- 図の多い記事は `lightbox: true` で一括有効にし，ロゴやアイコンなど拡大不要な画像だけ `.nolightbox` で除外するのが楽
+- サイト全体で有効にしたい場合は，`_quarto.yml` の `format: html:` 以下に `lightbox: true` を書く
+
+### 画像ごとの設定
+
+[gallery: 複数の画像をまとめて送る]{.mini-section}
+
+画像に `group` 属性を付けると，同じ値をもつ画像が1つのgalleryになり，拡大表示したまま `←` `→` で切り替えられます．
+
+```markdown
+![手順1](figures/step1.svg){group="steps"}
+![手順2](figures/step2.svg){group="steps"}
+![手順3](figures/step3.svg){group="steps"}
+```
+
+- `group` を指定しない画像は，それぞれ独立したgalleryになる
+- `fig-subcap` でサブ図を作った場合は，サブ図どうしが自動で1つのgalleryになる
+
+[description: 拡大時の説明文]{.mini-section}
+
+拡大表示では画像のcaptionがタイトルとして表示されます．それとは別に説明文を付けたい場合は `description` 属性を使います．
+
+```markdown
+![中間者攻撃](figures/mitm.svg){description="通信する2者の間に割り込み，双方になりすまして通信を中継する" desc-position="right"}
+```
+
+:::: {.no-border-top-table}
+
+| 属性 | 内容 |
+|---|---|
+| `group` | galleryの名前 |
+| `description` | 拡大表示時の説明文．Markdownで書ける |
+| `desc-position` | タイトル・説明文の位置．`top` / `bottom` / `left` / `right` |
+: {tbl-colwidths="[25,75]"}
+
+::::
+
+### 記事全体の設定項目
+
+`lightbox` をobjectで書くと，表示の挙動を細かく指定できます．
+
+```yml
+lightbox:
+  match: auto          # lightbox: auto と同じ
+  effect: fade
+  desc-position: right
+  loop: false
+```
+
+:::: {.no-border-top-table}
+
+| 項目 | デフォルト | 内容 |
+|---|---|---|
+| `match` | なし | `auto` にするとすべての画像が対象．省略すると `.lightbox` classを付けた画像のみ |
+| `effect` | `zoom` | 開閉時のアニメーション．`fade` / `zoom` / `none` |
+| `desc-position` | `bottom` | タイトル・説明文の位置．`top` / `bottom` / `left` / `right` |
+| `loop` | `false` | galleryの最後の画像から先頭に戻るか．公式ドキュメントでは `true` と書かれているが，Quarto 1.10.19の実装では `false` |
+| `css-class` | `lightbox` | CSSで装飾するときのclass名 |
+: {tbl-colwidths="[20,15,65]"}
+
+::::
+
+- objectで書くときに `match: auto` を省略すると，`.lightbox` classを付けた画像だけが対象になる点に注意
+
+
 
 References
 -----------
@@ -408,5 +518,7 @@ References
 - [Quarto > VS Code](https://quarto.org/docs/tools/vscode/index.html)
 - [Quarto > Callout Blocks > Cross Referencing](https://quarto.org/docs/authoring/callouts.html#cross-referencing)
 - [Custom Numbered Blocks Extension for Quarto](https://github.com/ute/custom-numbered-blocks)
+- [Quarto > Lightbox Figures](https://quarto.org/docs/output-formats/html-lightbox-figures.html)
+- [GLightbox](https://biati-digital.github.io/glightbox/)
 - [ArchWiki > xdg-utils](https://wiki.archlinux.org/title/Xdg-utils)
 - [freedesktop.org > xdg-utils](https://www.freedesktop.org/wiki/Software/xdg-utils/)
