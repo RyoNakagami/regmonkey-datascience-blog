@@ -1,0 +1,58 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+  auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    ng/.style={block, draw=crimsonred, fill=mistyrose},
+    ext/.style={draw=darkgray, dashed, fill=white, rounded corners=3pt,
+                align=center, inner sep=5pt, minimum height=1.1cm},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south, font=\bfseries, text=navy},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    step/.style={font=\footnotesize\bfseries, text=azureblue},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    wire/.style={->, draw=navy},
+    link/.style={draw=navy},
+  ]
+  \node[block, minimum width=9.6cm] (sw) at (0,0) {L2スイッチ};
+  \foreach \x/\p/\n in {-3.6/1/A, -1.2/2/B, 1.2/3/C, 3.6/4/D} {
+    \node[block, minimum width=1.8cm] (pc\n) at (\x,-3.0) {PC \n};
+    \node[sig, anchor=north west] at (\x+0.08,-0.6) {ポート\p};
+  }
+  % (1) A sends a frame addressed to C
+  \draw[wire] (pcA.north) -- (-3.6,-0.55);
+  \node[step, anchor=east] at (-3.7,-1.75) {①};
+  \node[sig, anchor=west] at (-3.5,-1.75) {C宛};
+  % (2) C is unknown -> flooding
+  \foreach \n/\x in {B/-1.2, C/1.2, D/3.6}
+    \draw[wire, dashed] (\x,-0.55) -- (pc\n.north);
+  \node[step, anchor=east] at (-1.3,-1.75) {②};
+  \node[sig, anchor=west] at (-1.1,-1.75) {フラッディング};
+
+  % MAC address table (drawn with nodes; tabular rules are fixed to black)
+  \node[font=\bfseries, text=navy, anchor=west] at (6.0,0.75) {MACアドレステーブル};
+  \foreach \y/\p/\m/\s in {0/ポート/MACアドレス/, -0.55/1/A のMAC/①で学習, -1.1/3/C のMAC/③で学習} {
+    \node at (6.6,\y) {\p};
+    \node at (8.55,\y) {\m};
+    \node[step, anchor=west] at (9.8,\y) {\s};
+  }
+  \draw[navy] (6.0,-0.27) -- (9.6,-0.27);
+  \draw[navy] (7.25,0.25) -- (7.25,-1.4);
+
+  \node[note, align=left, anchor=north west] at (6.0,-1.8) {%
+    {\color{azureblue}①} 送信元MAC（A）とポート1を記録\\
+    {\color{azureblue}②} 宛先Cは未学習なので他の全ポートへ\\
+    {\color{azureblue}③} Cの返信で C とポート3を記録．\\
+    \quad 以後 A↔C は該当ポートにだけ転送};
+\end{tikzpicture}

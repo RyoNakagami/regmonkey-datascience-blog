@@ -1,0 +1,56 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.0cm, minimum width=2.4cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    ng/.style={block, draw=crimsonred, fill=mistyrose},
+    title/.style={font=\bfseries, text=navy},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    bad/.style={font=\footnotesize\bfseries, text=crimsonred, inner sep=2pt},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    life/.style={draw=lightgray, line width=1.2pt},
+    wire/.style={->, draw=navy},
+    bcast/.style={->, draw=navy, dashed},
+    attack/.style={->, draw=crimsonred, line width=1pt},
+  ]
+  % lifelines per panel: GW = \o, victim = \o+3.6, attacker = \o+7.2
+  \foreach \o/\k in {0/L, 9.8/R} {
+    \node[block]  (gw\k)  at (\o,0)       {ゲートウェイ};
+    \node[accent] (pc\k)  at (\o+3.6,0)   {被害端末};
+    \node[ng]     (atk\k) at (\o+7.2,0)   {攻撃者};
+    \foreach \n in {gw\k, pc\k, atk\k}
+      \draw[life] (\n.south) -- (\n.south |- 0,-4.3);
+  }
+  \draw[lightgray] (8.6,1.4) -- (8.6,-5.2);
+
+  % ---- left: piggyback on the victim's broadcast ----
+  \node[title] at (3.6,1.1) {要求に割り込む型};
+  \draw[bcast] (3.6,-1.2) -- (0,-1.2)
+    node[midway, above, font=\footnotesize\bfseries, text=navy, inner sep=2pt] {① ARP 要求}
+    node[midway, below, sig] {「.1 の MAC は？」};
+  \draw[bcast] (3.6,-1.2) -- (7.2,-1.2)
+    node[midway, above, sig] {全端末に届くので}
+    node[midway, below, sig] {攻撃者も受け取る};
+  \draw[wire]   (0,-2.4)   -- (3.6,-2.4) node[midway, above, sig] {② 正しい応答};
+  \draw[attack] (7.2,-3.6) -- (3.6,-3.6) node[midway, above, bad] {③ 偽の応答};
+  \node[note] at (3.6,-4.8) {後から届いた ③ でキャッシュが上書きされる};
+
+  % ---- right: unsolicited replies, repeated ----
+  \node[title] at (13.4,1.1) {一方的に送りつける型};
+  \node[sig, fill=white] at (13.4,-0.95) {キャッシュ済み：.1 → GW の MAC};
+  \draw[attack] (17.0,-2.0) -- (13.4,-2.0) node[midway, above, bad] {偽の応答（要求なし）};
+  \draw[attack] (17.0,-2.8) -- (13.4,-2.8);
+  \draw[attack] (17.0,-3.6) -- (13.4,-3.6) node[midway, above, sig] {数秒おきに繰り返す};
+  \node[note] at (13.4,-4.8) {既存のエントリが上書きされ続ける};
+\end{tikzpicture}

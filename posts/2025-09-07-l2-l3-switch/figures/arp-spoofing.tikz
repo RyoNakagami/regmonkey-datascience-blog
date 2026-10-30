@@ -1,0 +1,57 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, minimum width=2.8cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    ng/.style={block, draw=crimsonred, fill=mistyrose},
+    ext/.style={draw=darkgray, dashed, fill=white, rounded corners=3pt,
+                align=center, inner sep=5pt, minimum height=1.1cm},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    bad/.style={font=\footnotesize\bfseries, text=crimsonred, inner sep=2pt},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    normal/.style={->, draw=darkgray, dashed},
+    attack/.style={->, draw=crimsonred, line width=1pt},
+  ]
+  % ---- nodes ----
+  \node[block]  (pc)  at (0,0)    {被害端末\\192.168.1.10};
+  \node[accent] (sw)  at (6.2,0)  {L2スイッチ};
+  \node[block]  (gw)  at (12.8,0) {ゲートウェイ\\192.168.1.1};
+  \node[ext, minimum width=2.4cm, right=1.0cm of gw] (net) {インターネット};
+  \node[ng]     (atk) at (6.2,-3.4) {攻撃者};
+  \node[ng, minimum width=3.2cm, minimum height=0.9cm, font=\footnotesize] (cache) at (0,-3.4)
+    {ARPキャッシュ\\.1 → 攻撃者の MAC};
+  \draw[crimsonred, dashed] (pc.south) -- (cache.north);
+  \draw[navy] (gw.east) -- (net.west);
+
+  % ---- normal path ----
+  \draw[normal] (pc.north) -- (0,1.5) -- (12.8,1.5) -- (gw.north);
+  \node[sig, fill=white] at (6.4,1.5) {本来の経路：被害端末 → スイッチ → ゲートウェイ};
+
+  % (1) forged ARP reply
+  \draw[attack, dashed] (atk.west) -- (cache.east)
+    node[midway, above, bad] {① 偽の ARP 応答}
+    node[midway, below, sig] {「.1 の MAC は自分」};
+
+  % (2) victim sends frames to the attacker's MAC
+  \draw[attack] (pc.east) -- (sw.west) node[midway, above, bad] {②} node[midway, below, sig] {宛先 MAC = 攻撃者};
+  \draw[attack] (5.7,-0.55) -- (5.7,-2.85);
+  \node[bad, anchor=east] at (5.6,-1.7) {②};
+
+  % (3) attacker relays to the real gateway
+  \draw[attack] (6.7,-2.85) -- (6.7,-0.55);
+  \node[bad, anchor=west] at (6.8,-1.7) {③ 盗聴・改ざんして中継};
+  \draw[attack] (sw.east) -- (gw.west) node[midway, above, bad] {③} node[midway, below, sig] {宛先 MAC = ゲートウェイ};
+
+  \node[note, anchor=west] at (9.6,-3.4) {スイッチは宛先 MAC どおりに\\転送するだけなので防げない};
+\end{tikzpicture}
