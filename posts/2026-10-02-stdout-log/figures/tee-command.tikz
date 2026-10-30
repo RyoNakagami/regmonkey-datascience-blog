@@ -1,0 +1,67 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, minimum width=2.8cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    file/.style={block, fill=white, minimum width=2.4cm, minimum height=0.9cm},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south west, font=\bfseries, text=navy},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    dot/.style={circle, fill=navy, inner sep=1.4pt},
+    wire/.style={->, draw=navy},
+  ]
+
+  % ===== ① コマンド1 | tee ファイル | コマンド2 =====
+  \node[block]  (c1)  at (-0.8,0)    {コマンド1};
+  \node[accent] (t1)  at (6,0)    {\texttt{tee}\\[1pt]{\footnotesize 入力を複製}};
+  \node[block]  (c2)  at (12.8,0)   {コマンド2};
+  \node[file]   (f1)  at (6,-2.0) {ファイル};
+
+  \draw[wire] (c1) -- (t1)
+    node[midway, above, sig] {パイプ \texttt{|}}
+    node[midway, below, sig] {標準出力 → 標準入力};
+  \draw[wire] (t1) -- (c2)
+    node[midway, above, sig] {パイプ \texttt{|}}
+    node[midway, below, sig] {同じ内容をそのまま流す};
+  \draw[wire] (t1) -- (f1)
+    node[midway, right, sig] {同じ内容を書き込む};
+  \node[note, below=1.5mm of f1] {既定は上書き（\texttt{tee -a} で追記）};
+
+  % ===== ② コマンド | tee ファイル1 ファイル2 ファイル3 =====
+  \node[block]  (c3)  at (-0.8,-5.0)  {コマンド};
+  \node[accent] (t2)  at (6,-5.0)  {\texttt{tee}\\[1pt]{\footnotesize 入力を複製}};
+  \node[block, fill=white] (out) at (12.8,-5.0) {標準出力\\[1pt]{\footnotesize （端末に表示）}};
+  \node[file]   (fa)  at (3.2,-7.1) {ファイル1};
+  \node[file]   (fb)  at (6,-7.1)   {ファイル2};
+  \node[file]   (fc)  at (8.8,-7.1) {ファイル3};
+
+  \draw[wire] (c3) -- (t2) node[midway, above, sig] {パイプ \texttt{|}};
+  \draw[wire] (t2) -- (out) node[midway, above, sig] {同じ内容};
+  \coordinate (bus) at (6,-6.15);
+  \draw[draw=navy] (t2.south) -- (bus);
+  \node[dot] at (bus) {};
+  \draw[wire] (bus) -| (fa.north);
+  \draw[wire] (bus) -- (fb.north);
+  \draw[wire] (bus) -| (fc.north);
+  \node[sig, anchor=west] at ($(bus)+(0.15,0.3)$) {各ファイルに同じ内容};
+
+  % ===== ゾーン =====
+  \begin{scope}[on background layer]
+    \node[zone, fit=(c1)(c2)(f1)($(f1.south)+(0,-0.55)$)] (z1) {};
+    \node[zone, fit=(c3)(out)(fa)(fc)] (z2) {};
+  \end{scope}
+  \node[zlabel] at ($(z1.north west)+(0.15,0)$) {① \texttt{コマンド1 | tee ファイル | コマンド2}};
+  \node[zlabel] at ($(z2.north west)+(0.15,0)$) {② \texttt{コマンド | tee ファイル1 ファイル2 ファイル3}};
+\end{tikzpicture}
