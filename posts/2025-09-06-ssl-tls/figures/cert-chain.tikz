@@ -1,0 +1,60 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    card/.style={draw=navy, fill=white, rounded corners=3pt, align=center,
+                 minimum width=4.4cm, minimum height=2.2cm, inner sep=4pt},
+    accent/.style={card, fill=paleskyblue},
+    step/.style={font=\footnotesize\bfseries, text=azureblue},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    wire/.style={->, draw=navy},
+    chip/.style={draw=navy, fill=white, rounded corners=3pt, minimum height=0.55cm,
+                 inner sep=4pt, font=\footnotesize, anchor=west},
+  ]
+  \newcommand{\cert}[3]{\textcolor{navy}{\bfseries #1}\\[3pt]{\footnotesize #2}\\[1pt]{\scriptsize\color{darkgray} #3}}
+
+  % ---- chain: issuer (left) -> subject (right) ----
+  \node[accent] (r)  at (0,0)    {\cert{GlobalSign Root CA}{ルート証明書}{自分で自分に署名}};
+  \node[card]   (d2) at (5.6,0)  {\cert{GTS Root R1}{depth 2}{i: GlobalSign Root CA}};
+  \node[card]   (d1) at (11.2,0) {\cert{WR2}{depth 1（中間 CA）}{i: GTS Root R1}};
+  \node[card]   (d0) at (16.8,0) {\cert{dns.google}{depth 0（サーバー証明書）}{i: WR2}};
+
+  \draw[wire] (r)  -- node[sig, above] {署名} (d2);
+  \draw[wire] (d2) -- node[sig, above] {署名} (d1);
+  \draw[wire] (d1) -- node[sig, above] {署名} (d0);
+
+  % ---- zones ----
+  \begin{scope}[on background layer]
+    \node[draw=paleskyblue, fill=aliceblue, rounded corners=8pt, inner sep=8pt,
+          fit=(d2)(d0)([yshift=7mm]d2.north)] (sent) {};
+  \end{scope}
+  \node[font=\footnotesize\bfseries, text=navy, anchor=north west]
+    at ([xshift=4pt,yshift=-3pt]sent.north west) {サーバーが Certificate メッセージで送ってくる（s: 主体，i: 発行者）};
+  \node[font=\footnotesize\bfseries, text=navy, anchor=south] at ([yshift=10pt]r.north) {手元の信頼ストア};
+  \node[note, below=3mm of r] {OS / OpenSSL に\\最初から入っている};
+
+  % ---- verification direction ----
+  \coordinate (vy) at (0,-2.75);
+  \draw[->, draw=azureblue] (d0.south |- vy) -- (r.south |- vy);
+  \node[font=\footnotesize, text=azureblue, fill=white, inner sep=3pt] at (8.4,-2.75)
+    {検証の向き：各証明書の署名を，1つ左の発行者の公開鍵で確かめていく};
+  \node[font=\footnotesize\bfseries, text=azureblue, anchor=west] at (-2.2,-3.35)
+    {信頼ストアまでたどれた → Verify return code: 0 (ok)};
+
+  % ---- other output lines ----
+  \node[font=\footnotesize\bfseries, text=navy, anchor=west] at (-2.2,-4.3) {残りの出力行};
+  \node[chip] (o1) at (-2.2,-5.0) {Peer signature type: RSA-PSS};
+  \node[sig, right=1mm of o1, align=left] {dns.google の秘密鍵による CERT verify の署名方式};
+  \node[chip] (o2) at (-2.2,-5.7) {Server Temp Key: X25519, 253 bits};
+  \node[sig, right=1mm of o2, align=left] {鍵交換に使った使い捨ての鍵（ECDHE）};
+  \node[chip] (o3) at (-2.2,-6.4) {Cipher is TLS\_AES\_256\_GCM\_SHA384};
+  \node[sig, right=1mm of o3, align=left] {決まった共通鍵暗号（AES-256-GCM）とハッシュ（SHA-384）};
+\end{tikzpicture}

@@ -1,0 +1,75 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, minimum width=2.8cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    ng/.style={block, draw=crimsonred, fill=mistyrose},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south, font=\bfseries, text=navy},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    dot/.style={circle, fill=navy, inner sep=1.4pt},
+    wire/.style={->, draw=navy},
+  ]
+  % ---- client column (x=0) / server column (x=12) ----
+  \node[block]  (ca) at (0,0)     {秘密値 $a$};
+  \node[block]  (cA) at (0,-2)    {公開値 $A$};
+  \node[block]  (cc) at (0,-4.4)  {$a$ と $B$ から計算};
+  \node[accent] (cS) at (0,-6.4)  {共通の値};
+
+  \node[block]  (sb) at (12,0)    {秘密値 $b$};
+  \node[block]  (sB) at (12,-2)   {公開値 $B$};
+  \node[block]  (sc) at (12,-4.4) {$b$ と $A$ から計算};
+  \node[accent] (sS) at (12,-6.4) {共通の値};
+
+  \node[note, right=2mm of ca, anchor=west] {送らない};
+  \node[note, left=2mm of sb, anchor=east]  {送らない};
+
+  % own values
+  \draw[wire] (ca) -- node[sig, swap] {$a$ から計算} (cA);
+  \draw[wire] (sb) -- node[sig] {$b$ から計算} (sB);
+  \draw[wire] (ca.west) -- ++(-0.5,0) |- (cc.west);
+  \draw[wire] (sb.east) -- ++(0.5,0) |- (sc.east);
+  \draw[wire] (cc) -- (cS);
+  \draw[wire] (sc) -- (sS);
+
+  % ---- exchange of public values (only these cross the network) ----
+  \coordinate (aY) at ($(cA.east)+(0,0.2)$);
+  \coordinate (bY) at ($(sB.west)+(0,-0.2)$);
+  \coordinate (cross) at (9.2,-2.2);
+  % A: client -> server compute block
+  \draw[wire] (aY) -- (9.2,-1.8) |- (sc.west);
+  % B: server -> client compute block (jumps over the A line)
+  \draw[wire] (bY) -- ($(cross)+(0.16,0)$)
+    arc[start angle=0, end angle=180, radius=0.16] -- (2.8,-2.2) |- (cc.east);
+  \node[sig, anchor=south] at (6,-1.8) {公開値 $A$ →};
+  \node[sig, anchor=north] at (6,-2.2) {← 公開値 $B$};
+
+  % ---- eavesdropper ----
+  \node[ng] (ev) at (6,-4.4) {盗聴者\\$A$, $B$ だけが見える};
+  \node[note, below=2mm of ev] {$A$, $B$ からは共通の値を\\（現実的な計算量では）求められない};
+
+  % ---- same value ----
+  \draw[<->, draw=navy, dashed] (cS) -- (sS);
+  \node[sig, anchor=north] at (6,-6.5) {同じ値（ネットワークには流れない）};
+
+  % ---- zones ----
+  \begin{scope}[on background layer]
+    \node[zone, fit=(ca)(cS)([xshift=-6mm]cc.west)([xshift=4mm]cc.east)] (zc) {};
+    \node[zone, fit=(sb)(sS)([xshift=6mm]sc.east)([xshift=-4mm]sc.west)] (zs) {};
+  \end{scope}
+  \node[zlabel] at (zc.north) {クライアント};
+  \node[zlabel] at (zs.north) {サーバー};
+  \node[zlabel, text=darkgray] at (6,0.6) {ネットワーク};
+\end{tikzpicture}

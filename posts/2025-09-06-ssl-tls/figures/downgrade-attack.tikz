@@ -1,0 +1,56 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.7cm, minimum width=3.2cm, inner sep=5pt},
+    ng/.style={block, draw=crimsonred, fill=mistyrose},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    ngzone/.style={zone, draw=crimsonred},
+    lane/.style={font=\bfseries, text=navy, anchor=west, align=left},
+    step/.style={font=\footnotesize\bfseries, text=azureblue},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt, align=left},
+    wire/.style={->, draw=navy},
+  ]
+  % ---- client lane (y=0) / attacker lane (y=-3.4) / server lane (y=-6.8) ----
+  \node[block] (c1) at (0,0)       {ClientHello\\TLS 1.3 / 1.2\\強い暗号スイート};
+  \node[ng]    (a2) at (4.6,-3.4)  {ClientHello を改ざん\\TLS 1.0・弱い暗号\\だけに書き換える};
+  \node[block] (s3) at (9.2,-6.8)  {提示された中から\\TLS 1.0・弱い暗号\\を選ぶ};
+  \node[block] (c4) at (13.8,0)    {相手は TLS 1.0 しか\\使えないと判断し\\合意する};
+  \node[ng]    (a5) at (18.4,-3.4) {弱い暗号を破り\\通信を解読};
+  \node[block] (c5) at (18.4,0)    {弱い方式で\\暗号化通信};
+  \node[block] (s5) at (18.4,-6.8) {弱い方式で\\暗号化通信};
+
+  \foreach \n/\s in {c1/Step 1, a2/Step 2, s3/Step 3, c4/Step 4, c5/Step 5}
+    \node[step, above=2mm of \n] {\s};
+
+  % ---- messages ----
+  \draw[wire] (c1.south) |- (a2.west);
+  \node[sig, anchor=west] at (0.1,-1.9) {本来の提示};
+  \draw[wire] (a2.south) |- (s3.west);
+  \node[sig, anchor=west] at (4.7,-5.3) {改ざん版を転送};
+  \draw[wire] (s3.east) -| (c4.south);
+  \node[sig, anchor=east, align=right] at (13.6,-5.3) {ServerHello（TLS 1.0）\\攻撃者はそのまま中継};
+  \draw[wire] (c4) -- (c5);
+  \draw[<->, draw=crimsonred] (c5) -- (a5);
+  \draw[<->, draw=crimsonred] (a5) -- (s5);
+
+  % ---- lanes ----
+  \begin{scope}[on background layer]
+    \node[zone, fit=([xshift=-24mm]c1.west)([xshift=4mm]c5.east)([yshift=8mm]c1.north)(c1.south)] (zc) {};
+    \node[ngzone, fit=([xshift=-24mm]c1.west |- a2.north)([xshift=4mm]a5.east)([yshift=6mm]a2.north)(a2.south)] (za) {};
+    \node[zone, fit=([xshift=-24mm]c1.west |- s3.north)([xshift=4mm]s5.east)([yshift=6mm]s3.north)(s3.south)] (zs) {};
+  \end{scope}
+  \node[lane] at ([xshift=3mm]zc.west) {クライアント};
+  \node[lane, text=crimsonred] at ([xshift=3mm]za.west) {攻撃者\\（中間者）};
+  \node[lane] at ([xshift=3mm]zs.west) {サーバー};
+\end{tikzpicture}

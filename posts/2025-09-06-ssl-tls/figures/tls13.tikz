@@ -1,0 +1,67 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=2.0cm, minimum width=2.9cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    lane/.style={font=\bfseries, text=navy, anchor=west, align=left},
+    step/.style={font=\footnotesize\bfseries, text=azureblue},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt, align=left},
+    wire/.style={->, draw=navy},
+    chip/.style={draw=navy, rounded corners=3pt, minimum height=0.55cm, inner sep=4pt, font=\footnotesize},
+  ]
+  % ---- client lane (y=0) / server lane (y=-5.4) ----
+  \node[block]  (c1) at (0,0)      {使い捨ての鍵ペア\\秘密値 $a$\\公開値 $A$ を作成};
+  \node[accent] (s2) at (3.6,-5.4) {鍵ペア $b$, $B$ を作成\\共通鍵を計算\\（$b$ と $A$ から）};
+  \node[block]  (s3) at (7.2,-5.4) {証明書の秘密鍵で\\ここまでの\\やり取りに署名};
+  \node[accent] (c4) at (10.8,0)   {共通鍵を計算\\（$a$ と $B$ から）};
+  \node[block]  (c5) at (14.4,0)   {証明書を CA で検証\\署名を証明書の\\公開鍵で検証};
+  \node[block]  (c6) at (18.0,0)   {共通鍵で\\暗号化して\\やり取り};
+  \node[block]  (s6) at (18.0,-5.4) {共通鍵で\\暗号化して\\やり取り};
+
+  \foreach \n/\s in {c1/Step 1, s2/Step 2, s3/Step 3, c4/Step 4, c5/Step 5, c6/Step 6}
+    \node[step, above=2mm of \n] {\s};
+
+  \node[note, below=2mm of s2] (n2) {両者の乱数も混ぜて\\鍵を導出（HKDF）};
+  \node[note, below=2mm of s3] (n3) {なりすましでない\\ことの証明};
+
+  % ---- messages ----
+  \draw[wire] (c1.south) |- (s2.west);
+  \node[sig, anchor=west] at (0.1,-2.6) {ClientHello\\乱数＋公開値 $A$};
+  \draw[wire] (s2) -- (s3);
+  \draw[wire] (s3.east) -| (c4.south);
+  \node[sig, anchor=east, align=right] at (10.5,-2.6) {ServerHello（乱数＋公開値 $B$）\\以降は共通鍵で暗号化して送信\\証明書＋署名};
+  \draw[wire] (c4) -- (c5);
+  \draw[wire] (c5) -- (c6);
+  \draw[wire] (s3.east) -- (s6.west);
+  \node[circle, fill=navy, inner sep=1.4pt] at (c4 |- s3.east) {};
+  \draw[<->, draw=navy] (c6) -- (s6);
+  \node[sig, anchor=west] at (18.1,-2.6) {Finished で\\改ざんなしを\\確認し合った後，\\アプリの通信};
+
+  % ---- lanes ----
+  \begin{scope}[on background layer]
+    \node[zone, fit=([xshift=-24mm]c1.west)(c6.east)([yshift=8mm]c1.north)([yshift=-4mm]c1.south)([xshift=22mm]c6.east)] (zc) {};
+    \node[zone, fit=([xshift=-24mm]c1.west |- s2.north)([xshift=22mm]s6.east)([yshift=8mm]s2.north)(n2)(n3)] (zs) {};
+  \end{scope}
+  \node[lane] at ([xshift=3mm]zc.west) {WWW\\クライアント};
+  \node[lane] at ([xshift=3mm]zs.west) {WWW\\サーバー};
+
+  % ---- legend ----
+  \node[chip, fill=white, anchor=west] (k1) at (-2.6,3.1) {秘密値 $a$, $b$};
+  \node[sig, right=1mm of k1] {使い捨て．相手にも送らない};
+  \node[chip, fill=white, anchor=west] (k2) at (5.4,3.1) {公開値 $A$, $B$};
+  \node[sig, right=1mm of k2] {秘密値から計算．送ってよい};
+  \node[chip, fill=white, anchor=west] (k3) at (13.0,3.1) {証明書の鍵ペア};
+  \node[sig, right=1mm of k3] {本人確認（署名）だけに使う};
+  \node[note, anchor=west] at (-2.6,2.45) {ポイント：「$a$ と $B$」「$b$ と $A$」から同じ共通鍵が計算できる（ECDHE）→ 共通鍵そのものはネットワークを流れない};
+\end{tikzpicture}

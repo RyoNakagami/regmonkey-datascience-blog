@@ -1,0 +1,96 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    head/.style={draw=navy, fill=aliceblue, rounded corners=3pt, align=center,
+                 minimum width=3.0cm, minimum height=1.1cm, font=\small\bfseries, text=navy},
+    nm/.style={font=\small\bfseries, text=navy, inner sep=2pt},
+    nmkey/.style={nm, fill=paleskyblue, rounded corners=2pt, inner sep=3pt},
+    sub/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    step/.style={font=\footnotesize\bfseries, text=azureblue},
+    note/.style={font=\footnotesize, text=darkgray, align=left, anchor=west},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt, align=left},
+    chip/.style={draw=navy, fill=white, rounded corners=3pt, minimum height=0.55cm,
+                 inner sep=4pt, font=\footnotesize, anchor=west},
+  ]
+  \def\xc{0}
+  \def\xs{8}
+  \def\dy{1.5}
+
+  % ---- heads and lifelines ----
+  \node[head] (hc) at (\xc,0) {curl\\[1pt]{\footnotesize（クライアント）}};
+  \node[head] (hs) at (\xs,0) {8.8.8.8\\[1pt]{\footnotesize（サーバー）}};
+  \draw[navy] (hc.south) -- (\xc,-16.9);
+  \draw[navy] (hs.south) -- (\xs,-16.9);
+
+  % ---- messages: i / dir / key? / name / note ----
+  \foreach \i/\d/\k/\n/\t in {
+      1/1/1/Client Hello/{鍵の公開値 $A$，ALPN: h2, http/1.1},
+      2/0/1/Server Hello/{鍵の公開値 $B$，暗号方式を決定},
+      3/0/0/Encrypted Extensions/{ALPN: h2 に決定},
+      4/0/0/Certificate/{サーバー証明書},
+      5/0/0/CERT verify/{証明書の秘密鍵でやり取りに署名},
+      6/0/0/Finished/{サーバー側の改ざんなし確認},
+      7/2/0/Change cipher spec/{互換用のダミー（TLS 1.2 に見せる）},
+      8/1/0/Finished/{クライアント側の改ざんなし確認},
+      9/0/0/NewSession Ticket ×2/{次回の再開用チケット}} {
+    \pgfmathsetmacro{\y}{-0.6-\dy*\i-(\i>2)*0.5}
+    \node[step, anchor=east] at (\xc-0.3,\y) {\i};
+    \ifnum\d=1
+      \draw[->, draw=navy] (\xc,\y) -- (\xs,\y);
+    \fi
+    \ifnum\d=0
+      \draw[->, draw=navy] (\xs,\y) -- (\xc,\y);
+    \fi
+    \ifnum\d=2
+      \draw[->, draw=darkgray, dashed] (\xc,\y) -- (\xs,\y);
+    \fi
+    \ifnum\k=1
+      \node[nmkey, anchor=south] at (\xc/2+\xs/2,\y+0.08) {\n};
+    \else
+      \node[nm, anchor=south] at (\xc/2+\xs/2,\y+0.08) {\n};
+    \fi
+    \node[sub, anchor=north] at (\xc/2+\xs/2,\y-0.05) {\t};
+  }
+
+  % ---- application data ----
+  \pgfmathsetmacro{\ya}{-1.1-\dy*10}
+  \draw[<->, draw=navy] (\xc,\ya) -- (\xs,\ya);
+  \node[nm, anchor=south] at (\xc/2+\xs/2,\ya+0.08) {HTTP/2 の通信};
+  \node[sub, anchor=north] at (\xc/2+\xs/2,\ya-0.05) {アプリのデータを共通鍵で暗号化};
+
+  % ---- encrypted zone (from message 3) ----
+  \begin{scope}[on background layer]
+    \node[draw=paleskyblue, fill=aliceblue, rounded corners=8pt, inner sep=0pt,
+          fit=(\xc-0.8,-4.25)(\xs+0.4,\ya-0.75)] (enc) {};
+  \end{scope}
+  \node[font=\footnotesize\bfseries, text=azureblue, anchor=north west]
+    at ([xshift=4pt,yshift=-3pt]enc.north west) {ここから共通鍵で暗号化};
+
+  % ---- side notes ----
+  \draw[decorate, decoration={brace, amplitude=5pt}, draw=darkgray]
+    (\xs+0.7,-0.6-\dy*1+0.2) -- (\xs+0.7,-0.6-\dy*2-0.2);
+  \node[note] at (\xs+1.0,-0.6-\dy*1.5) {この往復で\\共通鍵が決まる\\（1-RTT）};
+  \node[note] at (\xs+0.7,-1.1-\dy*5) {RSASSA-PSS\\で署名};
+  \node[note] at (\xs+0.7,-1.1-\dy*6.5) {curl が証明書と\\署名を検証\\→ SSL certificate\\\phantom{→ }verify ok};
+  \node[note] at (\xs+0.7,-1.1-\dy*9) {次回は再開で\\手順を短縮};
+
+  % ---- legend: negotiated parameters ----
+  \node[font=\footnotesize\bfseries, text=navy, anchor=west] at (-1.1,3.9)
+    {SSL connection using … の内訳};
+  \node[chip] (p1) at (-1.1,3.15) {TLSv1.3};
+  \node[sig, right=1mm of p1] {プロトコル版};
+  \node[chip] (p2) at (-1.1,2.45) {TLS\_AES\_256\_GCM\_SHA384};
+  \node[sig, right=1mm of p2] {共通鍵暗号 AES-256-GCM ＋ ハッシュ SHA-384};
+  \node[chip] (p3) at (-1.1,1.75) {X25519};
+  \node[sig, right=1mm of p3] {鍵交換（ECDHE）};
+  \node[chip] (p4) at (5.2,1.75) {RSASSA-PSS};
+  \node[sig, right=1mm of p4] {証明書による署名方式};
+\end{tikzpicture}

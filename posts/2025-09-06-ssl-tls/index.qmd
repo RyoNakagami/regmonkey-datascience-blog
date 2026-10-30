@@ -1,0 +1,515 @@
+---
+title: "SSL/TLSの仕組み"
+author: "Ryo Nakagami"
+date: "2025-09-06"
+date-modified: "2026-10-30"
+categories: [network, security]
+lightbox: false
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+## SSL/TLSとは
+
+::: {#def- .custom_problem .blog-custom-border}
+### SSL/TLS プロトコル
+
+- インターネット上の2者間（典型的には WWW クライアントと WWW サーバー）の通信を保護するためのプロトコル
+- TCP/IP の4階層モデルではアプリケーション層に含まれ，その中で HTTP などのアプリケーションプロトコルと TCP の間に入って，アプリケーションのデータを **暗号化**・**改ざん検知**・**通信相手の認証** をしたうえで送受信する
+- SSL (Secure Sockets Layer) は Netscape 社が開発した前身のプロトコルで，それを IETF が標準化・改良したものが TLS (Transport Layer Security)
+
+:::
+
+SSL という名前は現在でも「SSL 証明書」「SSL 化」のように慣用的に使われていますが，SSL 自体はすでに脆弱性のため廃止されたプロトコルです．
+現在実際に使われているのは TLS 1.2 と TLS 1.3 で，本記事でも中身の説明は TLS 1.3 を前提にします．
+
+:::: {.no-border-top-table}
+
+| バージョン | 公開年 | 状態 |
+|---|---|---|
+| SSL 2.0 / 3.0 | 1995 / 1996 | 廃止 (RFC 6176, RFC 7568) |
+| TLS 1.0 / 1.1 | 1999 / 2006 | 廃止 (RFC 8996, 2021年) |
+| TLS 1.2 | 2008 | 現役 (RFC 5246) |
+| TLS 1.3 | 2018 | 現役・推奨 (RFC 8446) |
+
+::::
+
+
+::: {.callout-note}
+### OSI参照モデルでのSSL/TLSの位置づけ
+
+TLS は TCP/IP を前提に設計されたプロトコルで，OSI 参照モデルのどの層に属するかに公式な定義はありません．
+慣例的には，おおよそ次のように対応づけて説明されます．
+
+| OSI の層 | TLS の担当部分 |
+|---|---|
+| 7 アプリケーション層 | ―（HTTP など） |
+| 6 プレゼンテーション層 | データの暗号化・復号 |
+| 5 セッション層 | ハンドシェイク，セッションの確立・再開 |
+| 4 トランスポート層 | ―（TCP など） |
+
+:::
+
+### どんなところで使われているのか
+
+有名なのは HTTPS ですが，HTTPS 以外にも，データ分析の業務で触れる多くの通信が TLS で保護されています．
+
+::: {.no-border-top-table}
+
+| 分類 | 対象 | TLS の使い方 |
+|---|---|---|
+| データの取得・保存 | PostgreSQL・Redshift | 接続文字列で `postgresql://…?sslmode=verify-full` のように指定．平文で接続してから TLS に切り替える STARTTLS 型 |
+| | MongoDB | `mongodb+srv://` の URL は既定で TLS 接続 |
+| | Redis | `rediss://`（s が2つ）が TLS 版．クラウドのマネージド Redis では必須のことが多い |
+| 社内ネットワーク・ログイン | SSL-VPN | 在宅から社内のデータ基盤に入る OpenVPN，openconnect（Cisco AnyConnect 互換），FortiClient など |
+| | LDAPS（636 番） | Ubuntu の社内アカウントログイン (SSSD) や JupyterHub の LDAP 認証の裏側 |
+| メール | SMTP + STARTTLS（587 番） | Python の `smtplib` でレポートを自動送信するときの `server.starttls()` |
+| OS の設定 | DNS over TLS（853 番） | Ubuntu の `systemd-resolved` で `DNSOverTLS=yes` を設定すると名前解決を暗号化できる．8.8.8.8 などの 853 番ポートに接続する |
+
+:::
+
+### TLS が守るもの
+
+
+::: {.callout-note}
+### TLS の役割は「暗号化」と「相手の認証」
+
+- 暗号化だけでは「正しい相手と話しているか」は保証されない
+- 攻撃者が経路の途中でサーバーになりすまし（中間者攻撃），自分と暗号化通信をさせれば，暗号化していても内容は筒抜け
+-  TLS は「暗号化」と「相手の認証」をセットで行う
+
+:::
+
+
+ネットワーク上を流れるパケットは，途中の経路（公共 Wi-Fi，ISP，ルーターなど）で第三者に覗かれたり書き換えられたりする可能性があります．
+TLS はこれらの脅威に対して，次の3つの性質を提供します．
+
+:::: {.no-border-top-table}
+
+| 脅威 | TLS が提供する性質 | 主な仕組み |
+|---|---|---|
+| 盗聴 | 機密性 (Confidentiality) | 共通鍵暗号 (AES-GCM, ChaCha20-Poly1305 など) |
+| 改ざん | 完全性 (Integrity) | AEAD による認証タグ，Finished メッセージ |
+| なりすまし | 真正性 (Authentication) | サーバー証明書とデジタル署名 |
+: {tbl-colwidths="[18,28,54]"}
+
+::::
+
+### 共通鍵暗号・鍵交換・デジタル署名の使い分け
+
+TLS は共通鍵暗号に加えて，公開鍵と秘密鍵のペアを使う2つの技術（鍵交換と，デジタル署名による公開鍵認証）を役割ごとに組み合わせて使っています．
+
+:::: {.no-border-top-table}
+
+| 技術 | 鍵 | TLS での役割 |
+|---|---|---|
+| 共通鍵暗号 | 双方が同じ共通鍵を持つ．高速 | アプリケーションデータの暗号化 |
+| 鍵交換 (ECDHE) | 使い捨ての鍵ペア．公開値だけを交換する | 共通鍵を，ネットワークに流さずに双方で導出する |
+| デジタル署名 | 証明書の鍵ペア．秘密鍵で署名し，公開鍵で検証する | サーバーの認証（なりすましでないことの証明） |
+
+::::
+
+大量のデータを高速に暗号化するには共通鍵暗号が適していますが，「通信相手とどうやって同じ鍵を安全に共有するか」と
+「その相手は本物か」という問題が残ります．前者を鍵交換で，後者をデジタル署名によるサーバー認証で，ハンドシェイクの中で解決するのが TLS の基本設計です．
+
+::: {.callout-note}
+- 「公開鍵で暗号化し，秘密鍵で復号する」という狭義の公開鍵暗号は，TLS 1.3 ではデータの暗号化にも鍵の受け渡しにも使われていません．
+- 公開鍵と秘密鍵のペアが登場するのは，鍵交換とデジタル署名の2か所だけです．
+:::
+
+### 鍵交換 (ECDHE) のIntuition
+
+TLS 1.3 の鍵交換は ECDHE (Elliptic Curve Diffie-Hellman Ephemeral) で行われます．
+
+1. クライアントは秘密値 $a$ と，そこから計算した公開値 $A$ を作る
+2. サーバーは秘密値 $b$ と，そこから計算した公開値 $B$ を作る
+3. 公開値 $A$, $B$ だけを交換する（秘密値 $a$, $b$ は送らない）
+4. クライアントは「$a$ と $B$」から，サーバーは「$b$ と $A$」から **同じ値** を計算できる．一方，ネットワークを流れる $A$ と $B$ だけを盗聴しても，その値は（現実的な計算量では）求められない
+
+![ECDHE による鍵交換のイメージ](./figures/ecdhe.svg){#fig-ecdhe}
+
+この「同じ値」を元に，両者の乱数も混ぜて鍵導出関数 (HKDF) にかけ，通信に使う共通鍵を作ります．
+共通鍵そのものはネットワークを一度も流れないのがポイントです．
+
+また，$a$, $b$ は接続ごとに使い捨て (Ephemeral) なので，仮に後日サーバー証明書の秘密鍵が漏洩しても，
+過去に盗聴・保存されていた通信は復号できません．この性質を **前方秘匿性 (Forward Secrecy)** と呼びます．
+
+::: {.callout-note}
+- TLS 1.2 までは，クライアントが作った鍵の素をサーバー証明書の RSA 公開鍵で暗号化して送る「RSA 鍵交換」も使えました．
+- この方式では証明書の秘密鍵が漏洩すると過去の通信も復号できてしまうため，TLS 1.3 では廃止され，(EC)DHE のみになっています．
+:::
+
+### TLS 1.3 のハンドシェイク
+
+TLS で暗号化通信を始める前の準備手順を **ハンドシェイク** と呼びます．
+TLS 1.3 のフルハンドシェイクの流れは次の図のとおりです．
+
+![TLS 1.3 ハンドシェイクの流れ](./figures/tls13.svg){#fig-tls13}
+
+[Step 1: ClientHello]{.mini-section}
+
+- クライアントは使い捨ての鍵ペア（秘密値 $a$，公開値 $A$）を作成する
+- 乱数，公開値 $A$，対応している暗号スイートなどを `ClientHello` としてサーバーへ送る
+
+[Step 2: サーバー側で共通鍵を計算]{.mini-section}
+
+- サーバーも使い捨ての鍵ペア（秘密値 $b$，公開値 $B$）を作成する
+- 自分の $b$ とクライアントの $A$，両者の乱数から HKDF で共通鍵を導出する
+
+[Step 3: ServerHello と証明書・署名]{.mini-section}
+
+- 乱数と公開値 $B$ を `ServerHello` として送る
+- これ以降のメッセージはすでに共通鍵で暗号化されている
+- サーバー証明書 (`Certificate`) と，ここまでのやり取り全体に対する証明書の秘密鍵による署名 (`CertificateVerify`) を送る
+- この署名によって「証明書の持ち主本人が，いまこの通信に応答している」ことを示す（なりすましでないことの証明）
+
+[Step 4: クライアント側で共通鍵を計算]{.mini-section}
+
+- クライアントは自分の $a$ とサーバーの $B$ から，サーバーと同じ共通鍵を計算する
+- これで以降の暗号化されたメッセージを復号できるようになる
+
+[Step 5: 証明書と署名の検証]{.mini-section}
+
+- 受け取った証明書が信頼できる認証局 (CA) によって発行されたものかを検証する
+- 証明書に含まれる公開鍵で，Step 3 の署名を検証する
+
+[Step 6: 暗号化通信の開始]{.mini-section}
+
+- 双方が `Finished` メッセージを送り，ハンドシェイクの内容が途中で改ざんされていないことを確認し合う
+- 以降，共通鍵で暗号化してアプリケーションデータ（HTTP など）をやり取りする
+
+
+### 証明書の検証：信頼の連鎖
+
+Step 5 の「証明書が信頼できるか」は，**信頼の連鎖 (Chain of Trust)** によって判断されます．
+
+![証明書の信頼の連鎖](./figures/chain-of-trust.svg){#fig-chain-of-trust}
+
+クライアントはサーバー証明書から順に「発行者の公開鍵で署名を検証できるか」を辿り，
+最終的にトラストストアにあるルート CA に到達できれば，その証明書を信頼します．
+加えて，次の項目も確認します．
+
+- 有効期限内であること
+- 証明書の SAN (Subject Alternative Name) に，アクセスしているドメイン名が含まれていること
+- 失効していないこと
+
+## HTTP over SSL/TLS
+
+::: {#def- .custom_problem .blog-custom-border}
+### HTTPS
+
+- HTTP over SSL/TLS の略
+- Web サーバーと Web ブラウザがデータを安全に送受信するために，SSL/TLSプロトコルによって生成されるセキュアな接続上でデータのやり取りを行う方式
+
+:::
+
+HTTPS は新しいプロトコルというより，「TCP 接続の上で TLS ハンドシェイクを行い，その暗号化された通信路の上でいつもどおり HTTP をやり取りする」方式です．
+
+![HTTP と HTTPS のプロトコル階層](./figures/http-https-stack.svg){#fig-http-https-stack}
+
+HTTP のリクエスト・レスポンス（URL のパス，クエリパラメータ，ヘッダー，Cookie，ボディ）はすべて TLS によって暗号化されます．
+
+### HTTPS でも見えるもの
+
+HTTPS は通信の中身を守りますが，すべてを隠すわけではありません．
+
+| 項目 | 経路上の第三者から見えるか |
+|---|---|
+| 接続先の IP アドレス・ポート番号 | 見える |
+| 接続先のドメイン名 (ClientHello の SNI) | 見える（ECH を使う場合を除く） |
+| URL のパス・クエリパラメータ | 見えない |
+| HTTP ヘッダー・Cookie・ボディ | 見えない |
+| 通信量・タイミング | 見える |
+
+::: {.callout-warning}
+
+- HTTPS で保証されるのは「そのドメインの正当な持ち主と，盗聴・改ざんされずに通信している」こと
+- そのサイト自体が安全・誠実であることは保証しない
+- フィッシングサイトでも正規の証明書を取得して HTTPS を使うことは可能
+
+:::
+
+### ハンドシェイクを観察してみる
+
+`curl -v` を使うと，実際の TLS ハンドシェイクのメッセージを確認できます．
+
+```bash
+curl -sv -o /dev/null https://8.8.8.8 2>&1 | grep -E 'TLS|SSL|ALPN'
+```
+
+```
+* ALPN: curl offers h2,http/1.1
+* TLSv1.3 (OUT), TLS handshake, Client hello (1):
+* TLSv1.3 (IN), TLS handshake, Server hello (2):
+* TLSv1.3 (IN), TLS handshake, Encrypted Extensions (8):
+* TLSv1.3 (IN), TLS handshake, Certificate (11):
+* TLSv1.3 (IN), TLS handshake, CERT verify (15):
+* TLSv1.3 (IN), TLS handshake, Finished (20):
+* TLSv1.3 (OUT), TLS change cipher, Change cipher spec (1):
+* TLSv1.3 (OUT), TLS handshake, Finished (20):
+* SSL connection using TLSv1.3 / TLS_AES_256_GCM_SHA384 / X25519 / RSASSA-PSS
+* ALPN: server accepted h2
+*  SSL certificate verify ok.
+* TLSv1.3 (IN), TLS handshake, Newsession Ticket (4):
+* TLSv1.3 (IN), TLS handshake, Newsession Ticket (4):
+* old SSL session ID is stale, removing
+```
+
+![`curl -v` の出力とハンドシェイクの対応](./figures/tls13-curl-v.svg){#fig-tls13-curl-v}
+
+- `Client hello` → `Server hello` → `Certificate` → `CERT verify` → `Finished` が，@fig-tls13 の Step 1〜6 に対応している
+- `SSL connection using` の行は，このハンドシェイクで決まった内容を表す
+  - `TLSv1.3`：プロトコルのバージョン
+  - `TLS_AES_256_GCM_SHA384`：暗号スイート．共通鍵暗号に AES-256-GCM，鍵導出のハッシュに SHA-384 を使う
+  - `X25519`：ECDHE で使われた楕円曲線
+  - `RSASSA-PSS`：`CERT verify` で，サーバーが証明書の秘密鍵を使って行った署名の方式
+- `SSL certificate verify ok.` は，curl が証明書チェーンと署名の検証に成功したことを表す
+- `Change cipher spec` は TLS 1.3 では意味を持たず，古い中継機器との互換性のためだけに送られている
+- `Newsession Ticket` は，次回の接続でハンドシェイクを短縮（セッション再開）するためのチケット
+
+### 証明書チェーンの確認
+
+証明書チェーンを確認したい場合は `openssl s_client` が便利です．
+
+```bash
+openssl s_client -connect 8.8.8.8:443 -tls1_3 </dev/null 2>/dev/null \
+  | grep -E 'Protocol|Cipher|Server Temp Key|Peer signature|Verify return|^ *[0-9] s:|^ *i:'
+```
+
+```
+ 0 s:CN = dns.google
+   i:C = US, O = Google Trust Services, CN = WR2
+ 1 s:C = US, O = Google Trust Services, CN = WR2
+   i:C = US, O = Google Trust Services LLC, CN = GTS Root R1
+ 2 s:C = US, O = Google Trust Services LLC, CN = GTS Root R1
+   i:C = BE, O = GlobalSign nv-sa, OU = Root CA, CN = GlobalSign Root CA
+Peer signature type: RSA-PSS
+Server Temp Key: X25519, 253 bits
+New, TLSv1.3, Cipher is TLS_AES_256_GCM_SHA384
+Verify return code: 0 (ok)
+```
+
+![`openssl s_client` で見た 8.8.8.8 の証明書チェーン](./figures/cert-chain.svg){#fig-cert-chain}
+
+- `s:` が証明書の主体 (Subject)，`i:` が発行者 (Issuer) で，上の行の `i:` が次の行の `s:` に一致していく様子から信頼の連鎖が読み取れる
+  - depth 0 の `dns.google` がサーバー証明書，depth 1 の `WR2` が中間 CA
+  - depth 2 の `GTS Root R1` はそれ自体もルート CA だが，ここでは古い環境でも検証できるように `GlobalSign Root CA` が署名した版（クロス署名）が送られている
+- `Verify return code: 0 (ok)` は，手元の信頼ストアにあるルート CA まで辿れて，証明書チェーンの検証に成功したことを表す
+- `Peer signature type: RSA-PSS` が Step 3（`CERT verify`）の署名方式，`Server Temp Key: X25519` が ECDHE の使い捨て鍵
+
+## SSL/TLS とセキュリティ脅威
+
+### ダウングレード攻撃
+
+::: {#def- .custom_problem .blog-custom-border}
+### ダウングレード攻撃 (Downgrade Attack)
+
+- 通信経路上の攻撃者（中間者）がハンドシェイクに介入し，クライアントとサーバーの双方が対応している強い方式ではなく，古いプロトコルバージョンや弱い暗号スイートで通信させる攻撃
+- 弱い方式で合意させたうえで，その方式の脆弱性を突いて通信を解読・改ざんする
+
+:::
+
+TLS では，クライアントが対応するバージョンと暗号スイートの一覧を `ClientHello` で提示し，サーバーがその中から選びます．
+互換性のために古い方式も一覧に残していると，攻撃者はこの「交渉」を悪用できます．
+
+![ダウングレード攻撃の流れ](./figures/downgrade-attack.svg){#fig-downgrade-attack}
+
+[Step 1--3: 交渉への介入]{.mini-section}
+
+- クライアントは TLS 1.3 / 1.2 と強い暗号スイートを提示する
+- 攻撃者は `ClientHello` を書き換えて，TLS 1.0 や弱い暗号スイートだけが提示されたように見せる
+  - 別の手口として，ハンドシェイクをわざと失敗させ，クライアントに古いバージョンで接続し直させる（フォールバック）方法もある
+- サーバーは提示された中から選ぶしかなく，弱い方式で合意してしまう
+
+[Step 4--5: 弱い方式での通信と解読]{.mini-section}
+
+- クライアントは「相手が古い方式にしか対応していない」と判断して通信を始める
+- 攻撃者は弱い暗号を破ったり，古いバージョンの脆弱性を突いたりして通信内容を解読する
+- 本来はハンドシェイク末尾の `Finished` メッセージで改ざんを検知できるが，鍵そのものを破れるほど弱い方式だと，攻撃者は `Finished` も偽造できてしまう
+
+[代表的な事例]{.mini-section}
+
+::: {.no-border-top-table}
+
+| 名称 | 年 | ダウングレード先 | 手口 |
+|---|---|---|---|
+| POODLE | 2014 | SSL 3.0 | フォールバックで SSL 3.0 に落とし，CBC モードのパディング検証の欠陥を突いて解読 |
+| FREAK | 2015 | 輸出用 RSA（512bit） | 輸出規制時代の弱い RSA 鍵交換を選ばせ，鍵を短時間で解読 |
+| Logjam | 2015 | 輸出用 DHE（512bit） | 輸出用の弱い Diffie-Hellman パラメータを選ばせ，鍵を短時間で解読 |
+
+:::
+
+[対策]{.mini-section}
+
+- **古い方式を無効化する**：サーバー・クライアントの双方で SSL 3.0，TLS 1.0 / 1.1 と弱い暗号スイートを無効にする．提示されなければダウングレードのしようがない
+- **TLS 1.3 のダウングレード検知**：TLS 1.3 対応のサーバーが TLS 1.2 以下で合意するときは，`ServerHello` の乱数の末尾8バイトに目印（`DOWNGRD`）を入れる．乱数はサーバーの署名で保護されているため攻撃者は消せず，TLS 1.3 対応のクライアントは目印を見てダウングレードを検知できる
+- **ハンドシェイク全体への署名**：TLS 1.3 では `CertificateVerify` でここまでのやり取り全体に署名するため，`ClientHello` の書き換えは署名検証で発覚する
+- **フォールバックの抑止**：`TLS_FALLBACK_SCSV`（RFC 7507）は，クライアントがフォールバックで再接続していることをサーバーに伝え，不要なダウングレードを拒否させる仕組み
+
+::: {.callout-note}
+### SSL ストリッピングとの違い
+
+HTTPS を HTTP に落とさせる攻撃（SSL ストリッピング）も広い意味ではダウングレード攻撃の一種です．
+こちらは TLS の交渉ではなく「そもそも TLS を使わせない」攻撃で，HSTS（HTTP Strict Transport Security）でブラウザに HTTPS を強制することで防ぎます．
+
+:::
+
+
+## Appendix: `openssl` での秘密鍵生成
+
+SSL/TLS による暗号化通信を行うには，サーバー秘密鍵を生成し，CSR（証明書署名要求）を作って CA に送り，CA からサーバー証明書を受け取る必要があります．
+流れは，
+
+1. 秘密鍵を生成する：`server.key` を作る．手元から外に出さない．
+2. CSR を生成する：秘密鍵から公開鍵を取り出し，ドメイン名などの情報と合わせて `server.csr` にする．
+3. CA に送る：CA はドメインの所有を確認し，CA の秘密鍵で署名する．
+4. 証明書を受け取る：署名済みの `server.crt` が届く．
+5. Web サーバーに設定する：`server.key` と `server.crt` の両方を指定する．
+
+ここで使われる秘密鍵の生成には，Linux では `openssl` コマンドがよく使われます．
+
+::: {#def- .custom_problem .blog-custom-border}
+### `openssl genpkey`
+
+- 秘密鍵（とアルゴリズムによってはそのパラメータ）を生成する `openssl` のサブコマンド
+- 鍵の種類を `-algorithm`（RSA / EC / Ed25519 / DSA など）で，アルゴリズムごとの設定（鍵長や楕円曲線）を `-pkeyopt` で指定する汎用コマンドで，アルゴリズム専用の旧来コマンド `genrsa` / `gendsa` の後継にあたる
+- 出力は PKCS#8 形式の PEM ファイル（`-----BEGIN PRIVATE KEY-----`）で，`-aes256` などの暗号方式を指定するとパスフレーズで暗号化して保存できる
+
+:::
+
+```bash
+# ECDSA (P-256) の秘密鍵
+openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out server.key
+
+# RSA (2048bit) の秘密鍵
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out server.key
+
+# 所有者だけが読み書きできるようにする
+chmod 600 server.key
+```
+
+::: {.no-border-top-table}
+
+| 部分 | 意味 |
+|---|---|
+| `-algorithm EC` / `RSA` | 鍵の種類 |
+| `-pkeyopt ec_paramgen_curve:P-256` | 楕円曲線の種類 |
+| `-pkeyopt rsa_keygen_bits:2048` | RSA の鍵長（ビット） |
+| `-out server.key` | 出力先（PEM 形式） |
+| `chmod 600` | 所有者だけが読み書きできるようにする |
+
+:::
+
+`-aes256` を付けるとパスフレーズで暗号化できるが，Web サーバーの起動ごとに入力が必要になります
+
+### `genrsa` / `gendsa` / `genpkey` の違い
+
+`openssl` には秘密鍵を生成するサブコマンドが複数あります．
+`genrsa` と `gendsa` は特定のアルゴリズム専用の旧来のコマンドで，OpenSSL 3.0 以降のマニュアルでは `genpkey` を使うよう案内されています．
+
+::: {.no-border-top-table}
+
+| コマンド | 生成する鍵 | 位置づけ |
+|---|---|---|
+| `genrsa` | RSA 秘密鍵のみ | 旧来のコマンド．今も動作し，よく見かける |
+| `gendsa` | DSA 秘密鍵のみ（事前に DSA パラメータが必要） | 旧来のコマンド．DSA 自体がほぼ使われない |
+| `genpkey` | RSA / EC / Ed25519 / DSA など | 推奨．アルゴリズムを `-algorithm` で選ぶ汎用コマンド |
+
+:::
+
+**`genrsa`**：RSA 秘密鍵を生成する専用コマンド．最後の引数が鍵長（ビット）．
+
+```bash
+openssl genrsa -out server.key 2048
+```
+
+- 出力形式はバージョンで異なり，OpenSSL 1.1.x では PKCS#1 形式（`-----BEGIN RSA PRIVATE KEY-----`），3.x では PKCS#8 形式（`-----BEGIN PRIVATE KEY-----`）になる
+
+**`gendsa`**：DSA 秘密鍵を生成する専用コマンド．DSA は鍵生成の前に，素数 $p, q$ と生成元 $g$ からなる「DSA パラメータ」を用意する必要があるため，2段階になる．
+
+```bash
+openssl dsaparam -out dsaparam.pem 2048   # 1. DSA パラメータを生成
+openssl gendsa -out dsa.key dsaparam.pem  # 2. パラメータから秘密鍵を生成
+```
+
+- DSA は TLS 1.3 では使えず，公的な CA も DSA 鍵の証明書を発行しないため，サーバー証明書の用途ではまず使わない
+
+**`genpkey`**：アルゴリズムを `-algorithm` で，アルゴリズムごとの設定（鍵長や曲線）を `-pkeyopt` で指定する汎用コマンド．出力は常に PKCS#8 形式．
+
+- `genrsa` 相当は `-algorithm RSA`，`gendsa` 相当は `-genparam -algorithm DSA` でパラメータを作ってから鍵を生成すれば代替できる
+- サーバー証明書用には RSA か ECDSA (P-256) を選ぶのが無難（Ed25519 は公的 CA・ブラウザの対応がまだ限定的）
+
+
+
+📘 用語集
+--------------
+
+:::{.glossary-container}
+
+```yaml
+glossary:
+  - def: TLS (Transport Layer Security)
+    description: |
+      通信の暗号化・改ざん検知・相手の認証を提供するプロトコル．SSL の後継で，現在は TLS 1.2 と TLS 1.3 が使われている．
+
+  - def: ハンドシェイク
+    description: |
+      暗号化通信を始める前に，使用する暗号方式の合意，鍵交換，サーバー認証を行う一連のやり取り．
+
+  - def: ECDHE (Elliptic Curve Diffie-Hellman Ephemeral)
+    description: |
+      楕円曲線を用いた Diffie-Hellman 鍵交換を，接続ごとに使い捨ての鍵ペアで行う方式．
+      公開値だけを交換して，双方で同じ共通鍵の素を計算できる．
+
+  - def: 前方秘匿性 (Forward Secrecy)
+    description: |
+      長期的に使う秘密鍵（証明書の秘密鍵など）が将来漏洩しても，過去の通信内容は復号できないという性質．
+
+  - def: HKDF (HMAC-based Key Derivation Function)
+    description: |
+      鍵交換で得た値や乱数から，暗号化に使う鍵を導出する関数．TLS 1.3 の鍵スケジュールで使われる．
+
+  - def: 暗号スイート (Cipher Suite)
+    description: |
+      通信に使う暗号アルゴリズムの組み合わせ．TLS 1.3 では `TLS_AES_256_GCM_SHA384` のように，
+      共通鍵暗号 (AEAD) と鍵導出に使うハッシュ関数の組で表す．
+
+  - def: AEAD (Authenticated Encryption with Associated Data)
+    description: |
+      暗号化と改ざん検知を同時に行う共通鍵暗号の方式．AES-GCM や ChaCha20-Poly1305 がこれにあたる．
+
+  - def: 認証局 (CA, Certificate Authority)
+    description: |
+      サーバー証明書に署名し，その公開鍵が確かにそのドメインの持ち主のものであることを保証する機関．
+
+  - def: 信頼の連鎖 (Chain of Trust)
+    description: |
+      サーバー証明書 → 中間 CA 証明書 → ルート CA 証明書 と署名を辿り，
+      トラストストアにあるルート CA に到達できることで証明書を信頼する仕組み．
+
+  - def: SNI (Server Name Indication)
+    description: |
+      ClientHello に接続先のドメイン名を含める TLS の拡張．1つの IP アドレスで複数ドメインを運用するために使われるが，
+      暗号化されないため経路上から接続先ドメインが見える．ECH (Encrypted Client Hello) はこれを暗号化する拡張．
+
+  - def: ALPN (Application-Layer Protocol Negotiation)
+    description: |
+      TLS ハンドシェイクの中で，その上で使うアプリケーションプロトコル（`h2`, `http/1.1` など）を合意する拡張．
+```
+
+:::
+
+
+References
+--------------
+
+- [RFC 8446: The Transport Layer Security (TLS) Protocol Version 1.3](https://datatracker.ietf.org/doc/html/rfc8446)
+- [RFC 5246: The Transport Layer Security (TLS) Protocol Version 1.2](https://datatracker.ietf.org/doc/html/rfc5246)
+- [RFC 8996: Deprecating TLS 1.0 and TLS 1.1](https://datatracker.ietf.org/doc/html/rfc8996)
+- [RFC 7568: Deprecating Secure Sockets Layer Version 3.0](https://datatracker.ietf.org/doc/html/rfc7568)
+- [RFC 7507: TLS Fallback Signaling Cipher Suite Value (SCSV) for Preventing Protocol Downgrade Attacks](https://datatracker.ietf.org/doc/html/rfc7507)
+- [RFC 5869: HMAC-based Extract-and-Expand Key Derivation Function (HKDF)](https://datatracker.ietf.org/doc/html/rfc5869)
+- [RFC 9110: HTTP Semantics](https://datatracker.ietf.org/doc/html/rfc9110)
