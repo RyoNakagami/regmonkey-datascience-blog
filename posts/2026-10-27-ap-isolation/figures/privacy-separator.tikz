@@ -1,0 +1,72 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, minimum width=2.6cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    ng/.style={block, draw=crimsonred, fill=mistyrose},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south, font=\bfseries},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt, align=center},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    wire/.style={<->, draw=navy},
+  ]
+
+  % ---------- 左：セパレーター OFF ----------
+  \node[block] (inetL) at (3.5,5.2) {インターネット};
+  \node[block] (apL)   at (3.5,2.8) {アクセスポイント\\（同一SSID）};
+  \node[ng]    (aL)    at (0.8,0)   {端末A\\（攻撃者）};
+  \node[block] (bL)    at (6.2,0)   {端末B\\（利用者）};
+
+  \draw[wire] (apL) -- (inetL) node[midway, right, sig] {通常の通信};
+  \draw[wire] (aL.north) |- ([yshift=-3mm]apL.west);
+  \draw[wire] (bL.north) |- ([yshift=-3mm]apL.east);
+
+  % A → AP → B の端末間通信（転送される）
+  \draw[->, draw=crimsonred, line width=1.1pt, rounded corners=6pt]
+    ([xshift=3mm]aL.north) -- ([xshift=3mm]aL.north |- 0,1.6)
+    -- ([xshift=-3mm]bL.north |- 0,1.6) -- ([xshift=-3mm]bL.north);
+  \node[font=\footnotesize, text=crimsonred, align=center] at (3.5,1.05)
+    {AP経由で端末間通信も転送\\（ARP・SMB等が届く）};
+
+  % ---------- 右：セパレーター ON ----------
+  \node[block]  (inetR) at (12.5,5.2) {インターネット};
+  \node[accent] (apR)   at (12.5,2.8) {アクセスポイント\\（宛先MACを検査）};
+  \node[ng]     (aR)    at (9.8,0)    {端末A\\（攻撃者）};
+  \node[block]  (bR)    at (15.2,0)   {端末B\\（利用者）};
+
+  \draw[wire] (apR) -- (inetR) node[midway, right, sig] {通常の通信は許可};
+  \draw[wire] (aR.north) |- ([yshift=-3mm]apR.west);
+  \draw[wire] (bR.north) |- ([yshift=-3mm]apR.east);
+
+  % A → B は AP で破棄
+  \draw[->, draw=crimsonred, line width=1.1pt, rounded corners=6pt]
+    ([xshift=3mm]aR.north) -- ([xshift=3mm]aR.north |- 0,1.6) -- (12.1,1.6);
+  \draw[draw=crimsonred, line width=1.6pt] (12.1,1.35) -- (12.6,1.85);
+  \draw[draw=crimsonred, line width=1.6pt] (12.1,1.85) -- (12.6,1.35);
+  \draw[densely dashed, draw=lightgray, line width=1.1pt, rounded corners=6pt]
+    (12.75,1.6) -- ([xshift=-3mm]bR.north |- 0,1.6) -- ([xshift=-3mm]bR.north);
+  \node[font=\footnotesize, text=crimsonred, align=center] at (12.5,1.05)
+    {同一AP配下の端末宛て\\→ 破棄（L2で遮断）};
+
+  % ---------- ゾーン ----------
+  \begin{scope}[on background layer]
+    \node[zone, draw=crimsonred, fit=(inetL)(aL)(bL)(3.5,0.6)] (zL) {};
+    \node[zone, fit=(inetR)(aR)(bR)(12.5,0.6)] (zR) {};
+  \end{scope}
+  \node[zlabel, text=crimsonred] at (zL.north) {プライバシーセパレーター OFF};
+  \node[zlabel, text=navy]       at (zR.north) {プライバシーセパレーター ON（APアイソレーション）};
+
+  \node[note, below=3mm of zL.south] {同一ネットワーク上の「隣人」として互いに見える};
+  \node[note, below=3mm of zR.south] {各端末は AP〜インターネットとだけ通信できる};
+\end{tikzpicture}

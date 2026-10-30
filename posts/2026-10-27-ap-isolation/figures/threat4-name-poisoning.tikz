@@ -1,0 +1,65 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, minimum width=2.8cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    ng/.style={block, draw=crimsonred, fill=mistyrose},
+    card/.style={block, fill=white},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt, align=center},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    bad/.style={font=\footnotesize, text=crimsonred, align=center, inner sep=2pt},
+    step/.style={text=azureblue},
+    wire/.style={->, draw=navy},
+    attack/.style={->, draw=crimsonred, line width=1.1pt},
+    poison/.style={->, draw=crimsonred, densely dashed},
+    ghost/.style={->, draw=darkgray, densely dashed},
+    life/.style={draw=lightgray, line width=1pt},
+  ]
+  % ④ 名前解決ポイズニング（シーケンス図）
+  \node[block] (vic) at (0,0)  {被害者の端末\\（Windows）};
+  \node[ng]    (atk) at (6.5,0)  {攻撃者の端末};
+  \node[block] (dns) at (13,0) {DNSサーバ};
+  \draw[life] (vic.south) -- (0,-6.6);
+  \draw[life] (atk.south) -- (6.5,-8.2);
+  \draw[life] (dns.south) -- (13,-3.0);
+
+  % 1. DNS 問い合わせ → 失敗
+  \draw[wire] (0,-1.3) -- (13,-1.3)
+    node[pos=0.25, above, sig] {\textcolor{azureblue}{①} 「fileserv」を問い合わせ}
+    node[pos=0.75, above, sig] {打ち間違い・社内専用の名前};
+  \draw[ghost] (13,-2.4) -- (0,-2.4)
+    node[pos=0.25, above, sig] {見つからない};
+
+  % 2. LLMNR / NBT-NS / mDNS
+  \draw[wire] (0,-3.6) -- (6.5,-3.6)
+    node[midway, above, sig] {\textcolor{azureblue}{②} LAN全体に「fileserv は誰？」\\（LLMNR / NBT-NS / mDNS）};
+
+  % 3. 偽応答
+  \draw[attack] (6.5,-4.7) -- (0,-4.7)
+    node[midway, above, bad] {\textcolor{azureblue}{③} 「私です」と偽応答};
+
+  % 4. NTLM 認証
+  \draw[attack] (0,-6.0) -- (6.5,-6.0)
+    node[midway, above, bad] {\textcolor{azureblue}{④} 攻撃者のSMBへ接続し\\NTLM 認証を自動で送る};
+
+  % 5. 悪用
+  \node[ng, anchor=west, minimum width=4.6cm] (crack) at (8.6,-6.0) {オフライン解析\\→ パスワードが判明};
+  \node[ng, anchor=west, minimum width=4.6cm] (relay) at (8.6,-7.6) {リレー\\→ 別サーバに本人としてログイン};
+  \draw[attack] (6.5,-6.0) -- (crack.west)
+    node[midway, above, sig] {\textcolor{azureblue}{⑤}};
+  \draw[attack] (6.5,-7.6) -- (relay.west);
+
+  \node[note, anchor=north west] at (-1.4,-7.1)
+    {※ ユーザー名とパスワード由来の\\チャレンジ応答が攻撃者の手に渡る};
+\end{tikzpicture}

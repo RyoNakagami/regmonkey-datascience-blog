@@ -1,0 +1,61 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, minimum width=2.8cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south, font=\bfseries, text=navy},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    step/.style={font=\footnotesize\bfseries, text=azureblue},
+    wire/.style={<->, draw=navy},
+  ]
+  % 端末（2台）
+  \node[block] (sta1) {端末 A};
+  \node[block, below=0.8cm of sta1] (sta2) {端末 B};
+  \coordinate (stamid) at ($(sta1)!0.5!(sta2)$);
+
+  % AP
+  \node[accent, minimum height=2.4cm, right=3.0cm of stamid] (ap) {アクセス\\ポイント\\（AP）};
+
+  % ルーター・DHCP
+  \coordinate (rtpos) at ($(ap.east |- sta1)+(2.4,0)$);
+  \node[block, anchor=west] (router) at (rtpos) {ルーター\\（経路制御・NAT）};
+  \node[block] (dhcp) at (router |- sta2) {DHCP サーバー};
+
+  % インターネット
+  \coordinate (inpos) at ($(router.east)+(1.8,0)$);
+  \node[block, ellipse, minimum width=3.0cm, anchor=west] (inet) at (inpos) {インターネット};
+
+  % 配線
+  \draw[wire] (sta1.east) -- (sta1.east -| ap.west) node[midway, above, sig] {Wi-Fi};
+  \draw[wire] (sta2.east) -- (sta2.east -| ap.west) node[midway, above, sig] {Wi-Fi};
+  \draw[wire] (ap.east |- router) -- (router.west) node[midway, above, sig] {Ethernet};
+  \draw[wire] (ap.east |- dhcp) -- (dhcp.west) node[midway, above, sig] {Ethernet};
+  \draw[wire] (router.east) -- (inet.west) node[midway, above, sig] {WAN};
+
+  % ゾーン
+  \coordinate (ztop) at ($(sta1.north)+(0,0.25)$);
+  \coordinate (zbot) at ($(sta2.south)+(0,-0.25)$);
+  \begin{scope}[on background layer]
+    \node[zone, fit=(sta1)(sta2)(ap)(ap |- ztop)(ap |- zbot)] (zbss) {};
+    \node[zone, fit=(router)(dhcp)(router |- ztop)(router |- zbot)] (zrt) {};
+  \end{scope}
+  \node[zlabel] at (zbss.north) {BSS（SSID / BSSID）};
+  \node[zlabel] at (zrt.north) {配信システム（有線網）};
+
+  % 補足
+  \node[note, below=0.25cm of zbss.south] {L2 ブリッジ：IP を配らない・ルーティングしない};
+  \node[note, below=0.25cm of zrt.south] {家庭用 Wi-Fi ルーターは AP と\\この2つを1台にまとめた製品};
+\end{tikzpicture}

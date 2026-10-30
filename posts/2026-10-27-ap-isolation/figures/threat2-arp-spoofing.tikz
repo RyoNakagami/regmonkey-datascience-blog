@@ -1,0 +1,53 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, minimum width=2.8cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    ng/.style={block, draw=crimsonred, fill=mistyrose},
+    card/.style={block, fill=white},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt, align=center},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    bad/.style={font=\footnotesize, text=crimsonred, align=center, inner sep=2pt},
+    step/.style={text=azureblue},
+    wire/.style={->, draw=navy},
+    attack/.style={->, draw=crimsonred, line width=1.1pt},
+    poison/.style={->, draw=crimsonred, densely dashed},
+    ghost/.style={->, draw=darkgray, densely dashed},
+    life/.style={draw=lightgray, line width=1pt},
+  ]
+  % ② ARP スプーフィングによる中間者攻撃
+  \node[block] (vic)  at (0,0)    {被害者の端末};
+  \node[block] (gw)   at (9,0)    {ゲートウェイ\\（ルータ）};
+  \node[block] (inet) at (13.6,0) {インターネット};
+  \node[ng]    (atk)  at (4.5,-3.4) {攻撃者の端末};
+
+  \draw[ghost, <->] (vic) -- (gw) node[midway, above=2pt, sig] {本来の経路};
+  \draw[wire, <->] (gw) -- (inet);
+
+  % 偽 ARP 応答
+  \draw[poison] (atk.west) -| (vic.south)
+    node[pos=0.25, below=2pt, sig] {\textcolor{azureblue}{①} 偽のARP応答\\「GWのMACは私」};
+  \draw[poison] (atk.east) -| (gw.south)
+    node[pos=0.25, below=2pt, sig] {\textcolor{azureblue}{①} 偽のARP応答\\「被害者のMACは私」};
+
+  % 乗っ取られた経路
+  \draw[attack, <->] ([xshift=7mm]vic.south) -- ([xshift=-7mm]atk.north);
+  \draw[attack, <->] ([xshift=7mm]atk.north) -- ([xshift=-7mm]gw.south);
+  \node[bad] at (4.5,-1.15) {\textcolor{azureblue}{②} 全通信が攻撃者を経由};
+
+  \node[bad, below=3mm of atk] {\textcolor{azureblue}{③} 中継しながら HTTPを盗聴・\\DNS応答を改ざん・偽ログインページへ誘導};
+
+  \node[note, above=3mm of vic] {ARPキャッシュが書き換わる\\GWのIP → 攻撃者のMAC};
+  \node[note, anchor=north] at (13.6,-2.4) {※ HTTPS は中身を読めないが，\\証明書警告を無視すると破られる};
+\end{tikzpicture}

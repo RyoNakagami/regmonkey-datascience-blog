@@ -1,0 +1,61 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, minimum width=2.8cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    ng/.style={block, draw=crimsonred, fill=mistyrose},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south, font=\bfseries, text=navy},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    step/.style={font=\footnotesize\bfseries, text=crimsonred},
+    note/.style={font=\footnotesize, text=darkgray, align=left},
+    wire/.style={<->, draw=navy},
+    atk/.style={->, draw=crimsonred, line width=1.1pt},
+  ]
+  % 上段：正規の経路
+  \node[block] (vic) at (0,0) {利用者の端末\\{\footnotesize\color{darkgray}SMB・RDP・SSH 等}};
+  \node[accent] (ap) at (5,0) {アクセスポイント};
+  \node[block] (gw) at (10,0) {ゲートウェイ\\{\footnotesize\color{darkgray}ルーター・DNS}};
+  \node[block, ellipse, minimum width=2.8cm] (inet) at (14.2,0) {インターネット};
+
+  \draw[wire] (vic) -- (ap) node[midway, above, sig] {Wi-Fi};
+  \draw[wire] (ap) -- (gw) node[midway, above, sig] {本来の経路};
+  \draw[wire] (gw) -- (inet);
+
+  % 下段：攻撃者
+  \node[ng] (atk) at (5,-3.2) {攻撃者の端末\\{\footnotesize 同じ SSID に接続}};
+  \draw[wire, draw=crimsonred] (atk) -- (ap);
+
+  % ① 端末を直接狙う
+  \draw[atk, rounded corners=6pt] ([yshift=-2mm]atk.west) -| ([xshift=-4mm]vic.south);
+  \node[step, anchor=south] at (2.0,-3.3) {① 端末を直接狙う};
+
+  % ② 通信経路に割り込む
+  \draw[atk, dashed, rounded corners=6pt] ([xshift=4mm]vic.south) -- ([xshift=4mm]vic.south |- 0,-1.9)
+    -- ([xshift=-8mm]atk.north |- 0,-1.9) -- ([xshift=-8mm]atk.north);
+  \draw[atk, dashed, rounded corners=6pt] (atk.east) -| (gw.south);
+  \node[step, anchor=south] at (8.2,-3.2) {② 通信経路に割り込む};
+  \node[sig, text=crimsonred, anchor=south] at (2.2,-1.9) {攻撃者経由に誘導};
+
+  % 手口
+  \node[note, anchor=north] at (1.6,-3.9)
+    {・脆弱性の悪用・ワーム\\・mDNS / NetBIOS からの情報収集};
+  \node[note, anchor=north] at (9.6,-3.9)
+    {・ARP スプーフィング（中間者攻撃）\\・偽 DHCP / IPv6 RA の注入\\・LLMNR / NBT-NS / mDNS ポイズニング};
+
+  \begin{scope}[on background layer]
+    \node[zone, fit=(vic)(ap)(gw)(atk)(0,-5.3)] (lan) {};
+  \end{scope}
+  \node[zlabel] at (lan.north) {同じ LAN（同一 SSID・同一サブネット）};
+\end{tikzpicture}

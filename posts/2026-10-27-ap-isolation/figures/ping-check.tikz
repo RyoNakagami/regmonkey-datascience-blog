@@ -1,0 +1,62 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, minimum width=3.0cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue, minimum width=2.6cm},
+    ng/.style={block, draw=crimsonred, fill=mistyrose},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south, font=\bfseries, text=navy},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    note/.style={font=\footnotesize, text=darkgray, align=left, anchor=west},
+    wire/.style={->, draw=navy},
+    back/.style={->, draw=navy, dashed},
+  ]
+  % ---- 上段：無効 ----
+  \node[block] (pc1) {ラップトップ\\{\footnotesize\color{darkgray}ping を実行}};
+  \node[accent, right=2.6cm of pc1] (ap1) {AP};
+  \node[block, right=2.6cm of ap1] (ph1) {iPhone\\{\footnotesize\color{darkgray}192.168.0.12}};
+
+  \draw[wire] ([yshift=2mm]pc1.east) -- ([yshift=2mm]ap1.west)
+    node[midway, above, sig] {Echo Request};
+  \draw[wire] ([yshift=2mm]ap1.east) -- ([yshift=2mm]ph1.west)
+    node[midway, above, sig] {転送};
+  \draw[back] ([yshift=-2mm]ph1.west) -- ([yshift=-2mm]ap1.east)
+    node[midway, below, sig] {Echo Reply};
+  \draw[back] ([yshift=-2mm]ap1.west) -- ([yshift=-2mm]pc1.east)
+    node[midway, below, sig] {転送};
+  \node[note, right=0.5cm of ph1] (r1) {\textcolor{navy}{応答あり}\\Reply from\\192.168.0.12};
+
+  % ---- 下段：有効 ----
+  \node[block, below=2.0cm of pc1] (pc2) {ラップトップ\\{\footnotesize\color{darkgray}ping を実行}};
+  \node[accent] (ap2) at (ap1 |- pc2) {AP};
+  \node[block] (ph2) at (ph1 |- pc2) {iPhone\\{\footnotesize\color{darkgray}192.168.0.12}};
+
+  \draw[wire] (pc2.east) -- (ap2.west) node[midway, above, sig] {Echo Request};
+  \coordinate (xmark) at ($(ap2.east)!0.45!(ph2.west)$);
+  \draw[draw=crimsonred, dashed] (ap2.east) -- (xmark);
+  \draw[draw=crimsonred, line width=1.4pt]
+    ($(xmark)+(-0.18,-0.18)$) -- ($(xmark)+(0.18,0.18)$)
+    ($(xmark)+(-0.18,0.18)$) -- ($(xmark)+(0.18,-0.18)$);
+  \node[sig, text=crimsonred, above=0.15cm of xmark] {AP が破棄};
+  \node[note, right=0.5cm of ph2] (r2) {\textcolor{crimsonred}{応答なし}\\Request timeout\\（100\% loss）};
+
+  % ---- ゾーン ----
+  \begin{scope}[on background layer]
+    \node[zone, fit=(pc1)(ph1)(r1)] (z1) {};
+    \node[zone, draw=crimsonred, fit=(pc2)(ph2)(r2)] (z2) {};
+  \end{scope}
+  \node[zlabel] at (z1.north) {プライバシーセパレーター 無効};
+  \node[zlabel, text=crimsonred] at (z2.north) {プライバシーセパレーター 有効};
+  \node[sig, below=0.2cm of z2.south] {両端末は同じ SSID に接続（同じサブネット 192.168.0.0/24）};
+\end{tikzpicture}
