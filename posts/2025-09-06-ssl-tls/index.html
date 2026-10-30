@@ -1,0 +1,1794 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="ja" xml:lang="ja"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.20">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Ryo Nakagami">
+<meta name="dcterms.date" content="2025-09-06">
+
+<title>SSL/TLSの仕組み – regmonkey datascience blog</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<link href="../../img/favicon.ico" rel="icon">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-29e00c98bbba659d91ab3844292f79dc.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark-86fc916b84669629367aabb2a24c5117.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-29e00c98bbba659d91ab3844292f79dc.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-57d445943f4d0de142fd7a618c64f0ad.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark-14570065716747922adca04f36bcf16c.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../site_libs/bootstrap/bootstrap-57d445943f4d0de142fd7a618c64f0ad.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script src="../../site_libs/quarto-contrib/pseudocode-2.4.1/pseudocode.min.js"></script>
+<link href="../../site_libs/quarto-contrib/pseudocode-2.4.1/pseudocode.min.css" rel="stylesheet">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "一致なし",
+    "search-matching-documents-text": "一致した文書",
+    "search-copy-link-title": "検索へのリンクをコピー",
+    "search-hide-matches-text": "追加の検索結果を非表示",
+    "search-more-match-text": "追加の検索結果",
+    "search-more-matches-text": "追加の検索結果",
+    "search-clear-button-title": "消去",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "取消",
+    "search-submit-button-title": "検索",
+    "search-label": "サーチ"
+  }
+}</script>
+<script async="" src="https://www.googletagmanager.com/gtag/js?id=G-EX9H7GRLTH"></script>
+
+<script type="text/javascript">
+
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
+</script>
+<style>
+
+      .quarto-title-block .quarto-title-banner h1,
+      .quarto-title-block .quarto-title-banner h2,
+      .quarto-title-block .quarto-title-banner h3,
+      .quarto-title-block .quarto-title-banner h4,
+      .quarto-title-block .quarto-title-banner h5,
+      .quarto-title-block .quarto-title-banner h6
+      {
+        color: #ffffff;
+      }
+
+      .quarto-title-block .quarto-title-banner {
+        color: #ffffff;
+      }
+</style>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-M27Z2BWG');</script>
+    <!-- End Google Tag Manager -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&amp;display=swap" rel="stylesheet">
+<script>
+    MathJax = {
+        tex: {
+            inlineMath: [['$','$'], ['\\(','\\)']],
+            displayMath: [['$$','$$'], ['\\[','\\]']],
+            processEscapes: true,
+            processEnvironments: true,
+            tags: 'all',
+        }
+    }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml-full.js" integrity="sha256-kbAFUDxdHwlYv01zraGjvjNZayxKtdoiJ38bDTFJtaQ=" crossorigin="anonymous">
+</script>
+<link rel="stylesheet" href="../../js/regmonkey_glossary_generator/regmonkey_glossary_generator.css">
+<script type="text/javascript" src="../../js/regmonkey_glossary_generator/regmonkey_glossary_generator.js"></script>
+
+
+<link rel="stylesheet" href="../../styles.css">
+<meta property="og:title" content="SSL/TLSの仕組み – regmonkey datascience blog">
+<meta property="og:description" content="日々の徒然勉強日記">
+<meta property="og:image" content="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-09-06-ssl-tls/figures/ecdhe.svg">
+<meta property="og:site_name" content="regmonkey datascience blog">
+</head>
+
+<body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top quarto-banner">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">Home</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="サーチ"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="ナビゲーションを切り替える" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-bi-book" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+      <i class="bi bi-book" role="img">
+</i> 
+ <span class="menu-text"></span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-bi-book">    
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/statistics-for-regression-monkey/">
+ <span class="dropdown-text">Statistics Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/python-statisticalpackage-techniques/">
+ <span class="dropdown-text">Python package building Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/regmonkey_datavisualization/">
+ <span class="dropdown-text">Data Visualization Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/regmonkey-presentation/">
+ <span class="dropdown-text">Presentation Blog</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../link_list/link_table.html"> 
+<span class="menu-text">便利リンク集</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../dictionary/dict.html"> 
+<span class="menu-text">備忘録</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../FAQ/faq.html"> 
+<span class="menu-text">FAQ</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../about.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/RyoNakagami/regmonkey-datascience-blog"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="../../index.xml"> <i class="bi bi-rss" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="ダークモードの切り替え"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">SSL/TLSの仕組み</h1>
+                                <div class="quarto-categories">
+                <div class="quarto-category">network</div>
+                <div class="quarto-category">security</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      <div>
+      <div class="quarto-title-meta-heading">作者</div>
+      <div class="quarto-title-meta-contents">
+               <p>Ryo Nakagami </p>
+            </div>
+    </div>
+      
+      <div>
+      <div class="quarto-title-meta-heading">公開</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">2025-09-06</p>
+      </div>
+    </div>
+    
+      <div>
+      <div class="quarto-title-meta-heading">更新日</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date-modified">2026-10-30</p>
+      </div>
+    </div>
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">目次</h2>
+   
+  <ul>
+  <li><a href="#ssltlsとは" id="toc-ssltlsとは" class="nav-link active" data-scroll-target="#ssltlsとは">SSL/TLSとは</a>
+  <ul class="collapse">
+  <li><a href="#どんなところで使われているのか" id="toc-どんなところで使われているのか" class="nav-link" data-scroll-target="#どんなところで使われているのか">どんなところで使われているのか</a></li>
+  <li><a href="#tls-が守るもの" id="toc-tls-が守るもの" class="nav-link" data-scroll-target="#tls-が守るもの">TLS が守るもの</a></li>
+  <li><a href="#共通鍵暗号鍵交換デジタル署名の使い分け" id="toc-共通鍵暗号鍵交換デジタル署名の使い分け" class="nav-link" data-scroll-target="#共通鍵暗号鍵交換デジタル署名の使い分け">共通鍵暗号・鍵交換・デジタル署名の使い分け</a></li>
+  <li><a href="#鍵交換-ecdhe-のintuition" id="toc-鍵交換-ecdhe-のintuition" class="nav-link" data-scroll-target="#鍵交換-ecdhe-のintuition">鍵交換 (ECDHE) のIntuition</a></li>
+  <li><a href="#tls-1.3-のハンドシェイク" id="toc-tls-1.3-のハンドシェイク" class="nav-link" data-scroll-target="#tls-1.3-のハンドシェイク">TLS 1.3 のハンドシェイク</a></li>
+  <li><a href="#証明書の検証信頼の連鎖" id="toc-証明書の検証信頼の連鎖" class="nav-link" data-scroll-target="#証明書の検証信頼の連鎖">証明書の検証：信頼の連鎖</a></li>
+  </ul></li>
+  <li><a href="#http-over-ssltls" id="toc-http-over-ssltls" class="nav-link" data-scroll-target="#http-over-ssltls">HTTP over SSL/TLS</a>
+  <ul class="collapse">
+  <li><a href="#https-でも見えるもの" id="toc-https-でも見えるもの" class="nav-link" data-scroll-target="#https-でも見えるもの">HTTPS でも見えるもの</a></li>
+  <li><a href="#ハンドシェイクを観察してみる" id="toc-ハンドシェイクを観察してみる" class="nav-link" data-scroll-target="#ハンドシェイクを観察してみる">ハンドシェイクを観察してみる</a></li>
+  <li><a href="#証明書チェーンの確認" id="toc-証明書チェーンの確認" class="nav-link" data-scroll-target="#証明書チェーンの確認">証明書チェーンの確認</a></li>
+  </ul></li>
+  <li><a href="#ssltls-とセキュリティ脅威" id="toc-ssltls-とセキュリティ脅威" class="nav-link" data-scroll-target="#ssltls-とセキュリティ脅威">SSL/TLS とセキュリティ脅威</a>
+  <ul class="collapse">
+  <li><a href="#ダウングレード攻撃" id="toc-ダウングレード攻撃" class="nav-link" data-scroll-target="#ダウングレード攻撃">ダウングレード攻撃</a></li>
+  </ul></li>
+  <li><a href="#appendix-openssl-での秘密鍵生成" id="toc-appendix-openssl-での秘密鍵生成" class="nav-link" data-scroll-target="#appendix-openssl-での秘密鍵生成">Appendix: <code>openssl</code> での秘密鍵生成</a>
+  <ul class="collapse">
+  <li><a href="#genrsa-gendsa-genpkey-の違い" id="toc-genrsa-gendsa-genpkey-の違い" class="nav-link" data-scroll-target="#genrsa-gendsa-genpkey-の違い"><code>genrsa</code> / <code>gendsa</code> / <code>genpkey</code> の違い</a></li>
+  </ul></li>
+  <li><a href="#用語集" id="toc-用語集" class="nav-link" data-scroll-target="#用語集">📘 用語集</a></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>問題を報告</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content">
+
+
+
+
+
+
+<section id="ssltlsとは" class="level2">
+<h2 class="anchored" data-anchor-id="ssltlsとは">SSL/TLSとは</h2>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title">SSL/TLS プロトコル</span></p>
+<ul>
+<li>インターネット上の2者間（典型的には WWW クライアントと WWW サーバー）の通信を保護するためのプロトコル</li>
+<li>TCP/IP の4階層モデルではアプリケーション層に含まれ，その中で HTTP などのアプリケーションプロトコルと TCP の間に入って，アプリケーションのデータを <strong>暗号化</strong>・<strong>改ざん検知</strong>・<strong>通信相手の認証</strong> をしたうえで送受信する</li>
+<li>SSL (Secure Sockets Layer) は Netscape 社が開発した前身のプロトコルで，それを IETF が標準化・改良したものが TLS (Transport Layer Security)</li>
+</ul>
+</div>
+<p>SSL という名前は現在でも「SSL 証明書」「SSL 化」のように慣用的に使われていますが，SSL 自体はすでに脆弱性のため廃止されたプロトコルです． 現在実際に使われているのは TLS 1.2 と TLS 1.3 で，本記事でも中身の説明は TLS 1.3 を前提にします．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>バージョン</th>
+<th>公開年</th>
+<th>状態</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>SSL 2.0 / 3.0</td>
+<td>1995 / 1996</td>
+<td>廃止 (RFC 6176, RFC 7568)</td>
+</tr>
+<tr class="even">
+<td>TLS 1.0 / 1.1</td>
+<td>1999 / 2006</td>
+<td>廃止 (RFC 8996, 2021年)</td>
+</tr>
+<tr class="odd">
+<td>TLS 1.2</td>
+<td>2008</td>
+<td>現役 (RFC 5246)</td>
+</tr>
+<tr class="even">
+<td>TLS 1.3</td>
+<td>2018</td>
+<td>現役・推奨 (RFC 8446)</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>OSI参照モデルでのSSL/TLSの位置づけ
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>TLS は TCP/IP を前提に設計されたプロトコルで，OSI 参照モデルのどの層に属するかに公式な定義はありません． 慣例的には，おおよそ次のように対応づけて説明されます．</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>OSI の層</th>
+<th>TLS の担当部分</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>7 アプリケーション層</td>
+<td>―（HTTP など）</td>
+</tr>
+<tr class="even">
+<td>6 プレゼンテーション層</td>
+<td>データの暗号化・復号</td>
+</tr>
+<tr class="odd">
+<td>5 セッション層</td>
+<td>ハンドシェイク，セッションの確立・再開</td>
+</tr>
+<tr class="even">
+<td>4 トランスポート層</td>
+<td>―（TCP など）</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<section id="どんなところで使われているのか" class="level3">
+<h3 class="anchored" data-anchor-id="どんなところで使われているのか">どんなところで使われているのか</h3>
+<p>有名なのは HTTPS ですが，HTTPS 以外にも，データ分析の業務で触れる多くの通信が TLS で保護されています．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>分類</th>
+<th>対象</th>
+<th>TLS の使い方</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>データの取得・保存</td>
+<td>PostgreSQL・Redshift</td>
+<td>接続文字列で <code>postgresql://…?sslmode=verify-full</code> のように指定．平文で接続してから TLS に切り替える STARTTLS 型</td>
+</tr>
+<tr class="even">
+<td></td>
+<td>MongoDB</td>
+<td><code>mongodb+srv://</code> の URL は既定で TLS 接続</td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Redis</td>
+<td><code>rediss://</code>（s が2つ）が TLS 版．クラウドのマネージド Redis では必須のことが多い</td>
+</tr>
+<tr class="even">
+<td>社内ネットワーク・ログイン</td>
+<td>SSL-VPN</td>
+<td>在宅から社内のデータ基盤に入る OpenVPN，openconnect（Cisco AnyConnect 互換），FortiClient など</td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>LDAPS（636 番）</td>
+<td>Ubuntu の社内アカウントログイン (SSSD) や JupyterHub の LDAP 認証の裏側</td>
+</tr>
+<tr class="even">
+<td>メール</td>
+<td>SMTP + STARTTLS（587 番）</td>
+<td>Python の <code>smtplib</code> でレポートを自動送信するときの <code>server.starttls()</code></td>
+</tr>
+<tr class="odd">
+<td>OS の設定</td>
+<td>DNS over TLS（853 番）</td>
+<td>Ubuntu の <code>systemd-resolved</code> で <code>DNSOverTLS=yes</code> を設定すると名前解決を暗号化できる．8.8.8.8 などの 853 番ポートに接続する</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="tls-が守るもの" class="level3">
+<h3 class="anchored" data-anchor-id="tls-が守るもの">TLS が守るもの</h3>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>TLS の役割は「暗号化」と「相手の認証」
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>暗号化だけでは「正しい相手と話しているか」は保証されない</li>
+<li>攻撃者が経路の途中でサーバーになりすまし（中間者攻撃），自分と暗号化通信をさせれば，暗号化していても内容は筒抜け</li>
+<li>TLS は「暗号化」と「相手の認証」をセットで行う</li>
+</ul>
+</div>
+</div>
+<p>ネットワーク上を流れるパケットは，途中の経路（公共 Wi-Fi，ISP，ルーターなど）で第三者に覗かれたり書き換えられたりする可能性があります． TLS はこれらの脅威に対して，次の3つの性質を提供します．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 18%">
+<col style="width: 28%">
+<col style="width: 54%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>脅威</th>
+<th>TLS が提供する性質</th>
+<th>主な仕組み</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>盗聴</td>
+<td>機密性 (Confidentiality)</td>
+<td>共通鍵暗号 (AES-GCM, ChaCha20-Poly1305 など)</td>
+</tr>
+<tr class="even">
+<td>改ざん</td>
+<td>完全性 (Integrity)</td>
+<td>AEAD による認証タグ，Finished メッセージ</td>
+</tr>
+<tr class="odd">
+<td>なりすまし</td>
+<td>真正性 (Authentication)</td>
+<td>サーバー証明書とデジタル署名</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="共通鍵暗号鍵交換デジタル署名の使い分け" class="level3">
+<h3 class="anchored" data-anchor-id="共通鍵暗号鍵交換デジタル署名の使い分け">共通鍵暗号・鍵交換・デジタル署名の使い分け</h3>
+<p>TLS は共通鍵暗号に加えて，公開鍵と秘密鍵のペアを使う2つの技術（鍵交換と，デジタル署名による公開鍵認証）を役割ごとに組み合わせて使っています．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>技術</th>
+<th>鍵</th>
+<th>TLS での役割</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>共通鍵暗号</td>
+<td>双方が同じ共通鍵を持つ．高速</td>
+<td>アプリケーションデータの暗号化</td>
+</tr>
+<tr class="even">
+<td>鍵交換 (ECDHE)</td>
+<td>使い捨ての鍵ペア．公開値だけを交換する</td>
+<td>共通鍵を，ネットワークに流さずに双方で導出する</td>
+</tr>
+<tr class="odd">
+<td>デジタル署名</td>
+<td>証明書の鍵ペア．秘密鍵で署名し，公開鍵で検証する</td>
+<td>サーバーの認証（なりすましでないことの証明）</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>大量のデータを高速に暗号化するには共通鍵暗号が適していますが，「通信相手とどうやって同じ鍵を安全に共有するか」と 「その相手は本物か」という問題が残ります．前者を鍵交換で，後者をデジタル署名によるサーバー認証で，ハンドシェイクの中で解決するのが TLS の基本設計です．</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+ノート
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>「公開鍵で暗号化し，秘密鍵で復号する」という狭義の公開鍵暗号は，TLS 1.3 ではデータの暗号化にも鍵の受け渡しにも使われていません．</li>
+<li>公開鍵と秘密鍵のペアが登場するのは，鍵交換とデジタル署名の2か所だけです．</li>
+</ul>
+</div>
+</div>
+</section>
+<section id="鍵交換-ecdhe-のintuition" class="level3">
+<h3 class="anchored" data-anchor-id="鍵交換-ecdhe-のintuition">鍵交換 (ECDHE) のIntuition</h3>
+<p>TLS 1.3 の鍵交換は ECDHE (Elliptic Curve Diffie-Hellman Ephemeral) で行われます．</p>
+<ol type="1">
+<li>クライアントは秘密値 <span class="math inline"><em>a</em></span> と，そこから計算した公開値 <span class="math inline"><em>A</em></span> を作る</li>
+<li>サーバーは秘密値 <span class="math inline"><em>b</em></span> と，そこから計算した公開値 <span class="math inline"><em>B</em></span> を作る</li>
+<li>公開値 <span class="math inline"><em>A</em></span>, <span class="math inline"><em>B</em></span> だけを交換する（秘密値 <span class="math inline"><em>a</em></span>, <span class="math inline"><em>b</em></span> は送らない）</li>
+<li>クライアントは「<span class="math inline"><em>a</em></span> と <span class="math inline"><em>B</em></span>」から，サーバーは「<span class="math inline"><em>b</em></span> と <span class="math inline"><em>A</em></span>」から <strong>同じ値</strong> を計算できる．一方，ネットワークを流れる <span class="math inline"><em>A</em></span> と <span class="math inline"><em>B</em></span> だけを盗聴しても，その値は（現実的な計算量では）求められない</li>
+</ol>
+<div id="fig-ecdhe" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-ecdhe-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="./figures/ecdhe.svg" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-ecdhe-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+図&nbsp;1: ECDHE による鍵交換のイメージ
+</figcaption>
+</figure>
+</div>
+<p>この「同じ値」を元に，両者の乱数も混ぜて鍵導出関数 (HKDF) にかけ，通信に使う共通鍵を作ります． 共通鍵そのものはネットワークを一度も流れないのがポイントです．</p>
+<p>また，<span class="math inline"><em>a</em></span>, <span class="math inline"><em>b</em></span> は接続ごとに使い捨て (Ephemeral) なので，仮に後日サーバー証明書の秘密鍵が漏洩しても， 過去に盗聴・保存されていた通信は復号できません．この性質を <strong>前方秘匿性 (Forward Secrecy)</strong> と呼びます．</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+ノート
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>TLS 1.2 までは，クライアントが作った鍵の素をサーバー証明書の RSA 公開鍵で暗号化して送る「RSA 鍵交換」も使えました．</li>
+<li>この方式では証明書の秘密鍵が漏洩すると過去の通信も復号できてしまうため，TLS 1.3 では廃止され，(EC)DHE のみになっています．</li>
+</ul>
+</div>
+</div>
+</section>
+<section id="tls-1.3-のハンドシェイク" class="level3">
+<h3 class="anchored" data-anchor-id="tls-1.3-のハンドシェイク">TLS 1.3 のハンドシェイク</h3>
+<p>TLS で暗号化通信を始める前の準備手順を <strong>ハンドシェイク</strong> と呼びます． TLS 1.3 のフルハンドシェイクの流れは次の図のとおりです．</p>
+<div id="fig-tls13" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-tls13-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="./figures/tls13.svg" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-tls13-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+図&nbsp;2: TLS 1.3 ハンドシェイクの流れ
+</figcaption>
+</figure>
+</div>
+<p><span class="mini-section">Step 1: ClientHello</span></p>
+<ul>
+<li>クライアントは使い捨ての鍵ペア（秘密値 <span class="math inline"><em>a</em></span>，公開値 <span class="math inline"><em>A</em></span>）を作成する</li>
+<li>乱数，公開値 <span class="math inline"><em>A</em></span>，対応している暗号スイートなどを <code>ClientHello</code> としてサーバーへ送る</li>
+</ul>
+<p><span class="mini-section">Step 2: サーバー側で共通鍵を計算</span></p>
+<ul>
+<li>サーバーも使い捨ての鍵ペア（秘密値 <span class="math inline"><em>b</em></span>，公開値 <span class="math inline"><em>B</em></span>）を作成する</li>
+<li>自分の <span class="math inline"><em>b</em></span> とクライアントの <span class="math inline"><em>A</em></span>，両者の乱数から HKDF で共通鍵を導出する</li>
+</ul>
+<p><span class="mini-section">Step 3: ServerHello と証明書・署名</span></p>
+<ul>
+<li>乱数と公開値 <span class="math inline"><em>B</em></span> を <code>ServerHello</code> として送る</li>
+<li>これ以降のメッセージはすでに共通鍵で暗号化されている</li>
+<li>サーバー証明書 (<code>Certificate</code>) と，ここまでのやり取り全体に対する証明書の秘密鍵による署名 (<code>CertificateVerify</code>) を送る</li>
+<li>この署名によって「証明書の持ち主本人が，いまこの通信に応答している」ことを示す（なりすましでないことの証明）</li>
+</ul>
+<p><span class="mini-section">Step 4: クライアント側で共通鍵を計算</span></p>
+<ul>
+<li>クライアントは自分の <span class="math inline"><em>a</em></span> とサーバーの <span class="math inline"><em>B</em></span> から，サーバーと同じ共通鍵を計算する</li>
+<li>これで以降の暗号化されたメッセージを復号できるようになる</li>
+</ul>
+<p><span class="mini-section">Step 5: 証明書と署名の検証</span></p>
+<ul>
+<li>受け取った証明書が信頼できる認証局 (CA) によって発行されたものかを検証する</li>
+<li>証明書に含まれる公開鍵で，Step 3 の署名を検証する</li>
+</ul>
+<p><span class="mini-section">Step 6: 暗号化通信の開始</span></p>
+<ul>
+<li>双方が <code>Finished</code> メッセージを送り，ハンドシェイクの内容が途中で改ざんされていないことを確認し合う</li>
+<li>以降，共通鍵で暗号化してアプリケーションデータ（HTTP など）をやり取りする</li>
+</ul>
+</section>
+<section id="証明書の検証信頼の連鎖" class="level3">
+<h3 class="anchored" data-anchor-id="証明書の検証信頼の連鎖">証明書の検証：信頼の連鎖</h3>
+<p>Step 5 の「証明書が信頼できるか」は，<strong>信頼の連鎖 (Chain of Trust)</strong> によって判断されます．</p>
+<div id="fig-chain-of-trust" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-chain-of-trust-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="./figures/chain-of-trust.svg" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-chain-of-trust-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+図&nbsp;3: 証明書の信頼の連鎖
+</figcaption>
+</figure>
+</div>
+<p>クライアントはサーバー証明書から順に「発行者の公開鍵で署名を検証できるか」を辿り， 最終的にトラストストアにあるルート CA に到達できれば，その証明書を信頼します． 加えて，次の項目も確認します．</p>
+<ul>
+<li>有効期限内であること</li>
+<li>証明書の SAN (Subject Alternative Name) に，アクセスしているドメイン名が含まれていること</li>
+<li>失効していないこと</li>
+</ul>
+</section>
+</section>
+<section id="http-over-ssltls" class="level2">
+<h2 class="anchored" data-anchor-id="http-over-ssltls">HTTP over SSL/TLS</h2>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 2</strong></span> <span class="def-title">HTTPS</span></p>
+<ul>
+<li>HTTP over SSL/TLS の略</li>
+<li>Web サーバーと Web ブラウザがデータを安全に送受信するために，SSL/TLSプロトコルによって生成されるセキュアな接続上でデータのやり取りを行う方式</li>
+</ul>
+</div>
+<p>HTTPS は新しいプロトコルというより，「TCP 接続の上で TLS ハンドシェイクを行い，その暗号化された通信路の上でいつもどおり HTTP をやり取りする」方式です．</p>
+<div id="fig-http-https-stack" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-http-https-stack-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="./figures/http-https-stack.svg" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-http-https-stack-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+図&nbsp;4: HTTP と HTTPS のプロトコル階層
+</figcaption>
+</figure>
+</div>
+<p>HTTP のリクエスト・レスポンス（URL のパス，クエリパラメータ，ヘッダー，Cookie，ボディ）はすべて TLS によって暗号化されます．</p>
+<section id="https-でも見えるもの" class="level3">
+<h3 class="anchored" data-anchor-id="https-でも見えるもの">HTTPS でも見えるもの</h3>
+<p>HTTPS は通信の中身を守りますが，すべてを隠すわけではありません．</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>項目</th>
+<th>経路上の第三者から見えるか</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>接続先の IP アドレス・ポート番号</td>
+<td>見える</td>
+</tr>
+<tr class="even">
+<td>接続先のドメイン名 (ClientHello の SNI)</td>
+<td>見える（ECH を使う場合を除く）</td>
+</tr>
+<tr class="odd">
+<td>URL のパス・クエリパラメータ</td>
+<td>見えない</td>
+</tr>
+<tr class="even">
+<td>HTTP ヘッダー・Cookie・ボディ</td>
+<td>見えない</td>
+</tr>
+<tr class="odd">
+<td>通信量・タイミング</td>
+<td>見える</td>
+</tr>
+</tbody>
+</table>
+<div class="callout callout-style-default callout-warning callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+警告
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>HTTPS で保証されるのは「そのドメインの正当な持ち主と，盗聴・改ざんされずに通信している」こと</li>
+<li>そのサイト自体が安全・誠実であることは保証しない</li>
+<li>フィッシングサイトでも正規の証明書を取得して HTTPS を使うことは可能</li>
+</ul>
+</div>
+</div>
+</section>
+<section id="ハンドシェイクを観察してみる" class="level3">
+<h3 class="anchored" data-anchor-id="ハンドシェイクを観察してみる">ハンドシェイクを観察してみる</h3>
+<p><code>curl -v</code> を使うと，実際の TLS ハンドシェイクのメッセージを確認できます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">curl</span> <span class="at">-sv</span> <span class="at">-o</span> /dev/null https://8.8.8.8 <span class="dv">2</span><span class="op">&gt;&amp;</span><span class="dv">1</span> <span class="kw">|</span> <span class="fu">grep</span> <span class="at">-E</span> <span class="st">'TLS|SSL|ALPN'</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<pre><code>* ALPN: curl offers h2,http/1.1
+* TLSv1.3 (OUT), TLS handshake, Client hello (1):
+* TLSv1.3 (IN), TLS handshake, Server hello (2):
+* TLSv1.3 (IN), TLS handshake, Encrypted Extensions (8):
+* TLSv1.3 (IN), TLS handshake, Certificate (11):
+* TLSv1.3 (IN), TLS handshake, CERT verify (15):
+* TLSv1.3 (IN), TLS handshake, Finished (20):
+* TLSv1.3 (OUT), TLS change cipher, Change cipher spec (1):
+* TLSv1.3 (OUT), TLS handshake, Finished (20):
+* SSL connection using TLSv1.3 / TLS_AES_256_GCM_SHA384 / X25519 / RSASSA-PSS
+* ALPN: server accepted h2
+*  SSL certificate verify ok.
+* TLSv1.3 (IN), TLS handshake, Newsession Ticket (4):
+* TLSv1.3 (IN), TLS handshake, Newsession Ticket (4):
+* old SSL session ID is stale, removing</code></pre>
+<div id="fig-tls13-curl-v" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-tls13-curl-v-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="./figures/tls13-curl-v.svg" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-tls13-curl-v-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+図&nbsp;5: <code>curl -v</code> の出力とハンドシェイクの対応
+</figcaption>
+</figure>
+</div>
+<ul>
+<li><code>Client hello</code> → <code>Server hello</code> → <code>Certificate</code> → <code>CERT verify</code> → <code>Finished</code> が，<a href="#fig-tls13" class="quarto-xref">図&nbsp;2</a> の Step 1〜6 に対応している</li>
+<li><code>SSL connection using</code> の行は，このハンドシェイクで決まった内容を表す
+<ul>
+<li><code>TLSv1.3</code>：プロトコルのバージョン</li>
+<li><code>TLS_AES_256_GCM_SHA384</code>：暗号スイート．共通鍵暗号に AES-256-GCM，鍵導出のハッシュに SHA-384 を使う</li>
+<li><code>X25519</code>：ECDHE で使われた楕円曲線</li>
+<li><code>RSASSA-PSS</code>：<code>CERT verify</code> で，サーバーが証明書の秘密鍵を使って行った署名の方式</li>
+</ul></li>
+<li><code>SSL certificate verify ok.</code> は，curl が証明書チェーンと署名の検証に成功したことを表す</li>
+<li><code>Change cipher spec</code> は TLS 1.3 では意味を持たず，古い中継機器との互換性のためだけに送られている</li>
+<li><code>Newsession Ticket</code> は，次回の接続でハンドシェイクを短縮（セッション再開）するためのチケット</li>
+</ul>
+</section>
+<section id="証明書チェーンの確認" class="level3">
+<h3 class="anchored" data-anchor-id="証明書チェーンの確認">証明書チェーンの確認</h3>
+<p>証明書チェーンを確認したい場合は <code>openssl s_client</code> が便利です．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">openssl</span> s_client <span class="at">-connect</span> 8.8.8.8:443 <span class="at">-tls1_3</span> <span class="op">&lt;</span>/dev/null <span class="dv">2</span><span class="op">&gt;</span>/dev/null <span class="dt">\</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">|</span> <span class="fu">grep</span> <span class="at">-E</span> <span class="st">'Protocol|Cipher|Server Temp Key|Peer signature|Verify return|^ *[0-9] s:|^ *i:'</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<pre><code> 0 s:CN = dns.google
+   i:C = US, O = Google Trust Services, CN = WR2
+ 1 s:C = US, O = Google Trust Services, CN = WR2
+   i:C = US, O = Google Trust Services LLC, CN = GTS Root R1
+ 2 s:C = US, O = Google Trust Services LLC, CN = GTS Root R1
+   i:C = BE, O = GlobalSign nv-sa, OU = Root CA, CN = GlobalSign Root CA
+Peer signature type: RSA-PSS
+Server Temp Key: X25519, 253 bits
+New, TLSv1.3, Cipher is TLS_AES_256_GCM_SHA384
+Verify return code: 0 (ok)</code></pre>
+<div id="fig-cert-chain" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-cert-chain-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="./figures/cert-chain.svg" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-cert-chain-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+図&nbsp;6: <code>openssl s_client</code> で見た 8.8.8.8 の証明書チェーン
+</figcaption>
+</figure>
+</div>
+<ul>
+<li><code>s:</code> が証明書の主体 (Subject)，<code>i:</code> が発行者 (Issuer) で，上の行の <code>i:</code> が次の行の <code>s:</code> に一致していく様子から信頼の連鎖が読み取れる
+<ul>
+<li>depth 0 の <code>dns.google</code> がサーバー証明書，depth 1 の <code>WR2</code> が中間 CA</li>
+<li>depth 2 の <code>GTS Root R1</code> はそれ自体もルート CA だが，ここでは古い環境でも検証できるように <code>GlobalSign Root CA</code> が署名した版（クロス署名）が送られている</li>
+</ul></li>
+<li><code>Verify return code: 0 (ok)</code> は，手元の信頼ストアにあるルート CA まで辿れて，証明書チェーンの検証に成功したことを表す</li>
+<li><code>Peer signature type: RSA-PSS</code> が Step 3（<code>CERT verify</code>）の署名方式，<code>Server Temp Key: X25519</code> が ECDHE の使い捨て鍵</li>
+</ul>
+</section>
+</section>
+<section id="ssltls-とセキュリティ脅威" class="level2">
+<h2 class="anchored" data-anchor-id="ssltls-とセキュリティ脅威">SSL/TLS とセキュリティ脅威</h2>
+<section id="ダウングレード攻撃" class="level3">
+<h3 class="anchored" data-anchor-id="ダウングレード攻撃">ダウングレード攻撃</h3>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 3</strong></span> <span class="def-title">ダウングレード攻撃 (Downgrade Attack)</span></p>
+<ul>
+<li>通信経路上の攻撃者（中間者）がハンドシェイクに介入し，クライアントとサーバーの双方が対応している強い方式ではなく，古いプロトコルバージョンや弱い暗号スイートで通信させる攻撃</li>
+<li>弱い方式で合意させたうえで，その方式の脆弱性を突いて通信を解読・改ざんする</li>
+</ul>
+</div>
+<p>TLS では，クライアントが対応するバージョンと暗号スイートの一覧を <code>ClientHello</code> で提示し，サーバーがその中から選びます． 互換性のために古い方式も一覧に残していると，攻撃者はこの「交渉」を悪用できます．</p>
+<div id="fig-downgrade-attack" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-downgrade-attack-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="./figures/downgrade-attack.svg" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-downgrade-attack-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+図&nbsp;7: ダウングレード攻撃の流れ
+</figcaption>
+</figure>
+</div>
+<p><span class="mini-section">Step 1–3: 交渉への介入</span></p>
+<ul>
+<li>クライアントは TLS 1.3 / 1.2 と強い暗号スイートを提示する</li>
+<li>攻撃者は <code>ClientHello</code> を書き換えて，TLS 1.0 や弱い暗号スイートだけが提示されたように見せる
+<ul>
+<li>別の手口として，ハンドシェイクをわざと失敗させ，クライアントに古いバージョンで接続し直させる（フォールバック）方法もある</li>
+</ul></li>
+<li>サーバーは提示された中から選ぶしかなく，弱い方式で合意してしまう</li>
+</ul>
+<p><span class="mini-section">Step 4–5: 弱い方式での通信と解読</span></p>
+<ul>
+<li>クライアントは「相手が古い方式にしか対応していない」と判断して通信を始める</li>
+<li>攻撃者は弱い暗号を破ったり，古いバージョンの脆弱性を突いたりして通信内容を解読する</li>
+<li>本来はハンドシェイク末尾の <code>Finished</code> メッセージで改ざんを検知できるが，鍵そのものを破れるほど弱い方式だと，攻撃者は <code>Finished</code> も偽造できてしまう</li>
+</ul>
+<p><span class="mini-section">代表的な事例</span></p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>名称</th>
+<th>年</th>
+<th>ダウングレード先</th>
+<th>手口</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>POODLE</td>
+<td>2014</td>
+<td>SSL 3.0</td>
+<td>フォールバックで SSL 3.0 に落とし，CBC モードのパディング検証の欠陥を突いて解読</td>
+</tr>
+<tr class="even">
+<td>FREAK</td>
+<td>2015</td>
+<td>輸出用 RSA（512bit）</td>
+<td>輸出規制時代の弱い RSA 鍵交換を選ばせ，鍵を短時間で解読</td>
+</tr>
+<tr class="odd">
+<td>Logjam</td>
+<td>2015</td>
+<td>輸出用 DHE（512bit）</td>
+<td>輸出用の弱い Diffie-Hellman パラメータを選ばせ，鍵を短時間で解読</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><span class="mini-section">対策</span></p>
+<ul>
+<li><strong>古い方式を無効化する</strong>：サーバー・クライアントの双方で SSL 3.0，TLS 1.0 / 1.1 と弱い暗号スイートを無効にする．提示されなければダウングレードのしようがない</li>
+<li><strong>TLS 1.3 のダウングレード検知</strong>：TLS 1.3 対応のサーバーが TLS 1.2 以下で合意するときは，<code>ServerHello</code> の乱数の末尾8バイトに目印（<code>DOWNGRD</code>）を入れる．乱数はサーバーの署名で保護されているため攻撃者は消せず，TLS 1.3 対応のクライアントは目印を見てダウングレードを検知できる</li>
+<li><strong>ハンドシェイク全体への署名</strong>：TLS 1.3 では <code>CertificateVerify</code> でここまでのやり取り全体に署名するため，<code>ClientHello</code> の書き換えは署名検証で発覚する</li>
+<li><strong>フォールバックの抑止</strong>：<code>TLS_FALLBACK_SCSV</code>（RFC 7507）は，クライアントがフォールバックで再接続していることをサーバーに伝え，不要なダウングレードを拒否させる仕組み</li>
+</ul>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>SSL ストリッピングとの違い
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>HTTPS を HTTP に落とさせる攻撃（SSL ストリッピング）も広い意味ではダウングレード攻撃の一種です． こちらは TLS の交渉ではなく「そもそも TLS を使わせない」攻撃で，HSTS（HTTP Strict Transport Security）でブラウザに HTTPS を強制することで防ぎます．</p>
+</div>
+</div>
+</section>
+</section>
+<section id="appendix-openssl-での秘密鍵生成" class="level2">
+<h2 class="anchored" data-anchor-id="appendix-openssl-での秘密鍵生成">Appendix: <code>openssl</code> での秘密鍵生成</h2>
+<p>SSL/TLS による暗号化通信を行うには，サーバー秘密鍵を生成し，CSR（証明書署名要求）を作って CA に送り，CA からサーバー証明書を受け取る必要があります． 流れは，</p>
+<ol type="1">
+<li>秘密鍵を生成する：<code>server.key</code> を作る．手元から外に出さない．</li>
+<li>CSR を生成する：秘密鍵から公開鍵を取り出し，ドメイン名などの情報と合わせて <code>server.csr</code> にする．</li>
+<li>CA に送る：CA はドメインの所有を確認し，CA の秘密鍵で署名する．</li>
+<li>証明書を受け取る：署名済みの <code>server.crt</code> が届く．</li>
+<li>Web サーバーに設定する：<code>server.key</code> と <code>server.crt</code> の両方を指定する．</li>
+</ol>
+<p>ここで使われる秘密鍵の生成には，Linux では <code>openssl</code> コマンドがよく使われます．</p>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 4</strong></span> <span class="def-title"><code>openssl genpkey</code></span></p>
+<ul>
+<li>秘密鍵（とアルゴリズムによってはそのパラメータ）を生成する <code>openssl</code> のサブコマンド</li>
+<li>鍵の種類を <code>-algorithm</code>（RSA / EC / Ed25519 / DSA など）で，アルゴリズムごとの設定（鍵長や楕円曲線）を <code>-pkeyopt</code> で指定する汎用コマンドで，アルゴリズム専用の旧来コマンド <code>genrsa</code> / <code>gendsa</code> の後継にあたる</li>
+<li>出力は PKCS#8 形式の PEM ファイル（<code>-----BEGIN PRIVATE KEY-----</code>）で，<code>-aes256</code> などの暗号方式を指定するとパスフレーズで暗号化して保存できる</li>
+</ul>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># ECDSA (P-256) の秘密鍵</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="ex">openssl</span> genpkey <span class="at">-algorithm</span> EC <span class="at">-pkeyopt</span> ec_paramgen_curve:P-256 <span class="at">-out</span> server.key</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="co"># RSA (2048bit) の秘密鍵</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="ex">openssl</span> genpkey <span class="at">-algorithm</span> RSA <span class="at">-pkeyopt</span> rsa_keygen_bits:2048 <span class="at">-out</span> server.key</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="co"># 所有者だけが読み書きできるようにする</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="fu">chmod</span> 600 server.key</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>部分</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>-algorithm EC</code> / <code>RSA</code></td>
+<td>鍵の種類</td>
+</tr>
+<tr class="even">
+<td><code>-pkeyopt ec_paramgen_curve:P-256</code></td>
+<td>楕円曲線の種類</td>
+</tr>
+<tr class="odd">
+<td><code>-pkeyopt rsa_keygen_bits:2048</code></td>
+<td>RSA の鍵長（ビット）</td>
+</tr>
+<tr class="even">
+<td><code>-out server.key</code></td>
+<td>出力先（PEM 形式）</td>
+</tr>
+<tr class="odd">
+<td><code>chmod 600</code></td>
+<td>所有者だけが読み書きできるようにする</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code>-aes256</code> を付けるとパスフレーズで暗号化できるが，Web サーバーの起動ごとに入力が必要になります</p>
+<section id="genrsa-gendsa-genpkey-の違い" class="level3">
+<h3 class="anchored" data-anchor-id="genrsa-gendsa-genpkey-の違い"><code>genrsa</code> / <code>gendsa</code> / <code>genpkey</code> の違い</h3>
+<p><code>openssl</code> には秘密鍵を生成するサブコマンドが複数あります． <code>genrsa</code> と <code>gendsa</code> は特定のアルゴリズム専用の旧来のコマンドで，OpenSSL 3.0 以降のマニュアルでは <code>genpkey</code> を使うよう案内されています．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>コマンド</th>
+<th>生成する鍵</th>
+<th>位置づけ</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>genrsa</code></td>
+<td>RSA 秘密鍵のみ</td>
+<td>旧来のコマンド．今も動作し，よく見かける</td>
+</tr>
+<tr class="even">
+<td><code>gendsa</code></td>
+<td>DSA 秘密鍵のみ（事前に DSA パラメータが必要）</td>
+<td>旧来のコマンド．DSA 自体がほぼ使われない</td>
+</tr>
+<tr class="odd">
+<td><code>genpkey</code></td>
+<td>RSA / EC / Ed25519 / DSA など</td>
+<td>推奨．アルゴリズムを <code>-algorithm</code> で選ぶ汎用コマンド</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong><code>genrsa</code></strong>：RSA 秘密鍵を生成する専用コマンド．最後の引数が鍵長（ビット）．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">openssl</span> genrsa <span class="at">-out</span> server.key 2048</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<ul>
+<li>出力形式はバージョンで異なり，OpenSSL 1.1.x では PKCS#1 形式（<code>-----BEGIN RSA PRIVATE KEY-----</code>），3.x では PKCS#8 形式（<code>-----BEGIN PRIVATE KEY-----</code>）になる</li>
+</ul>
+<p><strong><code>gendsa</code></strong>：DSA 秘密鍵を生成する専用コマンド．DSA は鍵生成の前に，素数 <span class="math inline"><em>p</em>, <em>q</em></span> と生成元 <span class="math inline"><em>g</em></span> からなる「DSA パラメータ」を用意する必要があるため，2段階になる．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">openssl</span> dsaparam <span class="at">-out</span> dsaparam.pem 2048   <span class="co"># 1. DSA パラメータを生成</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="ex">openssl</span> gendsa <span class="at">-out</span> dsa.key dsaparam.pem  <span class="co"># 2. パラメータから秘密鍵を生成</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<ul>
+<li>DSA は TLS 1.3 では使えず，公的な CA も DSA 鍵の証明書を発行しないため，サーバー証明書の用途ではまず使わない</li>
+</ul>
+<p><strong><code>genpkey</code></strong>：アルゴリズムを <code>-algorithm</code> で，アルゴリズムごとの設定（鍵長や曲線）を <code>-pkeyopt</code> で指定する汎用コマンド．出力は常に PKCS#8 形式．</p>
+<ul>
+<li><code>genrsa</code> 相当は <code>-algorithm RSA</code>，<code>gendsa</code> 相当は <code>-genparam -algorithm DSA</code> でパラメータを作ってから鍵を生成すれば代替できる</li>
+<li>サーバー証明書用には RSA か ECDSA (P-256) を選ぶのが無難（Ed25519 は公的 CA・ブラウザの対応がまだ限定的）</li>
+</ul>
+</section>
+</section>
+<section id="用語集" class="level2">
+<h2 class="anchored" data-anchor-id="用語集">📘 用語集</h2>
+<div class="glossary-container">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">glossary</span><span class="kw">:</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> TLS (Transport Layer Security)</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>      通信の暗号化・改ざん検知・相手の認証を提供するプロトコル．SSL の後継で，現在は TLS 1.2 と TLS 1.3 が使われている．</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> ハンドシェイク</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>      暗号化通信を始める前に，使用する暗号方式の合意，鍵交換，サーバー認証を行う一連のやり取り．</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> ECDHE (Elliptic Curve Diffie-Hellman Ephemeral)</span></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>      楕円曲線を用いた Diffie-Hellman 鍵交換を，接続ごとに使い捨ての鍵ペアで行う方式．</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>      公開値だけを交換して，双方で同じ共通鍵の素を計算できる．</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> 前方秘匿性 (Forward Secrecy)</span></span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>      長期的に使う秘密鍵（証明書の秘密鍵など）が将来漏洩しても，過去の通信内容は復号できないという性質．</span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> HKDF (HMAC-based Key Derivation Function)</span></span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>      鍵交換で得た値や乱数から，暗号化に使う鍵を導出する関数．TLS 1.3 の鍵スケジュールで使われる．</span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> 暗号スイート (Cipher Suite)</span></span>
+<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a>      通信に使う暗号アルゴリズムの組み合わせ．TLS 1.3 では `TLS_AES_256_GCM_SHA384` のように，</span>
+<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a>      共通鍵暗号 (AEAD) と鍵導出に使うハッシュ関数の組で表す．</span>
+<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> AEAD (Authenticated Encryption with Associated Data)</span></span>
+<span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a>      暗号化と改ざん検知を同時に行う共通鍵暗号の方式．AES-GCM や ChaCha20-Poly1305 がこれにあたる．</span>
+<span id="cb8-31"><a href="#cb8-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-32"><a href="#cb8-32" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> 認証局 (CA, Certificate Authority)</span></span>
+<span id="cb8-33"><a href="#cb8-33" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb8-34"><a href="#cb8-34" aria-hidden="true" tabindex="-1"></a>      サーバー証明書に署名し，その公開鍵が確かにそのドメインの持ち主のものであることを保証する機関．</span>
+<span id="cb8-35"><a href="#cb8-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-36"><a href="#cb8-36" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> 信頼の連鎖 (Chain of Trust)</span></span>
+<span id="cb8-37"><a href="#cb8-37" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb8-38"><a href="#cb8-38" aria-hidden="true" tabindex="-1"></a>      サーバー証明書 → 中間 CA 証明書 → ルート CA 証明書 と署名を辿り，</span>
+<span id="cb8-39"><a href="#cb8-39" aria-hidden="true" tabindex="-1"></a>      トラストストアにあるルート CA に到達できることで証明書を信頼する仕組み．</span>
+<span id="cb8-40"><a href="#cb8-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-41"><a href="#cb8-41" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> SNI (Server Name Indication)</span></span>
+<span id="cb8-42"><a href="#cb8-42" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb8-43"><a href="#cb8-43" aria-hidden="true" tabindex="-1"></a>      ClientHello に接続先のドメイン名を含める TLS の拡張．1つの IP アドレスで複数ドメインを運用するために使われるが，</span>
+<span id="cb8-44"><a href="#cb8-44" aria-hidden="true" tabindex="-1"></a>      暗号化されないため経路上から接続先ドメインが見える．ECH (Encrypted Client Hello) はこれを暗号化する拡張．</span>
+<span id="cb8-45"><a href="#cb8-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-46"><a href="#cb8-46" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> ALPN (Application-Layer Protocol Negotiation)</span></span>
+<span id="cb8-47"><a href="#cb8-47" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb8-48"><a href="#cb8-48" aria-hidden="true" tabindex="-1"></a>      TLS ハンドシェイクの中で，その上で使うアプリケーションプロトコル（`h2`, `http/1.1` など）を合意する拡張．</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<ul>
+<li><a href="https://datatracker.ietf.org/doc/html/rfc8446">RFC 8446: The Transport Layer Security (TLS) Protocol Version 1.3</a></li>
+<li><a href="https://datatracker.ietf.org/doc/html/rfc5246">RFC 5246: The Transport Layer Security (TLS) Protocol Version 1.2</a></li>
+<li><a href="https://datatracker.ietf.org/doc/html/rfc8996">RFC 8996: Deprecating TLS 1.0 and TLS 1.1</a></li>
+<li><a href="https://datatracker.ietf.org/doc/html/rfc7568">RFC 7568: Deprecating Secure Sockets Layer Version 3.0</a></li>
+<li><a href="https://datatracker.ietf.org/doc/html/rfc7507">RFC 7507: TLS Fallback Signaling Cipher Suite Value (SCSV) for Preventing Protocol Downgrade Attacks</a></li>
+<li><a href="https://datatracker.ietf.org/doc/html/rfc5869">RFC 5869: HMAC-based Extract-and-Expand Key Derivation Function (HKDF)</a></li>
+<li><a href="https://datatracker.ietf.org/doc/html/rfc9110">RFC 9110: HTTP Semantics</a></li>
+</ul>
+
+
+</section>
+
+</main> <!-- /main -->
+<script>
+    document.querySelectorAll('.custom_problem .theorem-title').forEach((title) => {
+        let modName = title.innerHTML;
+        modName = modName.replace("Exercise", "Problem");
+        modName = modName.replace("Proposition", "Property");
+        modName = modName.replace("Example", "<strong>&#9654;</strong>&nbsp; Example");
+        title.innerHTML = modName;
+    });
+
+    // Rule: 未使用の Corollary (#cor-, lang: ja では「系」) を Rule として表示する
+    document.querySelectorAll('.custom_rule .theorem-title').forEach((title) => {
+        title.innerHTML = title.innerHTML
+            .replace(/^<strong>(系|Corollary)/, "<strong>Rule")
+            .replace(/\s*\((.*)\)<\/strong>$/, ": $1</strong>");
+        // タイトルの後で改行し，本文を次の行から始める
+        title.style.display = "block";
+        title.style.paddingBottom = "0.5em";
+        title.style.fontSize = "1.1em";
+        // 本文がリスト等で始まると Quarto がタイトル後に &nbsp; を残し空行になるため除去する
+        while (title.nextSibling && title.nextSibling.nodeType === Node.TEXT_NODE
+               && title.nextSibling.textContent.trim() === "") {
+            title.nextSibling.remove();
+        }
+        if (!title.nextSibling) {
+            title.parentElement.style.marginBottom = "0";
+        }
+    });
+ </script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "コピーしました");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "コピーしました");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/ryonakagami\.github\.io\/regmonkey-datascience-blog");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<script src="https://utteranc.es/client.js" repo="RyoNakagami/regmonkey-datascience-blog" issue-term="title" theme="github-light" crossorigin="anonymous" async="">
+</script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+      &nbsp;
+    </div>   
+    <div class="nav-footer-center">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+ © Copyright RyoNak
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="../../LICENSE">
+<p>License</p>
+</a>
+  </li>  
+</ul>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>問題を報告</a></li></ul></div></div>
+    <div class="nav-footer-right">
+      &nbsp;
+    </div>
+  </div>
+</footer>
+    <script type="text/javascript">
+    (function(d) {
+      d.querySelectorAll(".pseudocode-container").forEach(function(el) {
+        let pseudocodeOptions = {
+          indentSize: el.dataset.indentSize || "1.2em",
+          commentDelimiter: el.dataset.commentDelimiter || "//",
+          lineNumber: el.dataset.lineNumber === "true" ? true : false,
+          lineNumberPunc: el.dataset.lineNumberPunc || ":",
+          noEnd: el.dataset.noEnd === "true" ? true : false,
+          titlePrefix: el.dataset.captionPrefix || "Algorithm"
+        };
+        pseudocode.renderElement(el.querySelector(".pseudocode"), pseudocodeOptions);
+      });
+    })(document);
+    (function(d) {
+      d.querySelectorAll(".pseudocode-container").forEach(function(el) {
+        let captionSpan = el.querySelector(".ps-root > .ps-algorithm > .ps-line > .ps-keyword")
+        if (captionSpan !== null) {
+          let captionPrefix = el.dataset.captionPrefix + " ";
+          let captionNumber = "";
+          if (el.dataset.pseudocodeNumber) {
+            captionNumber = el.dataset.pseudocodeNumber + " ";
+            if (el.dataset.chapterLevel) {
+              captionNumber = el.dataset.chapterLevel + "." + captionNumber;
+            }
+          }
+          captionSpan.innerHTML = captionPrefix + captionNumber;
+        }
+      });
+    })(document);
+    </script>
+  
+
+
+
+
+</body></html>

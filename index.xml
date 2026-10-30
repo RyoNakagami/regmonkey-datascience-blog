@@ -3483,6 +3483,628 @@ font-style: inherit;">false</span></span></code></pre></div></div>
   <pubDate>Sat, 10 Oct 2026 00:00:00 GMT</pubDate>
 </item>
 <item>
+  <title>tee コマンドのすすめ</title>
+  <dc:creator>Ryo Nakagami</dc:creator>
+  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-02-stdout-log/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>TL;DRs
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 44%">
+<col style="width: 56%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>やりたいこと</th>
+<th>書き方</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>画面とファイルの両方に出す</td>
+<td><code>cmd | tee out.log</code></td>
+</tr>
+<tr class="even">
+<td>stderr も含める</td>
+<td><code>cmd 2&gt;&amp;1 | tee out.log</code></td>
+</tr>
+<tr class="odd">
+<td>追記する</td>
+<td><code>cmd | tee -a out.log</code></td>
+</tr>
+<tr class="even">
+<td>複数ファイルに保存する</td>
+<td><code>cmd | tee a.log b.log</code></td>
+</tr>
+<tr class="odd">
+<td>終了ステータスを保つ</td>
+<td><code>set -o pipefail</code> または <code>${PIPESTATUS[0]}</code></td>
+</tr>
+<tr class="even">
+<td>色を残しつつログは素のテキストにする</td>
+<td><code>cmd --color=always 2&gt;&amp;1 | tee &gt;(sed ... &gt; out.log)</code></td>
+</tr>
+<tr class="odd">
+<td>root 権限のファイルに書く</td>
+<td><code>echo ... | sudo tee -a file &gt; /dev/null</code></td>
+</tr>
+<tr class="even">
+<td>Python の出力を即時表示する</td>
+<td><code>python -u script.py 2&gt;&amp;1 | tee out.log</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<section id="tee-コマンドとは" class="level2">
+<h2 class="anchored" data-anchor-id="tee-コマンドとは">tee コマンドとは</h2>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title">tee コマンド</span></p>
+<ul>
+<li><code>tee</code> は標準入力から受け取った内容を，標準出力とファイルの両方に書き出すコマンド</li>
+<li>ファイルへの保存と標準出力への出力を同時に行える</li>
+<li>複数のファイルへの出力も可能</li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">コマンド1</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tee</span> ファイル <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">コマンド2</span></span>
+<span id="cb1-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">コマンド</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tee</span> ファイル1 ファイル2 ファイル3 ...</span></code></pre></div></div>
+</div>
+<p><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-02-stdout-log/figures/tee-command.svg" class="img-fluid" style="width:100.0%"></p>
+<p><span class="mini-section">options</span></p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 30%">
+<col style="width: 45%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>短いオプション</th>
+<th>長いオプション</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>-a</code></td>
+<td><code>--append</code></td>
+<td>既存ファイルを上書きせず追記する(リダイレクトの <code>&gt;&gt;</code> に相当)</td>
+</tr>
+<tr class="even">
+<td><code>-i</code></td>
+<td><code>--ignore-interrupts</code></td>
+<td>割り込みシグナル(<code>SIGINT</code>)を無視する</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>「画面で進捗を見ながら，同じ内容をログとして残す」という，データ分析や開発で頻出する要求を1つのコマンドで満たせます．</p>
+<p><span class="mini-section">リダイレクトとの違い</span></p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>書き方</th>
+<th>画面</th>
+<th>ファイル</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>cmd &gt; out.log</code></td>
+<td>出ない</td>
+<td>出る</td>
+</tr>
+<tr class="even">
+<td><code>cmd | tee out.log</code></td>
+<td>出る</td>
+<td>出る</td>
+</tr>
+<tr class="odd">
+<td><code>cmd | tee -a out.log</code></td>
+<td>出る</td>
+<td>追記される</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="基本の使い方" class="level2">
+<h2 class="anchored" data-anchor-id="基本の使い方">基本の使い方</h2>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Exmaple 1</strong></span> <span class="def-title">リダイレクトとパイプを同時に行う</span></p>
+<p><code>コマンド &gt; ファイル</code> と <code>コマンド | コマンド</code> を同時に行いたい場合は，間に <code>tee</code> を挟みます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">find</span> /bin /usr/bin <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-type</span> f <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tee</span> cmdlist <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">less</span></span></code></pre></div></div>
+<p><code>find</code> の結果を <code>cmdlist</code> に保存しつつ，<code>less</code> で閲覧しています．</p>
+</div>
+<hr>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Exmaple 2</strong></span> <span class="def-title">複数のファイルに保存する</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ls</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tee</span> a.lst b.lst c.lst</span></code></pre></div></div>
+<p><code>tee</code> は標準出力にも書き出すので，画面に出したくない場合は出力先の1つをリダイレクトにします．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ls</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tee</span> a.lst b.lst <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> /dev/null</span></code></pre></div></div>
+</div>
+<hr>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Exmaple 3</strong></span> <span class="def-title">stderr も一緒に残す</span></p>
+<p>パイプが渡すのは stdout だけです．エラーメッセージや進捗表示は stderr に出ることが多いので，ログを取るときは <code>2&gt;&amp;1</code> でまとめてから <code>tee</code> に渡します．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">cargo</span> test <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--locked</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;&amp;</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tee</span> test.log</span></code></pre></div></div>
+<p>cargo はビルドの進捗を stderr に，テスト結果を stdout に出すため，<code>2&gt;&amp;1</code> がないとビルドログがファイルに残りません．</p>
+</div>
+<hr>
+</section>
+<section id="開発での使いどころ" class="level2">
+<h2 class="anchored" data-anchor-id="開発での使いどころ">開発での使いどころ</h2>
+<section id="終了ステータスを保持する" class="level3">
+<h3 class="anchored" data-anchor-id="終了ステータスを保持する">終了ステータスを保持する</h3>
+<p>パイプにすると，終了コードは最後のコマンドである <code>tee</code> のもの(ほぼ常に 0)になります． テストが失敗してもスクリプトや CI が成功扱いになってしまうので，次のどちらかで対処します．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">set</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-o</span> pipefail</span>
+<span id="cb6-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">cargo</span> test <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--locked</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;&amp;</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tee</span> test.log</span></code></pre></div></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">cargo</span> test <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--locked</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;&amp;</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tee</span> test.log</span>
+<span id="cb7-2"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">exit</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">${PIPESTATUS</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">[</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">]</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">}</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span></span></code></pre></div></div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+ノート
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li><code>PIPESTATUS</code> は bash の配列</li>
+<li>zsh では小文字の <code>pipestatus</code> で，添字が1始まりになります(<code>${pipestatus[1]}</code>)．</li>
+</ul>
+</div>
+</div>
+</section>
+<section id="画面の色を残す" class="level3">
+<h3 class="anchored" data-anchor-id="画面の色を残す">画面の色を残す</h3>
+<p>パイプ先は TTY ではないため，多くのコマンドは色を自動で無効にします． cargo の場合，cargo 本体とテストハーネスの両方に指定します．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">cargo</span> test <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--locked</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--color</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>always <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--color</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>always <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;&amp;</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tee</span> test.log</span></code></pre></div></div>
+<p>ただしこの方法ではログにも ANSI エスケープが入ります． ログをプレーンテキストにしたい場合は，プロセス置換を使ってファイルに書く側だけで除去します．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">cargo</span> test <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--locked</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--color</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>always <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--color</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>always <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;&amp;</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb9-2">  <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tee</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;(</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sed</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-E</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'s/\x1b\[[0-9;]*[mK]//g'</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> test.log<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">)</span></span></code></pre></div></div>
+<p>他のツールでも考え方は同じで，色を強制するオプションが異なるだけです．</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>ツール</th>
+<th>色を強制する指定</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>cargo</code></td>
+<td><code>--color=always</code></td>
+</tr>
+<tr class="even">
+<td><code>pytest</code></td>
+<td><code>--color=yes</code></td>
+</tr>
+<tr class="odd">
+<td><code>git</code></td>
+<td><code>-c color.ui=always</code></td>
+</tr>
+<tr class="even">
+<td><code>grep</code> / <code>ls</code></td>
+<td><code>--color=always</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="root-権限が必要なファイルに書き込む" class="level3">
+<h3 class="anchored" data-anchor-id="root-権限が必要なファイルに書き込む">root 権限が必要なファイルに書き込む</h3>
+<p><code>sudo echo ... &gt; /etc/...</code> は，リダイレクトを処理するのが sudo 前の自分のシェルなので権限エラーになります． 書き込みを <code>tee</code> に任せ，<code>tee</code> を sudo で実行します．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"127.0.0.1 mlflow.local"</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sudo</span> tee <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-a</span> /etc/hosts <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> /dev/null</span></code></pre></div></div>
+<p>末尾の <code>&gt; /dev/null</code> は画面へのエコーを捨てるためのものです．<code>-a</code> を忘れるとファイルが上書きされる点に注意してください．</p>
+</section>
+</section>
+<section id="データ分析での使いどころ" class="level2">
+<h2 class="anchored" data-anchor-id="データ分析での使いどころ">データ分析での使いどころ</h2>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Exmaple 4</strong></span> <span class="def-title">学習・バッチ処理のログを残す</span></p>
+<p>長時間かかる学習やバッチ処理では，進捗を画面で追いながらログを残します．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">python</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-u</span> train.py <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--config</span> config.yml <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;&amp;</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tee</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"logs/train_</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$(</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">date</span> +%Y%m%d_%H%M%S<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">)</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">.log"</span></span></code></pre></div></div>
+<p>Python は出力先が TTY でないと stdout をブロックバッファリングするため，そのままでは画面への表示がまとまって遅れて出ます． <code>-u</code>(または環境変数 <code>PYTHONUNBUFFERED=1</code>)でバッファリングを無効にします．</p>
+<p>Python 以外のコマンドでは <code>stdbuf</code> が使えます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">stdbuf</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-oL</span> ./long_job <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;&amp;</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tee</span> job.log</span></code></pre></div></div>
+</div>
+<hr>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Exmaple 5</strong></span> <span class="def-title">同じログに追記していく</span></p>
+<p>ハイパーパラメータを変えながら繰り返し実行する場合は，<code>-a</code> で1つのファイルに追記します．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb13-1"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> lr <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> 0.1 0.01 0.001<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">;</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">do</span></span>
+<span id="cb13-2">  <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"=== lr=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">${lr}</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> ==="</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tee</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-a</span> sweep.log</span>
+<span id="cb13-3">  <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">python</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-u</span> train.py <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--lr</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">${lr}</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;&amp;</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tee</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-a</span> sweep.log</span>
+<span id="cb13-4"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">done</span></span></code></pre></div></div>
+</div>
+<hr>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Exmaple 6</strong></span> <span class="def-title">パイプラインの中間結果を保存する</span></p>
+<p>前処理をパイプでつないでいるとき，途中段階のデータをファイルに落としておくと，後から件数や中身を検証できます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb14-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">zcat</span> access.log.gz <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb14-2">  <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">grep</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-v</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"healthcheck"</span> <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb14-3">  <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tee</span> filtered.log <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb14-4">  <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">awk</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'{print $1}'</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sort</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">uniq</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-c</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sort</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-rn</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">head</span></span></code></pre></div></div>
+</div>
+<hr>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<ul>
+<li><a href="https://atmarkit.itmedia.co.jp/ait/articles/1611/16/news022.html">tee コマンド: ―標準出力とファイルの両方に出力する</a></li>
+</ul>
+
+
+</section>
+
+ ]]></description>
+  <category>環境構築</category>
+  <category>shellscript</category>
+  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-02-stdout-log/</guid>
+  <pubDate>Fri, 02 Oct 2026 00:00:00 GMT</pubDate>
+</item>
+<item>
   <title>メール作成術</title>
   <dc:creator>Ryo Nakagami</dc:creator>
   <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-01-how-to-write-email/</link>
@@ -5070,1116 +5692,6 @@ font-style: inherit;">  </span></span></code></pre></div></div>
   <category>shell</category>
   <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-09-07-zsh-glob-qualifiers/</guid>
   <pubDate>Mon, 07 Sep 2026 00:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>通信に潜む危険</title>
-  <dc:creator>Ryo Nakagami</dc:creator>
-  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-08-23-security-101/</link>
-  <description><![CDATA[ 
-
-
-
-
-
-
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>TL:DRs
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>「他のコンピューターとつながる」ということは便利な反面，様々な危険も伴う</li>
-<li>情報セキュリティは <strong>機密性・完全性・可用性</strong> の3要素で捉え，「どの要素が損なわれるか」で脅威を整理する</li>
-<li>通信路上の主な脅威は <strong>盗聴・不正アクセス・改ざん・なりすまし・DoS/DDoS攻撃</strong></li>
-<li>対策は「暗号化（SSL/TLS・SSH・IPsec）」「真正性の保証（電子署名・認証局）」「入口の制御（アクセスコントロール・FW）」の組み合わせ．対策が効いているかはペネトレーションテストで検証する</li>
-</ul>
-</div>
-</div>
-<section id="セキュリティの捉え方" class="level2">
-<h2 class="anchored" data-anchor-id="セキュリティの捉え方">セキュリティの捉え方</h2>
-<p>ネットワークにつながったコンピューターは，世界中の相手とデータをやり取りできます． その一方で，通信の途中には自分の管理下にない機器（ルーター・Wi-Fiアクセスポイント・プロバイダの設備など）がいくつも挟まり， 悪意のある第三者が通信をのぞいたり，書き換えたり，邪魔したりする余地が生まれます．</p>
-<p>「何を守れば安全と言えるのか」を整理する枠組みが，情報セキュリティの3要素です．</p>
-<div id="def-" class="custom_problem blog-custom-border theorem definition">
-<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title">情報セキュリティの３要素</span></p>
-<ul>
-<li><strong>機密性（Confidentiality）</strong>：許可された者だけが情報にアクセスできること</li>
-<li><strong>完全性（Integrity）</strong>：情報が正確・完全であり，不正に改ざんされていないこと</li>
-<li><strong>可用性（Availability）</strong>：許可された者が，必要なときに情報やサービスを利用できること</li>
-</ul>
-</div>
-<p>3要素の頭文字をとって <strong>CIA</strong> と呼ばれます（<a href="https://www.iso.org/standard/73906.html">ISO/IEC 27000:2018</a> の定義に基づく）． 3要素はトレードオフの関係にあることも多く，たとえば機密性を高めるために認証を厳しくしすぎると，正規の利用者が使いにくくなり可用性が下がります． セキュリティ対策は「どの要素を，どの脅威から，どの程度守るか」を決める作業だといえます．</p>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><a href="figures/cia-threat-countermeasure.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-1" title="情報セキュリティの3要素と，それぞれを損なう脅威・対策の例"><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-08-23-security-101/figures/cia-threat-countermeasure.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="情報セキュリティの3要素と，それぞれを損なう脅威・対策の例"></a></p>
-</figure>
-</div>
-<figcaption>情報セキュリティの3要素と，それぞれを損なう脅威・対策の例</figcaption>
-</figure>
-</div>
-<div class="callout callout-style-default callout-important callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">重要</span>図は「主目的」で分類した簡略図
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>実際の対応関係は多対多です．図だけを見て「この技術はこの脅威にしか効かない」と読まないように注意してください．</p>
-<ul>
-<li><strong>1つの脅威が複数の要素を損なう</strong>：不正アクセスは情報の漏えい（機密性）だけでなく，侵入後のデータ改ざん（完全性）やランサムウェアによるシステム停止（可用性）にもつながる．</li>
-<li><strong>1つの対策が複数の脅威に効く</strong>：SSL/TLS・SSH・IPsec は暗号化だけの技術ではなく，MAC や AEAD によって<strong>改ざんの検知（完全性）</strong>も保証している．また SSL/TLS のサーバー証明書は，なりすましや中間者攻撃による盗聴も防ぐ</li>
-</ul>
-</div>
-</div>
-<p><span class="mini-section">なりすましと真正性</span></p>
-<ul>
-<li><strong>なりすまし</strong>（正規の相手のふりをすること）が損なうのは「相手やデータが，主張どおりの本物であること」＝ <strong>真正性（Authenticity）</strong>．ISO/IEC 27000 では CIA とは別の要素として定義され，CIA を拡張した7要素の1つとして扱われる</li>
-<li>3要素だけで考える場合は，完全性を「データの中身が正しい（data integrity）」と「送信元が正しい（origin integrity）」の両方を含む広い意味でとらえ，なりすましを完全性の侵害に含めることも多い</li>
-</ul>
-<section id="脅威" class="level3">
-<h3 class="anchored" data-anchor-id="脅威">脅威</h3>
-<div id="def-" class="custom_problem blog-custom-border theorem definition">
-<p><span class="theorem-title"><strong>Definition 2</strong></span> <span class="def-title">脅威</span></p>
-<ul>
-<li>セキュリティを脅かすものを脅威と呼ぶ</li>
-<li>脅威は悪意のある外部の者による攻撃の他，自然災害なども含まれる</li>
-</ul>
-</div>
-<p>通信に潜む代表的な脅威は次の5つです．</p>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 20%">
-<col style="width: 55%">
-<col style="width: 25%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>脅威</th>
-<th>内容</th>
-<th>主に損なわれる要素</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><strong>盗聴</strong></td>
-<td>通信経路上のデータを第三者がのぞき見る</td>
-<td>機密性</td>
-</tr>
-<tr class="even">
-<td><strong>不正アクセス</strong></td>
-<td>権限のない者がシステムに侵入・利用する</td>
-<td>機密性（＋完全性・可用性）</td>
-</tr>
-<tr class="odd">
-<td><strong>改ざん</strong></td>
-<td>通信中・保存中のデータを第三者が書き換える</td>
-<td>完全性</td>
-</tr>
-<tr class="even">
-<td><strong>なりすまし</strong></td>
-<td>正規の利用者や通信相手のふりをして，通信やシステム利用を行う</td>
-<td>完全性（送信元の正しさ．7要素では真正性）</td>
-</tr>
-<tr class="odd">
-<td><strong>DoS/DDoS攻撃</strong></td>
-<td>大量の通信や処理要求を送りつけ，サービスを使えなくする</td>
-<td>可用性</td>
-</tr>
-</tbody>
-</table>
-</div>
-<p><span class="mini-section">盗聴</span></p>
-<ul>
-<li>暗号化されていない通信は，経路上の機器から内容をそのまま読み取れる</li>
-<li>公衆Wi-Fiのように同じネットワークに不特定多数が参加する環境では，パケットキャプチャツールで他人の通信を簡単に取得できる</li>
-<li>盗聴そのものは通信を変化させないため，<strong>被害に気付きにくい</strong>のが特徴</li>
-</ul>
-<p><span class="mini-section">不正アクセス</span></p>
-<ul>
-<li>他人のID・パスワードを使ったり，ソフトウェアの脆弱性を突いたりして，本来アクセスできないシステムに入り込む</li>
-<li>侵入後は情報の持ち出し（機密性），データの書き換え（完全性），システムの破壊や停止（可用性）と，3要素すべてに被害が及びうる</li>
-<li>乗っ取ったコンピューターを踏み台にして，さらに別のシステムを攻撃することもある</li>
-</ul>
-<p><span class="mini-section">改ざん</span></p>
-<ul>
-<li>通信の途中でデータを書き換えたり，Webサイトのコンテンツを書き換えたりする</li>
-<li>送金先の口座番号や，ダウンロードするソフトウェアの中身が書き換えられると，受け取った側は正しいデータだと信じたまま被害を受ける</li>
-<li>改ざんと組み合わさりやすいのが次のなりすましで，偽の相手と通信していると気付かなければ改ざんも検知できない</li>
-</ul>
-<p><span class="mini-section">なりすまし</span></p>
-<ul>
-<li>盗んだID・パスワードでログインする，送信元のIPアドレスやメールアドレスを偽装する，本物そっくりの偽サイトを用意するなどの手口で，正規の相手のふりをする</li>
-<li>データの中身ではなく「誰が送ったか」を偽るため，受け取った側は内容が正しくても送信元を信じて被害を受ける（偽の請求メールに従って振り込む，など）</li>
-<li>盗聴（中間者攻撃）や不正アクセスの入口として使われることも多い</li>
-</ul>
-<p><span class="mini-section">DoS/DDoS攻撃</span></p>
-<ul>
-<li>DoS（Denial of Service）攻撃は，サーバーやネットワークの処理能力を超える要求を送りつけて，正規の利用者がサービスを使えない状態にする</li>
-<li>DDoS（Distributed DoS）攻撃は，マルウェアに感染させた大量のコンピューター（ボットネット）から一斉に攻撃する</li>
-<li>送信元が分散しているため，特定のIPアドレスを遮断するだけでは防ぎにくい</li>
-</ul>
-</section>
-<section id="攻撃手法" class="level3">
-<h3 class="anchored" data-anchor-id="攻撃手法">攻撃手法</h3>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 22%">
-<col style="width: 56%">
-<col style="width: 22%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>攻撃手法</th>
-<th>概要</th>
-<th>関連する脅威</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><a href="figures/attacks/packet-sniffing.svg" class="lightbox" data-gallery="attacks">パケットスニッフィング</a></td>
-<td>ネットワーク上を流れるパケットを収集し，平文のパスワードや通信内容を読み取る</td>
-<td>盗聴</td>
-</tr>
-<tr class="even">
-<td><a href="figures/attacks/mitm.svg" class="lightbox" data-gallery="attacks">中間者攻撃（MITM）</a></td>
-<td>通信する2者の間に割り込み，双方になりすまして通信を中継する．内容をのぞき見るだけでなく書き換えも可能</td>
-<td>盗聴・改ざん・なりすまし</td>
-</tr>
-<tr class="odd">
-<td><a href="figures/attacks/mitb.svg" class="lightbox" data-gallery="attacks">MITB攻撃</a></td>
-<td>PCに感染したマルウェアがブラウザを乗っ取り，利用者が入力した送金先・金額などをブラウザ内で書き換える（Man-in-the-Browser）．通信はTLSで暗号化されていても，暗号化の前に改ざんされるため防げない</td>
-<td>改ざん・なりすまし</td>
-</tr>
-<tr class="even">
-<td><a href="figures/attacks/rogue-ap.svg" class="lightbox" data-gallery="attacks">偽アクセスポイント</a></td>
-<td>正規と同じSSIDの偽Wi-Fiを設置し，接続してきた端末の通信を経由させる</td>
-<td>盗聴・改ざん</td>
-</tr>
-<tr class="odd">
-<td><a href="figures/attacks/ip-spoofing.svg" class="lightbox" data-gallery="attacks">IPスプーフィング</a></td>
-<td>パケットの送信元IPアドレスを偽装する．IPアドレスで相手を判断するアクセス制御をすり抜けたり，攻撃元を隠したりするのに使われる</td>
-<td>なりすまし・不正アクセス・DoS</td>
-</tr>
-<tr class="even">
-<td><a href="figures/attacks/arp-spoofing.svg" class="lightbox" data-gallery="attacks">ARPスプーフィング</a></td>
-<td>同じLAN内で偽のARP応答を送り，「デフォルトゲートウェイのIPアドレスに対応するMACアドレスは自分だ」と他の端末に誤って覚えさせる．以降の通信が攻撃者の端末を経由するようになり，中間者攻撃の足がかりになる</td>
-<td>なりすまし・盗聴・改ざん</td>
-</tr>
-<tr class="odd">
-<td><a href="figures/attacks/dns-cache-poisoning.svg" class="lightbox" data-gallery="attacks">DNSキャッシュポイズニング</a></td>
-<td>DNSキャッシュサーバーに偽の応答を送り込み，ドメイン名と偽サーバーのIPアドレスの対応を記憶（キャッシュ）させる．利用者が正しいURLを入力しても偽サイトに誘導される</td>
-<td>なりすまし・改ざん</td>
-</tr>
-<tr class="even">
-<td><a href="figures/attacks/phishing.svg" class="lightbox" data-gallery="attacks">フィッシング</a></td>
-<td>実在の企業を装ったメールやSMSで偽サイトに誘導し，ID・パスワードやクレジットカード番号を入力させて盗む</td>
-<td>なりすまし・不正アクセス</td>
-</tr>
-<tr class="odd">
-<td><a href="figures/attacks/seo-poisoning.svg" class="lightbox" data-gallery="attacks">SEOポイズニング</a></td>
-<td>検索エンジン最適化（SEO）の手法を悪用し，悪意のあるサイトを検索結果の上位に表示させて，マルウェアのダウンロードや偽サイトへ誘導する</td>
-<td>なりすまし・不正アクセス</td>
-</tr>
-<tr class="even">
-<td><a href="figures/attacks/targeted-attack.svg" class="lightbox" data-gallery="attacks">標的型攻撃</a></td>
-<td>特定の組織を狙い，取引先や上司を装った業務メールでマルウェア付きの添付ファイルを開かせる．侵入後は長期間潜伏して内部の情報を探し，持ち出す</td>
-<td>なりすまし・不正アクセス</td>
-</tr>
-<tr class="odd">
-<td><a href="figures/attacks/password-attack.svg" class="lightbox" data-gallery="attacks">パスワードリスト攻撃・総当たり攻撃</a></td>
-<td>他サイトから流出したID・パスワードの組や，考えられる全パターンを順に試してログインする</td>
-<td>不正アクセス</td>
-</tr>
-<tr class="even">
-<td><a href="figures/attacks/dictionary-attack.svg" class="lightbox" data-gallery="attacks">辞書攻撃</a></td>
-<td>辞書に載っている単語や，よく使われるパスワード（<code>password</code>，<code>123456</code> など）の一覧を順に試してログインする．全パターンを試す総当たり攻撃より少ない試行回数で，推測しやすいパスワードを破れる</td>
-<td>不正アクセス</td>
-</tr>
-<tr class="odd">
-<td><a href="figures/attacks/port-scan.svg" class="lightbox" data-gallery="attacks">ポートスキャン</a></td>
-<td>標的のポート番号に順に接続を試み，どのサービスが動いているか（開いているポート）を調べる．侵入口を探す下調べとして行われる</td>
-<td>不正アクセス（の準備）</td>
-</tr>
-<tr class="even">
-<td><a href="figures/attacks/security-hole.svg" class="lightbox" data-gallery="attacks">セキュリティホール攻撃</a></td>
-<td>OS・ソフトウェアのセキュリティホール（脆弱性）を突いて侵入し，任意のコードを実行する．バッファオーバーフローが代表例</td>
-<td>不正アクセス・改ざん</td>
-</tr>
-<tr class="odd">
-<td><a href="figures/attacks/zero-day.svg" class="lightbox" data-gallery="attacks">ゼロデイ攻撃</a></td>
-<td>脆弱性が発見されてから，ベンダーが修正プログラムを公開する（または利用者が適用する）までの間に，その脆弱性を突く攻撃．修正方法がまだ存在しない（対策までの猶予が0日）ため，パッチ適用だけでは防げない</td>
-<td>不正アクセス・改ざん</td>
-</tr>
-<tr class="even">
-<td><a href="figures/attacks/sql-injection.svg" class="lightbox" data-gallery="attacks">SQLインジェクション</a></td>
-<td>Webアプリの入力欄にSQL文の断片を入力し，アプリが組み立てるSQL文の意味を変えて，データベースの情報を盗み出したり書き換えたりする</td>
-<td>不正アクセス・改ざん</td>
-</tr>
-<tr class="odd">
-<td><a href="figures/attacks/os-command-injection.svg" class="lightbox" data-gallery="attacks">OSコマンドインジェクション</a></td>
-<td>Webアプリの入力値にOSコマンドを紛れ込ませ，サーバー上で任意のコマンドを実行させる．ファイルの閲覧・削除やマルウェアの設置につながる</td>
-<td>不正アクセス・改ざん</td>
-</tr>
-<tr class="even">
-<td><a href="figures/attacks/web-defacement.svg" class="lightbox" data-gallery="attacks">Webサイト改ざん</a></td>
-<td>不正アクセスしたサーバーのコンテンツを書き換え，マルウェア配布サイトへ誘導する</td>
-<td>改ざん</td>
-</tr>
-<tr class="odd">
-<td><a href="figures/attacks/syn-flood.svg" class="lightbox" data-gallery="attacks">SYNフラッド攻撃</a></td>
-<td>TCPの接続要求（SYN）だけを大量に送り，サーバーの接続待ちの枠を使い切らせる</td>
-<td>DoS</td>
-</tr>
-<tr class="even">
-<td><a href="figures/attacks/dns-amplification.svg" class="lightbox" data-gallery="attacks">DNSアンプ攻撃</a></td>
-<td>IPスプーフィングで送信元を標的のIPアドレスに偽装し，多数のDNSサーバーに問い合わせる．小さな問い合わせに対する大きな応答（増幅＝amplification）が標的に集中する．リフレクション（反射）攻撃の一種</td>
-<td>DDoS</td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-</section>
-<section id="対策" class="level2">
-<h2 class="anchored" data-anchor-id="対策">対策</h2>
-<section id="暗号化盗聴から守る" class="level3">
-<h3 class="anchored" data-anchor-id="暗号化盗聴から守る">暗号化：盗聴から守る</h3>
-<ul>
-<li>通信内容を暗号化しておけば，たとえ盗聴されても第三者は内容を読めません．</li>
-<li>どの層で暗号化するかによって代表的な技術が異なります．</li>
-</ul>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 15%">
-<col style="width: 43%">
-<col style="width: 42%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>技術</th>
-<th>暗号化する層</th>
-<th>主な用途</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><strong>SSL/TLS</strong></td>
-<td>トランスポート層の上（アプリケーションとTCPの間）</td>
-<td>HTTPS（Web），メール送受信（SMTPS/IMAPS）など</td>
-</tr>
-<tr class="even">
-<td><strong>SSH</strong></td>
-<td>アプリケーション層</td>
-<td>サーバーへのリモートログイン，ファイル転送（<code>scp</code>/<code>sftp</code>），ポートフォワーディング</td>
-</tr>
-<tr class="odd">
-<td><strong>IPsec</strong></td>
-<td>ネットワーク層（IP）</td>
-<td>拠点間VPN，リモートアクセスVPN</td>
-</tr>
-</tbody>
-</table>
-</div>
-<p><span class="mini-section">実際には暗号化と同時に改ざん検知も実施</span></p>
-<ul>
-<li><strong>SSL/TLS</strong>：ブラウザのURLが <code>https://</code> で始まる通信で使われる．暗号化に加えて，証明書によるサーバーの認証と，メッセージ認証コードによる改ざん検知も行う．SSLは脆弱性のため廃止され，現在使われているのはTLS（1.2/1.3）</li>
-<li><strong>SSH</strong>：<code>telnet</code> や <code>rlogin</code> のようにパスワードを平文で送る古いリモートログインの置き換えとして普及した．公開鍵認証を使えばパスワード自体を送らずにログインできる</li>
-<li><strong>IPsec</strong>：IPパケット単位で暗号化するため，上位のアプリケーションが暗号化に対応していなくても，すべての通信をまとめて保護できる</li>
-</ul>
-</section>
-<section id="電子署名と認証局改ざんなりすましから守る" class="level3">
-<h3 class="anchored" data-anchor-id="電子署名と認証局改ざんなりすましから守る">電子署名と認証局：改ざん・なりすましから守る</h3>
-<p>暗号化だけでは「通信相手が本物か」「データが途中で書き換えられていないか」は保証できません．これを担うのが電子署名と認証局です．</p>
-<div id="def-" class="custom_problem blog-custom-border theorem definition">
-<p><span class="theorem-title"><strong>Definition 3</strong></span> <span class="def-title">電子署名</span></p>
-<ul>
-<li>送信者が自分の<strong>秘密鍵</strong>でデータのハッシュ値に署名し，受信者が送信者の<strong>公開鍵</strong>で検証する仕組み</li>
-<li>検証に成功すれば，(1) 確かにその秘密鍵の持ち主が作成したこと（真正性），(2) 署名後に1ビットも変わっていないこと（完全性）を確認できる</li>
-</ul>
-</div>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><a href="figures/digital-signature.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-2" title="電子署名の仕組み．受信者は，受け取ったデータから計算したハッシュ値Aと，署名を送信者の公開鍵で検証して得たハッシュ値Bを比較する．公開鍵は署名と一緒に届く電子証明書から取り出す"><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-08-23-security-101/figures/digital-signature.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="電子署名の仕組み．受信者は，受け取ったデータから計算したハッシュ値Aと，署名を送信者の公開鍵で検証して得たハッシュ値Bを比較する．公開鍵は署名と一緒に届く電子証明書から取り出す"></a></p>
-</figure>
-</div>
-<figcaption>電子署名の仕組み．受信者は，受け取ったデータから計算したハッシュ値Aと，署名を送信者の公開鍵で検証して得たハッシュ値Bを比較する．公開鍵は署名と一緒に届く電子証明書から取り出す</figcaption>
-</figure>
-</div>
-<p>検証に使う送信者の公開鍵は，一般的には <strong>電子証明書に入った状態で，データ・署名と一緒に届けられます</strong>（HTTPSではサーバーが接続時に証明書を送り，署名付きメールやソフトウェアでは証明書が添付・埋め込みされている）． 公開鍵そのものは誰に配ってもよいので入手は簡単ですが，問題は「その公開鍵が本当に送信者のものか」です．</p>
-<p>電子署名の検証に使う「公開鍵が本当にその人（サーバー）のものか」が保証されなければ，攻撃者は自分の公開鍵を相手のものと偽って配ることができます． そこで，信頼できる第三者が「この公開鍵はこの持ち主のものである」と証明するのが <strong>認証局（CA: Certificate Authority）</strong> です．</p>
-<div id="def-" class="custom_problem blog-custom-border theorem definition">
-<p><span class="theorem-title"><strong>Definition 4</strong></span> <span class="def-title">認証局(CA, Certificate Authority)</span></p>
-<ul>
-<li>「この公開鍵は，この持ち主（ドメイン・組織・個人）のものである」ことを証明する，信頼された第三者機関</li>
-<li>申請者の本人確認を行ったうえで，持ち主の情報と公開鍵をまとめて<strong>認証局自身の秘密鍵で署名</strong>し，<strong>電子証明書</strong>として発行する</li>
-<li>秘密鍵の漏えいなどで不要になった証明書を<strong>失効</strong>させ，失効リスト（CRL）や OCSP で公開するのも認証局の役割</li>
-<li>代表例：Let’s Encrypt，DigiCert，GlobalSign など</li>
-</ul>
-</div>
-<ul>
-<li>ブラウザやOSには信頼できる認証局（ルート認証局）の証明書があらかじめ組み込まれており，受け取った証明書をそこまでたどって検証する</li>
-<li>実際には，ルート認証局が中間認証局に証明書を発行し，中間認証局がサーバー証明書を発行する階層構造になっている．この「サーバー証明書 → 中間認証局 → ルート認証局」のつながりを<strong>証明書チェーン</strong>と呼ぶ</li>
-</ul>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><a href="figures/certificate-authority.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-3" title="認証局の仕組み．認証局が署名した証明書を，ブラウザは組み込み済みのルート証明書（認証局の公開鍵）で検証する"><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-08-23-security-101/figures/certificate-authority.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:90.0%" alt="認証局の仕組み．認証局が署名した証明書を，ブラウザは組み込み済みのルート証明書（認証局の公開鍵）で検証する"></a></p>
-</figure>
-</div>
-<figcaption>認証局の仕組み．認証局が署名した証明書を，ブラウザは組み込み済みのルート証明書（認証局の公開鍵）で検証する</figcaption>
-</figure>
-</div>
-<ul>
-<li>認証局の役割は本来 <strong>なりすまし対策（真正性）</strong> だが，TLSのサーバー証明書の検証を通じて中間者攻撃（盗聴・改ざん）も防いでいる</li>
-<li>HTTPSでブラウザに警告が出るのは，この検証に失敗した（期限切れ・ドメイン不一致・信頼できない発行元など）場合</li>
-</ul>
-</section>
-<section id="アクセスコントロールとfw不正アクセスから守る" class="level3">
-<h3 class="anchored" data-anchor-id="アクセスコントロールとfw不正アクセスから守る">アクセスコントロールとFW：不正アクセスから守る</h3>
-<p>暗号化が「通信の中身」を守るのに対し，アクセスコントロールとFWは「誰が・どこから入れるか」を制御します．</p>
-<ul>
-<li><strong>アクセスコントロール</strong>：利用者を認証（本人確認）したうえで，その利用者に許可された操作だけを認める（認可）．ファイルの権限，データベースのロール，最小権限の原則などが該当する．</li>
-<li><strong>ファイアウォール（FW）</strong>：ネットワークの境界に置き，送信元・宛先のIPアドレスやポート番号などのルールに基づいて通信を許可・遮断する．外部に公開する必要のないサービスへの通信を入口で止めることで，攻撃対象そのものを減らせる</li>
-</ul>
-</section>
-</section>
-<section id="対策の検証" class="level2">
-<h2 class="anchored" data-anchor-id="対策の検証">対策の検証</h2>
-<section id="ペネトレーションテスト対策が本当に効いているか確かめる" class="level3">
-<h3 class="anchored" data-anchor-id="ペネトレーションテスト対策が本当に効いているか確かめる">ペネトレーションテスト：対策が本当に効いているか確かめる</h3>
-<div id="def-" class="custom_problem blog-custom-border theorem definition">
-<p><span class="theorem-title"><strong>Definition 5</strong></span> <span class="def-title">ペネトレーションテスト</span></p>
-<ul>
-<li>攻撃者と同じ視点・手法で実際にシステムへの侵入を試み，防御が機能しているかを検証する疑似攻撃テストのこと</li>
-<li>FW・アクセスコントロール・暗号化といった個々の対策ではなく，<strong>多層防御全体として攻撃を止められるか</strong>を評価できる</li>
-</ul>
-</div>
-<ul>
-<li>専門家（ホワイトハッカー）が，ポートスキャンによる侵入口の調査，セキュリティホール攻撃，パスワード攻撃などを組み合わせて，実際に侵入できるか・侵入後に何ができるかを確かめる</li>
-<li>似た取り組みに <strong>脆弱性診断</strong> がある．脆弱性診断はツール等で既知の脆弱性を網羅的に洗い出すのに対し，ペネトレーションテストは特定の攻撃シナリオ（例：外部から侵入して顧客データを持ち出せるか）を設定し，実際に目的を達成できるかを検証する</li>
-</ul>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 20%">
-<col style="width: 40%">
-<col style="width: 40%">
-</colgroup>
-<thead>
-<tr class="header">
-<th></th>
-<th>脆弱性診断</th>
-<th>ペネトレーションテスト</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>目的</td>
-<td>既知の脆弱性を網羅的に見つける</td>
-<td>攻撃シナリオが実際に成立するかを確かめる</td>
-</tr>
-<tr class="even">
-<td>方法</td>
-<td>診断ツール中心で，対象を広く浅く調べる</td>
-<td>専門家が手動で攻撃を組み合わせ，狭く深く調べる</td>
-</tr>
-<tr class="odd">
-<td>得られる結果</td>
-<td>脆弱性の一覧と危険度</td>
-<td>侵入経路・被害範囲の実証と，防御の弱点</td>
-</tr>
-</tbody>
-</table>
-</div>
-<div class="callout callout-style-default callout-important callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">重要</span>許可なく行わない
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>ペネトレーションテストやポートスキャンは，攻撃と同じ手法を使う</li>
-<li>システムの管理者から書面で許可を得て，対象範囲・期間を取り決めたうえで実施</li>
-<li>許可なく他人のシステムに行うと，不正アクセス禁止法などの法令に違反するおそれあり</li>
-</ul>
-</div>
-</div>
-</section>
-</section>
-<section id="appendix-この記事での用語集" class="level2">
-<h2 class="anchored" data-anchor-id="appendix-この記事での用語集">Appendix: この記事での用語集</h2>
-<div class="glossary-container">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb1-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">glossary</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span></span>
-<span id="cb1-2"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> CIA</span></span>
-<span id="cb1-3"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb1-4">      情報セキュリティの3要素である機密性（Confidentiality），完全性（Integrity），可用性（Availability）の頭文字．ISO/IEC 27000 シリーズ（情報セキュリティマネジメントシステムの国際規格）で定義される．真正性・責任追跡性・否認防止・信頼性を加えて7要素とすることもある．</span>
-<span id="cb1-5"></span>
-<span id="cb1-6"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> なりすまし</span></span>
-<span id="cb1-7"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb1-8">      他人や正規のサーバーのふりをして通信やシステム利用を行うこと．盗んだID・パスワードを使う，送信元アドレスを偽装する，偽サイトを用意するなどの手口がある．電子署名や証明書による相手の認証で防ぐ．</span>
-<span id="cb1-9"></span>
-<span id="cb1-10"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> ボットネット</span></span>
-<span id="cb1-11"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb1-12">      マルウェアに感染し，攻撃者の指令（C&amp;Cサーバー）に従って動くようになった多数のコンピューターの集まり．DDoS攻撃やスパムメール送信に悪用される．感染した機器の持ち主は気付かないことが多く，IoT機器が狙われる例も多い．</span>
-<span id="cb1-13"></span>
-<span id="cb1-14"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> 中間者攻撃 (MITM: Man-in-the-Middle attack)</span></span>
-<span id="cb1-15"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb1-16">      通信する2者の間に攻撃者が割り込み，それぞれに対して相手のふりをして通信を中継する攻撃．暗号化していても，相手の公開鍵が本物かを確認しなければ攻撃者の鍵で暗号化してしまうため防げない．証明書の検証が重要な理由はここにある．</span>
-<span id="cb1-17"></span>
-<span id="cb1-18"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> 共通鍵暗号方式</span></span>
-<span id="cb1-19"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb1-20">      暗号化と復号に同じ鍵を使う方式（AESなど）．処理が高速な一方，鍵を安全に相手へ渡す方法（鍵配送問題）が課題になる．SSL/TLSやSSHでは，公開鍵暗号方式などで共通鍵を安全に共有し，以降のデータ通信は共通鍵暗号で行う．</span>
-<span id="cb1-21"></span>
-<span id="cb1-22"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> 公開鍵暗号方式</span></span>
-<span id="cb1-23"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb1-24">      対になる2つの鍵（公開鍵と秘密鍵）を使う方式（RSA，楕円曲線暗号など）．公開鍵で暗号化したデータは対応する秘密鍵でしか復号できず，秘密鍵で署名したデータは公開鍵で検証できる．公開鍵は誰に配ってもよく，秘密鍵は本人だけが厳重に保管する．</span>
-<span id="cb1-25"></span>
-<span id="cb1-26"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> ハッシュ関数</span></span>
-<span id="cb1-27"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb1-28">      任意の長さのデータから固定長の値（ハッシュ値）を計算する関数（SHA-256など）．同じ入力からは必ず同じ値が出て，入力が少しでも変わると全く異なる値になり，ハッシュ値から元のデータを逆算できない．改ざん検知や電子署名，パスワードの保存に使われる．</span>
-<span id="cb1-29"></span>
-<span id="cb1-30"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> メッセージ認証コード (MAC)</span></span>
-<span id="cb1-31"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb1-32">      送信者と受信者が共有する秘密鍵とメッセージから計算する短い値（HMACなど）．受信側で同じ計算をして一致すれば，メッセージが改ざんされておらず，鍵を持つ相手から送られたことを確認できる．電子署名と異なり共通鍵を使うため，第三者に対する証明（否認防止）にはならない．</span>
-<span id="cb1-33"></span>
-<span id="cb1-34"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> AEAD (Authenticated Encryption with Associated Data)</span></span>
-<span id="cb1-35"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb1-36">      暗号化と改ざん検知（認証）を1つの処理で同時に行う暗号方式（AES-GCM，ChaCha20-Poly1305 など）．復号時に認証タグを検証し，1ビットでも書き換えられていれば復号に失敗する．TLS 1.3 では AEAD 方式の暗号だけが使える．</span>
-<span id="cb1-37"></span>
-<span id="cb1-38"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> ポート番号</span></span>
-<span id="cb1-39"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb1-40">      1台のコンピューター上で動く複数の通信サービスを区別するための番号（0〜65535）．HTTPは80番，HTTPSは443番，SSHは22番のように用途ごとに標準の番号が決まっている．使っていないポートを閉じておくことは，ポートスキャンで侵入口を見つけられにくくする基本的な対策．</span>
-<span id="cb1-41"></span>
-<span id="cb1-42"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> セキュリティホール（脆弱性）</span></span>
-<span id="cb1-43"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb1-44">      設計や実装の不備によって生じた，セキュリティ上の欠陥．攻撃者に悪用されると侵入や情報漏えいにつながる．ベンダーが修正プログラム（パッチ）を公開したら速やかに適用することが基本の対策となる．</span>
-<span id="cb1-45"></span>
-<span id="cb1-46"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> ホワイトハッカー</span></span>
-<span id="cb1-47"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb1-48">      高度なセキュリティの知識・技術を，システムを守る目的で使う技術者．ペネトレーションテストや脆弱性の調査・報告などを行う．同じ技術を悪用して攻撃する者はブラックハット（クラッカー）と呼ばれる．</span>
-<span id="cb1-49"></span>
-<span id="cb1-50"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> 不正アクセス禁止法</span></span>
-<span id="cb1-51"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb1-52">      正式名称は「不正アクセス行為の禁止等に関する法律」．他人のID・パスワードを無断で使ったり，セキュリティホールを突いたりしてアクセス制御を回避し，コンピューターを利用する行為などを禁止する日本の法律．</span>
-<span id="cb1-53"></span>
-<span id="cb1-54"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> ARP (Address Resolution Protocol)</span></span>
-<span id="cb1-55"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb1-56">      同じLAN内で，IPアドレスから対応するMACアドレス（機器固有の物理アドレス）を調べるプロトコル．「このIPアドレスの持ち主は？」と問い合わせ，応答をARPテーブルに一時的に記録する．応答が本物かを確かめる仕組みがないため，ARPスプーフィングに悪用される．</span>
-<span id="cb1-57"></span>
-<span id="cb1-58"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> 電子証明書</span></span>
-<span id="cb1-59"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb1-60">      公開鍵とその持ち主の情報（ドメイン名・組織名など），有効期限を，認証局が署名して1つにまとめたデータ．形式は X.509 が標準．SSL/TLSで使うものはサーバー証明書と呼ばれる．</span>
-<span id="cb1-61"></span>
-<span id="cb1-62"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> CRL / OCSP</span></span>
-<span id="cb1-63"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb1-64">      失効した証明書を確認する仕組み．CRL（Certificate Revocation List：証明書失効リスト）は認証局が公開する失効済み証明書の一覧で，OCSP（Online Certificate Status Protocol）は個々の証明書が有効かどうかをその都度問い合わせるプロトコル．有効期限内でも，秘密鍵が漏えいした証明書は失効させて使えなくする．</span>
-<span id="cb1-65"></span>
-<span id="cb1-66"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> PKI (Public Key Infrastructure)</span></span>
-<span id="cb1-67"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb1-68">      公開鍵暗号を安全に運用するための仕組み全体．認証局による証明書の発行・失効管理，ルート認証局から中間認証局，サーバー証明書へと続く信頼の連鎖（証明書チェーン）などから成る．</span>
-<span id="cb1-69"></span>
-<span id="cb1-70"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> VPN (Virtual Private Network)</span></span>
-<span id="cb1-71"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb1-72">      インターネットなどの共用ネットワーク上に，暗号化と認証によって仮想的な専用線をつくる技術．IPsecやSSL/TLSを用いて実現され，拠点間の接続や在宅勤務での社内ネットワークへの接続に使われる．</span>
-<span id="cb1-73"></span>
-<span id="cb1-74"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> 認証と認可</span></span>
-<span id="cb1-75"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb1-76">      認証（Authentication）は「相手が誰か」を確かめること，認可（Authorization）は「その相手に何を許すか」を決めること．アクセスコントロールは認証の後に認可を行うことで成り立つ．</span>
-<span id="cb1-77"></span>
-<span id="cb1-78"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> 多要素認証 (MFA)</span></span>
-<span id="cb1-79"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb1-80">      知識（パスワード），所有（スマートフォン・ハードウェアキー），生体（指紋・顔）のうち，異なる2種類以上の要素を組み合わせて本人確認する方式．パスワードが漏えいしても，それだけではログインできない．</span>
-<span id="cb1-81"></span>
-<span id="cb1-82"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> 最小権限の原則</span></span>
-<span id="cb1-83"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb1-84">      利用者やプログラムには，業務に必要な最小限の権限だけを与えるという原則．アカウントが乗っ取られた場合でも被害の範囲を限定できる．</span>
-<span id="cb1-85"></span>
-<span id="cb1-86"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> IDS / IPS</span></span>
-<span id="cb1-87"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb1-88">      IDS（Intrusion Detection System：侵入検知システム）は通信やログを監視して攻撃の兆候を検知・通知する．IPS（Intrusion Prevention System：侵入防止システム）は検知に加えて該当する通信を自動で遮断する．FWがアドレスやポートで判断するのに対し，通信の中身やパターンまで見て判断する．</span>
-<span id="cb1-89"></span>
-<span id="cb1-90"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> DMZ (DeMilitarized Zone)</span></span>
-<span id="cb1-91"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb1-92">      インターネットと社内ネットワークの間にFWで区切って設ける中間領域．Webサーバーやメールサーバーなど外部に公開するサーバーを置き，DMZが侵害されても社内ネットワークへ被害が及ばないようにする．</span>
-<span id="cb1-93"></span>
-<span id="cb1-94"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> CDN (Content Delivery Network)</span></span>
-<span id="cb1-95"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb1-96">      世界各地に分散配置したサーバーにコンテンツのコピーを置き，利用者に近いサーバーから配信する仕組み．アクセスが分散されるため，DDoS攻撃の通信を吸収・緩和する手段としても使われる．</span>
-<span id="cb1-97"></span>
-<span id="cb1-98"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> 多層防御 (Defense in Depth)</span></span>
-<span id="cb1-99"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb1-100">      境界防御（FW），通信の暗号化，端末の保護，アクセスコントロール，監視など，性質の異なる対策を何層にも重ねる考え方．1つの対策が突破されても，次の層で被害を食い止めることを狙う．</span></code></pre></div></div>
-</div>
-</section>
-<section id="references" class="level2">
-<h2 class="anchored" data-anchor-id="references">References</h2>
-<ul>
-<li><a href="https://www.iso.org/standard/73906.html">ISO/IEC 27000:2018, Information technology — Security techniques — Information security management systems — Overview and vocabulary</a>
-<ul>
-<li>機密性・完全性・可用性・真正性の定義（3章 Terms and definitions）の出典．2026年に第6版 <a href="https://www.iso.org/standard/27000">ISO/IEC 27000:2026</a> が発行され，2018年版は廃止（withdrawn）となっている</li>
-</ul></li>
-<li><a href="https://www.ipa.go.jp/security/">IPA 独立行政法人 情報処理推進機構，「情報セキュリティ」</a></li>
-<li><a href="https://www.soumu.go.jp/main_sosiki/cybersecurity/kokumin/">総務省，「国民のためのサイバーセキュリティサイト」</a></li>
-</ul>
-
-
-</section>
-
- ]]></description>
-  <category>security</category>
-  <category>network</category>
-  <category>firewall</category>
-  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-08-23-security-101/</guid>
-  <pubDate>Sun, 23 Aug 2026 00:00:00 GMT</pubDate>
 </item>
 </channel>
 </rss>
