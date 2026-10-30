@@ -1,0 +1,1349 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="ja" xml:lang="ja"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.20">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Ryo Nakagami">
+<meta name="dcterms.date" content="2025-09-07">
+
+<title>L2スイッチ vs L3スイッチ – regmonkey datascience blog</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<link href="../../img/favicon.ico" rel="icon">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-29e00c98bbba659d91ab3844292f79dc.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark-86fc916b84669629367aabb2a24c5117.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-29e00c98bbba659d91ab3844292f79dc.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-57d445943f4d0de142fd7a618c64f0ad.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark-14570065716747922adca04f36bcf16c.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../site_libs/bootstrap/bootstrap-57d445943f4d0de142fd7a618c64f0ad.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script src="../../site_libs/quarto-contrib/pseudocode-2.4.1/pseudocode.min.js"></script>
+<link href="../../site_libs/quarto-contrib/pseudocode-2.4.1/pseudocode.min.css" rel="stylesheet">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "一致なし",
+    "search-matching-documents-text": "一致した文書",
+    "search-copy-link-title": "検索へのリンクをコピー",
+    "search-hide-matches-text": "追加の検索結果を非表示",
+    "search-more-match-text": "追加の検索結果",
+    "search-more-matches-text": "追加の検索結果",
+    "search-clear-button-title": "消去",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "取消",
+    "search-submit-button-title": "検索",
+    "search-label": "サーチ"
+  }
+}</script>
+<script async="" src="https://www.googletagmanager.com/gtag/js?id=G-EX9H7GRLTH"></script>
+
+<script type="text/javascript">
+
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
+</script>
+<style>
+
+      .quarto-title-block .quarto-title-banner h1,
+      .quarto-title-block .quarto-title-banner h2,
+      .quarto-title-block .quarto-title-banner h3,
+      .quarto-title-block .quarto-title-banner h4,
+      .quarto-title-block .quarto-title-banner h5,
+      .quarto-title-block .quarto-title-banner h6
+      {
+        color: #ffffff;
+      }
+
+      .quarto-title-block .quarto-title-banner {
+        color: #ffffff;
+      }
+</style>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-M27Z2BWG');</script>
+    <!-- End Google Tag Manager -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&amp;display=swap" rel="stylesheet">
+<script>
+    MathJax = {
+        tex: {
+            inlineMath: [['$','$'], ['\\(','\\)']],
+            displayMath: [['$$','$$'], ['\\[','\\]']],
+            processEscapes: true,
+            processEnvironments: true,
+            tags: 'all',
+        }
+    }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml-full.js" integrity="sha256-kbAFUDxdHwlYv01zraGjvjNZayxKtdoiJ38bDTFJtaQ=" crossorigin="anonymous">
+</script>
+<link rel="stylesheet" href="../../js/regmonkey_glossary_generator/regmonkey_glossary_generator.css">
+<script type="text/javascript" src="../../js/regmonkey_glossary_generator/regmonkey_glossary_generator.js"></script>
+
+
+<link rel="stylesheet" href="../../styles.css">
+<meta property="og:title" content="L2スイッチ vs L3スイッチ – regmonkey datascience blog">
+<meta property="og:description" content="日々の徒然勉強日記">
+<meta property="og:image" content="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-09-07-l2-l3-switch/figures/home-l2-arp.svg">
+<meta property="og:site_name" content="regmonkey datascience blog">
+</head>
+
+<body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top quarto-banner">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">Home</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="サーチ"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="ナビゲーションを切り替える" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-bi-book" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+      <i class="bi bi-book" role="img">
+</i> 
+ <span class="menu-text"></span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-bi-book">    
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/statistics-for-regression-monkey/">
+ <span class="dropdown-text">Statistics Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/python-statisticalpackage-techniques/">
+ <span class="dropdown-text">Python package building Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/regmonkey_datavisualization/">
+ <span class="dropdown-text">Data Visualization Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/regmonkey-presentation/">
+ <span class="dropdown-text">Presentation Blog</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../link_list/link_table.html"> 
+<span class="menu-text">便利リンク集</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../dictionary/dict.html"> 
+<span class="menu-text">備忘録</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../FAQ/faq.html"> 
+<span class="menu-text">FAQ</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../about.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/RyoNakagami/regmonkey-datascience-blog"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="../../index.xml"> <i class="bi bi-rss" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="ダークモードの切り替え"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">L2スイッチ vs L3スイッチ</h1>
+                                <div class="quarto-categories">
+                <div class="quarto-category">network</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      <div>
+      <div class="quarto-title-meta-heading">作者</div>
+      <div class="quarto-title-meta-contents">
+               <p>Ryo Nakagami </p>
+            </div>
+    </div>
+      
+      <div>
+      <div class="quarto-title-meta-heading">公開</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">2025-09-07</p>
+      </div>
+    </div>
+    
+      <div>
+      <div class="quarto-title-meta-heading">更新日</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date-modified">2026-10-31</p>
+      </div>
+    </div>
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">目次</h2>
+   
+  <ul>
+  <li><a href="#l2スイッチとl3スイッチ" id="toc-l2スイッチとl3スイッチ" class="nav-link active" data-scroll-target="#l2スイッチとl3スイッチ">L2スイッチとL3スイッチ</a></li>
+  <li><a href="#l2スイッチの仕組み" id="toc-l2スイッチの仕組み" class="nav-link" data-scroll-target="#l2スイッチの仕組み">L2スイッチの仕組み</a>
+  <ul class="collapse">
+  <li><a href="#mac-アドレスの学習とフラッディング" id="toc-mac-アドレスの学習とフラッディング" class="nav-link" data-scroll-target="#mac-アドレスの学習とフラッディング">MAC アドレスの学習とフラッディング</a></li>
+  <li><a href="#vlan1台のスイッチでネットワークを分ける" id="toc-vlan1台のスイッチでネットワークを分ける" class="nav-link" data-scroll-target="#vlan1台のスイッチでネットワークを分ける">VLAN：1台のスイッチでネットワークを分ける</a></li>
+  </ul></li>
+  <li><a href="#l3スイッチの仕組み" id="toc-l3スイッチの仕組み" class="nav-link" data-scroll-target="#l3スイッチの仕組み">L3スイッチの仕組み</a>
+  <ul class="collapse">
+  <li><a href="#vlan-間ルーティング" id="toc-vlan-間ルーティング" class="nav-link" data-scroll-target="#vlan-間ルーティング">VLAN 間ルーティング</a></li>
+  <li><a href="#l3スイッチとルーターの違い" id="toc-l3スイッチとルーターの違い" class="nav-link" data-scroll-target="#l3スイッチとルーターの違い">L3スイッチとルーターの違い</a></li>
+  <li><a href="#典型的な構成" id="toc-典型的な構成" class="nav-link" data-scroll-target="#典型的な構成">典型的な構成</a></li>
+  </ul></li>
+  <li><a href="#手元で観察してみる" id="toc-手元で観察してみる" class="nav-link" data-scroll-target="#手元で観察してみる">手元で観察してみる</a></li>
+  <li><a href="#用語集" id="toc-用語集" class="nav-link" data-scroll-target="#用語集">📘 用語集</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>問題を報告</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content">
+
+
+
+
+
+
+<section id="l2スイッチとl3スイッチ" class="level2">
+<h2 class="anchored" data-anchor-id="l2スイッチとl3スイッチ">L2スイッチとL3スイッチ</h2>
+<p>LAN の中で PC やサーバーをつなぐ機器が「スイッチ」です． スイッチは、受信したデータを転送する際に参照する情報の違いによって、L2スイッチとL3スイッチに分けられます。</p>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title">L2スイッチ（レイヤ2スイッチ）</span></p>
+<ul>
+<li>OSI 参照モデルの <strong>データリンク層（L2）</strong> で動作するスイッチ</li>
+<li>フレームの <strong>宛先 MAC アドレス</strong> を見て，どのポートから出すかを決める</li>
+<li>「どの MAC アドレスの端末がどのポートの先にいるか」の対応を，受信したフレームの送信元 MAC から自動で学習し，スイッチ内部のメモリ上の <strong>MAC アドレステーブル</strong> に保持する</li>
+<li>転送できる範囲は同じネットワーク（同じ VLAN・同じサブネット）の中だけ</li>
+</ul>
+</div>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Exmaple 1</strong></span> <span class="def-title">自宅ネットワークでのL2スイッチの役割</span></p>
+<p>実は，自宅でも L2スイッチはほぼ確実に使われています． 家庭用ルーターの背面にある LAN ポート（3〜4口のもの）の中身が L2スイッチです．</p>
+<p>複数の端末を仮定用ルーターに接続し，端末間でやり取りすることを考えます．このとき，<strong>IP で宛先を指定して</strong>やり取りを行うと思いますが，同じネットワーク内では最終的に <strong>MAC アドレスで届けています</strong> ． たとえば PC（<code>192.168.1.10</code>）から NAS（<code>192.168.1.20</code>）へファイルを送る場合，流れは次のようになります．</p>
+<ol type="1">
+<li>PC は宛先 IP が自分と同じネットワーク（<code>192.168.1.0/24</code>）だと判断する</li>
+<li>ARP で「<code>192.168.1.20</code> の MAC アドレスは何？」と問い合わせる．この問い合わせはブロードキャストなので，スイッチは全ポートへ流す</li>
+<li>問い合わせを受け取った端末のうち，IP アドレスが一致した NAS だけが応答する．応答は PC の MAC アドレス宛ての <strong>ユニキャスト</strong> なので，スイッチは PC のポートにだけ転送し，PC は NAS の MAC アドレスを知る</li>
+<li>PC は宛先 MAC アドレスを付けたフレームを送り出し，L2スイッチはその MAC アドレスを見て，NAS がつながっているポートにだけ転送する</li>
+</ol>
+<div id="fig-home-l2-arp" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-home-l2-arp-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="./figures/home-l2-arp.svg" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-home-l2-arp-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+図&nbsp;1: 自宅 LAN で PC から NAS へ送るときの流れ．L2スイッチは IP を見ず，宛先 MAC だけで転送先を決める
+</figcaption>
+</figure>
+</div>
+<p>ユーザーやアプリが意識するのは IP アドレスですが，実際に同じ LAN 内を運ぶ段階では，スイッチは IP を見ずに MAC アドレスだけで転送先を決めています． IP アドレスを宛先 MAC アドレスに変換する作業（ARP）は，送信側の機器が裏で自動的に行っています．</p>
+</div>
+<hr>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 2</strong></span> <span class="def-title">L3スイッチ（レイヤ3スイッチ）</span></p>
+<ul>
+<li>L2スイッチの機能に加えて，<strong>ネットワーク層（L3）</strong> のルーティング機能を持つスイッチ</li>
+<li>パケットの <strong>宛先 IP アドレス</strong> を見て，ルーティングテーブルから次の転送先を決める</li>
+<li>ルーティングを専用ハードウェア（ASIC）で処理するため，LAN 内の異なるネットワーク間（VLAN 間）の転送を高速に行える</li>
+</ul>
+</div>
+<p>両者の違いは，フレームの中の <strong>どのフィールドを見て転送するか</strong> にあります．</p>
+<div id="fig-frame-header" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-frame-header-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="./figures/frame-header.svg" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-frame-header-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+図&nbsp;2: L2スイッチは Ethernet ヘッダの宛先 MAC を，L3スイッチは IP ヘッダの宛先 IP を見て転送先を決める
+</figcaption>
+</figure>
+</div>
+<p>L2スイッチはフレームを書き換えずにそのまま別のポートへ流します． 一方 L3スイッチ（およびルーター）はネットワークをまたいでパケットを中継するため，</p>
+<ul>
+<li>Ethernet ヘッダの送信元・宛先 MAC を，次の区間用のもの（自分の MAC と次の転送先の MAC）に付け替える</li>
+<li>IP ヘッダの TTL を1減らす（0 になったパケットは破棄する）</li>
+</ul>
+<p>という処理を行います．IP アドレス自体は（NAT をしない限り）始点から終点まで変わりません．</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>ハブ・L2スイッチ・L3スイッチ・ルーター
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>機器</th>
+<th>動作する層</th>
+<th>転送の判断に使う情報</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>リピーターハブ</td>
+<td>L1（物理層）</td>
+<td>なし．受信した信号を全ポートへ流す</td>
+</tr>
+<tr class="even">
+<td>L2スイッチ</td>
+<td>L2（データリンク層）</td>
+<td>宛先 MAC アドレス</td>
+</tr>
+<tr class="odd">
+<td>L3スイッチ</td>
+<td>L2 + L3（ネットワーク層）</td>
+<td>宛先 MAC アドレス + 宛先 IP アドレス</td>
+</tr>
+<tr class="even">
+<td>ルーター</td>
+<td>L3（ネットワーク層）</td>
+<td>宛先 IP アドレス</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="l2スイッチの仕組み" class="level2">
+<h2 class="anchored" data-anchor-id="l2スイッチの仕組み">L2スイッチの仕組み</h2>
+<section id="mac-アドレスの学習とフラッディング" class="level3">
+<h3 class="anchored" data-anchor-id="mac-アドレスの学習とフラッディング">MAC アドレスの学習とフラッディング</h3>
+<p>L2スイッチは電源を入れた直後，どのポートに誰がつながっているかを知りません． フレームを受け取るたびに <strong>送信元 MAC アドレス</strong> と受信ポートの組を MAC アドレステーブルに記録し，少しずつ対応表を作っていきます．</p>
+<div id="fig-mac-learning" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-mac-learning-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="./figures/mac-learning.svg" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-mac-learning-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+図&nbsp;3: PC A が PC C 宛てにフレームを送ったときの L2スイッチの動作
+</figcaption>
+</figure>
+</div>
+<ol type="1">
+<li>PC A が PC C 宛てのフレームを送ると，スイッチは「A の MAC はポート1の先にいる」と記録する</li>
+<li>宛先の C はまだテーブルにないので，受信ポート以外の全ポートへフレームをコピーして送る（<strong>フラッディング</strong>）．C 以外の PC は自分宛てではないので破棄する</li>
+<li>C が返信すると「C の MAC はポート3の先にいる」と記録される．以後 A と C の間のフレームは該当ポートにだけ転送される</li>
+</ol>
+<p>宛先がブロードキャスト（<code>ff:ff:ff:ff:ff:ff</code>）のフレームも，同じく全ポートへ送られます． IP アドレスから MAC アドレスを調べる ARP の要求はブロードキャストなので，同じネットワーク内の全端末に届きます． テーブルのエントリは一定時間（Cisco 機器の既定では 300 秒）通信がないと消え，端末の移動にも追従できるようになっています．</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>スイッチとハブの違い
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>リピーターハブは受け取った信号を常に全ポートへ流すため，同時に送信すると衝突（コリジョン）が起こり，ほかの端末宛ての通信も見えてしまいます． L2スイッチは宛先のポートにだけ転送するので，ポートごとに通信が分離され，全二重で同時に送受信できます．</p>
+</div>
+</div>
+<p><span class="mini-section">ARPスプーフィング</span></p>
+<p>ARP には「返ってきた応答が本物か」を確かめる仕組みがありません． これを悪用し，同じ LAN 内の攻撃者が「ゲートウェイ（<code>192.168.1.1</code>）の MAC は自分だ」という偽の ARP 応答を送りつけるのが <strong>ARP スプーフィング</strong>（ARP ポイズニング）です．</p>
+<div id="fig-arp-spoofing" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-arp-spoofing-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="./figures/arp-spoofing.svg" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-arp-spoofing-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+図&nbsp;4: ARP スプーフィングによる中間者攻撃．偽の ARP 応答で被害端末の ARP キャッシュを書き換え，ゲートウェイ宛ての通信を攻撃者経由にする
+</figcaption>
+</figure>
+</div>
+<p>偽の応答を送るタイミングには2通りあります． 被害端末の ARP 要求はブロードキャストなので攻撃者にも届き，それに割り込んで本物より後に偽の応答を返すこともできます． ただし多くの OS は，要求していない ARP 応答でも既存のエントリなら上書きするため，要求を待たずに偽の応答を数秒おきに送り続けるだけで乗っ取れます． <code>arpspoof</code> などの代表的な攻撃ツールは主に後者の方法を使います．</p>
+<div id="fig-arp-spoofing-patterns" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-arp-spoofing-patterns-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="./figures/arp-spoofing-patterns.svg" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-arp-spoofing-patterns-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+図&nbsp;5: 偽の ARP 応答を送る2つのパターン．ブロードキャストの要求に割り込む（左）か，要求なしに送り続ける（右）
+</figcaption>
+</figure>
+</div>
+<p>対策としては，</p>
+<ul>
+<li>業務用スイッチの <strong>Dynamic ARP Inspection</strong>（DHCP スヌーピングで作った IP と MAC の対応表と照合し，矛盾する ARP を破棄する）</li>
+<li>通信そのものを <a href="../../posts/2025-09-06-ssl-tls/index.html">TLS</a> で暗号化して，経路を乗っ取られても中身を読まれない・改ざんを検知できるようにする</li>
+</ul>
+</section>
+<section id="vlan1台のスイッチでネットワークを分ける" class="level3">
+<h3 class="anchored" data-anchor-id="vlan1台のスイッチでネットワークを分ける">VLAN：1台のスイッチでネットワークを分ける</h3>
+<p>ブロードキャストは同じネットワーク内の全端末に届くので，端末が増えるほど余計なトラフィックが増えます． また，部署ごとに通信範囲を分けたいという要件もあります． そこで，1台の L2スイッチをポート単位で複数の論理的なネットワークに分割するのが <strong>VLAN（Virtual LAN）</strong> です．</p>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 3</strong></span> <span class="def-title">VLAN</span></p>
+<ul>
+<li>1台の物理スイッチを，VLAN ID で区別される複数の論理的な L2 ネットワーク（ブロードキャストドメイン）に分割する機能</li>
+<li>異なる VLAN の端末同士は，同じスイッチにつながっていても L2 では通信できない</li>
+<li>スイッチ間を1本のケーブルで複数 VLAN 分つなぐ場合は，フレームに VLAN ID のタグを付ける（IEEE 802.1Q，タグ VLAN）</li>
+</ul>
+</div>
+<p>通常，1つの VLAN には1つの IP サブネットを割り当てます（例：VLAN10 = <code>192.168.10.0/24</code>，VLAN20 = <code>192.168.20.0/24</code>）． VLAN をまたぐ通信は「別のネットワークへの通信」になるので，L2スイッチだけでは実現できず，ルーティングが必要になります．</p>
+</section>
+</section>
+<section id="l3スイッチの仕組み" class="level2">
+<h2 class="anchored" data-anchor-id="l3スイッチの仕組み">L3スイッチの仕組み</h2>
+<section id="vlan-間ルーティング" class="level3">
+<h3 class="anchored" data-anchor-id="vlan-間ルーティング">VLAN 間ルーティング</h3>
+<p>L3スイッチでは，VLAN ごとに IP アドレスを持った仮想的なインターフェース <strong>SVI（Switched Virtual Interface）</strong> を作れます． 各 VLAN の端末は，この SVI の IP アドレスをデフォルトゲートウェイに設定します．</p>
+<div id="fig-vlan-routing" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-vlan-routing-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="./figures/vlan-routing.svg" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-vlan-routing-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+図&nbsp;6: L2スイッチだけでは VLAN をまたげない（左）．L3スイッチは SVI 間でルーティングして VLAN 間をつなぐ（右）
+</figcaption>
+</figure>
+</div>
+<p>PC1（VLAN10）から PC2（VLAN20）へ送る流れは次のとおりです．</p>
+<ol type="1">
+<li>PC1 は宛先 <code>192.168.20.11</code> が自分のサブネット外だと判断し，デフォルトゲートウェイ（SVI <code>192.168.10.1</code>）の MAC 宛てにフレームを送る</li>
+<li>L3スイッチは宛先 IP を見て，<code>192.168.20.0/24</code> が VLAN20 の SVI に直結していることをルーティングテーブルから知る</li>
+<li>MAC を付け替え，TTL を1減らして VLAN20 側の PC2 へ転送する</li>
+</ol>
+<p>同じ VLAN 内の通信（例：PC1 と同じ VLAN10 の別の PC）は，ゲートウェイを経由せず L2スイッチと同じように MAC だけで転送されます．</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>L3スイッチがない場合：ルーター・オン・ア・スティック
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>L2スイッチとルーターをタグ VLAN のケーブル1本でつなぎ，ルーター側で VLAN ごとのサブインターフェースを作って VLAN 間ルーティングする構成もあります． 機器は少なくて済みますが，VLAN 間の通信がすべてその1本のケーブルとルーターの処理能力に集中するため，トラフィックが多い LAN では L3スイッチが使われます．</p>
+</div>
+</div>
+</section>
+<section id="l3スイッチとルーターの違い" class="level3">
+<h3 class="anchored" data-anchor-id="l3スイッチとルーターの違い">L3スイッチとルーターの違い</h3>
+<p>L3スイッチもルーターも IP アドレスでルーティングしますが，得意分野が違います．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>観点</th>
+<th>L3スイッチ</th>
+<th>ルーター</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>主な役割</td>
+<td>LAN 内の VLAN 間ルーティング</td>
+<td>LAN と WAN（インターネット・拠点間）の接続</td>
+</tr>
+<tr class="even">
+<td>ポート</td>
+<td>Ethernet ポートが多数（24〜48 ポートなど）</td>
+<td>ポート数は少ない．WAN 回線用のインターフェースを持つ</td>
+</tr>
+<tr class="odd">
+<td>転送処理</td>
+<td>ASIC によるハードウェア処理で高速</td>
+<td>ソフトウェア処理の比重が大きく，多機能</td>
+</tr>
+<tr class="even">
+<td>付加機能</td>
+<td>最低限（静的ルート，OSPF など）</td>
+<td>NAT，PPPoE，VPN，ファイアウォール，QoS など</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>近年はルーターの高速化や L3スイッチの多機能化で境界は曖昧になっていますが， 「LAN の中を速くつなぐのが L3スイッチ，LAN の外との出入口がルーター」と覚えておくと構成図が読みやすくなります．</p>
+</section>
+<section id="典型的な構成" class="level3">
+<h3 class="anchored" data-anchor-id="典型的な構成">典型的な構成</h3>
+<p>オフィスや大学のネットワークでは，役割の違う機器を階層的に組み合わせるのが一般的です．</p>
+<div id="fig-office-network" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-office-network-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="./figures/office-network.svg" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-office-network-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+図&nbsp;7: 典型的な社内ネットワーク．端末は L2スイッチに収容し，VLAN 間は L3スイッチ，インターネットとの境界はルーターが担う
+</figcaption>
+</figure>
+</div>
+<ul>
+<li><strong>アクセス層（L2スイッチ）</strong>：各フロア・部屋の PC やプリンターを収容する．ポート数が多く安価な L2スイッチを並べ，ポートごとに VLAN を割り当てる</li>
+<li><strong>コア層（L3スイッチ）</strong>：各 VLAN のデフォルトゲートウェイとなり，部署間やサーバー VLAN への通信を高速にルーティングする</li>
+<li><strong>境界（ルーター）</strong>：インターネットとの接続，NAT，VPN，ファイアウォールを担う</li>
+</ul>
+<p>使い分けの目安は次のとおりです．</p>
+<ul>
+<li>家庭や小規模オフィスで，ネットワークが1つ（サブネットが1つ）で足りる → L2スイッチ（家庭用ルーターの LAN ポートの増設にも使われる）</li>
+<li>部署・用途ごとに VLAN を分け，VLAN 間で通信させたい → L3スイッチ</li>
+<li>研究室のサーバー群を別サブネットに置き，PC からは高速にアクセスさせたい → サーバー VLAN を切って L3スイッチでルーティング</li>
+<li>インターネットや他拠点とつなぎたい → ルーター（L3スイッチの代わりにはならない）</li>
+</ul>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>Docker のネットワークも同じ構造
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Docker の既定の bridge ネットワークでは，ホスト上の <code>docker0</code> が Linux bridge，つまり <strong>ソフトウェアの L2スイッチ</strong> として各コンテナの仮想 NIC（veth）を収容しています． コンテナから外部への通信は，ホストの Linux カーネルが <strong>ルーター</strong> としてルーティングし，NAT（iptables の MASQUERADE）をかけて送り出します． <code>docker network create</code> でネットワークを分けるのは，VLAN でブロードキャストドメインを分けるのと同じ発想です．</p>
+</div>
+</div>
+</section>
+</section>
+<section id="手元で観察してみる" class="level2">
+<h2 class="anchored" data-anchor-id="手元で観察してみる">手元で観察してみる</h2>
+<p>自分の PC から，L2 と L3 の境界を確認できます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 同じネットワーク内で通信した相手の IP と MAC の対応（ARP キャッシュ）</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">ip</span> neigh</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="co"># ルーティングテーブル．default via の後ろがデフォルトゲートウェイ</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="ex">ip</span> route</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co"># 宛先までに経由するルーター・L3スイッチの一覧</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="ex">traceroute</span> 8.8.8.8</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<ul>
+<li><code>ip neigh</code> に出てくるのは同じサブネット内の相手だけです．別のサブネットの相手は，ゲートウェイの MAC 宛てに送るので，ARP キャッシュにはゲートウェイの MAC が載ります</li>
+<li><code>traceroute</code> は TTL を1ずつ増やしながらパケットを送り，TTL が 0 になった機器が返す ICMP Time Exceeded を集めて経路を表示します．TTL を減らすのは L3 の機器だけなので，<strong>L2スイッチは何台経由しても <code>traceroute</code> には現れません</strong>．1ホップ目に表示されるのはデフォルトゲートウェイ（L3スイッチの SVI や家庭用ルーター）です</li>
+</ul>
+</section>
+<section id="用語集" class="level2">
+<h2 class="anchored" data-anchor-id="用語集">📘 用語集</h2>
+<div class="glossary-container">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">glossary</span><span class="kw">:</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> VLAN (Virtual LAN)</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>      1台の物理スイッチを，VLAN ID で区別される複数の論理的な L2 ネットワーク（ブロードキャストドメイン）に分割する機能．</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>      ポート単位で VLAN を割り当て，異なる VLAN の端末同士は同じスイッチにつながっていても L2 では通信できない．</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>      通常は1つの VLAN に1つの IP サブネットを割り当て，VLAN 間の通信には L3スイッチやルーターによるルーティングが必要になる．</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>      スイッチ間を1本のケーブルで複数 VLAN 分つなぐ場合は，フレームに VLAN ID のタグを付ける（IEEE 802.1Q，タグ VLAN）．</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> MAC アドレス (Media Access Control address)</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>      Ethernet や Wi-Fi のネットワークインターフェース（NIC）ごとに割り当てられる 48 ビットの識別子で，`00:1a:2b:3c:4d:5e` のように 16 進数 12 桁で表記する．</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>      上位 24 ビットはメーカーを表す OUI（Organizationally Unique Identifier），下位 24 ビットはメーカーが割り当てる番号．</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>      同じネットワーク（L2）の中でフレームの宛先・送信元を指定するのに使われ，L2スイッチはこれだけを見て転送先のポートを決める．</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>      IP アドレスと違ってルーターや L3スイッチを越えるたびに付け替えられるので，通信の始点から終点まで同じとは限らない．</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>      全ビットが 1 の `ff:ff:ff:ff:ff:ff` はブロードキャストアドレス．Linux では `ip link` で自分の MAC アドレスを確認できる．</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> ARP (Address Resolution Protocol)</span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>      同じネットワーク内で，IP アドレスから対応する MAC アドレスを調べるためのプロトコル（RFC 826）．</span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>      IPv4 専用で，IPv6 では NDP が同じ役割を担う．</span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> NDP (Neighbor Discovery Protocol)</span></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>      IPv6 で ARP の代わりに使われるプロトコル（RFC 4861）．ICMPv6 のメッセージとして IPv6 の上で動く．</span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>      Neighbor Solicitation をマルチキャストで送り，Neighbor Advertisement で MAC アドレスを返してもらう．</span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>      アドレス解決のほか，ルーターの発見やアドレスの自動設定（SLAAC）も担う．Linux では `ip -6 neigh` で確認できる．</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+
+
+</section>
+
+</main> <!-- /main -->
+<script>
+    document.querySelectorAll('.custom_problem .theorem-title').forEach((title) => {
+        let modName = title.innerHTML;
+        modName = modName.replace("Exercise", "Problem");
+        modName = modName.replace("Proposition", "Property");
+        modName = modName.replace("Example", "<strong>&#9654;</strong>&nbsp; Example");
+        title.innerHTML = modName;
+    });
+
+    // Rule: 未使用の Corollary (#cor-, lang: ja では「系」) を Rule として表示する
+    document.querySelectorAll('.custom_rule .theorem-title').forEach((title) => {
+        title.innerHTML = title.innerHTML
+            .replace(/^<strong>(系|Corollary)/, "<strong>Rule")
+            .replace(/\s*\((.*)\)<\/strong>$/, ": $1</strong>");
+        // タイトルの後で改行し，本文を次の行から始める
+        title.style.display = "block";
+        title.style.paddingBottom = "0.5em";
+        title.style.fontSize = "1.1em";
+        // 本文がリスト等で始まると Quarto がタイトル後に &nbsp; を残し空行になるため除去する
+        while (title.nextSibling && title.nextSibling.nodeType === Node.TEXT_NODE
+               && title.nextSibling.textContent.trim() === "") {
+            title.nextSibling.remove();
+        }
+        if (!title.nextSibling) {
+            title.parentElement.style.marginBottom = "0";
+        }
+    });
+ </script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "コピーしました");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "コピーしました");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/ryonakagami\.github\.io\/regmonkey-datascience-blog");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<script src="https://utteranc.es/client.js" repo="RyoNakagami/regmonkey-datascience-blog" issue-term="title" theme="github-light" crossorigin="anonymous" async="">
+</script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+      &nbsp;
+    </div>   
+    <div class="nav-footer-center">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+ © Copyright RyoNak
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="../../LICENSE">
+<p>License</p>
+</a>
+  </li>  
+</ul>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>問題を報告</a></li></ul></div></div>
+    <div class="nav-footer-right">
+      &nbsp;
+    </div>
+  </div>
+</footer>
+    <script type="text/javascript">
+    (function(d) {
+      d.querySelectorAll(".pseudocode-container").forEach(function(el) {
+        let pseudocodeOptions = {
+          indentSize: el.dataset.indentSize || "1.2em",
+          commentDelimiter: el.dataset.commentDelimiter || "//",
+          lineNumber: el.dataset.lineNumber === "true" ? true : false,
+          lineNumberPunc: el.dataset.lineNumberPunc || ":",
+          noEnd: el.dataset.noEnd === "true" ? true : false,
+          titlePrefix: el.dataset.captionPrefix || "Algorithm"
+        };
+        pseudocode.renderElement(el.querySelector(".pseudocode"), pseudocodeOptions);
+      });
+    })(document);
+    (function(d) {
+      d.querySelectorAll(".pseudocode-container").forEach(function(el) {
+        let captionSpan = el.querySelector(".ps-root > .ps-algorithm > .ps-line > .ps-keyword")
+        if (captionSpan !== null) {
+          let captionPrefix = el.dataset.captionPrefix + " ";
+          let captionNumber = "";
+          if (el.dataset.pseudocodeNumber) {
+            captionNumber = el.dataset.pseudocodeNumber + " ";
+            if (el.dataset.chapterLevel) {
+              captionNumber = el.dataset.chapterLevel + "." + captionNumber;
+            }
+          }
+          captionSpan.innerHTML = captionPrefix + captionNumber;
+        }
+      });
+    })(document);
+    </script>
+  
+
+
+
+
+</body></html>
