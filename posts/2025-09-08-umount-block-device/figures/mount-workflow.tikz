@@ -1,0 +1,40 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+  auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.5cm, minimum width=3.6cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    step/.style={font=\footnotesize\bfseries, text=azureblue},
+    cmd/.style={font=\scriptsize\ttfamily, text=darkgray, align=left, anchor=north},
+    wire/.style={->, draw=navy},
+  ]
+  % one column per step: Step label / block (what happens + resulting object) / commands
+  \node[block] (s1) {ハードディスクを接続\\{\footnotesize\ttfamily /dev/sdb}};
+  \node[block, right=1.2cm of s1] (s2) {デバイスファイルの確認};
+  \node[block, right=1.2cm of s2] (s3) {パーティション作成\\{\footnotesize\ttfamily /dev/sdb1, /dev/sdb2}};
+  \node[block, right=1.2cm of s3] (s4) {ファイルシステム作成\\{\footnotesize ext4 / xfs}};
+  \node[accent, right=1.2cm of s4] (s5) {マウント\\{\footnotesize\ttfamily /mnt/data}};
+
+  \foreach \n/\s in {s1/Step 1, s2/Step 2, s3/Step 3, s4/Step 4, s5/Step 5} {
+    \node[step, above=2mm of \n] {\s};
+  }
+  \foreach \a/\b in {s1/s2, s2/s3, s3/s4, s4/s5} {
+    \draw[wire] (\a) -- (\b);
+  }
+
+  \node[cmd] at ([yshift=-1mm]s1.south) {sudo dmesg -w\\journalctl -k -f};
+  \node[cmd] at ([yshift=-1mm]s2.south) {lsblk\\ls -l /dev/sd*\\sudo fdisk -l};
+  \node[cmd] at ([yshift=-1mm]s3.south) {sudo parted /dev/sdb\\sudo fdisk /dev/sdb};
+  \node[cmd] at ([yshift=-1mm]s4.south) {sudo mkfs.ext4 /dev/sdb1\\sudo mkfs.xfs /dev/sdb2\\lsblk -{}-fs};
+  \node[cmd] at ([yshift=-1mm]s5.south) {sudo mount /dev/sdb1 /mnt/data\\findmnt /mnt/data};
+\end{tikzpicture}

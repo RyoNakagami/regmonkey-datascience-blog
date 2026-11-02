@@ -1,0 +1,40 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+  auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.5cm, minimum width=3.3cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    ng/.style={block, draw=crimsonred, fill=mistyrose},
+    step/.style={font=\footnotesize\bfseries, text=azureblue},
+    cmd/.style={font=\footnotesize\ttfamily, text=darkgray},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    wire/.style={->, draw=navy},
+  ]
+  \node[block] (check) at (0,0) {マウント先を確認\\{\footnotesize\ttfamily findmnt / lsblk}};
+  \node[accent] (umount) at (4.6,0) {アンマウント\\{\footnotesize\ttfamily umount /mnt/usb}};
+  \node[block] (power) at (9.2,0) {電源を切る\\{\footnotesize\ttfamily udisksctl power-off}};
+  \node[block] (remove) at (13.8,0) {物理的に取り外す};
+  \node[ng] (busy) at (4.6,-3.0) {target is busy\\{\footnotesize 使用中のプロセスを}\\{\footnotesize 特定して終了する}};
+
+  \node[step, above=1mm of check] {1};
+  \node[step, above=1mm of umount] {2};
+  \node[step, above=1mm of power] {3};
+  \node[step, above=1mm of remove] {4};
+
+  \draw[wire] (check) -- (umount);
+  \draw[wire] (umount) -- node[sig] {成功} (power);
+  \draw[wire] (power) -- (remove);
+  \draw[wire, draw=crimsonred] ([xshift=-6mm]umount.south) -- node[sig, swap] {失敗} ([xshift=-6mm]busy.north);
+  \draw[wire] ([xshift=6mm]busy.north) -- node[sig, swap] {再実行} ([xshift=6mm]umount.south);
+  \node[cmd, right=4mm of busy, align=left] {fuser -vm /mnt/usb\\lsof +f -{}- /mnt/usb};
+\end{tikzpicture}

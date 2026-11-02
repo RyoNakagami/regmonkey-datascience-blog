@@ -1,0 +1,57 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    ext/.style={draw=darkgray, dashed, fill=white, rounded corners=3pt,
+                align=center, inner sep=5pt, minimum height=1.0cm, minimum width=3.4cm},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south, font=\bfseries, text=navy},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    wire/.style={->, draw=navy},
+  ]
+  % --- data sources (physical location) ---
+  \node[ext] (s3) at (0,1.5) {S3\\[-1pt]{\footnotesize\texttt{s3:project-raw}}};
+  \node[ext] (gd) at (0,0) {Google Drive\\[-1pt]{\footnotesize\texttt{gdrive:project-raw}}};
+  \node[ext] (nas) at (0,-1.5) {NAS\\[-1pt]{\footnotesize\texttt{nas:/export/raw}}};
+
+  % --- host-side mount point ---
+  \node[block, minimum width=3.0cm] (mnt) at (6.0,0) {\texttt{/mnt/hdd/raw}};
+  \node[note, below=2mm of mnt] {置き場所・マシンごとに\\変わってよい};
+
+  % --- fixed path seen by analysis code ---
+  \node[accent, minimum width=3.0cm] (data) at (13.4,0) {\texttt{/data/raw}};
+  \node[note, below=2mm of data] {分析コードが読む\\唯一のパス};
+
+  \node[block, minimum width=3.0cm] (code) at (17.6,0) {分析コード};
+  \node[note, below=2mm of code] {\texttt{DATA\_DIR = "/data/raw"}};
+
+  % --- wires ---
+  \draw[wire] (s3.east) -- (mnt.west) node[pos=0.45, above, sloped, sig] {rclone mount};
+  \draw[wire] (gd.east) -- (mnt.west) node[pos=0.45, above, sig] {rclone mount};
+  \draw[wire] (nas.east) -- (mnt.west) node[pos=0.45, below, sloped, sig] {mount -t nfs};
+  \draw[wire] (mnt) -- (data) node[midway, above, sig] {\texttt{mount -o bind,ro}};
+  \draw[wire] (data) -- (code) node[midway, above, sig] {read};
+
+  % --- zones ---
+  \coordinate (ztop) at (0,2.3);
+  \coordinate (zbot) at (0,-2.3);
+  \begin{scope}[on background layer]
+    \node[zone, fit=(s3)(nas)(mnt)(s3 |- ztop)(s3 |- zbot)] (zenv) {};
+    \node[zone, fit=(data)(code)(data |- ztop)(data |- zbot)] (zfix) {};
+  \end{scope}
+  \node[zlabel] at (zenv.north) {環境ごとに変わる：データの実体};
+  \node[zlabel] at (zfix.north) {常に同じ：分析コードとの約束};
+\end{tikzpicture}

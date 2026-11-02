@@ -1,0 +1,54 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+  auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=0.9cm, minimum width=2.0cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    hidden/.style={draw=darkgray, dashed, fill=lightgray, rounded corners=3pt,
+                   align=center, inner sep=5pt, minimum height=0.9cm, text=darkgray},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south, font=\bfseries, text=navy},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    wire/.style={->, draw=navy},
+    link/.style={draw=navy},
+  ]
+  % --- system file hierarchy rooted at / ---
+  \node[block] (root) at (0,0) {/};
+  \node[block] (etc) at (-2.6,-1.7) {etc/};
+  \node[block] (home) at (0,-1.7) {home/};
+  \node[block] (mnt) at (2.6,-1.7) {mnt/};
+  \node[block] (fstab) at (-2.6,-3.4) {fstab};
+  \node[block] (user) at (0,-3.4) {ryo/};
+  \node[accent] (usb) at (2.6,-3.4) {usb/\\{\footnotesize マウントポイント}};
+  \node[hidden] (old) at (2.6,-5.1) {元の中身\\{\footnotesize マウント中は見えない}};
+  \foreach \p/\c in {root/etc, root/home, root/mnt, etc/fstab, home/user, mnt/usb} {
+    \draw[link] (\p.south) -- (\c.north);
+  }
+  \draw[darkgray, dashed] (usb.south) -- (old.north);
+  \node[zone, fit=(etc)(root)(mnt)(old)] (sys) {};
+  \node[zlabel] at (sys.north) {ファイル階層（ルート /）};
+
+  % --- filesystem on the block device ---
+  \node[accent] (fsroot) at (10.2,-1.7) {/dev/sdb1 の\\ファイルシステムのルート};
+  \node[block] (photos) at (8.9,-3.4) {photos/};
+  \node[block] (docs) at (11.5,-3.4) {docs/};
+  \draw[link] (fsroot.south) -- (photos.north);
+  \draw[link] (fsroot.south) -- (docs.north);
+  \node[zone, fit=(fsroot)(photos)(docs)] (dev) {};
+  \node[zlabel] at (dev.north) {USB メモリ /dev/sdb1（ext4）};
+
+  % --- mount operation ---
+  \draw[wire, azureblue, line width=1.2pt] (dev.west |- usb) -- (usb.east)
+    node[midway, above, font=\footnotesize\ttfamily, text=azureblue] {mount /dev/sdb1 /mnt/usb};
+  \node[note] at (10.2,-5.1) {マウント後は /mnt/usb/photos，/mnt/usb/docs\\としてアクセスできる};
+\end{tikzpicture}

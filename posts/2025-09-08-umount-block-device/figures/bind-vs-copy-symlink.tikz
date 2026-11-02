@@ -1,0 +1,63 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=0.9cm, minimum width=2.8cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south, font=\bfseries, text=navy},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    wire/.style={->, draw=navy},
+    link/.style={->, draw=darkgray, dashed},
+  ]
+  \def\pth#1{{\footnotesize\texttt{#1}}}
+
+  % --- copy: two independent entities ---
+  \node[block] (cs) at (-1.8,0) {\pth{/srv/data}};
+  \node[block] (ch) at (1.8,0) {\pth{/home/ryo/data}};
+  \node[accent] (cd1) at (-1.8,-2.2) {実データ};
+  \node[accent] (cd2) at (1.8,-2.2) {実データの複製};
+  \draw[wire] (cs) -- (cd1);
+  \draw[wire] (ch) -- (cd2);
+  \draw[link] (cd1) -- (cd2);
+  \node[note] (cn) at (0,-3.15) {実体が2つになる．\\一方の変更はもう一方に反映されない};
+
+  % --- symlink: link points to the other path ---
+  \node[block] (ss) at (6.0,0) {\pth{/srv/data}};
+  \node[block, fill=white, draw=darkgray, dashed] (sh) at (9.2,0) {\pth{/home/ryo/data}};
+  \node[accent] (sd) at (6.0,-2.2) {実データ};
+  \draw[wire] (ss) -- (sd);
+  \draw[link] (sh.north) to[bend right=35] node[midway, above, sig] {パスを参照} (ss.north);
+  \node[note] (sn) at (7.6,-3.15) {リンクは別のファイル．\\元のパスが消えるとリンクが切れる};
+
+  % --- bind: two equal entrances to the same entity ---
+  \node[block] (bs) at (13.6,0) {\pth{/srv/data}};
+  \node[block] (bh) at (16.8,0) {\pth{/home/ryo/data}};
+  \node[accent] (bd) at (15.2,-2.2) {実データ};
+  \draw[wire] (bs) -- (bd);
+  \draw[wire] (bh) -- (bd);
+  \node[note] (bn) at (15.2,-3.15) {2つのパスは対等な入口．\\\pth{/srv/data} を先に umount してもよい};
+
+  % --- zones ---
+  \coordinate (ztop) at (0,1.4);
+  \coordinate (zbot) at (0,-3.7);
+  \begin{scope}[on background layer]
+    \node[zone, fit=(cs)(ch)(cs |- ztop)(cs |- zbot)] (zc) {};
+    \node[zone, fit=(ss)(sh)(ss |- ztop)(ss |- zbot)] (zs) {};
+    \node[zone, fit=(bs)(bh)(bs |- ztop)(bs |- zbot)] (zb) {};
+  \end{scope}
+  \node[zlabel] at (zc.north) {コピー（\texttt{cp -r}）};
+  \node[zlabel] at (zs.north) {シンボリックリンク（\texttt{ln -s}）};
+  \node[zlabel] at (zb.north) {bind マウント（\texttt{mount --bind}）};
+\end{tikzpicture}
