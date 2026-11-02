@@ -1,0 +1,1743 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="ja" xml:lang="ja"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.20">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Ryo Nakagami">
+<meta name="dcterms.date" content="2025-09-08">
+
+<title>ファイルシステムの mount と umount – regmonkey datascience blog</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<link href="../../img/favicon.ico" rel="icon">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-29e00c98bbba659d91ab3844292f79dc.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark-86fc916b84669629367aabb2a24c5117.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-29e00c98bbba659d91ab3844292f79dc.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-57d445943f4d0de142fd7a618c64f0ad.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark-14570065716747922adca04f36bcf16c.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../site_libs/bootstrap/bootstrap-57d445943f4d0de142fd7a618c64f0ad.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script src="../../site_libs/quarto-contrib/pseudocode-2.4.1/pseudocode.min.js"></script>
+<link href="../../site_libs/quarto-contrib/pseudocode-2.4.1/pseudocode.min.css" rel="stylesheet">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "一致なし",
+    "search-matching-documents-text": "一致した文書",
+    "search-copy-link-title": "検索へのリンクをコピー",
+    "search-hide-matches-text": "追加の検索結果を非表示",
+    "search-more-match-text": "追加の検索結果",
+    "search-more-matches-text": "追加の検索結果",
+    "search-clear-button-title": "消去",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "取消",
+    "search-submit-button-title": "検索",
+    "search-label": "サーチ"
+  }
+}</script>
+<script async="" src="https://www.googletagmanager.com/gtag/js?id=G-EX9H7GRLTH"></script>
+
+<script type="text/javascript">
+
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
+</script>
+<style>
+
+      .quarto-title-block .quarto-title-banner h1,
+      .quarto-title-block .quarto-title-banner h2,
+      .quarto-title-block .quarto-title-banner h3,
+      .quarto-title-block .quarto-title-banner h4,
+      .quarto-title-block .quarto-title-banner h5,
+      .quarto-title-block .quarto-title-banner h6
+      {
+        color: #ffffff;
+      }
+
+      .quarto-title-block .quarto-title-banner {
+        color: #ffffff;
+      }
+</style>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-M27Z2BWG');</script>
+    <!-- End Google Tag Manager -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&amp;display=swap" rel="stylesheet">
+<script>
+    MathJax = {
+        tex: {
+            inlineMath: [['$','$'], ['\\(','\\)']],
+            displayMath: [['$$','$$'], ['\\[','\\]']],
+            processEscapes: true,
+            processEnvironments: true,
+            tags: 'all',
+        }
+    }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml-full.js" integrity="sha256-kbAFUDxdHwlYv01zraGjvjNZayxKtdoiJ38bDTFJtaQ=" crossorigin="anonymous">
+</script>
+<link rel="stylesheet" href="../../js/regmonkey_glossary_generator/regmonkey_glossary_generator.css">
+<script type="text/javascript" src="../../js/regmonkey_glossary_generator/regmonkey_glossary_generator.js"></script>
+
+
+<link rel="stylesheet" href="../../styles.css">
+<meta property="og:title" content="ファイルシステムの mount と umount – regmonkey datascience blog">
+<meta property="og:description" content="日々の徒然勉強日記">
+<meta property="og:image" content="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-09-08-umount-block-device/figures/mount-tree.svg">
+<meta property="og:site_name" content="regmonkey datascience blog">
+</head>
+
+<body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top quarto-banner">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">Home</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="サーチ"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="ナビゲーションを切り替える" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-bi-book" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+      <i class="bi bi-book" role="img">
+</i> 
+ <span class="menu-text"></span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-bi-book">    
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/statistics-for-regression-monkey/">
+ <span class="dropdown-text">Statistics Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/python-statisticalpackage-techniques/">
+ <span class="dropdown-text">Python package building Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/regmonkey_datavisualization/">
+ <span class="dropdown-text">Data Visualization Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/regmonkey-presentation/">
+ <span class="dropdown-text">Presentation Blog</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../link_list/link_table.html"> 
+<span class="menu-text">便利リンク集</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../dictionary/dict.html"> 
+<span class="menu-text">備忘録</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../FAQ/faq.html"> 
+<span class="menu-text">FAQ</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../about.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/RyoNakagami/regmonkey-datascience-blog"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="../../index.xml"> <i class="bi bi-rss" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="ダークモードの切り替え"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">ファイルシステムの mount と umount</h1>
+                                <div class="quarto-categories">
+                <div class="quarto-category">Linux</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      <div>
+      <div class="quarto-title-meta-heading">作者</div>
+      <div class="quarto-title-meta-contents">
+               <p>Ryo Nakagami </p>
+            </div>
+    </div>
+      
+      <div>
+      <div class="quarto-title-meta-heading">公開</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">2025-09-08</p>
+      </div>
+    </div>
+    
+      <div>
+      <div class="quarto-title-meta-heading">更新日</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date-modified">2026-11-02</p>
+      </div>
+    </div>
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">目次</h2>
+   
+  <ul>
+  <li><a href="#mount-とは" id="toc-mount-とは" class="nav-link active" data-scroll-target="#mount-とは">mount とは</a></li>
+  <li><a href="#マウントまでの流れ" id="toc-マウントまでの流れ" class="nav-link" data-scroll-target="#マウントまでの流れ">マウントまでの流れ</a></li>
+  <li><a href="#デバイスの指定方法" id="toc-デバイスの指定方法" class="nav-link" data-scroll-target="#デバイスの指定方法">デバイスの指定方法</a></li>
+  <li><a href="#マウント状況の確認" id="toc-マウント状況の確認" class="nav-link" data-scroll-target="#マウント状況の確認">マウント状況の確認</a></li>
+  <li><a href="#etcfstab-と-mount--a" id="toc-etcfstab-と-mount--a" class="nav-link" data-scroll-target="#etcfstab-と-mount--a"><code>/etc/fstab</code> と <code>mount -a</code></a></li>
+  <li><a href="#マウントオプション" id="toc-マウントオプション" class="nav-link" data-scroll-target="#マウントオプション">マウントオプション</a></li>
+  <li><a href="#bind-マウントと-move" id="toc-bind-マウントと-move" class="nav-link" data-scroll-target="#bind-マウントと-move">bind マウントと move</a></li>
+  <li><a href="#umountブロックデバイスを安全に取り外す" id="toc-umountブロックデバイスを安全に取り外す" class="nav-link" data-scroll-target="#umountブロックデバイスを安全に取り外す">umount：ブロックデバイスを安全に取り外す</a></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
+  <li><a href="#用語集" id="toc-用語集" class="nav-link" data-scroll-target="#用語集">📘 用語集</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>問題を報告</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content">
+
+
+
+
+
+
+<section id="mount-とは" class="level2">
+<h2 class="anchored" data-anchor-id="mount-とは">mount とは</h2>
+<p>マウントとは, ハードディスクやUSBメモリなどドライブを利用するための仕組みです. Linuxでは，外部ストーレージハードディスクやUSBメモリを指してもすぐに，<code>/usb</code> のような場所が使えるわけではありません． 「<strong>ブロックデバイス上のファイルシステムを，ディレクトリに結びつける</strong>」という<code>mount</code>コマンドの実行を通して初めて利用できるようになります．</p>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title"><code>mount</code> コマンド</span></p>
+<ul>
+<li><code>mount</code>：デバイス上のファイルシステムを，ファイル階層の指定したディレクトリ（<strong>マウントポイント</strong>）に接続する</li>
+<li>既定では root 権限が必要</li>
+</ul>
+<p><span class="mini-section">syntax</span></p>
+<div class="padding-left-10">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">mount</span> <span class="at">-t</span> <span class="op">&lt;</span>type<span class="op">&gt;</span> <span class="op">&lt;</span>device<span class="op">&gt;</span> <span class="op">&lt;</span>dir<span class="op">&gt;</span><span class="kw">`</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> mount <span class="at">-t</span> ext4 /dev/sdb1 /mnt/usb</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>このコマンドは「<code>/dev/sdb1</code> にある ext4 のファイルシステムを <code>/mnt/usb</code> に接続せよ」とカーネルに指示します． マウント後，パス <code>/mnt/usb</code> は <code>/dev/sdb1</code> のファイルシステムのルートを指すようになります．</p>
+<div id="fig-mount-tree" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-mount-tree-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="./figures/mount-tree.svg" class="img-fluid figure-img" style="width:100.0%">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-mount-tree-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+図&nbsp;1: <code>/dev/sdb1</code> のファイルシステムを <code>/mnt/usb</code> にマウントする
+</figcaption>
+</figure>
+</div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>マウントポイントの元の中身は消えていない
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>マウントポイントのディレクトリに元々ファイルがあった場合，マウント中はその中身と所有者・パーミッションが見えなくなります．</li>
+<li>削除されたわけではなく，アンマウントすれば再び見えるようになります．</li>
+</ul>
+<p>「USB を挿していないのに <code>/mnt/usb</code> に書き込んでしまい，あとでマウントしたらファイルが消えた」ように見えるのはこのためです．</p>
+</div>
+</div>
+<p><span class="mini-section">options</span></p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 35%">
+<col style="width: 40%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>オプション</th>
+<th>意味</th>
+<th>例</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>-a</code>, <code>--all</code></td>
+<td><code>/etc/fstab</code> に書かれたファイルシステムを上から順にすべてマウントする．<code>noauto</code> の行とマウント済みのものは除く</td>
+<td><code>sudo mount -a</code></td>
+</tr>
+<tr class="even">
+<td><code>-r</code>, <code>--read-only</code></td>
+<td>読み取り専用でマウントする．<code>-o ro</code> と同じ</td>
+<td><code>sudo mount -r /dev/sdb1 /mnt/usb</code></td>
+</tr>
+<tr class="odd">
+<td><code>-w</code>, <code>--rw</code></td>
+<td>読み書き可能でマウントする．<code>-o rw</code> と同じ．書き込み禁止のデバイスでも読み取り専用に切り替えず失敗させる</td>
+<td><code>sudo mount -w /dev/sdb1 /mnt/usb</code></td>
+</tr>
+<tr class="even">
+<td><code>-t</code>, <code>--types</code></td>
+<td>ファイルシステムの種類を指定する．省略すると自動判定される．<code>-a</code> と組み合わせると対象を絞れる（<code>no</code> を付けると除外）</td>
+<td><code>sudo mount -t ext4 /dev/sdb1 /mnt/usb</code></td>
+</tr>
+<tr class="odd">
+<td><code>-o</code>, <code>--options</code></td>
+<td>マウントオプションをカンマ区切りで指定する．矛盾するものは後に書いた方が勝つ</td>
+<td><code>sudo mount -o noexec,nosuid /dev/sdb1 /mnt/usb</code></td>
+</tr>
+<tr class="even">
+<td><code>--bind</code></td>
+<td>既存のディレクトリツリーを別の場所にもう一度接続し，2つのパスから同じ内容にアクセスできるようにする</td>
+<td><code>sudo mount --bind /srv/data /home/ryo/data</code></td>
+</tr>
+<tr class="odd">
+<td><code>-f</code>, <code>--fake</code></td>
+<td>マウントのシステムコールだけを行わず，それ以外の処理を実行する．現在では，「このマウントが成功するか」を確かめるドライラン（試し実行）としては意味がない．</td>
+<td><code>sudo mount -f /dev/sdb1 /mnt/usb</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="マウントまでの流れ" class="level2">
+<h2 class="anchored" data-anchor-id="マウントまでの流れ">マウントまでの流れ</h2>
+<p>新しいハードディスクを接続してから使えるようになるまでには，次の5段階があります．</p>
+<div id="fig-mount-workflow" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-mount-workflow-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="./figures/mount-workflow.svg" class="img-fluid figure-img" style="width:100.0%">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-mount-workflow-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+図&nbsp;2: 新しいハードディスクをマウントするまでの流れと関連コマンド
+</figcaption>
+</figure>
+</div>
+<p><span class="mini-section">Step 1: ハードディスクをマシンに接続する</span></p>
+<p>ディスクを接続すると，カーネルがそれを検出し，udev がデバイスファイル（例: <code>/dev/sdb</code>）を作成します． 検出の様子はカーネルログで確認できます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># カーネルログを追いかけながらディスクを接続する</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> dmesg <span class="at">-w</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="co"># または</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="ex">journalctl</span> <span class="at">-k</span> <span class="at">-f</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p><span class="mini-section">Step 2: デバイスファイルが作成されていることを確認する</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lsblk</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ls</span> <span class="at">-l</span> /dev/sd<span class="pp">*</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> fdisk <span class="at">-l</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>容量やモデル名から，接続したディスクがどのデバイスファイルになったかを特定します． この後の手順はディスクの中身を消すので，<strong>ここで対象を取り違えないこと</strong> が最も重要です．</p>
+<p><span class="mini-section">Step 3: パーティションを作成する</span></p>
+<p><code>parted</code>（または <code>fdisk</code>）でパーティションテーブルとパーティションを作ります． 以下は GPT でディスクを半分ずつ2つに分ける例です．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> parted /dev/sdb <span class="at">--script</span> mklabel gpt</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> parted /dev/sdb <span class="at">--script</span> mkpart data1 ext4 0% 50%</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> parted /dev/sdb <span class="at">--script</span> mkpart data2 xfs 50% 100%</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="ex">lsblk</span> /dev/sdb   <span class="co"># /dev/sdb1, /dev/sdb2 ができている</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p><span class="mini-section">Step 4: 各パーティションにファイルシステムを作成する</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> mkfs.ext4 <span class="at">-L</span> data1 /dev/sdb1</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> mkfs.xfs <span class="at">-L</span> data2 /dev/sdb2</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="ex">lsblk</span> <span class="at">--fs</span> /dev/sdb   <span class="co"># FSTYPE・LABEL・UUID が付いている</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>mkfs</code> を実行した時点でファイルシステムの UUID が生成されます． fstab に書くときはこの UUID（または <code>-L</code> で付けた LABEL）を使います．</p>
+<p><span class="mini-section">Step 5: マウントする</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> mount <span class="at">--mkdir</span> /dev/sdb1 /mnt/data</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="ex">findmnt</span> /mnt/data</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<ul>
+<li>起動時に自動でマウントしたい場合は，<code>/etc/fstab</code> に追記します（後述）．</li>
+<li>マウント状況の確認は <code>df -h --total</code> でも可能です</li>
+</ul>
+<div class="callout callout-style-default callout-warning callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">警告</span>Step 3・4 は既存データを消す
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li><code>mklabel</code> はパーティションテーブルを，<code>mkfs</code> はファイルシステムを作り直すため，そのディスク上のデータには実質アクセスできなくなります．</li>
+<li><code>/dev/sda</code> と <code>/dev/sdb</code> を取り違えると OS の入ったディスクを壊すことになるので，実行前に <code>lsblk</code> で必ず確認しましょう．</li>
+</ul>
+</div>
+</div>
+</section>
+<section id="デバイスの指定方法" class="level2">
+<h2 class="anchored" data-anchor-id="デバイスの指定方法">デバイスの指定方法</h2>
+<p>デバイスは通常 <code>/dev/sda1</code> のようなブロックデバイスのファイル名で指定します． NFS の場合は <code>server:/dir</code> のような形式になります．</p>
+<p>ただし <code>/dev/sdX</code> という名前は <strong>不安定</strong> です． ディスクの増設や USB の抜き差しで，前回 <code>/dev/sdb1</code> だったものが次は <code>/dev/sdc1</code> になることがあります． そのため，ファイルシステムやパーティションに付いた識別子（タグ）で指定することが強く推奨されています．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>タグ</th>
+<th>何の識別子か</th>
+<th>特徴</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>LABEL=&lt;label&gt;</code></td>
+<td>ファイルシステム</td>
+<td>人が付ける名前．<code>e2label</code> などで設定する</td>
+</tr>
+<tr class="even">
+<td><code>UUID=&lt;uuid&gt;</code></td>
+<td>ファイルシステム</td>
+<td><code>mkfs</code> 時に生成される．小文字の16進数で書く</td>
+</tr>
+<tr class="odd">
+<td><code>PARTLABEL=&lt;label&gt;</code></td>
+<td>パーティション（GPT）</td>
+<td><code>mkfs</code> や <code>mkswap</code> をし直しても変わらない</td>
+</tr>
+<tr class="even">
+<td><code>PARTUUID=&lt;uuid&gt;</code></td>
+<td>パーティション（GPT）</td>
+<td>同上</td>
+</tr>
+<tr class="odd">
+<td><code>ID=&lt;id&gt;</code></td>
+<td>ハードウェア</td>
+<td>udev が生成する．定義が曖昧なので一般用途には非推奨</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>各デバイスのファイルシステム・LABEL・UUID は <code>lsblk --fs</code> で一覧でき，特定のデバイスの詳細は <code>blkid -p &lt;device&gt;</code> で確認できます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 一覧</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="ex">lsblk</span> <span class="at">--fs</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="co"># UUID を指定してマウント</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> mount UUID=0a1b2c3d-1234-5678-9abc-def012345678 /mnt/usb</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="co"># LABEL を指定してマウント（-L / -U でも同じ）</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> mount LABEL=mydisk /mnt/usb</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="callout callout-style-default callout-warning callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">警告</span>UUID が本当に一意とは限らない
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li><code>dd</code> でディスクを丸ごとコピーした場合など，同じ UUID を持つファイルシステムが複数できることがあります．</li>
+<li><code>lsblk -o +UUID,PARTUUID</code> で重複がないか確認しておきましょう．</li>
+</ul>
+</div>
+</div>
+</section>
+<section id="マウント状況の確認" class="level2">
+<h2 class="anchored" data-anchor-id="マウント状況の確認">マウント状況の確認</h2>
+<p>引数なしの <code>mount</code> でもマウント一覧は表示されますが，この表示は後方互換のために残されているだけです． スクリプトで使う場合も含め，<code>findmnt</code> を使うのが推奨されています．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># ツリー形式で全マウントを表示</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="ex">findmnt</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="co"># 特定のマウントポイントを調べる</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="ex">findmnt</span> /mnt/usb</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a><span class="co"># VFS レベルのオプションとファイルシステムレベルのオプションを分けて表示</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a><span class="ex">findmnt</span> <span class="at">-o</span> TARGET,SOURCE,FSTYPE,VFS-OPTIONS,FS-OPTIONS</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>かつては <code>mount</code> / <code>umount</code> がマウント一覧を <code>/etc/mtab</code> というファイルに書き込んで管理していました． 現在の Linux では，名前空間やコンテナと整合が取れないためこの仕組みは無効化されており，<code>/etc/mtab</code> はカーネルが提供する <code>/proc/mounts</code>（環境によっては <code>/proc/self/mounts</code>）へのシンボリックリンクになっています．</p>
+<p><span class="mini-section"><code>/proc/self/mounts</code> を直接読む</span></p>
+<p>カーネルが管理しているマウント一覧そのものは，<code>/proc/self/mounts</code> を <code>cat</code> すれば確認できます． 書式は fstab と同じ6フィールド（デバイス・マウントポイント・種類・オプション・dump・pass）で，dump と pass は常に <code>0</code> です．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> cat /proc/self/mounts</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="ex">sysfs</span> /sys sysfs rw,nosuid,nodev,noexec,relatime 0 0</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="ex">proc</span> /proc proc rw,nosuid,nodev,noexec,relatime 0 0</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="ex">udev</span> /dev devtmpfs rw,nosuid,relatime,size=31840668k,nr_inodes=7960167,mode=755,inode64 0 0</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="ex">...</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>/proc/self</code> は「このファイルを読んでいるプロセス自身」の <code>/proc/&lt;PID&gt;</code> を指すシンボリックリンクです． マウントの一覧はマウント名前空間ごとに異なるため，カーネルは「どのプロセスから見たマウント一覧か」を <code>/proc/&lt;PID&gt;/mounts</code> として提供しています． <code>/proc/mounts</code> は <code>self/mounts</code> へのシンボリックリンクで，読んだプロセス自身から見たマウント一覧になります．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> ls <span class="at">-l</span> /proc/mounts /etc/mtab</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="ex">lrwxrwxrwx</span> 1 root root 19 Jul 15  2023 /etc/mtab <span class="at">-</span><span class="op">&gt;</span> ../proc/self/mounts</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="ex">lrwxrwxrwx</span> 1 root root 11 Nov  2 09:43 /proc/mounts <span class="at">-</span><span class="op">&gt;</span> self/mounts</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>したがって <code>cat /proc/mounts</code>・<code>cat /etc/mtab</code>・<code>cat /proc/self/mounts</code> はどれも同じ内容を表示します． コンテナの中で実行すれば，ホストではなくコンテナのマウント名前空間の一覧が表示されます． なお，マウント ID や親子関係・propagation などの詳しい情報は <code>/proc/self/mountinfo</code> にあり，<code>findmnt</code> はこちらを読んでいます．</p>
+</section>
+<section id="etcfstab-と-mount--a" class="level2">
+<h2 class="anchored" data-anchor-id="etcfstab-と-mount--a"><code>/etc/fstab</code> と <code>mount -a</code></h2>
+<p>起動時に何をどこへマウントするかは <code>/etc/fstab</code> に書きます． 1行が1つのマウントに対応し，空白区切りで6つのフィールドを持ちます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode default code-with-copy"><code class="sourceCode default"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a># &lt;source&gt;                                 &lt;target&gt;   &lt;type&gt; &lt;options&gt;          &lt;dump&gt; &lt;pass&gt;</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>UUID=0a1b2c3d-1234-5678-9abc-def012345678  /data      ext4   defaults,noatime   0      2</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>LABEL=backup                               /backup    ext4   defaults,nofail    0      2</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>server:/export                             /mnt/nfs   nfs    defaults,_netdev   0      0</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 13%">
+<col style="width: 17%">
+<col style="width: 45%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>フィールド</th>
+<th><code>fstab(5)</code> での名前</th>
+<th>意味</th>
+<th>例</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>&lt;source&gt;</code></td>
+<td><code>fs_spec</code></td>
+<td>マウントするデバイスやリモートのファイルシステム．<code>UUID=</code>・<code>LABEL=</code> などのタグ，デバイスファイルのパス，NFS なら <code>server:/dir</code> で書く</td>
+<td><code>UUID=0a1b...</code>, <code>/dev/sdb1</code>, <code>server:/export</code></td>
+</tr>
+<tr class="even">
+<td><code>&lt;target&gt;</code></td>
+<td><code>fs_file</code></td>
+<td>マウントポイント．スワップ領域のようにマウントポイントを持たないものは <code>none</code> と書く</td>
+<td><code>/data</code>, <code>none</code></td>
+</tr>
+<tr class="odd">
+<td><code>&lt;type&gt;</code></td>
+<td><code>fs_vfstype</code></td>
+<td>ファイルシステムの種類．<code>auto</code> にすると自動判定，bind マウントでは <code>none</code> を使う</td>
+<td><code>ext4</code>, <code>xfs</code>, <code>nfs</code>, <code>swap</code></td>
+</tr>
+<tr class="even">
+<td><code>&lt;options&gt;</code></td>
+<td><code>fs_mntops</code></td>
+<td>マウントオプションをカンマ区切りで書く（後述）．特に指定がなければ <code>defaults</code></td>
+<td><code>defaults,noatime</code></td>
+</tr>
+<tr class="odd">
+<td><code>&lt;dump&gt;</code></td>
+<td><code>fs_freq</code></td>
+<td><code>dump(8)</code> によるバックアップの対象にするか．<code>0</code> なら対象外．<code>dump</code> はほぼ使われないので通常 <code>0</code></td>
+<td><code>0</code></td>
+</tr>
+<tr class="even">
+<td><code>&lt;pass&gt;</code></td>
+<td><code>fs_passno</code></td>
+<td>起動時に <code>fsck</code> でチェック(ファイルシステム整合性確認)する順番．ルートファイルシステムは <code>1</code>，それ以外は <code>2</code>，<code>0</code> ならチェックしない．同じ番号のものは並列にチェックされる</td>
+<td><code>1</code>, <code>2</code>, <code>0</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<ul>
+<li><code>&lt;dump&gt;</code> と <code>&lt;pass&gt;</code> は省略でき，省略すると <code>0</code> として扱われます．</li>
+<li><code>/etc/fstab</code> では <code>/dev/disk/by-uuid/...</code> のような udev のシンボリックリンクより，<code>UUID=...</code> のようなタグで書く方が読みやすく移植性も高いとされています．</li>
+</ul>
+<p><span class="mini-section"><code>mount -a</code></span></p>
+<p><code>mount -a</code> は fstab に書かれたファイルシステムを上から順にすべてマウントします（<code>noauto</code> が付いた行は除く）． すでにマウント済みのものはスキップされます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># fstab の全エントリをマウント</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> mount <span class="at">-a</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="co"># ext4 だけ</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> mount <span class="at">-a</span> <span class="at">-t</span> ext4</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a><span class="co"># _netdev が付いていないものだけ</span></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> mount <span class="at">-a</span> <span class="at">-O</span> no_netdev</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="callout callout-style-default callout-warning callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">警告</span>fstab の書式チェックに <code>mount -a</code> を使わない
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>fstab を編集したあと <code>mount -a</code> で確認するのはよくある方法ですが，man ページでは悪い習慣とされています． 書式や参照先の検証には <code>findmnt --verify</code> を使います． fstab の記述ミスは次回起動時の失敗につながるため，再起動前に必ず確認しておきましょう．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> findmnt <span class="at">--verify</span> <span class="at">--verbose</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</div>
+<p><span class="mini-section">一般ユーザーにマウントを許可する</span></p>
+<p>通常マウントできるのは root だけですが，fstab のオプションに <code>user</code> を付けると一般ユーザーも <code>mount &lt;dir&gt;</code> でマウントできます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="sourceCode default code-with-copy"><code class="sourceCode default"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>/dev/cdrom  /cd  iso9660  ro,user,noauto,unhide  0  0</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>オプション</th>
+<th>マウントできるユーザー</th>
+<th>アンマウントできるユーザー</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>user</code></td>
+<td>誰でも</td>
+<td>マウントした本人だけ</td>
+</tr>
+<tr class="even">
+<td><code>users</code></td>
+<td>誰でも</td>
+<td>誰でも</td>
+</tr>
+<tr class="odd">
+<td><code>owner</code></td>
+<td>デバイスファイルの所有者</td>
+<td>同左</td>
+</tr>
+<tr class="even">
+<td><code>group</code></td>
+<td>デバイスファイルのグループのメンバー</td>
+<td>同左</td>
+</tr>
+</tbody>
+</table>
+<p><code>user</code> / <code>users</code> を付けると，安全のため <code>noexec,nosuid,nodev</code> も自動的に有効になります（<code>owner</code> / <code>group</code> は <code>nosuid,nodev</code>）． 実行を許可したい場合は <code>user,exec</code> のように後ろで上書きします．</p>
+</section>
+<section id="マウントオプション" class="level2">
+<h2 class="anchored" data-anchor-id="マウントオプション">マウントオプション</h2>
+<p><code>-o</code> に渡す，または fstab の第4フィールドに書くオプションのうち，ファイルシステムの種類に依存しない主なものをまとめます．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 75%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>オプション</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>defaults</code></td>
+<td><code>rw,suid,dev,exec,auto,nouser,async</code> をまとめて指定する</td>
+</tr>
+<tr class="even">
+<td><code>ro</code> / <code>rw</code></td>
+<td>読み取り専用 / 読み書き可能でマウントする</td>
+</tr>
+<tr class="odd">
+<td><code>noexec</code></td>
+<td>このファイルシステム上のバイナリを直接実行させない</td>
+</tr>
+<tr class="even">
+<td><code>nosuid</code></td>
+<td>set-user-ID / set-group-ID ビットやファイルケーパビリティを無視する</td>
+</tr>
+<tr class="odd">
+<td><code>noatime</code></td>
+<td>読み込み時にアクセス時刻（atime）を更新しない．ディレクトリにも効く</td>
+</tr>
+<tr class="even">
+<td><code>sync</code> / <code>async</code></td>
+<td>I/O を同期 / 非同期で行う．フラッシュメディアで <code>sync</code> を使うと寿命を縮めることがある</td>
+</tr>
+<tr class="odd">
+<td><code>auto</code> / <code>noauto</code></td>
+<td><code>mount -a</code> の対象にする / しない</td>
+</tr>
+<tr class="even">
+<td><code>nofail</code></td>
+<td>デバイスが存在しなくてもエラーにしない．外付けディスクを fstab に書くときに使う</td>
+</tr>
+<tr class="odd">
+<td><code>_netdev</code></td>
+<td>ネットワーク接続が必要なデバイスであることを示し，ネットワークが立ち上がるまでマウントを待たせる</td>
+</tr>
+<tr class="even">
+<td><code>remount</code></td>
+<td>マウント済みのファイルシステムのオプションを変更する．デバイスやマウントポイントは変わらない</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 外付けディスクを，実行・setuid 禁止でマウント</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> mount <span class="at">-o</span> noexec,nosuid,nodev LABEL=mydisk /mnt/usb</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a><span class="co"># マウントポイントのディレクトリがなければ作ってからマウント（util-linux 2.38 以降）</span></span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> mount <span class="at">--mkdir</span> /dev/sdb1 /mnt/usb</span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a><span class="co"># 読み取り専用で再マウントしていたものを書き込み可能に戻す</span></span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> mount <span class="at">-o</span> remount,rw /mnt/usb</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="bind-マウントと-move" class="level2">
+<h2 class="anchored" data-anchor-id="bind-マウントと-move">bind マウントと move</h2>
+<p><span class="mini-section">bind マウント</span></p>
+<p>bind マウントは，ファイル階層の一部を別の場所にもう一度接続する操作です． 実行後は，同じ内容に2つのパスからアクセスできます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> mount <span class="at">--bind</span> /srv/data /home/ryo/data</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>fstab では次のように書きます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18"><pre class="sourceCode default code-with-copy"><code class="sourceCode default"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>/srv/data  /home/ryo/data  none  bind  0  0</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>bind は「コピー」や「シンボリックリンク」とは異なり，ファイルシステムを接続する操作の一種にすぎません． カーネルにはどちらが bind で作られたかという情報は残らず，元の <code>/srv/data</code> を先にアンマウントすることもできます．</p>
+<div id="fig-bind-vs-copy-symlink" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-bind-vs-copy-symlink-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="./figures/bind-vs-copy-symlink.svg" class="img-fluid figure-img" style="width:100.0%">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-bind-vs-copy-symlink-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+図&nbsp;3: コピー・シンボリックリンク・bind マウントの違い
+</figcaption>
+</figure>
+</div>
+<p><code>--bind</code> は1つのファイルシステムだけを接続し，その下にマウントされている別のファイルシステム（サブマウント）は含みません． サブマウントも含めて接続したい場合は <code>--rbind</code> を使います．</p>
+<p><span class="mini-section">読み取り専用の bind マウント</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co"># util-linux 2.27 以降は1行で書ける（内部では2回のシステムコールで，アトミックではない）</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> mount <span class="at">-o</span> bind,ro /srv/data /home/ryo/data</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="co"># 従来の書き方</span></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> mount <span class="at">--bind</span> /srv/data /home/ryo/data</span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> mount <span class="at">-o</span> remount,bind,ro /srv/data /home/ryo/data</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>読み取り専用になるのは新しいマウントポイント（<code>/home/ryo/data</code>）だけで，元の <code>/srv/data</code> からは引き続き書き込めます． また，<code>-o rbind,ro</code> としてもサブマウントまでは読み取り専用になりません． util-linux 2.39 以降では実験的機能として <code>-o rbind,ro=recursive</code> が使えます．</p>
+<p><span class="mini-section">サブツリーのマウント</span></p>
+<p>bind マウントの接続元は，マウントポイントそのものである必要はありません． ファイルシステムの途中のディレクトリ（サブツリー）だけを，別の場所に接続できます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="co"># HDD 全体を /mnt/hdd にマウントし，その中の raw/ だけを /data/raw に接続する</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> mount /dev/sda1 /mnt/hdd</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> mount <span class="at">--bind</span> /mnt/hdd/raw /data/raw</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>/data/raw</code> からは <code>/mnt/hdd/raw</code> の中身だけが見え，HDD 上のほかのディレクトリは見えません．</p>
+<p><code>--bind</code> を付けずに <code>mount</code> すると，第1引数はデバイスとして解釈されます． <code>/mnt/hdd/raw</code> はただのディレクトリなので，次のエラーになります．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21"><pre class="sourceCode default code-with-copy"><code class="sourceCode default"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>mount: /data/raw: /mnt/hdd/raw is not a block device.</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Exmaple 1</strong></span> <span class="def-title">データ分析プロジェクトとサブツリーマウント</span></p>
+<p>データ分析プロジェクトでは，「データが物理的にどこに置かれているか」と「プログラムが参照するパス」を分離しておくことが重要です． たとえば，実体のデータがクラウドストレージ上にあり，<code>rclone mount</code> で HDD 上のディレクトリにマウントしているとします．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb22"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="ex">rclone</span> mount s3:project-raw /mnt/hdd/raw <span class="at">--daemon</span> <span class="at">--read-only</span> <span class="at">--allow-other</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>このとき <code>/mnt/hdd/raw</code> は，S3 上のデータを見せる FUSE の仮想ファイルシステムになります． 分析コードにとって必要なのは「データが読めること」だけで，それが S3 にあるかどうかは関係ありません． そこで，分析コードが読むパスを <code>/data/raw</code> に固定し，bind マウントで実体とつなぎます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb23"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> mount <span class="at">-o</span> bind,ro /mnt/hdd/raw /data/raw</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="fig-bind-data-separation" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-bind-data-separation-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="./figures/bind-data-separation.svg" class="img-fluid figure-img" style="width:100.0%">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-bind-data-separation-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+図&nbsp;4: bind マウントで，データの実体の置き場所と分析コードが読むパスを分離する
+</figcaption>
+</figure>
+</div>
+<p>この構成にすると，データの実体が S3 / Google Drive / NAS のどこにあっても，<strong>分析コードは常に <code>/data/raw</code> を読むだけでよい</strong> という<span class="regmonkey-bold">データ配置と分析コードの分離</span>が実現できます．</p>
+<ul>
+<li><strong>置き場所の変更にコードが影響されない</strong>：データを NAS に移したら，<code>/data/raw</code> の接続元を差し替えるだけで済む</li>
+<li><strong>マシン間でパスが揃う</strong>：手元の PC と分析サーバーでマウント元が違っても，コード・設定ファイル・ノートブックに書くパスは同じ</li>
+<li><strong>生データを誤って壊さない</strong>：<code>ro</code> を付けておけば，分析コードのバグで生データを上書き・削除することがない</li>
+</ul>
+<p>接続元の差し替えは，アンマウントしてから bind し直すだけです．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb24"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 実体を S3 から NAS に切り替える</span></span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> umount /data/raw</span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> mount <span class="at">-t</span> nfs nas:/export/raw /mnt/nas/raw</span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> mount <span class="at">-o</span> bind,ro /mnt/nas/raw /data/raw</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span><code>rclone mount</code> には <code>--allow-other</code> が必要
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>FUSE でマウントしたファイルシステムには，既定ではマウントした本人しかアクセスできず，<strong>root でもアクセスできません</strong>．</li>
+<li>そのままでは <code>sudo mount --bind</code> が失敗したり，別ユーザーで動く分析ジョブから読めなかったりするので，<code>--allow-other</code> を付けてマウントしましょう．</li>
+<li>一般ユーザーがこのオプションを使うには，<code>/etc/fuse.conf</code> で <code>user_allow_other</code> を有効にしておく必要があります．</li>
+</ul>
+</div>
+</div>
+</div>
+<hr>
+<p><span class="mini-section">move</span></p>
+<p><code>mount --move</code> は，マウント済みのツリーを別の場所へアトミックに移動します． ファイルの物理的な場所は変わりません．移動元はマウントポイントである必要があります．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb25"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> mount <span class="at">--move</span> /mnt/old /mnt/new</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="umountブロックデバイスを安全に取り外す" class="level2">
+<h2 class="anchored" data-anchor-id="umountブロックデバイスを安全に取り外す">umount：ブロックデバイスを安全に取り外す</h2>
+<p>USB メモリや外付けディスクは，<strong>アンマウントしてから</strong> 取り外します． Linux はディスクへの書き込みをいったんメモリ（ページキャッシュ）に溜めてからまとめて書き出すため， コピーが終わったように見えても，データがまだディスクに届いていないことがあります． <code>umount</code> はこの未書き込みのデータを書き出してからファイルシステムを切り離すので，アンマウントが成功すればデータは安全です．</p>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 2</strong></span> <span class="def-title"><code>umount</code></span></p>
+<ul>
+<li>マウントされているファイルシステムを，ファイル階層から切り離す</li>
+<li>対象は <strong>マウントポイントのディレクトリ</strong> で指定する．デバイス名でも指定できるが非推奨（同じデバイスが複数のディレクトリにマウントされていると失敗するため）</li>
+<li>ファイルを開いているプロセスや，そこをカレントディレクトリにしているプロセスがある（<strong>busy</strong> な）間はアンマウントできない</li>
+<li>既定では root 権限が必要．fstab に <code>user</code> オプションがある場合や，自分がマウントした FUSE ファイルシステムは一般ユーザーでもアンマウントできる</li>
+</ul>
+<p><span class="mini-section">syntax</span></p>
+<div class="padding-left-10">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb26"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="fu">umount</span> <span class="pp">[-</span><span class="ss">dflnrv</span><span class="pp">]</span> {<span class="op">&lt;</span>dir<span class="op">&gt;|&lt;</span>device<span class="op">&gt;</span>}</span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a><span class="fu">umount</span> <span class="at">-a</span> <span class="pp">[-</span><span class="ss">dflnrv</span><span class="pp">]</span> [-t <span class="op">&lt;</span>fstype<span class="op">&gt;</span>] [-O <span class="op">&lt;</span>option<span class="op">&gt;</span>...]</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</div>
+<p><span class="mini-section">options</span></p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 45%">
+<col style="width: 35%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>オプション</th>
+<th>意味</th>
+<th>例</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>-a</code>, <code>--all</code></td>
+<td><code>/proc/self/mountinfo</code> にあるファイルシステムをすべてアンマウントする．<code>proc</code>・<code>sysfs</code>・<code>devpts</code> などは除く</td>
+<td><code>sudo umount -a -t nfs</code></td>
+</tr>
+<tr class="even">
+<td><code>-A</code>, <code>--all-targets</code></td>
+<td>指定したファイルシステムがマウントされているマウントポイントを，現在のマウント名前空間からすべてアンマウントする</td>
+<td><code>sudo umount -A /dev/sdb1</code></td>
+</tr>
+<tr class="odd">
+<td><code>-R</code>, <code>--recursive</code></td>
+<td>指定したディレクトリ以下にネストしたマウントも再帰的にアンマウントする．途中で1つでも失敗するとそこで止まる．マウントポイントでの指定のみ対応</td>
+<td><code>sudo umount -R /mnt/chroot</code></td>
+</tr>
+<tr class="even">
+<td><code>-t</code>, <code>--types</code></td>
+<td>指定した種類のファイルシステムだけを対象にする．リストの先頭に <code>no</code> を付けると，列挙した種類すべてを除外する．種類名はカーネル上の名前（例: <code>nfs4</code>）で，fstab の表記と異なることがある</td>
+<td><code>sudo umount -a -t nonfs,nfs4</code></td>
+</tr>
+<tr class="odd">
+<td><code>-O</code>, <code>--test-opts</code></td>
+<td>fstab で指定したオプションが付いているファイルシステムだけを対象にする（<code>no</code> を付けると除外）</td>
+<td><code>sudo umount -a -O _netdev</code></td>
+</tr>
+<tr class="even">
+<td><code>-l</code>, <code>--lazy</code></td>
+<td>ファイル階層からすぐに切り離し，busy でなくなった時点で後片付けする．応答しないネットワーク共有でシャットダウンが固まるのを防ぐ用途向け</td>
+<td><code>sudo umount -l /mnt/nfs</code></td>
+</tr>
+<tr class="odd">
+<td><code>-f</code>, <code>--force</code></td>
+<td>強制的にアンマウントする（到達できない NFS サーバーなど）．ハングしないことは保証されない</td>
+<td><code>sudo umount -f /mnt/nfs</code></td>
+</tr>
+<tr class="even">
+<td><code>-c</code>, <code>--no-canonicalize</code></td>
+<td>パスの正規化（<code>stat(2)</code> / <code>readlink(2)</code>）を行わない．NFS サーバー停止時のハング回避に使う．正規化済みの絶対パスで指定する</td>
+<td><code>sudo umount -c /mnt/nfs</code></td>
+</tr>
+<tr class="odd">
+<td><code>-r</code>, <code>--read-only</code></td>
+<td>アンマウントに失敗したら，読み取り専用での再マウントを試みる</td>
+<td><code>sudo umount -r /data</code></td>
+</tr>
+<tr class="even">
+<td><code>-d</code>, <code>--detach-loop</code></td>
+<td>ループデバイスだった場合，ループデバイスも解放する．<code>mount</code> が作ったループデバイスは autoclear により自動解放されるので不要</td>
+<td><code>sudo umount -d /mnt/iso</code></td>
+</tr>
+<tr class="odd">
+<td><code>-q</code>, <code>--quiet</code></td>
+<td>「not mounted」のエラーメッセージを表示しない</td>
+<td><code>sudo umount -q /mnt/usb</code></td>
+</tr>
+<tr class="even">
+<td><code>-v</code>, <code>--verbose</code></td>
+<td>詳細を表示する</td>
+<td><code>sudo umount -v /mnt/usb</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="fig-umount-flow" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-umount-flow-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="./figures/umount-flow.svg" class="img-fluid figure-img" style="width:100.0%">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-umount-flow-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+図&nbsp;5: ブロックデバイスを取り外すまでの流れ
+</figcaption>
+</figure>
+</div>
+<p><span class="mini-section">Step 1: マウント先を確認する</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb27"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lsblk</span> <span class="at">--fs</span> /dev/sdb</span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a><span class="ex">findmnt</span> <span class="at">--source</span> /dev/sdb1</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p><span class="mini-section">Step 2: アンマウントする</span></p>
+<p><code>umount</code> にはマウントポイントとデバイスのどちらを渡してもかまいません．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb28"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> umount /mnt/usb</span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a><span class="co"># または</span></span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> umount /dev/sdb1</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p><span class="mini-section">失敗した場合：target is busy</span></p>
+<p>ファイルシステムが <strong>使用中（busy）</strong> だと，アンマウントは失敗します． 次のどれかに当てはまると busy になります．</p>
+<ul>
+<li>ユーザーやプロセスが，そのファイルシステム上のファイルを開いている</li>
+<li>ユーザーのシェルやプロセスが，そのファイルシステム内のディレクトリをカレントディレクトリにしている</li>
+<li>そのファイルシステム上のスワップファイルが使われている</li>
+<li>その下に別のファイルシステムがマウントされている（サブマウント）</li>
+</ul>
+<p>このとき <code>umount</code> を実行すると，次のようなエラーメッセージが表示されます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb29"><pre class="sourceCode default code-with-copy"><code class="sourceCode default"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>umount: /mnt/usb: target is busy.</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>使用中のプロセスを特定して，別のディレクトリへ移動させるか終了させてから再実行します． 自分のシェルが <code>/mnt/usb</code> の中にいるだけ，ということもよくあるので，まず <code>cd ~</code> してから再実行してみましょう．</p>
+<p><span class="mini-section">関連プロセスの探索</span></p>
+<p>使用中のプロセスは <code>fuser</code> か <code>lsof</code> で探せます． どちらも，PID・実行ユーザー・実行コマンドなどを表示します．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb30"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="co"># マウントポイントを使っているプロセスを表示</span></span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> fuser <span class="at">-vm</span> /mnt/usb</span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a><span class="co"># lsof でも確認できる（+f -- を付けると，ファイルシステム全体が対象になる）</span></span>
+<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> lsof +f <span class="at">--</span> /mnt/usb</span>
+<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-7"><a href="#cb30-7" aria-hidden="true" tabindex="-1"></a><span class="co"># 全プロセスの一覧から grep で絞り込む方法もある（遅いが，オプションを覚えなくてよい）</span></span>
+<span id="cb30-8"><a href="#cb30-8" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> lsof <span class="kw">|</span> <span class="fu">grep</span> /mnt/usb</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>fuser -v</code> の出力の <code>ACCESS</code> 列は，<code>c</code> がカレントディレクトリ，<code>f</code> が開いているファイル，<code>e</code> が実行中のバイナリを表します． <code>sudo</code> を付けないと，他のユーザーのプロセスが表示されないことに注意してください．</p>
+<p><span class="mini-section">プロセスを終了させる</span></p>
+<p>内容を確認して，終了させてよいプロセスであれば <code>kill</code> します．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb31"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="co"># まずは SIGTERM（標準）．プロセスに後片付けをさせてから終了させる</span></span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> kill <span class="op">&lt;</span>PID<span class="op">&gt;</span></span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a><span class="co"># SIGTERM で終了しない場合だけ SIGKILL（強制終了）</span></span>
+<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> kill <span class="at">-9</span> <span class="op">&lt;</span>PID<span class="op">&gt;</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>SIGKILL</code> はプロセスに後片付けの機会を与えないため，そのプロセスが書き込み途中だったファイルが壊れることがあります． エディタやコピー中のコマンドなら，<code>kill</code> する前に自分で保存・完了させるのが安全です． プロセスがいなくなれば，<code>umount</code> を実行できるようになります．</p>
+<p><code>lsof</code> や <code>fuser</code> で何も見つからないのに busy のままなら，サブマウントやスワップファイルを疑います．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb32"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="co"># /mnt/usb の下にマウントされているものを表示</span></span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a><span class="ex">findmnt</span> <span class="at">-R</span> /mnt/usb</span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a><span class="co"># 使用中のスワップを表示</span></span>
+<span id="cb32-5"><a href="#cb32-5" aria-hidden="true" tabindex="-1"></a><span class="ex">swapon</span> <span class="at">--show</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="callout callout-style-default callout-warning callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">警告</span><code>umount -l</code>（lazy unmount）で取り外さない
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><code>umount -l</code> はファイルシステムをすぐにファイル階層から切り離し，使用中の参照がなくなった時点で後片付けをします． コマンド自体は成功しますが，裏ではまだファイルシステムが生きていて書き込みが残っている可能性があるため，その直後にデバイスを抜くのは危険です． 取り外す前には，<code>fuser</code> などで使用中のプロセスを確実に終了させてから通常の <code>umount</code> を使いましょう．</p>
+</div>
+</div>
+<p><span class="mini-section">Step 3: デバイスの電源を切る</span></p>
+<p>USB デバイスは，アンマウント後に電源を切ってから抜くとより安全です． デスクトップの「安全に取り外す」ボタンと同じ処理を，<code>udisksctl</code> でコマンドラインから行えます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb33"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="ex">udisksctl</span> power-off <span class="at">-b</span> /dev/sdb</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>パーティション（<code>/dev/sdb1</code>）ではなく，ディスク全体（<code>/dev/sdb</code>）を指定する点に注意してください． 複数のパーティションがマウントされている場合は，すべてアンマウントしてから実行します．</p>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<ul>
+<li><a href="https://man7.org/linux/man-pages/man8/mount.8.html"><code>mount(8)</code> - Linux manual page</a></li>
+<li><a href="https://man7.org/linux/man-pages/man8/umount.8.html"><code>umount(8)</code> - Linux manual page</a></li>
+<li><a href="https://man7.org/linux/man-pages/man5/fstab.5.html"><code>fstab(5)</code> - Linux manual page</a></li>
+<li><a href="https://man7.org/linux/man-pages/man8/findmnt.8.html"><code>findmnt(8)</code> - Linux manual page</a></li>
+<li><a href="https://man7.org/linux/man-pages/man7/mount_namespaces.7.html"><code>mount_namespaces(7)</code> - Linux manual page</a></li>
+</ul>
+</section>
+<section id="用語集" class="level2">
+<h2 class="anchored" data-anchor-id="用語集">📘 用語集</h2>
+<div class="glossary-container">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb34"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="fu">glossary</span><span class="kw">:</span></span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> マウントポイント</span></span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a>      ファイルシステムを接続する先のディレクトリ（例: `/mnt/usb`）．</span>
+<span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a>      マウント中は，そのパスがデバイス上のファイルシステムのルートを指し，</span>
+<span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a>      ディレクトリに元々あった中身は見えなくなる（削除はされず，アンマウントすると再び見える）．</span>
+<span id="cb34-7"><a href="#cb34-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-8"><a href="#cb34-8" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> デバイスファイル</span></span>
+<span id="cb34-9"><a href="#cb34-9" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb34-10"><a href="#cb34-10" aria-hidden="true" tabindex="-1"></a>      ハードウェアやカーネルの機能を，ファイルとして読み書きできるようにした特殊ファイル．`/dev` 以下に置かれる．</span>
+<span id="cb34-11"><a href="#cb34-11" aria-hidden="true" tabindex="-1"></a>      ディスクのようにブロック単位で読み書きするものをブロックデバイス（例: ディスク全体の `/dev/sdb`，そのパーティションの `/dev/sdb1`），</span>
+<span id="cb34-12"><a href="#cb34-12" aria-hidden="true" tabindex="-1"></a>      端末のように1文字ずつ扱うものをキャラクタデバイス（例: `/dev/tty`）と呼ぶ．</span>
+<span id="cb34-13"><a href="#cb34-13" aria-hidden="true" tabindex="-1"></a>      `ls -l` で先頭が `b` ならブロックデバイス，`c` ならキャラクタデバイス．</span>
+<span id="cb34-14"><a href="#cb34-14" aria-hidden="true" tabindex="-1"></a>      現在の Linux では，デバイスが接続されると udev が自動で作成する．</span>
+<span id="cb34-15"><a href="#cb34-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-16"><a href="#cb34-16" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> ブロックデバイス</span></span>
+<span id="cb34-17"><a href="#cb34-17" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb34-18"><a href="#cb34-18" aria-hidden="true" tabindex="-1"></a>      データを固定長のブロック（セクタ）単位で読み書きし，任意の位置へランダムアクセスできるデバイス．</span>
+<span id="cb34-19"><a href="#cb34-19" aria-hidden="true" tabindex="-1"></a>      HDD・SSD・USB メモリなどのディスクや，そのパーティション，ループデバイス（`/dev/loop0`）が該当する．</span>
+<span id="cb34-20"><a href="#cb34-20" aria-hidden="true" tabindex="-1"></a>      カーネルはページキャッシュを介して読み書きするため，書き込んだデータがすぐにはディスクへ届かないことがある．</span>
+<span id="cb34-21"><a href="#cb34-21" aria-hidden="true" tabindex="-1"></a>      ファイルシステムを作成（`mkfs`）してマウントできるのはブロックデバイスで，一覧は `lsblk` で確認できる．</span>
+<span id="cb34-22"><a href="#cb34-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-23"><a href="#cb34-23" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> fsck (file system check)</span></span>
+<span id="cb34-24"><a href="#cb34-24" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb34-25"><a href="#cb34-25" aria-hidden="true" tabindex="-1"></a>      ファイルシステムの整合性を検査し，壊れた箇所を修復するコマンド．</span>
+<span id="cb34-26"><a href="#cb34-26" aria-hidden="true" tabindex="-1"></a>      実体は種類ごとのプログラム（`fsck.ext4`（= `e2fsck`）など）で，`fsck` はそれを呼び出すフロントエンド．</span>
+<span id="cb34-27"><a href="#cb34-27" aria-hidden="true" tabindex="-1"></a>      電源断などで正常にアンマウントされなかったときに，メタデータの不整合を直すために使う．</span>
+<span id="cb34-28"><a href="#cb34-28" aria-hidden="true" tabindex="-1"></a>      起動時には `/etc/fstab` の第6フィールド（`&lt;pass&gt;`）の順に自動実行される（`0` なら実行しない）．</span>
+<span id="cb34-29"><a href="#cb34-29" aria-hidden="true" tabindex="-1"></a>      マウント中のファイルシステムに実行すると壊れるおそれがあるため，必ずアンマウントしてから実行する（例: `sudo fsck /dev/sdb1`）．</span>
+<span id="cb34-30"><a href="#cb34-30" aria-hidden="true" tabindex="-1"></a>      XFS では `fsck.xfs` は何もせず，修復には `xfs_repair` を使う．</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+
+
+</section>
+
+</main> <!-- /main -->
+<script>
+    document.querySelectorAll('.custom_problem .theorem-title').forEach((title) => {
+        let modName = title.innerHTML;
+        modName = modName.replace("Exercise", "Problem");
+        modName = modName.replace("Proposition", "Property");
+        modName = modName.replace("Example", "<strong>&#9654;</strong>&nbsp; Example");
+        title.innerHTML = modName;
+    });
+
+    // Rule: 未使用の Corollary (#cor-, lang: ja では「系」) を Rule として表示する
+    document.querySelectorAll('.custom_rule .theorem-title').forEach((title) => {
+        title.innerHTML = title.innerHTML
+            .replace(/^<strong>(系|Corollary)/, "<strong>Rule")
+            .replace(/\s*\((.*)\)<\/strong>$/, ": $1</strong>");
+        // タイトルの後で改行し，本文を次の行から始める
+        title.style.display = "block";
+        title.style.paddingBottom = "0.5em";
+        title.style.fontSize = "1.1em";
+        // 本文がリスト等で始まると Quarto がタイトル後に &nbsp; を残し空行になるため除去する
+        while (title.nextSibling && title.nextSibling.nodeType === Node.TEXT_NODE
+               && title.nextSibling.textContent.trim() === "") {
+            title.nextSibling.remove();
+        }
+        if (!title.nextSibling) {
+            title.parentElement.style.marginBottom = "0";
+        }
+    });
+ </script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "コピーしました");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "コピーしました");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/ryonakagami\.github\.io\/regmonkey-datascience-blog");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<script src="https://utteranc.es/client.js" repo="RyoNakagami/regmonkey-datascience-blog" issue-term="title" theme="github-light" crossorigin="anonymous" async="">
+</script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+      &nbsp;
+    </div>   
+    <div class="nav-footer-center">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+ © Copyright RyoNak
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="../../LICENSE">
+<p>License</p>
+</a>
+  </li>  
+</ul>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>問題を報告</a></li></ul></div></div>
+    <div class="nav-footer-right">
+      &nbsp;
+    </div>
+  </div>
+</footer>
+    <script type="text/javascript">
+    (function(d) {
+      d.querySelectorAll(".pseudocode-container").forEach(function(el) {
+        let pseudocodeOptions = {
+          indentSize: el.dataset.indentSize || "1.2em",
+          commentDelimiter: el.dataset.commentDelimiter || "//",
+          lineNumber: el.dataset.lineNumber === "true" ? true : false,
+          lineNumberPunc: el.dataset.lineNumberPunc || ":",
+          noEnd: el.dataset.noEnd === "true" ? true : false,
+          titlePrefix: el.dataset.captionPrefix || "Algorithm"
+        };
+        pseudocode.renderElement(el.querySelector(".pseudocode"), pseudocodeOptions);
+      });
+    })(document);
+    (function(d) {
+      d.querySelectorAll(".pseudocode-container").forEach(function(el) {
+        let captionSpan = el.querySelector(".ps-root > .ps-algorithm > .ps-line > .ps-keyword")
+        if (captionSpan !== null) {
+          let captionPrefix = el.dataset.captionPrefix + " ";
+          let captionNumber = "";
+          if (el.dataset.pseudocodeNumber) {
+            captionNumber = el.dataset.pseudocodeNumber + " ";
+            if (el.dataset.chapterLevel) {
+              captionNumber = el.dataset.chapterLevel + "." + captionNumber;
+            }
+          }
+          captionSpan.innerHTML = captionPrefix + captionNumber;
+        }
+      });
+    })(document);
+    </script>
+  
+
+
+
+
+</body></html>
