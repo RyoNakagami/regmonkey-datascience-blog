@@ -1,0 +1,76 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, minimum width=3.0cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    ng/.style={block, draw=crimsonred, fill=mistyrose},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south, font=\bfseries, text=navy},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    ngsig/.style={font=\footnotesize, text=crimsonred, inner sep=2pt},
+    rowtitle/.style={font=\bfseries, text=azureblue, anchor=west},
+    wire/.style={->, draw=navy},
+    ngwire/.style={->, draw=crimsonred},
+  ]
+
+  % ---------- 上段：通常のログイン（CLI とブラウザが同じ PC） ----------
+  \node[accent] (cli1) at (4.5,0) {Codex CLI\\localhost で待受};
+  \node[block]  (br1)  at (11,0)  {ブラウザ};
+  \node[block]  (au1)  at (17.5,0) {OpenAI 認証\\（ChatGPT サインイン）};
+
+  \draw[wire] ([yshift=2.5mm]cli1.east) -- ([yshift=2.5mm]br1.west)
+    node[midway, above, sig] {① 認証 URL を開く};
+  \draw[wire] ([yshift=-2.5mm]br1.west) -- ([yshift=-2.5mm]cli1.east)
+    node[midway, below, sig, align=center] {④ コールバック\\（localhost 宛て）};
+  \draw[wire] ([yshift=2.5mm]br1.east) -- ([yshift=2.5mm]au1.west)
+    node[midway, above, sig] {② サインイン};
+  \draw[wire] ([yshift=-2.5mm]au1.west) -- ([yshift=-2.5mm]br1.east)
+    node[midway, below, sig, align=center] {③ リダイレクト\\（localhost 宛て）};
+
+  \node[font=\footnotesize\bfseries, text=azureblue, below=2mm of cli1] (ok1) {✓ OAuth トークンを受け取れる};
+
+  \begin{scope}[on background layer]
+    \node[zone, fit=(cli1)(br1)(ok1)] (z1) {};
+  \end{scope}
+  \node[zlabel] at (z1.north) {ローカル PC};
+  \node[rowtitle] at (-2.5,0.9) {通常のログイン};
+
+  % 区切り線
+  \draw[lightgray] (-2.5,-2.5) -- (19.5,-2.5);
+
+  % ---------- 下段：SSH 先で CLI を実行 ----------
+  \node[accent] (cli2) at (-0.5,-5.0)    {Codex CLI\\localhost で待受};
+  \node[ng]     (lh2)  at (4.5,-5.0)  {localhost\\待受プロセスなし};
+  \node[block]  (br2)  at (11,-5.0)   {ブラウザ};
+  \node[block]  (au2)  at (17.5,-5.0) {OpenAI 認証\\（ChatGPT サインイン）};
+
+  \draw[wire, rounded corners=4pt] (cli2.south) -- ++(0,-1.1) -| (br2.south)
+    node[pos=0.25, below, sig] {① 表示された URL を手元のブラウザで開く};
+  \draw[ngwire] ([yshift=-2.5mm]br2.west) -- ([yshift=-2.5mm]lh2.east)
+    node[midway, below, ngsig, align=center] {④ コールバック\\（localhost 宛て）};
+  \draw[wire] ([yshift=2.5mm]br2.east) -- ([yshift=2.5mm]au2.west)
+    node[midway, above, sig] {② サインイン};
+  \draw[wire] ([yshift=-2.5mm]au2.west) -- ([yshift=-2.5mm]br2.east)
+    node[midway, below, sig, align=center] {③ リダイレクト\\（localhost 宛て）};
+  \draw[ngwire, dashed] (lh2.west) -- (cli2.east)
+    node[midway, above, ngsig] {× 届かない};
+
+  \begin{scope}[on background layer]
+    \node[zone, fit=(cli2)] (z2a) {};
+    \node[zone, fit=(lh2)(br2)] (z2b) {};
+  \end{scope}
+  \node[zlabel] at (z2a.north) {SSH 先サーバー};
+  \node[zlabel] at (z2b.north) {ローカル PC};
+  \node[rowtitle] at (-2.5,-3.0) {SSH 先で CLI を実行};
+\end{tikzpicture}
