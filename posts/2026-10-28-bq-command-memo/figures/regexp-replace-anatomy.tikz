@@ -1,0 +1,68 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    code/.style={font=\Large, inner sep=0pt, anchor=base west},
+    brace/.style={draw=navy, decorate, decoration={brace, amplitude=6pt}},
+    head/.style={font=\small\bfseries, text=navy, align=center},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    chip/.style={draw=navy, fill=aliceblue, rounded corners=3pt, minimum width=1.3cm,
+                 minimum height=0.9cm, font=\large},
+    cell/.style={draw=navy, fill=white, minimum width=0.75cm, minimum height=0.8cm,
+                 inner sep=0pt, font=\large},
+    hit/.style={cell, fill=paleskyblue},
+    wire/.style={->, draw=navy},
+  ]
+
+  % ---- コード本体（トークンを横に連結） ----
+  \node[code] (t1) at (0,0)           {\verb|REGEXP_REPLACE(x, |};
+  \node[code] (t2) at (t1.base east)  {\verb|r'|};
+  \node[code] (t3) at (t2.base east)  {\verb|[\s〈〉<>]|};
+  \node[code] (t4) at (t3.base east)  {\verb|'|};
+  \node[code] (t5) at (t4.base east)  {\verb|, |};
+  \node[code] (t6) at (t5.base east)  {\verb|''|};
+  \node[code] (t7) at (t6.base east)  {\verb|)|};
+
+  % ---- 上：raw 文字列リテラル ----
+  \draw[brace] ([yshift=3mm]t2.north west) -- ([yshift=3mm]t4.north east)
+    node[midway, above=9pt, head] (lraw) {① \verb|r'...'|：raw 文字列リテラル};
+  \node[note, above=1mm of lraw] {\verb|\s| をそのまま書ける（\verb|'\\s'| と二重にしなくてよい）};
+
+  % ---- 下：文字クラス ----
+  \draw[brace] ([yshift=-3mm]t3.south east) -- ([yshift=-3mm]t3.south west)
+    node[midway, below=9pt, head, xshift=-6mm] (lcls) {② \verb|[...]|：文字クラス\\次のどれか1文字にマッチ};
+
+  % ---- 下：置換先 ----
+  \draw[brace] ([yshift=-3mm]t6.south east) -- ([yshift=-3mm]t6.south west)
+    node[midway, below=9pt, head, anchor=north west, xshift=-3mm] (lrep) {③ \verb|''|：置換先が空\\→ マッチした文字を削除};
+
+  % ---- 文字クラスの中身 ----
+  \node[chip, below=6mm of lcls, xshift=-3.2cm] (c1) {\verb|\s|};
+  \node[chip, right=3mm of c1] (c2) {〈};
+  \node[chip, right=3mm of c2] (c3) {〉};
+  \node[chip, right=3mm of c3] (c4) {<};
+  \node[chip, right=3mm of c4] (c5) {>};
+  \node[note, below=1mm of c1] {ASCII 空白\\\verb|[\t\n\f\r ]|};
+  \node[note, below=1mm of c2] {U+3008};
+  \node[note, below=1mm of c3] {U+3009};
+  \node[note, below=1mm of c4] {半角};
+  \node[note, below=1mm of c5] {半角};
+
+  % ---- 例 ----
+  \node[head, anchor=west] (ex) at ($(t1.west)+(0,-5.0)$) {例：NFKC 後の文字列};
+  \foreach \c/\s [count=\i from 1] in {〈/hit, 株/cell, 式/cell, 会/cell, 社/cell, ␣/hit, A/cell, B/cell, C/cell, 〉/hit} {
+    \node[\s] (e\i) at ($(ex.west)+(0.375+0.75*\i-0.75,-1.0)$) {\c};
+  }
+  \node[note, below=1mm of e6] {半角スペース};
+  \draw[wire] ([xshift=4mm]e10.east) -- ++(1.6,0) node[midway, above, note] {削除};
+  \foreach \c [count=\i from 1] in {株, 式, 会, 社, A, B, C} {
+    \node[cell] (o\i) at ($(e10.east)+(2.5+0.75*\i-0.375,0)$) {\c};
+  }
+\end{tikzpicture}

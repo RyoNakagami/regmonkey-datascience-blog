@@ -1,0 +1,66 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    leaf/.style={block, minimum width=2.2cm, font=\large\bfseries},
+    keyleaf/.style={accent, minimum width=2.2cm, font=\large\bfseries},
+    ask/.style={diamond, draw=navy, fill=white, align=center, inner sep=1pt, font=\small},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    note/.style={font=\footnotesize, text=darkgray, align=left, anchor=west},
+    tag/.style={font=\footnotesize\bfseries, text=azureblue, anchor=west},
+    dot/.style={circle, fill=navy, inner sep=1.4pt},
+    wire/.style={->, draw=navy},
+  ]
+
+  % ---- 開始と質問 ----
+  \node[block] (start) at (0,0) {文字列を\\正規化したい};
+  \node[ask] (q1) at (4.6,0) {Q1. 見た目の違う\\互換文字も\\同じ文字とみなす？};
+  \node[sig, below=2mm of q1, align=center] {例：ＡＢＣ と ABC，\\ｶﾞ と ガ，① と 1};
+
+  \node[ask] (qk) at (11.4,2.4) {Q2. 結合文字を\\分解したまま\\扱う？};
+  \node[ask] (qc) at (11.4,-2.4) {Q2. 結合文字を\\分解したまま\\扱う？};
+  \node[sig, below=2mm of qc, align=center] {例：ガ → カ ＋ ゛（U+3099）};
+
+  % ---- 結論（4形式） ----
+  \node[keyleaf] (nfkc) at (16.8,3.5)  {NFKC};
+  \node[leaf]    (nfkd) at (16.8,1.3)  {NFKD};
+  \node[leaf]    (nfc)  at (16.8,-1.3) {NFC};
+  \node[leaf]    (nfd)  at (16.8,-3.5) {NFD};
+
+  \node[note] at ([xshift=3mm]nfkc.east) {照合キー・名寄せ・検索\\全角／半角のゆれを吸収};
+  \node[tag]  at ([xshift=3mm,yshift=7mm]nfkc.east) {本記事の norm / norm\_name};
+  \node[note] at ([xshift=3mm]nfkd.east) {互換文字を揃えたうえで，\\\verb|\p{M}| を消して濁点も除去};
+  \node[note] at ([xshift=3mm]nfc.east)  {保存・表示用の標準形\\NORMALIZE の既定値};
+  \node[note] at ([xshift=3mm]nfd.east)  {\verb|\p{M}| を消して\\アクセント・濁点を除去};
+
+  % ---- 配線 ----
+  \draw[wire] (start) -- (q1);
+
+  \coordinate (b1) at ($(q1.east)+(0.6,0)$);
+  \draw[draw=navy] (q1.east) -- (b1);
+  \node[dot] at (b1) {};
+  \draw[wire] (b1) |- node[pos=0.75, above, sig] {はい（K 系）} (qk.west);
+  \draw[wire] (b1) |- node[pos=0.75, below, sig] {いいえ（正準のみ）} (qc.west);
+
+  \coordinate (bk) at ($(qk.east)+(0.6,0)$);
+  \draw[draw=navy] (qk.east) -- (bk);
+  \node[dot] at (bk) {};
+  \draw[wire] (bk) |- node[pos=0.75, above, sig] {いいえ（合成）} (nfkc.west);
+  \draw[wire] (bk) |- node[pos=0.75, below, sig] {はい（分解）} (nfkd.west);
+
+  \coordinate (bc) at ($(qc.east)+(0.6,0)$);
+  \draw[draw=navy] (qc.east) -- (bc);
+  \node[dot] at (bc) {};
+  \draw[wire] (bc) |- node[pos=0.75, above, sig] {いいえ（合成）} (nfc.west);
+  \draw[wire] (bc) |- node[pos=0.75, below, sig] {はい（分解）} (nfd.west);
+\end{tikzpicture}
