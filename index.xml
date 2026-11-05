@@ -10,7 +10,975 @@
 <atom:link href="https://ryonakagami.github.io/regmonkey-datascience-blog/index.xml" rel="self" type="application/rss+xml"/>
 <description>日々の徒然勉強日記</description>
 <generator>quarto-1.11.9</generator>
-<lastBuildDate>Tue, 27 Oct 2026 00:00:00 GMT</lastBuildDate>
+<lastBuildDate>Wed, 28 Oct 2026 00:00:00 GMT</lastBuildDate>
+<item>
+  <title>BigQuery で表記ゆれを補正する</title>
+  <dc:creator>Ryo Nakagami</dc:creator>
+  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-28-bq-command-memo/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+
+<section id="この記事について" class="level2">
+<h2 class="anchored" data-anchor-id="この記事について">この記事について</h2>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 30%">
+<col style="width: 70%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>観点</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>What：何のドキュメントか</strong></td>
+<td>BigQuery で表記ゆれを吸収する照合キーを作る一時関数 <code>norm</code> / <code>norm_name</code> の挙動を，公式ドキュメントと実行結果をもとに解説したメモ</td>
+</tr>
+<tr class="even">
+<td><strong>Who：誰に向けたものか</strong></td>
+<td>全角・半角や空白の混在した文字列を BigQuery 上で JOIN / GROUP BY したい人</td>
+</tr>
+<tr class="odd">
+<td><strong>Why：なぜ重要か</strong></td>
+<td><code>NORMALIZE(s, NFKC)</code> は便利だが，何が揃い何が揃わないか，どこで情報が落ちるかを知らないと，照合漏れや誤マッチの原因になるため</td>
+</tr>
+<tr class="even">
+<td><strong>How：どう使うか</strong></td>
+<td>各関数の役割と処理順を理解したうえで，「注意点」の項目を自分のデータに当てはめて確認する</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="対象の関数" class="level2">
+<h2 class="anchored" data-anchor-id="対象の関数">対象の関数</h2>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span><strong>表記ゆれを吸収した比較用のキーを作る</strong>ための関数
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<div class="padding-left-10">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode sql code-with-copy"><code class="sourceCode sql"><span id="cb1-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">CREATE</span> TEMP <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">FUNCTION</span> norm(s STRING) <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AS</span> (<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">UPPER</span>(NORMALIZE(s, NFKC)));</span>
+<span id="cb1-2"></span>
+<span id="cb1-3"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">CREATE</span> TEMP <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">FUNCTION</span> norm_name(s STRING) <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AS</span> (<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">UPPER</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">REGEXP_REPLACE</span>(NORMALIZE(s, NFKC), r<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'[\s〈〉&lt;&gt;]'</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">''</span>)));</span></code></pre></div></div>
+</div>
+</div>
+</div>
+<p>関数呼び出しは内側から評価されるので，処理は次の順に進みます．</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 5%">
+<col style="width: 40%">
+<col style="width: 10%">
+<col style="width: 10%">
+<col style="width: 35%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>段</th>
+<th>処理</th>
+<th style="text-align: center;"><code>norm</code></th>
+<th style="text-align: center;"><code>norm_name</code></th>
+<th>役割</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td><code>NORMALIZE(s, NFKC)</code></td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+<td>全角英数・半角カナ・互換文字などを標準的な形に揃える</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td><code>REGEXP_REPLACE(..., r'[\s〈〉&lt;&gt;]', '')</code></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;">✓</td>
+<td>空白と山括弧を取り除く</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td><code>UPPER(...)</code></td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+<td>英字を大文字に揃える</td>
+</tr>
+</tbody>
+</table>
+<p><span class="mini-section">使い分け</span></p>
+<ul>
+<li><code>norm</code> は一般的な文字列（コード値・品番など）向け</li>
+<li><code>norm_name</code> は会社名・氏名のように空白や括弧の入れ方が人によって違う「名前」向け，</li>
+</ul>
+</section>
+<section id="create-temp-function一時的な-sql-udf" class="level2">
+<h2 class="anchored" data-anchor-id="create-temp-function一時的な-sql-udf"><code>CREATE TEMP FUNCTION</code>：一時的な SQL UDF</h2>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title"><code>CREATE TEMP FUNCTION</code></span></p>
+<ul>
+<li><code>CREATE TEMP FUNCTION</code> は SQL で本体を書くユーザー定義関数（SQL UDF）を，そのクエリの中だけで使える形で定義する仕組み</li>
+<li>名前にピリオドは使えない</li>
+</ul>
+</div>
+<p>公式ドキュメント <a href="https://docs.cloud.google.com/bigquery/docs/user-defined-functions">User-defined functions</a> には次の記述があります．</p>
+<ul>
+<li>一時 UDF はクエリが終わった時点で消える（“temporary UDFs expire as soon as the query finishes”）</li>
+<li>ビューと永続 UDF からは一時 UDF を参照できない（“Views and persistent UDFs cannot reference temporary UDFs”）</li>
+<li>一時 UDF の名前にピリオドは使えない</li>
+</ul>
+<p><span class="mini-section">How to Use</span></p>
+<p>関数定義と呼び出しは同じクエリ（マルチステートメントクエリ）に書きます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode sql code-with-copy"><code class="sourceCode sql"><span id="cb2-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">CREATE</span> TEMP <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">FUNCTION</span> norm(s STRING) <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AS</span> (<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">UPPER</span>(NORMALIZE(s, NFKC)));</span>
+<span id="cb2-2"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">CREATE</span> TEMP <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">FUNCTION</span> norm_name(s STRING) <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AS</span> (<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">UPPER</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">REGEXP_REPLACE</span>(NORMALIZE(s, NFKC), r<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'[\s〈〉&lt;&gt;]'</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">''</span>)));</span>
+<span id="cb2-3"></span>
+<span id="cb2-4"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">SELECT</span></span>
+<span id="cb2-5">  a.<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span>,</span>
+<span id="cb2-6">  b.customer_id</span>
+<span id="cb2-7"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">FROM</span> `project.dataset.orders` <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AS</span> a</span>
+<span id="cb2-8"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">LEFT</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">JOIN</span> `project.dataset.customers` <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AS</span> b</span>
+<span id="cb2-9">  <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">ON</span> norm_name(a.company_name) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> norm_name(b.company_name);</span></code></pre></div></div>
+<p><code>bq</code> コマンドからは GoogleSQL を明示して，ファイルを標準入力で渡すのが楽です．(see <a href="../../posts/2025-08-31-stdout-stderr/index.html#case-4-ファイルに書いた-sql-を-bq-query-に渡す">CASE 4: ファイルに書いた SQL を <code>bq query</code> に渡す</a>)</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">bq</span> query <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--use_legacy_sql</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>false <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;</span> query.sql</span></code></pre></div></div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>Tips
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>複数のクエリやビューから使い回したくなったら，<code>CREATE FUNCTION dataset.norm_name(...)</code> として永続 UDF にします．</li>
+</ul>
+</div>
+</div>
+</section>
+<section id="normalizes-nfkcunicode-正規化" class="level2">
+<h2 class="anchored" data-anchor-id="normalizes-nfkcunicode-正規化"><code>NORMALIZE(s, NFKC)</code>：Unicode 正規化</h2>
+<p><a href="https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#normalize">String functions: NORMALIZE</a> のシグネチャは次のとおりです．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode sql code-with-copy"><code class="sourceCode sql"><span id="cb4-1">NORMALIZE(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">value</span>[, normalization_mode])</span></code></pre></div></div>
+<p>ドキュメントには “If you don’t provide a normalization mode, <code>NFC</code> is used.” とあり，<strong>モードを省略すると NFC</strong> になります． モードは <code>NFC</code> / <code>NFKC</code> / <code>NFD</code> / <code>NFKD</code> の4つです．</p>
+<p><span class="mini-section">NFC と NFKC の違い</span></p>
+<p>NFC は「見た目も意味も同じ文字」（たとえば濁点が分かれた <code>カ</code> + <code>゛</code> と1文字の <code>ガ</code>）を揃えるだけで，全角英数は全角のまま残ります． 全角・半角の違いまで揃えたいときは，互換分解を含む <strong>NFKC</strong> を指定する必要があります．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode sql code-with-copy"><code class="sourceCode sql"><span id="cb5-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">SELECT</span> NORMALIZE(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'ＡＢＣ'</span>) <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AS</span> nfc_default, NORMALIZE(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'ＡＢＣ'</span>, NFKC) <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AS</span> nfkc;</span>
+<span id="cb5-2"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-- nfc_default: ＡＢＣ / nfkc: ABC</span></span></code></pre></div></div>
+<p>また，モードは文字列ではなく<strong>キーワード</strong>として書きます．<code>NORMALIZE(s, 'NFKC')</code> と書くと <code>Argument is not a valid NORMALIZE mode</code> というエラーになります．</p>
+<p><span class="mini-section">4つの正規化形式の使い分け</span></p>
+<p>4つの形式は「互換文字も同一視するか（K の有無）」と「最後に合成するか，分解したままにするか（C / D）」の2つの問いで選べます．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="./figures/normalization-form-choice.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-1" title="正規化形式の選び方"><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-28-bq-command-memo/figures/normalization-form-choice.svg" class="img-fluid figure-img" alt="正規化形式の選び方"></a></p>
+<figcaption>正規化形式の選び方</figcaption>
+</figure>
+</div>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 12%">
+<col style="width: 20%">
+<col style="width: 13%">
+<col style="width: 55%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>形式</th>
+<th style="text-align: center;">互換文字の同一視</th>
+<th>結合文字</th>
+<th>主な用途</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>NFC</td>
+<td style="text-align: center;">✗</td>
+<td>合成</td>
+<td>保存・表示用の標準形．<code>NORMALIZE</code> の既定値</td>
+</tr>
+<tr class="even">
+<td>NFD</td>
+<td style="text-align: center;">✗</td>
+<td>分解</td>
+<td>結合文字（<code>\p{M}</code>）を消してアクセント・濁点を落とす前処理</td>
+</tr>
+<tr class="odd">
+<td>NFKC</td>
+<td style="text-align: center;">✓</td>
+<td>合成</td>
+<td>照合キー・名寄せ・検索．本記事の <code>norm</code> / <code>norm_name</code></td>
+</tr>
+<tr class="even">
+<td>NFKD</td>
+<td style="text-align: center;">✓</td>
+<td>分解</td>
+<td>全角・半角を揃えたうえでアクセント・濁点も落とす</td>
+</tr>
+</tbody>
+</table>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>Tips
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>濁点まで消えて <code>ガ</code> と <code>カ</code> が同じになるので，日本語の照合キーでは D 系 + <code>\p{M}</code> 除去は使わず NFKC を選びます．</li>
+</ul>
+</div>
+</div>
+<p><span class="mini-section">NFKC で何が変わるか</span></p>
+<p>BigQuery で実際に <code>NORMALIZE(s, NFKC)</code> を実行した結果です．</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 30%">
+<col style="width: 30%">
+<col style="width: 40%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>入力</th>
+<th>出力</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>ａｂｃ１２３</code></td>
+<td><code>abc123</code></td>
+<td>全角英数 → 半角英数</td>
+</tr>
+<tr class="even">
+<td><code>ｶﾞｷﾞ</code></td>
+<td><code>ガギ</code></td>
+<td>半角カナ → 全角カナ（濁点も1文字に合成）</td>
+</tr>
+<tr class="odd">
+<td><code>株式会社　ABC</code>（U+3000）</td>
+<td><code>株式会社 ABC</code>（U+0020）</td>
+<td>全角スペース → 半角スペース</td>
+</tr>
+<tr class="even">
+<td><code>a&nbsp;b</code>（U+00A0, NBSP）</td>
+<td><code>a b</code>（U+0020）</td>
+<td>ノーブレークスペース → 半角スペース</td>
+</tr>
+<tr class="odd">
+<td><code>＜abc＞</code></td>
+<td><code>&lt;abc&gt;</code></td>
+<td>全角記号 → 半角記号</td>
+</tr>
+<tr class="even">
+<td><code>㈱abc</code></td>
+<td><code>(株)abc</code></td>
+<td>囲み文字 → 括弧つきの文字列</td>
+</tr>
+<tr class="odd">
+<td><code>①</code></td>
+<td><code>1</code></td>
+<td>丸数字 → 数字</td>
+</tr>
+<tr class="even">
+<td><code>m²</code></td>
+<td><code>m2</code></td>
+<td>上付き数字 → 通常の数字</td>
+</tr>
+<tr class="odd">
+<td><code>ﬁle</code></td>
+<td><code>file</code></td>
+<td>合字 → 分解</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="upper大文字化" class="level2">
+<h2 class="anchored" data-anchor-id="upper大文字化"><code>UPPER</code>：大文字化</h2>
+<p><a href="https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#upper">String functions: UPPER</a> には “For <code>STRING</code> arguments, returns the original string with all alphabetic characters in uppercase.” とあり，大文字と小文字の対応は言語固有のルールを考慮せず Unicode の文字データベースに従います．</p>
+<ul>
+<li>日本語の文字には大文字・小文字がないので影響はなく，実質的には英字の大文字・小文字のゆれを揃える役割</li>
+<li>なお，1文字が複数文字に変わるケースもあり，<code>UPPER('Straße')</code> は <code>STRASSE</code> になる（文字数が変わる）．</li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb6-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> bq query <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"SELECT UPPER('Straße')"</span></span>
+<span id="cb6-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">+---------+</span></span>
+<span id="cb6-3"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span>   <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">f0_</span>   <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span></span>
+<span id="cb6-4"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">+---------+</span></span>
+<span id="cb6-5"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">STRASSE</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span></span>
+<span id="cb6-6"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">+---------+</span></span></code></pre></div></div>
+</section>
+<section id="regexp_replace...-rs-空白と山括弧の除去" class="level2">
+<h2 class="anchored" data-anchor-id="regexp_replace...-rs-空白と山括弧の除去"><code>REGEXP_REPLACE(..., r'[\s〈〉&lt;&gt;]', '')</code>：空白と山括弧の除去</h2>
+<p><a href="https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#regexp_replace">String functions: REGEXP_REPLACE</a> は，正規表現 <code>regexp</code> にマッチした部分をすべて <code>replacement</code> に置き換えます． BigQuery の正規表現は <a href="https://github.com/google/re2/wiki/Syntax">RE2</a> ライブラリで実装されています．</p>
+<ul>
+<li><code>r'...'</code> は raw 文字列リテラルで，<code>\s</code> のバックスラッシュをエスケープせずに書ける</li>
+<li><code>[...]</code> は文字クラスで，<code>\s</code>・<code>〈</code>（U+3008）・<code>〉</code>（U+3009）・<code>&lt;</code>・<code>&gt;</code> のどれか1文字にマッチする</li>
+<li>置換先が <code>''</code> なので，マッチした文字を削除する</li>
+</ul>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="./figures/regexp-replace-anatomy.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-2" title="REGEXP_REPLACE(x, r'[\s〈〉<>]', '') の読み方"><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-28-bq-command-memo/figures/regexp-replace-anatomy.svg" class="img-fluid figure-img" alt="REGEXP_REPLACE(x, r'[\s〈〉<>]', '') の読み方"></a></p>
+<figcaption><code>REGEXP_REPLACE(x, r'[\s〈〉&lt;&gt;]', '')</code> の読み方</figcaption>
+</figure>
+</div>
+<p><span class="mini-section"><code>\s</code> は ASCII の空白だけ</span></p>
+<p>RE2 のドキュメントでは Perl 由来の文字クラスは “all ASCII-only” とされ，<code>\s</code> は <code>[\t\n\f\r ]</code> と定義されています． つまり <strong><code>\s</code> 単体では全角スペース（U+3000）にマッチしません</strong>．</p>
+<p>それでも <code>norm_name</code> で全角スペースが消えるのは，先に <code>NORMALIZE(s, NFKC)</code> が U+3000 を U+0020 に変換しているからです． 処理順を逆にして <code>NORMALIZE(REGEXP_REPLACE(s, ...), NFKC)</code> と書くと，全角スペースが半角スペースとして残ります．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode sql code-with-copy"><code class="sourceCode sql"><span id="cb7-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">SELECT</span></span>
+<span id="cb7-2">  s,</span>
+<span id="cb7-3">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">UPPER</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">REGEXP_REPLACE</span>(NORMALIZE(s, NFKC), r<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'[\s〈〉&lt;&gt;]'</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">''</span>)) <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AS</span> nfkc_first,   <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-- norm_name と同じ順</span></span>
+<span id="cb7-4">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">UPPER</span>(NORMALIZE(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">REGEXP_REPLACE</span>(s, r<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'[\s〈〉&lt;&gt;]'</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">''</span>), NFKC)) <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AS</span> regexp_first  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-- 順番を逆にした版</span></span>
+<span id="cb7-5"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">FROM</span> UNNEST([<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'株式会社　ABC'</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'株式会社 ABC'</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'＜ABC＞'</span>]) <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AS</span> s;</span></code></pre></div></div>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 34%">
+<col style="width: 22%">
+<col style="width: 44%">
+</colgroup>
+<thead>
+<tr class="header">
+<th><code>s</code></th>
+<th><code>nfkc_first</code></th>
+<th><code>regexp_first</code></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>株式会社　ABC</code>（全角スペース U+3000）</td>
+<td><code>株式会社ABC</code></td>
+<td><code>株式会社 ABC</code>（半角スペース U+0020 が残る）</td>
+</tr>
+<tr class="even">
+<td><code>株式会社 ABC</code>（半角スペース）</td>
+<td><code>株式会社ABC</code></td>
+<td><code>株式会社ABC</code></td>
+</tr>
+<tr class="odd">
+<td><code>＜ABC＞</code>（全角山括弧）</td>
+<td><code>ABC</code></td>
+<td><code>&lt;ABC&gt;</code>（半角の <code>&lt;&gt;</code> が残る）</td>
+</tr>
+</tbody>
+</table>
+<p><code>regexp_first</code> で何が起きているかを1行目で追うと，次のとおりです．</p>
+<ol type="1">
+<li><code>REGEXP_REPLACE</code>：U+3000 は <code>\s</code>（ASCII の空白だけ）にマッチしないので，削除されずに残る</li>
+<li><code>NORMALIZE(..., NFKC)</code>：残った U+3000 が U+0020 に変換される</li>
+<li><code>UPPER</code>：空白はそのまま</li>
+</ol>
+<p>削除のあとで正規化しているので，正規化で生まれた半角スペースを消す処理がもう残っていません． その結果，入力時点の空白が全角か半角かによって，<code>株式会社ABC</code> と <code>株式会社 ABC</code> の別々のキーになり，JOIN で一致しなくなります． <code>＜＞</code> も同じ理由で，<code>&lt;&gt;</code> に変換されたあと削除されずに残ります．</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>Tips
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>「削除・置換」より先に「正規化」を行う</li>
+<li>置換パターンは正規化後の文字（半角スペース・半角記号）だけを想定して書けばよくなる</li>
+</ul>
+</div>
+</div>
+<p><span class="mini-section">山括弧のゆれも NFKC 経由で吸収される</span></p>
+<p>文字クラスに書いているのは <code>〈〉&lt;&gt;</code> の4文字ですが，NFKC が先に走るので次の文字も結果的に削除されます．</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 40%">
+<col style="width: 40%">
+<col style="width: 20%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>入力</th>
+<th>NFKC 後</th>
+<th style="text-align: center;">削除されるか</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>&lt;</code> <code>&gt;</code>（半角）</td>
+<td>そのまま</td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr class="even">
+<td><code>＜</code> <code>＞</code>（全角，U+FF1C / U+FF1E）</td>
+<td><code>&lt;</code> <code>&gt;</code></td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr class="odd">
+<td><code>〈</code> <code>〉</code>（CJK，U+3008 / U+3009）</td>
+<td>そのまま</td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr class="even">
+<td><code>〈</code> <code>〉</code>（U+2329 / U+232A）</td>
+<td><code>〈</code> <code>〉</code>（U+3008 / U+3009）</td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr class="odd">
+<td><code>《</code> <code>》</code>（二重山括弧，U+300A / U+300B）</td>
+<td>そのまま</td>
+<td style="text-align: center;">✗</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="実行結果" class="level2">
+<h2 class="anchored" data-anchor-id="実行結果">実行結果</h2>
+<p>BigQuery で両関数を実行した結果です．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode sql code-with-copy"><code class="sourceCode sql"><span id="cb8-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">CREATE</span> TEMP <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">FUNCTION</span> norm(s STRING) <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AS</span> (<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">UPPER</span>(NORMALIZE(s, NFKC)));</span>
+<span id="cb8-2"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">CREATE</span> TEMP <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">FUNCTION</span> norm_name(s STRING) <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AS</span> (<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">UPPER</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">REGEXP_REPLACE</span>(NORMALIZE(s, NFKC), r<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'[\s〈〉&lt;&gt;]'</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">''</span>)));</span>
+<span id="cb8-3"></span>
+<span id="cb8-4"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">SELECT</span> s, norm(s) <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AS</span> norm, norm_name(s) <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AS</span> norm_name</span>
+<span id="cb8-5"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">FROM</span> UNNEST([<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'ａｂｃ１２３'</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'株式会社　ＡＢＣ'</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'〈ABC〉'</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'＜abc＞'</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'㈱abc'</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'a</span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">\t</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">b</span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">\n</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">c'</span>, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">CAST</span>(<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">NULL</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AS</span> STRING)]) <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AS</span> s;</span></code></pre></div></div>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 34%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th><code>s</code></th>
+<th><code>norm(s)</code></th>
+<th><code>norm_name(s)</code></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>ａｂｃ１２３</code></td>
+<td><code>ABC123</code></td>
+<td><code>ABC123</code></td>
+</tr>
+<tr class="even">
+<td><code>株式会社　ＡＢＣ</code></td>
+<td><code>株式会社 ABC</code></td>
+<td><code>株式会社ABC</code></td>
+</tr>
+<tr class="odd">
+<td><code>〈ABC〉</code></td>
+<td><code>〈ABC〉</code></td>
+<td><code>ABC</code></td>
+</tr>
+<tr class="even">
+<td><code>＜abc＞</code></td>
+<td><code>&lt;ABC&gt;</code></td>
+<td><code>ABC</code></td>
+</tr>
+<tr class="odd">
+<td><code>㈱abc</code></td>
+<td><code>(株)ABC</code></td>
+<td><code>(株)ABC</code></td>
+</tr>
+<tr class="even">
+<td><code>a\tb\nc</code>（タブ・改行）</td>
+<td><code>A\tB\nC</code></td>
+<td><code>ABC</code></td>
+</tr>
+<tr class="odd">
+<td><code>NULL</code></td>
+<td><code>NULL</code></td>
+<td><code>NULL</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="注意点" class="level2">
+<h2 class="anchored" data-anchor-id="注意点">注意点</h2>
+<p><span class="mini-section">1. NFKC は情報を落とす</span></p>
+<p>NFKC は「見た目は違うが互換性のある文字」を同じ文字にまとめるので，元の区別は復元できません． <code>m²</code> と <code>m2</code>，<code>①</code> と <code>1</code>，<code>㈱</code> と <code>(株)</code> は区別できなくなります． <code>½</code> は <code>1⁄2</code>（U+2044 の分数スラッシュ）になり，<code>/</code> とも一致しません．</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>Tips
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>正規化した値は<strong>照合用のキーとしてだけ使い</strong>，表示や集計の出力には元の列を残しておく</li>
+</ul>
+</div>
+</div>
+<p><span class="mini-section">2. NFKC でも揃わない表記ゆれがある</span></p>
+<p>NFKC が揃えるのは Unicode が互換文字と定めたものだけです．日本語データでよく問題になる次のゆれは残ります．</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 45%">
+<col style="width: 30%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>種類</th>
+<th>例</th>
+<th>NFKC 後</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>波ダッシュと全角チルダ</td>
+<td><code>〜</code>（U+301C）と <code>～</code>（U+FF5E）</td>
+<td><code>〜</code> と <code>~</code>（不一致のまま）</td>
+</tr>
+<tr class="even">
+<td>ハイフン類</td>
+<td><code>‐</code>（U+2010），<code>−</code>（U+2212），<code>ー</code>（U+30FC），<code>－</code>（U+FF0D）</td>
+<td><code>－</code> だけ <code>-</code> になり，他は残る</td>
+</tr>
+<tr class="odd">
+<td>異体字</td>
+<td><code>髙橋</code> と <code>高橋</code></td>
+<td>変わらない</td>
+</tr>
+<tr class="even">
+<td>ひらがなとカタカナ</td>
+<td><code>さくら</code> と <code>サクラ</code></td>
+<td>変わらない</td>
+</tr>
+<tr class="odd">
+<td>法人格の書き方</td>
+<td><code>(株)</code> と <code>株式会社</code></td>
+<td>変わらない</td>
+</tr>
+<tr class="even">
+<td>二重山括弧</td>
+<td><code>《ABC》</code></td>
+<td><code>norm_name</code> でも残る</td>
+</tr>
+</tbody>
+</table>
+<p>これらを揃えたいときは，<code>REPLACE</code> や <code>TRANSLATE</code> で対応表を明示的に書き足します．</p>
+<p><span class="mini-section">3. ゼロ幅文字や垂直タブは消えない</span></p>
+<p><code>\s</code> は <code>[\t\n\f\r ]</code> なので，垂直タブ（<code>\v</code>）は含みません． また，ゼロ幅スペース（U+200B）や BOM（U+FEFF）は空白の扱いではなく，NFKC でも変換されないため，<code>norm_name</code> 後もそのまま残ります． Web やExcel からコピーしたデータには混ざりがちで，見た目は同じなのに一致しない原因になります．</p>
+<p>消したい場合は文字クラスを広げます．実行して <code>a​b</code>（U+200B 入り）が <code>AB</code> になることを確認しています．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode sql code-with-copy"><code class="sourceCode sql"><span id="cb9-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">CREATE</span> TEMP <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">FUNCTION</span> norm_name(s STRING) <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AS</span> (</span>
+<span id="cb9-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">UPPER</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">REGEXP_REPLACE</span>(NORMALIZE(s, NFKC), r<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'[\s</span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">\v</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">\p{Z}\x{200B}\x{FEFF}〈〉&lt;&gt;]'</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">''</span>))</span>
+<span id="cb9-3">);</span></code></pre></div></div>
+<p><code>\p{Z}</code> は Unicode の区切り文字（Separator）カテゴリで，NFKC で U+0020 にならない空白類も拾えます．</p>
+<p><span class="mini-section">4. 空白を消すと別物が衝突する</span></p>
+<p><code>norm_name</code> はすべての空白を消すので，<code>ABC D</code> と <code>ABCD</code> は同じ <code>ABCD</code> になります． 名前の照合では便利な反面，本来別の会社・人物が同じキーになる誤マッチが起こりえます． JOIN する前に，同じキーに複数の元の値が対応していないかを確認しておきます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode sql code-with-copy"><code class="sourceCode sql"><span id="cb10-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">SELECT</span> norm_name(company_name) <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AS</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">key</span>, ARRAY_AGG(<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">DISTINCT</span> company_name) <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AS</span> originals</span>
+<span id="cb10-2"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">FROM</span> `project.dataset.customers`</span>
+<span id="cb10-3"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">GROUP</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">BY</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">key</span></span>
+<span id="cb10-4"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">HAVING</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">COUNT</span>(<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">DISTINCT</span> company_name) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>;</span></code></pre></div></div>
+<p><span class="mini-section">5. 空文字キーは大量に一致する</span></p>
+<p><code>NULL</code> を渡すと <code>NULL</code> が返り，<code>NULL</code> どうしは <code>=</code> で一致しないので JOIN では落ちます． 一方，<code>〈　〉</code> や <code>&lt; &gt;</code> のように空白と山括弧だけの値は <code>norm_name</code> で空文字 <code>''</code> になり，<strong>空文字どうしは一致します</strong>． ダミー値が入った行どうしが全部つながってしまうので，必要なら <code>NULLIF(norm_name(s), '')</code> で空文字を <code>NULL</code> に寄せます．</p>
+<p><span class="mini-section">6. 大文字・小文字を無視した比較なら <code>NORMALIZE_AND_CASEFOLD</code> もある</span></p>
+<p>公式ドキュメントでは，大文字・小文字を区別しない比較には <code>NORMALIZE_AND_CASEFOLD</code> を使うよう案内されています．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode sql code-with-copy"><code class="sourceCode sql"><span id="cb11-1">NORMALIZE_AND_CASEFOLD(s, NFKC)  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-- 'Straße' -&gt; 'strasse', 'ＡＢＣ' -&gt; 'abc'</span></span></code></pre></div></div>
+<p>結果は小文字側に揃うので，キーとして比べるだけならこちらでも同じ目的を果たせます． <code>UPPER(NORMALIZE(...))</code> を使うのは，キーを目で見て確認するときに大文字のほうが読みやすい，という程度の理由です．</p>
+<p><span class="mini-section">7. 関数をかけた JOIN は毎回計算される</span></p>
+<p><code>ON norm_name(a.x) = norm_name(b.x)</code> は，クエリを実行するたびに両テーブルの全行で正規化を計算します． 何度も使うキーであれば，正規化済みの列をテーブルに持たせておくほうが速く，ビューからも参照できます（ビューは一時 UDF を参照できないため）．</p>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<ul>
+<li><a href="https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#normalize">BigQuery: String functions — NORMALIZE</a></li>
+<li><a href="https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#normalize_and_casefold">BigQuery: String functions — NORMALIZE_AND_CASEFOLD</a></li>
+<li><a href="https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#upper">BigQuery: String functions — UPPER</a></li>
+<li><a href="https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#regexp_replace">BigQuery: String functions — REGEXP_REPLACE</a></li>
+<li><a href="https://docs.cloud.google.com/bigquery/docs/user-defined-functions">BigQuery: User-defined functions</a></li>
+<li><a href="https://docs.cloud.google.com/bigquery/docs/reference/bq-cli-reference">BigQuery: bq command-line tool reference</a></li>
+<li><a href="https://github.com/google/re2/wiki/Syntax">RE2 Syntax</a></li>
+<li><a href="https://unicode.org/reports/tr15/">Unicode Standard Annex #15: Unicode Normalization Forms</a></li>
+</ul>
+</section>
+<section id="用語集" class="level2">
+<h2 class="anchored" data-anchor-id="用語集">📘 用語集</h2>
+<div class="glossary-container">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb12-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">glossary</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span></span>
+<span id="cb12-2"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> 正規化（文字処理）</span></span>
+<span id="cb12-3"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb12-4">      同じ意味の文字列が，異なる文字・コードポイントの並びで表されているときに，一定の規則で1つの表現に揃える処理．たとえば `ガ`（U+30AC）と `カ` + 濁点（U+30AB U+3099），`ＡＢＣ` と `ABC` は見た目や意味が同じでも，そのままでは `=` で一致しない．</span>
+<span id="cb12-5"></span>
+<span id="cb12-6"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> --use_legacy_sql</span></span>
+<span id="cb12-7"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb12-8">      `bq query` などで，クエリを legacy SQL と GoogleSQL のどちらで解釈するかを指定するフラグ．`false` で GoogleSQL，`true` で legacy SQL になる．設定ファイルで指定していない場合の既定値は `true`（legacy SQL）なので，GoogleSQL の構文（`CREATE TEMP FUNCTION`，バッククォートで囲んだ `project.dataset.table` 形式のテーブル名など）を使うクエリでは`--use_legacy_sql=false` を明示する．</span></code></pre></div></div>
+</div>
+
+
+</section>
+
+ ]]></description>
+  <category>BigQuery</category>
+  <category>前処理</category>
+  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-28-bq-command-memo/</guid>
+  <pubDate>Wed, 28 Oct 2026 00:00:00 GMT</pubDate>
+</item>
 <item>
   <title>公共無線LANアクセスポイントのセキュリティ対策とプライバシーセパレーター</title>
   <dc:creator>Ryo Nakagami</dc:creator>
@@ -4959,581 +5927,6 @@ font-style: inherit;">head</span></span></code></pre></div></div>
   <category>方法論</category>
   <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-01-how-to-write-email/</guid>
   <pubDate>Thu, 01 Oct 2026 00:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>データサイエンスプロジェクトのライフサイクル</title>
-  <dc:creator>Ryo Nakagami</dc:creator>
-  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-09-08-ds-lifecycle/</link>
-  <description><![CDATA[ 
-
-
-
-
-
-
-<section id="この記事について" class="level2">
-<h2 class="anchored" data-anchor-id="この記事について">この記事について</h2>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 30%">
-<col style="width: 70%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>観点</th>
-<th>内容</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><strong>What：何のドキュメントか</strong></td>
-<td>データサイエンスプロジェクト（分析プロジェクト）を開始から完了まで進めるための <strong>分析ライフサイクル</strong> を，4つの段階と9つの工程に整理したもの．Microsoft の Team Data Science Process（TDSP）のライフサイクルを下敷きにしている．</td>
-</tr>
-<tr class="even">
-<td><strong>前提：どんな分析プロジェクトか</strong></td>
-<td>ビジネス上の問いに答える予測モデルを構築し，API やバッチ予測として本番環境に組み込んで意思決定や業務に継続的に活用するプロジェクト（データプロダクト・機械学習アプリケーションの構築）．</td>
-</tr>
-<tr class="odd">
-<td><strong>Who：誰に向けたものか</strong></td>
-<td>データサイエンスプロジェクトを計画・推進する担当者，レビュー担当者．</td>
-</tr>
-<tr class="even">
-<td><strong>Why：なぜ重要か</strong></td>
-<td>各段階のゴールと成果物を共有しておくことで，クライアント・関係者との認識のずれを防ぎ，プロジェクトを明確な終着点へ進めやすくなるため．</td>
-</tr>
-<tr class="odd">
-<td><strong>How：どう使うか</strong></td>
-<td>段階ごとの「ゴール」「やること」「成果物」をプロジェクト計画やレビュー時のチェックリストとして使う．</td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-<section id="分析ライフサイクルの全体像" class="level2">
-<h2 class="anchored" data-anchor-id="分析ライフサイクルの全体像">分析ライフサイクルの全体像</h2>
-<p>分析ライフサイクルとは，「データサイエンスプロジェクトが開始から完了までにたどる工程の流れ」のこと</p>
-<p>今回想定する分析プロジェクト例として，</p>
-<ul>
-<li>ビジネス上の問いを，数値や名前で答えられる <strong>予測の問題</strong> として定義する（例：来月解約する顧客は誰か）．</li>
-<li>機械学習や統計モデルで予測モデルを構築・検証する．</li>
-<li>モデルを API やバッチ予測として <strong>本番環境に組み込み</strong>，業務や意思決定で継続的に利用する．</li>
-<li>クライアント・関係者がシステムを受け入れ，運用担当へ引き継いだ時点でプロジェクトが完了する．</li>
-</ul>
-<section id="分析ライフサイクルの4つの段階と9つの工程" class="level3">
-<h3 class="anchored" data-anchor-id="分析ライフサイクルの4つの段階と9つの工程">分析ライフサイクルの4つの段階と9つの工程</h3>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-19-data-science-project-plan/figures/ds-project-lifecycle.svg" class="img-fluid figure-img" style="width:100.0%"></p>
-<figcaption>データサイエンスプロジェクトのライフサイクル</figcaption>
-</figure>
-</div>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 25%">
-<col style="width: 35%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>段階</th>
-<th>工程</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>ビジネス理解</td>
-<td>01 目的・意思決定の定義</td>
-</tr>
-<tr class="even">
-<td>データ取得と理解</td>
-<td>02 データの理解 / 03 データ品質・前処理 / 04 初期分析</td>
-</tr>
-<tr class="odd">
-<td>モデリング</td>
-<td>05 モデル選択・構築 / 06 検証・推論</td>
-</tr>
-<tr class="even">
-<td>意思決定</td>
-<td>07 結果の報告 / 08 実装・意思決定</td>
-</tr>
-<tr class="odd">
-<td>（デプロイ → 運用）</td>
-<td>デプロイ / 09 監視・振り返り</td>
-</tr>
-</tbody>
-</table>
-</div>
-<ul>
-<li>各段階は一方向に進むものではなく，<strong>工程を行き来しながら仮説・データ・モデルを洗練する</strong>反復的なプロセス</li>
-<li>例: データの品質が不十分であればビジネス理解に戻ってデータソースを見直し，モデルの精度が不十分であればデータ取得や特徴量の作成に戻る．</li>
-</ul>
-</section>
-</section>
-<section id="ビジネス理解business-understanding" class="level2">
-<h2 class="anchored" data-anchor-id="ビジネス理解business-understanding">1. ビジネス理解（Business Understanding）</h2>
-<p><span class="step-tag">01 目的・意思決定の定義</span></p>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>ゴール
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>クライアントの意思決定問題を <strong>Sharp な問い</strong> に落とし込み，モデルの目的変数と対応させる</li>
-<li>関心のあるデータソースの所在を特定し，他のソースから補助的なデータを持ち込むかを判断</li>
-</ul>
-</div>
-</div>
-<section id="やること" class="level3">
-<h3 class="anchored" data-anchor-id="やること">やること</h3>
-<ul>
-<li>クライアント・関係者と協力し，予測分析によって大きく改善できるビジネス課題を理解する</li>
-<li>中心となるのは，クライアントの意思決定問題と，それに対応して分析で予測すべき主要なビジネス変数＝<strong>目的変数</strong>の特定</li>
-<li>例: 売上予測，注文が不正である確率</li>
-</ul>
-<p><span class="mini-section">目的の定義</span></p>
-<ol type="1">
-<li><strong>クライアントのビジネス領域を理解する</strong>：その領域で成功を測る主要な指標は何か，どのビジネス課題に取り組めばその指標に影響を与えられるかを把握</li>
-<li><strong>Sharp な問いでプロジェクトの目的を定義する</strong>：「宇宙のことなら何でも答えてくれる神託に，答えが数値か名前になる質問をする」つもりで問いを立て，意思決定問題と目的変数を対応させる
-<ul>
-<li>例: 「どの顧客に解約抑止クーポンを配るか」→「来月解約する確率はいくらか」</li>
-</ul></li>
-<li><strong>体制と役割・責任を決める</strong>：大まかなマイルストーン計画を立て，新しい事実が分かるたびに更新</li>
-<li><strong>成功指標を定義する</strong>：指標は SMART（Specific，Measurable，Achievable，Relevant，Time-bound）であること（→ Appendix: SMART な成功指標）
-<ul>
-<li>例: 「3か月のプロジェクト終了までに解約予測の精度 X% を達成し，解約抑止のプロモーションに活用する」</li>
-</ul></li>
-</ol>
-<p><span class="mini-section">データソースの特定</span></p>
-<ul>
-<li><strong>関連性（Relevant）</strong>：目的変数と，それに関係する特徴量が測定されているか</li>
-<li><strong>正確性（Accurate）</strong>：目的変数と特徴量を正確に測定しているか</li>
-</ul>
-<p>既存システムで追加のデータを収集・記録しないと目的を達成できないケースも珍しくない．その場合は外部データソースを探すか，システムを改修して新しいデータを収集する．</p>
-</section>
-<section id="成果物" class="level3">
-<h3 class="anchored" data-anchor-id="成果物">成果物</h3>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 35%">
-<col style="width: 65%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>成果物</th>
-<th>内容</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>分析計画書</td>
-<td>プロジェクトの目的や範囲をまとめた生きたドキュメント．新たな発見やビジネス要件の変化に応じて更新し，変更理由はクライアント・関係者に明確に伝える</td>
-</tr>
-<tr class="even">
-<td>Data Sources（データソース一覧）</td>
-<td>生データの所在．後の段階で，分析環境へデータを移すスクリプトなどの詳細を追記</td>
-</tr>
-<tr class="odd">
-<td>Data Dictionaries（データ辞書）</td>
-<td>利用するデータの説明とスキーマ（データ型，バリデーションルール）．可能であれば ER 図も含める</td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-</section>
-<section id="データ取得と理解data-acquisition-and-understanding" class="level2">
-<h2 class="anchored" data-anchor-id="データ取得と理解data-acquisition-and-understanding">2. データ取得と理解（Data Acquisition and Understanding）</h2>
-<p><span class="step-tag">02 データの理解</span> <span class="step-tag">03 データ品質・前処理</span> <span class="step-tag">04 初期分析</span></p>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>ゴール
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>データを分析環境に取り込む</li>
-<li>手元のデータで問いに答えられるかを判断する</li>
-</ul>
-</div>
-</div>
-<section id="やること-1" class="level3">
-<h3 class="anchored" data-anchor-id="やること-1">やること</h3>
-<p><span class="mini-section">データの取り込み</span></p>
-<ul>
-<li>データをソースから，学習や予測（スコアリング）を行う分析環境へ移すプロセスを構築</li>
-</ul>
-<p><span class="mini-section">データの理解・品質確認</span></p>
-<ul>
-<li>実世界のデータは欠損や誤りを含むことが多いため，モデルを学習する前にデータを深く理解する必要がある</li>
-<li>要約統計量や可視化を用いてデータ品質を把握し，対処方針を決める</li>
-<li>可視化で確認する問いの例:
-<ul>
-<li>特徴量は役に立つほど一貫して測定されているか，欠損が多すぎないか</li>
-<li>対象期間を通じてデータが一貫して収集されているか，観測の抜けがないか</li>
-</ul></li>
-<li>品質チェックを通過しない場合は，前の段階に戻ってデータを修正・追加取得する</li>
-</ul>
-<p><span class="mini-section">初期分析</span></p>
-<ul>
-<li>品質に問題がなければ，予測モデルの構築に役立つデータの内在的なパターンを探る</li>
-<li>確認すること: データが目的変数とどの程度関係しているか，次の段階へ進むのに十分なデータ量があるか</li>
-<li>必要に応じて，より正確・より関連性の高いデータソースを新たに探す</li>
-</ul>
-<p><span class="mini-section">データパイプラインの設計</span></p>
-<ul>
-<li>初回の取り込みに加えて，新しいデータのスコアリングや定期的なデータ更新のためのパイプライン（ワークフロー）も必要</li>
-<li>パイプラインのソリューションアーキテクチャはこの段階で設計し，以降の段階と並行して開発</li>
-</ul>
-</section>
-<section id="成果物-1" class="level3">
-<h3 class="anchored" data-anchor-id="成果物-1">成果物</h3>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 35%">
-<col style="width: 65%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>成果物</th>
-<th>内容</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>Data Quality Report（データ品質レポート）</td>
-<td>データの要約，各属性と目的変数の関係，変数のランキングなど</td>
-</tr>
-<tr class="even">
-<td>Solution Architecture（ソリューションアーキテクチャ）</td>
-<td>新しいデータに対するスコアリング・予測と，モデル再学習のためのパイプラインの図・説明</td>
-</tr>
-</tbody>
-</table>
-</div>
-<div class="callout callout-style-default callout-important callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">重要</span>チェックポイント
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>本格的な特徴量エンジニアリングとモデル構築に入る前に，プロジェクトを続ける価値があるかを再評価する．</p>
-<ul>
-<li>続行する</li>
-<li>データを追加収集する</li>
-<li>問いに答えるデータが存在しないと判断する</li>
-</ul>
-</div>
-</div>
-</section>
-</section>
-<section id="モデリングmodeling" class="level2">
-<h2 class="anchored" data-anchor-id="モデリングmodeling">3. モデリング（Modeling）</h2>
-<p><span class="step-tag">05 モデル選択・構築</span> <span class="step-tag">06 検証・推論</span></p>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>ゴール
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>機械学習モデルを構築するための特徴量を作成する（特徴量エンジニアリング）</li>
-<li>目的変数を予測する有益なモデルを構築・評価する</li>
-<li>本番利用に適したモデルが得られたかを判断する</li>
-</ul>
-</div>
-</div>
-<section id="やること-2" class="level3">
-<h3 class="anchored" data-anchor-id="やること-2">やること</h3>
-<p><span class="mini-section">特徴量エンジニアリング</span></p>
-<ul>
-<li>生の変数を取り込み・集約・変換して，分析に用いる特徴量を作る</li>
-<li>モデルが何に基づいて予測しているかを理解するには，特徴量同士の関係と，機械学習手法が特徴量をどう使うかの理解が必要</li>
-<li>ドメイン知識とデータ探索で得た知見の組み合わせが欠かせない工程</li>
-<li>有益な変数は結果を改善するが，無関係な変数はノイズになる．両者のバランスを取る</li>
-<li>スコアリング時にも同じ特徴量を生成できる必要がある．<strong>予測時点で利用できないデータに依存した特徴量は作らない</strong></li>
-</ul>
-<p><span class="mini-section">モデルの学習</span></p>
-<p>問いの種類に応じて，複数のアルゴリズムが候補になる．学習の流れは次のとおり</p>
-<ol type="1">
-<li>入力データを，通常はランダムに学習データとテストデータへ分割</li>
-<li>学習データでモデルを構築</li>
-<li>複数のアルゴリズムとハイパーパラメータの組み合わせ（パラメータスイープ）を，学習データとテストデータで評価</li>
-<li>成功指標を比較し，問いに答える「BEST」な手法を決定</li>
-</ol>
-</section>
-<section id="成果物-2" class="level3">
-<h3 class="anchored" data-anchor-id="成果物-2">成果物</h3>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 35%">
-<col style="width: 65%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>成果物</th>
-<th>内容</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>Feature Sets（特徴量セット）</td>
-<td>モデリングに用いた特徴量の説明と，生成コードへの参照</td>
-</tr>
-<tr class="even">
-<td>Modeling Report（モデリングレポート）</td>
-<td>試したモデルごとに，標準テンプレートに沿って作成するレポート</td>
-</tr>
-</tbody>
-</table>
-</div>
-<div class="callout callout-style-default callout-important callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">重要</span>チェックポイント
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>モデルの性能が本番システムに導入できる水準かを評価する．</p>
-<ul>
-<li>テストデータに対して，モデルは問いに十分答えているか</li>
-<li>データの追加収集，特徴量エンジニアリングのやり直し，他のアルゴリズムの検討が必要ではないか</li>
-</ul>
-</div>
-</div>
-</section>
-</section>
-<section id="意思決定decision" class="level2">
-<h2 class="anchored" data-anchor-id="意思決定decision">4. 意思決定（Decision）</h2>
-<p><span class="step-tag">07 結果の報告</span> <span class="step-tag">08 実装・意思決定</span></p>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>ゴール
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>分析結果から，クライアントの意思決定を <strong>どのように変えるべきか</strong> を提言し，合意する</li>
-<li>パイプライン・モデル・その本番環境へのデプロイを確認し，プロジェクトの成果物を確定させる</li>
-</ul>
-</div>
-</div>
-<section id="やること-3" class="level3">
-<h3 class="anchored" data-anchor-id="やること-3">やること</h3>
-<p><span class="mini-section">結果の報告</span></p>
-<ul>
-<li>01 で定義した意思決定問題に対して，分析結果が何を示しているかを報告</li>
-<li>現状の意思決定と比べて，何をどう変えるべきかを具体的に提言
-<ul>
-<li>例: 「全顧客にクーポンを配る」→「解約確率の上位 20% にのみ配る」</li>
-</ul></li>
-<li>提言の根拠（成功指標の達成度，期待される効果）と不確実性・前提条件を併せて示す</li>
-</ul>
-<p><span class="mini-section">実装・意思決定</span></p>
-<ul>
-<li>クライアントが，システムがビジネス上のニーズを満たし，許容できる精度で問いに答えているかを検証し，本番利用の可否を判断</li>
-<li>提言を受けて，業務プロセスや意思決定ルールをどう変更するかを決定</li>
-<li>すべてのドキュメントを確定させ，レビュー</li>
-<li>本番運用を担う組織（クライアント側の IT・データサイエンスチーム，またはクライアントの委託先）へプロジェクトを引き継ぐ</li>
-</ul>
-</section>
-<section id="成果物-3" class="level3">
-<h3 class="anchored" data-anchor-id="成果物-3">成果物</h3>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 35%">
-<col style="width: 65%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>成果物</th>
-<th>内容</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>Project Final Report（最終報告書）</td>
-<td>意思決定への提言（何をどう変えるべきか，その根拠と不確実性）と，システムの理解と運用に必要なプロジェクトの詳細をまとめたレポート</td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-</section>
-<section id="デプロイと監視振り返りdeployment" class="level2">
-<h2 class="anchored" data-anchor-id="デプロイと監視振り返りdeployment">デプロイと監視・振り返り（Deployment）</h2>
-<p><span class="step-tag">デプロイ</span> <span class="step-tag">09 監視・振り返り</span></p>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>ゴール
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>モデルとパイプラインを，本番環境（または本番相当の環境）へデプロイする</li>
-</ul>
-</div>
-</div>
-<section id="やること-4" class="level3">
-<h3 class="anchored" data-anchor-id="やること-4">やること</h3>
-<p>性能の良いモデルが得られたら，他のアプリケーションから利用できるよう運用に乗せる．</p>
-<ul>
-<li>ビジネス要件に応じて，リアルタイム予測かバッチ予測かを選ぶ</li>
-<li>Web サイト，スプレッドシート，ダッシュボード，業務アプリケーションなどから利用できるよう，モデルを API として公開</li>
-<li>本番モデルとデータパイプラインにテレメトリと監視を組み込み，システムの状態報告やトラブルシューティングに備える</li>
-<li>監視・振り返りで得た知見は，次の課題設定（ビジネス理解）へフィードバック</li>
-</ul>
-</section>
-<section id="成果物-4" class="level3">
-<h3 class="anchored" data-anchor-id="成果物-4">成果物</h3>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 35%">
-<col style="width: 65%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>成果物</th>
-<th>内容</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>ステータスダッシュボード</td>
-<td>システムの健全性と主要指標を表示</td>
-</tr>
-<tr class="even">
-<td>最終モデリングレポート</td>
-<td>デプロイの詳細を含むモデリングレポート</td>
-</tr>
-<tr class="odd">
-<td>最終ソリューションアーキテクチャ</td>
-<td>本番構成を反映したアーキテクチャ文書</td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-</section>
-<section id="appendix-smart" class="level2">
-<h2 class="anchored" data-anchor-id="appendix-smart">Appendix: SMART な成功指標</h2>
-<div id="def-" class="custom_problem blog-custom-border theorem definition">
-<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title">SMART</span></p>
-<ul>
-<li>SMART は，目標や成功指標が「達成できたかどうかを後から判定できる形」になっているかを確認するためのチェックリスト．</li>
-</ul>
-</div>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-09-08-ds-lifecycle/figures/smart-criteria.svg" class="img-fluid figure-img" style="width:100.0%"></p>
-<figcaption>SMART の5つの観点と，ビジネス理解の例への当てはめ</figcaption>
-</figure>
-</div>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 22%">
-<col style="width: 27%">
-<col style="width: 25%">
-<col style="width: 26%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>観点</th>
-<th>確認する問い</th>
-<th>NG 例</th>
-<th>OK 例</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><strong>Specific</strong>（具体的）</td>
-<td>何を・誰を対象に改善するかが明確か</td>
-<td>「顧客体験を良くする」</td>
-<td>「月額会員の翌月解約を予測する」</td>
-</tr>
-<tr class="even">
-<td><strong>Measurable</strong>（測定可能）</td>
-<td>数値で達成を判定できるか</td>
-<td>「精度の高いモデルを作る」</td>
-<td>「テスト期間の AUC が 0.80 以上」</td>
-</tr>
-<tr class="odd">
-<td><strong>Achievable</strong>（達成可能）</td>
-<td>データ・期間・体制で手が届く水準か</td>
-<td>「解約を 0 にする」</td>
-<td>「現行ルールベース（AUC 0.70）を上回る」</td>
-</tr>
-<tr class="even">
-<td><strong>Relevant</strong>（関連性）</td>
-<td>ビジネス上の意思決定・KPI につながるか</td>
-<td>「特徴量を 100 個作る」</td>
-<td>「上位 10% にクーポンを配り解約率を下げる」</td>
-</tr>
-<tr class="odd">
-<td><strong>Time-bound</strong>（期限）</td>
-<td>いつまでに達成するか決まっているか</td>
-<td>「できるだけ早く」</td>
-<td>「3か月後のプロジェクト終了まで」</td>
-</tr>
-</tbody>
-</table>
-</div>
-<p><span class="mini-section">データサイエンスプロジェクトで使うときの注意</span></p>
-<ul>
-<li><strong>Measurable と Relevant を分けて考える</strong>：AUC や RMSE などのモデル指標は測定しやすいが，それだけではビジネス上の成果（解約率，売上）に結びつくとは限らない．モデル指標とビジネス KPI の両方を，対応関係とあわせて定義する</li>
-<li><strong>Achievable はベースラインから決める</strong>：現行の業務ルールや単純なモデルの性能をベースラインとして測り，そこからの改善幅で目標水準を置く．ベースラインがない段階での数値目標は，データ理解の段階で見直す前提にしておく</li>
-<li><strong>成功指標も分析計画書と同じく生きたドキュメント</strong>：データの品質や入手可能性が分かった時点で達成水準・期限を更新し，変更理由をクライアント・関係者に共有する</li>
-</ul>
-</section>
-<section id="references" class="level2">
-<h2 class="anchored" data-anchor-id="references">References</h2>
-<ul>
-<li><p>Doran, G. T. (1981). There’s a S.M.A.R.T. way to write management’s goals and objectives. <em>Management Review</em>, 70(11), 35–36.</p></li>
-<li><p><a href="https://github.com/Azure/Microsoft-TDSP/blob/master/Docs/lifecycle-detail.md">Team Data Science Process Lifecycle</a></p></li>
-<li><p><a href="https://github.com/Azure/Azure-TDSP-ProjectTemplate">Azure-TDSP-ProjectTemplate</a></p></li>
-</ul>
-
-
-</section>
-
- ]]></description>
-  <category>方法論</category>
-  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-09-08-ds-lifecycle/</guid>
-  <pubDate>Tue, 08 Sep 2026 00:00:00 GMT</pubDate>
 </item>
 </channel>
 </rss>
