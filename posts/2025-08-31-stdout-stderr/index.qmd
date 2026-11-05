@@ -2,9 +2,8 @@
 title: "シェルスクリプトにおける標準出力・標準エラー出力"
 author: "Ryo Nakagami"
 date: "2025-08-31"
-date-modified: "2025-10-31"
+date-modified: "2026-11-05"
 categories: [shell]
-listing_category: development
 comments:
   utterances:
        repo: RyoNakagami/regmonkey-datascience-blog
@@ -267,6 +266,136 @@ CMD 1> /dev/null 2> >(tee error.log)
 :::
 ---
 
+### CASE 4: ファイルに書いた SQL を `bq query` に渡す
+
+```bash
+# 動く
+bq query --use_legacy_sql=false < query.sql
+
+# 動く
+bq query --use_legacy_sql=false "$(cat query.sql)"
+
+# 動かない
+bq query --use_legacy_sql=false query.sql
+```
+
+最後のコマンドを実行すると，次のエラーになります．
+
+```
+Syntax error: Unexpected identifier "query" at [1:1]
+```
+
+[なぜ `bq query query.sql` は動かないのか]{.mini-section}
+
+コマンドがデータを受け取る経路には，**コマンドライン引数（argv）**と**標準入力（stdin）**の2つがあり，両者は別物です．
+引数を「ファイル名」として読むか「データそのもの」として読むかは，**シェルではなく各コマンドが決めます**．
+
+| コマンド | 位置引数の解釈 | 引数がないとき |
+|---|---|---|
+| `sort FileA` | ファイル名として開いて中身を読む | 標準入力から読む |
+| `bq query 'SQL'` | **SQL 文字列そのもの**として扱う | 標準入力から SQL を読む |
+
+: {tbl-colwidths="[25,40,35]"}
+
+`bq query query.sql` では，`query.sql` という9文字が SQL として BigQuery に送られます．
+先頭の `query` を SQL のキーワードとして解釈できないので，1行1列目（`[1:1]`）で構文エラーになります．
+
+[シェルがコマンドに渡しているもの]{.mini-section}
+
+3つの書き方の違いは，シェルがコマンドを起動する時点で argv と stdin に何を入れているかを見ると分かります．
+次の `show` 関数は，受け取った引数と標準入力をそのまま表示するだけの関数です．
+
+```bash
+show() {
+  echo "argc=$#"
+  for a in "$@"; do printf '  argv: [%s]\n' "$a"; done
+  [ ! -t 0 ] && printf '  stdin: [%s]\n' "$(cat)"
+}
+```
+
+`query.sql` の中身が次のとおりだとします．
+
+```sql
+SELECT *
+FROM t
+```
+
+```bash
+$ show query.sql < /dev/null
+argc=1
+  argv: [query.sql]
+  stdin: []
+
+$ show < query.sql
+argc=0
+  stdin: [SELECT *
+FROM t]
+
+$ show "$(cat query.sql)" < /dev/null
+argc=1
+  argv: [SELECT *
+FROM t]
+  stdin: []
+```
+
+| 書き方 | argv | stdin | `bq query` の結果 |
+|---|---|---|---|
+| `bq query query.sql` | `query.sql`（ファイル名の文字列） | 空 | ✗ `query.sql` を SQL として実行 |
+| `bq query < query.sql` | なし | ファイルの中身 | ✓ 標準入力から SQL を読む |
+| `bq query "$(cat query.sql)"` | ファイルの中身 | 空 | ✓ 引数の SQL を実行 |
+
+: {tbl-colwidths="[30,25,15,30]"}
+
+[1. `< query.sql`：リダイレクトで標準入力に流す]{.mini-section}
+
+`< query.sql` は **シェルが** `query.sql` を開き，そのファイルを `bq` の標準入力（ファイル記述子 `0`）につなぐ指定です．
+`< query.sql` という文字列自体は argv に入らないので，`bq` からは「SQL 引数が渡されなかった」ように見えます．
+`bq query` は SQL 引数がないと標準入力から SQL を読むので，ファイルの中身がそのまま実行されます．
+
+同じ理屈で，パイプやヒアドキュメントで渡しても動きます．
+
+```bash
+cat query.sql | bq query --use_legacy_sql=false
+
+bq query --use_legacy_sql=false <<'EOF'
+SELECT 1 AS x
+EOF
+```
+
+[2. `"$(cat query.sql)"`：コマンド置換で引数に展開する]{.mini-section}
+
+`$(...)` はコマンド置換です．シェルが先に `cat query.sql` を実行し，その標準出力で `$(...)` の部分を置き換えてから `bq` を起動します．
+結果として，ファイルの中身が SQL 文字列の引数として渡されます．なお，出力の末尾の改行は取り除かれます．
+
+::: {.callout-important}
+### ダブルクォートを外さない
+
+`$(cat query.sql)` を `"..."` で囲まないと，Bash は置換結果を空白・改行で単語に分割し，さらに `*` などをワイルドカードとして展開します．
+カレントディレクトリに `a.txt` と `b.txt` がある状態で実行すると，`SELECT *` の `*` がファイル名に化けます．
+
+```bash
+$ show $(cat query.sql) < /dev/null
+argc=6
+  argv: [SELECT]
+  argv: [a.txt]
+  argv: [b.txt]
+  argv: [query.sql]
+  argv: [FROM]
+  argv: [t]
+  stdin: []
+```
+
+:::
+
+[どちらを使うか]{.mini-section}
+
+基本は 1 の `< query.sql` を使うのが無難です．
+
+- クォートの付け忘れによる単語分割やワイルドカード展開の心配がない
+- 引数の長さ制限を受けない（Linux では1つの引数は 128 KiB までなので，巨大な SQL を `"$(cat ...)"` で渡すと `Argument list too long` になる）
+
+2 は，SQL の一部をシェル変数で組み立てたいときなど，文字列として扱いたい場面で使います．
+
 
 References
 ----------
@@ -274,3 +403,7 @@ References
 - [UNIXの絵本, 株式会社アンク著](https://www.shoeisha.co.jp/book/detail/4798109339)
 - [Linux Crash Course - Data Streams (stdin, stdout & stderr)](https://www.youtube.com/watch?v=zMKacHGuIHI)
 - [tee コマンドのすすめ](../2026-10-02-stdout-log/index.qmd)
+- [Bash Reference Manual: Redirections](https://www.gnu.org/software/bash/manual/html_node/Redirections.html)
+- [Bash Reference Manual: Command Substitution](https://www.gnu.org/software/bash/manual/html_node/Command-Substitution.html)
+- [Bash Reference Manual: Word Splitting](https://www.gnu.org/software/bash/manual/html_node/Word-Splitting.html)
+- [BigQuery: bq command-line tool reference](https://docs.cloud.google.com/bigquery/docs/reference/bq-cli-reference)
