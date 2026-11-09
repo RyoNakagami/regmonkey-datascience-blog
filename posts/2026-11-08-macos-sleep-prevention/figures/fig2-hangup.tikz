@@ -1,0 +1,50 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.3cm, inner sep=5pt, minimum width=3.6cm},
+    accent/.style={block, fill=paleskyblue},
+    ng/.style={block, draw=crimsonred, fill=mistyrose},
+    step/.style={font=\footnotesize\bfseries, text=azureblue},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    dot/.style={circle, fill=navy, inner sep=1.4pt},
+    wire/.style={->, draw=navy},
+  ]
+  % --- 上段：切断から SIGHUP の伝播まで ---
+  \node[block] (a1) {SSH 接続が切れる\\（ターミナルを閉じる）};
+  \node[block, right=1.0cm of a1] (a2) {sshd が\\pty を閉じる};
+  \node[block, right=1.0cm of a2] (a3) {カーネルが\\セッションリーダーの\\zsh に SIGHUP};
+  \node[block, right=1.0cm of a3] (a4) {zsh が自分の\\ジョブ全部に\\SIGHUP を転送};
+  \draw[wire] (a1) -- (a2);
+  \draw[wire] (a2) -- (a3);
+  \draw[wire] (a3) -- (a4);
+
+  % --- 下段：分岐 ---
+  \node[accent, below=1.5cm of a4] (c1) {nohup 経由の caffeinate\\SIG\_IGN なので\\何も起きない};
+  \node[ng, right=1.0cm of c1] (c2) {nohup なしの caffeinate\\既定動作で終了\\→ アサーション解放};
+  \node[block, left=1.0cm of c1] (d1) {zsh が終了し\\caffeinate は\\孤児プロセスに};
+  \node[block, left=1.0cm of d1] (d2) {launchd（PID 1）\\が新しい親になる};
+  \node[accent, left=1.0cm of d2] (d3) {アサーション維持\\sleep prevented\\のまま};
+
+  \coordinate (sp) at ($(a4.south)+(0,-0.6)$);
+  \draw[draw=navy] (a4.south) -- (sp);
+  \node[dot] at (sp) {};
+  \draw[wire] (sp) -- node[pos=0.45, left, sig] {nohup あり} (c1.north);
+  \draw[wire] (sp) -| node[pos=0.25, above, sig] {nohup なし} (c2.north);
+  \draw[wire] (c1) -- (d1);
+  \draw[wire] (d1) -- (d2);
+  \draw[wire] (d2) -- (d3);
+
+  \node[step, above=2mm of a1] {切断};
+  \node[step, above=2mm of d3] {結果};
+\end{tikzpicture}

@@ -1,0 +1,45 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, inner sep=5pt, minimum width=4.4cm},
+    accent/.style={block, fill=paleskyblue, minimum width=3.6cm, minimum height=1.5cm},
+    ng/.style={block, draw=crimsonred, fill=mistyrose, minimum width=3.8cm},
+    step/.style={font=\footnotesize\bfseries, text=azureblue},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt, align=center},
+    note/.style={font=\footnotesize, text=darkgray, align=left},
+    wire/.style={->, draw=navy},
+  ]
+  % --- 判定への入力（左列） ---
+  \node[block] (act) {ユーザー操作\\キーボード・マウス・tty};
+  \node[block, above=0.6cm of act] (tm) {pmset の設定\\sleep 1（分）};
+  \node[block, below=0.6cm of act] (as) {power assertion\\（スリープ抑止の要求）};
+  \node[step, above=2mm of tm] {判定の入力};
+
+  % --- powerd の判定 ---
+  \node[accent, right=3.6cm of act] (p) {powerd\\アイドルスリープ判定};
+
+  \draw[wire] (tm.east) -| node[pos=0.25, above, sig] {タイマー値} ([xshift=-6mm]p.north);
+  \draw[wire] (act.east) -- node[midway, above, sig] {無操作の経過時間} (p.west);
+  \draw[wire] (as.east) -| node[pos=0.25, below, sig] {有効なものがあれば\\スリープしない} ([xshift=-6mm]p.south);
+
+  % --- 結果 ---
+  \node[block, minimum width=3.8cm, right=4.0cm of p] (sl) {システムスリープ\\CPU・ネットワーク停止};
+  \node[ng, right=1.6cm of sl] (bad) {SSH が応答しない\\実行中のジョブも止まる};
+  \draw[wire] (p) -- node[midway, above, sig] {無操作時間 ≥ タイマー\\かつ 抑止アサーションなし} (sl);
+  \draw[wire] (sl) -- (bad);
+  \node[step, above=2mm of bad, text=crimsonred] {リモート作業での問題};
+  \node[note, below=2mm of sl] {pmset -g log に\\Entering Sleep state\\due to 'Idle Sleep'};
+
+  \node[note, below=2mm of bad] {SSH で放置中・切断後は\\Mac 側から見て「無操作」};
+\end{tikzpicture}

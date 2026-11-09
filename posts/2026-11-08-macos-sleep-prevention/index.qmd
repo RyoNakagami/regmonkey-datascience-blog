@@ -1,0 +1,339 @@
+---
+title: "SSH 越し macOS を sleep させない"
+author: "Ryo Nakagami"
+date: "2026-11-08"
+date-modified: "2026-11-09"
+categories: [ssh, macos]
+listing_category: development
+lightbox: true
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+
+::: {.callout-note}
+## TL;DR
+
+- `caffeinate -s` は「システムを眠らせない」という**アサーション**を電源管理デーモン `powerd` に登録するのコマンド．
+  - 設定ファイルは書き換えないので **`sudo` は不要**．
+- アサーションは **caffeinate プロセスが生きている間だけ**有効．プロセスが死ぬと `powerd` が自動で解放する．
+- 元に戻すには `pkill -x caffeinate`．再起動でも消える．
+
+```zsh
+# caffeinate
+nohup caffeinate -s >/dev/null 2>&1 &
+
+# check process
+ps -o pid,ppid,user,lstart,etime,command -p "$(pgrep -d, caffeinate)"
+
+# kill process
+pkill -x caffeinate
+```
+
+
+:::
+
+## 問題設定: MacOS とスリープ
+
+- リモートの Mac に SSH でログインして長時間のジョブ（学習・ビルド・データ転送など）を走らせ，手元の端末を放置したり SSH を切断したりすると，しばらくして Mac がスリープに入ることがある
+- スリープ中は CPU もネットワークも止まるので，SSH は応答しなくなり，実行中のジョブも進まない．
+
+![macOS がアイドルスリープに入るまで](./figures/fig0-sleep-decision.png)
+
+[スリープに入る仕組み]{.mini-section}
+
+macOS では，いつスリープするかを電源管理デーモン `powerd` が決めています．`powerd` はアイドルスリープの判定に次の3つを使っています．
+
+:::: {.no-border-top-table}
+
+| 入力 | 中身 | 確認方法 |
+|---|---|---|
+| 電源設定のタイマー | 「何分操作が無ければスリープするか」．`pmset` の `sleep` 値（例：`sleep 1` なら1分） | `pmset -g` |
+| ユーザー操作 | キーボード・マウスの操作と，tty（SSH などのリモートログインを含む）の利用．最後の操作からの経過時間がアイドル時間になる | — |
+| power assertion | プロセスが登録する「今はスリープさせないでほしい」という要求 | `pmset -g assertions` |
+: {tbl-colwidths="[22,58,20]"}
+
+::::
+
+つまるところ，
+
+- **アイドル時間がタイマー値を超え，かつスリープを抑止するアサーションが1つも無い**とき，`powerd` はシステムをスリープさせる
+- このとき `pmset -g log` には `Entering Sleep state due to 'Idle Sleep'` という行が残る
+
+[SSH 越しだとなぜ眠るのか]{.mini-section}
+
+SSH のセッションは Mac にとっては tty の1つにすぎません．`pmset` の `ttyskeepawake` が有効なら，tty が使われている間は idle sleep しませんが，**tty のアイドル時間がシステムスリープのタイマーを超えると，その tty は inactive 扱いになります**（`man pmset`）．
+
+- **SSH で放置した場合**：ジョブが走っていても操作が無い限り tty のアイドル時間は伸び続け，いずれタイマーを超える
+- **SSH を切断した場合**：tty そのものが無くなるので，スリープを止める要素は残らない
+
+どちらの場合も Mac 側から見ると「誰も使っていない」状態になり，抑止するアサーションが無ければ設定どおりスリープになります．
+
+## Solutions
+
+::: {.callout-note}
+### スリープ抑止アサーションの設定
+
+- `caffeinate -s` が `PreventSystemSleep` アサーションを `powerd` に登録する（`sudo` 不要）
+- `nohup` により，SSH を切断しても caffeinate は終了せず，アサーションが残る
+- タイマーには触れず，スリープを抑止する**アサーションを作るプロセス**を SSH 切断後も生かしておく
+
+```zsh
+% nohup caffeinate -s >/dev/null 2>&1 &
+```
+
+![コマンドの分解](./figures/fig1-command.png)
+
+:::
+
+
+[効いているかの確認]{.mini-section}
+
+```zsh
+% pmset -g | grep '^ *sleep'
+ sleep                1 (sleep prevented by caffeinate)
+```
+
+[元に戻す方法]{.mini-section}
+
+```zsh
+% pkill -x caffeinate          # 停止するとスリープ設定が元どおり効く
+```
+
+[恒久的に止めたい場合]{.mini-section}
+
+`sudo pmset -c sleep 0` で AC 電源時のスリープタイマー自体を無効にできます．root が必要で，システム全体に効き，再起動後も残ります
+
+## 詳細解説
+
+### 1. macOS が直近どれだけ sleep に入っているかの確認
+
+::: {#def- .custom_problem .blog-custom-border}
+### `pmset` コマンド
+
+macOS の電源管理設定（idle sleep のタイマーなど）を参照・変更するコマンド．
+
+- **参照は一般ユーザー，変更は root**：`pmset -g ...` は誰でも実行できるが，`pmset -c sleep 0` のような設定変更には `sudo` が必要
+- **変更は永続的**：設定は `/Library/Preferences/` 配下の plist に保存され，システム全体に効き，再起動後も残る．
+- **設定はアサーションで一時的に上書きされうる**：caffeinate などのプロセスが power assertion を作ると，設定値はそのままでスリープが抑止される．上書きしているプロセスは `pmset -g` と `pmset -g assertions` に表示される
+
+:::
+
+[options]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| コマンド | 表示内容 |
+|---|---|
+| `pmset -g` | 現在使われている設定値．アサーションで抑止中ならその旨も併記される |
+| `pmset -g log` | スリープ・復帰などの電源管理イベントの履歴 |
+| `pmset -g stats` | 起動以降のスリープ・復帰の回数 |
+| `pmset -g assertions` | 現在有効なアサーションと，それを作成したプロセスの一覧 |
+| `pmset -g assertionslog` | アサーションの作成・解放のログ |
+: {tbl-colwidths="[30,70]"}
+
+設定変更時は `-a`（全電源）/ `-b`（バッテリー）/ `-c`（AC 電源）/ `-u`（UPS）で対象の電源ソースを指定します．
+
+::::
+
+[スリープ履歴を見る：`pmset -g log`]{.mini-section}
+
+- `pmset -g log` は `powerd` が記録している電源イベントのログを表示
+
+Sleep / Wake の行だけに絞り，直近の分を見る場合は
+
+```zsh
+% pmset -g log | grep -E '^\S+ \S+ \S+ (Sleep|Wake|DarkWake)\s' | tail -n 20
+```
+
+各行は「日時・タイムゾーン・種別・詳細」の順に並びます
+
+:::: {.no-border-top-table}
+
+| 種別 | 意味 |
+|---|---|
+| `Sleep` | システムスリープに入った．詳細欄に `Entering Sleep state due to 'Idle Sleep'` のように理由が出る |
+| `Wake` | ユーザー操作などで通常の起動状態に復帰した |
+| `DarkWake` | 画面を点けずに一時的に起きた（Power Nap やネットワーク維持など）．すぐ再びスリープに戻る |
+: {tbl-colwidths="[20,80]"}
+
+::::
+
+回数だけ知りたい場合は次でまとめて見れます
+
+```zsh
+% pmset -g log | grep -c 'Entering Sleep'   # ログに残っている範囲でのスリープ回数
+% pmset -g stats                            # 起動以降の Sleep / Wake の回数
+```
+
+[現在の設定と抑止状態：`pmset -g` の読み方]{.mini-section}
+
+```zsh
+% pmset -g | grep -E '^\s*(sleep|disksleep|powernap)'
+ powernap             1
+ disksleep            10
+ sleep                1 (sleep prevented by caffeinate)
+```
+
+:::: {.no-border-top-table}
+
+| 項目 | 値 | 意味 |
+|---|---|---|
+| `sleep` | `1` | 設定上は「1分無操作でシステムスリープ」．**設定値は変わっていない** |
+| `(sleep prevented by caffeinate)` | — | ただし今は caffeinate のアサーションによって抑止中 |
+| `disksleep` | `10` | ディスクのアイドルスリープ．`-s` では止まらない（止めたいなら `-m`） |
+| `powernap` | `1` | Power Nap．スリープ中の挙動なので，眠らなければ関係しない |
+: {tbl-colwidths="[35,5,60]"}
+::::
+
+- ポイントは「`sleep 1` という**設定**」と「今それが**抑止されている**という状態」が別物として表示されていること
+- caffeinate は前者に触らず，後者だけを作っている．
+
+
+### 2. コマンドの分解
+
+::: {#def- .custom_problem .blog-custom-border}
+### `caffeinate` コマンド
+
+スリープを抑止する power assertion を作成し，`caffeinate` プロセスが生きている間だけ保持するコマンド．
+
+- **一般ユーザーで実行できる**：電源設定（plist）は書き換えず，アサーションを `powerd` に登録するだけなので `sudo` は不要
+  - 動画プレイヤーが再生中に画面を消させない，ダウンロード中に眠らせない，といった普通のアプリが日常的に使う仕組み
+- **効果はプロセスの寿命と同じ**：終了するとアサーションは自動で解放される．終了のさせ方は「`-t` の秒数経過」「`-w` で指定したプロセスの終了」「引数のコマンドの終了」「シグナルで kill」のいずれか．何も指定しなければ kill されるまで動き続ける
+- **抑止したい対象をフラグで選ぶ**：フラグを付けない場合は `-i`（アイドルスリープ抑止）として動く
+
+:::
+
+[options]{.mini-section}
+
+:::: {.no-border-top-table}
+
+| フラグ | 作成するアサーション | 抑止する対象 |
+|---|---|---|
+| `-s` | `PreventSystemSleep` | システムスリープ．**AC 電源時のみ有効** |
+| `-i` | `PreventUserIdleSystemSleep` | 無操作によるシステムスリープ．バッテリーでも有効 |
+| `-d` | `PreventUserIdleDisplaySleep` | 無操作によるディスプレイスリープ |
+| `-m` | `PreventDiskIdle` | ディスクのアイドルスリープ |
+| `-t <秒>` | — | 指定秒数でアサーションを解放して終了する |
+| `-w <PID>` | — | 指定したプロセスが終了するまで保持する |
+: {tbl-colwidths="[15,40,45]"}
+
+`caffeinate -i make` のようにコマンドを渡すと，そのコマンドの実行中だけアサーションを保持します．
+
+::::
+
+[実行コマンドの分解]{.mini-section}
+
+![コマンドの分解](./figures/fig1-command.png)
+
+:::: {.no-border-top-table}
+
+| 部品 | 役割 |
+|---|---|
+| `nohup` | SIGHUP の処理を `SIG_IGN`（無視）にしてから `caffeinate` を `exec` する．無視設定は exec 後も引き継がれる |
+| `caffeinate -s` | `PreventSystemSleep` アサーションを作成し，終了するまで保持し続ける（タイムアウトを付けなければ無期限） |
+| `>/dev/null` | 標準出力を捨てる．これが無いと nohup は出力先を `nohup.out` に変え，カレントディレクトリにファイルを作る |
+| `2>&1` | 標準エラーも同じ `/dev/null` へ．切断後に消えた tty へ書き込もうとして EIO 等になるのも防ぐ |
+| `&` | バックグラウンドで起動し，プロンプトをすぐ返す |
+: {tbl-colwidths="[25,75]"}
+
+::::
+
+### 3. ターミナルを切ったら，スリープは再び有効になるのか
+
+::: {.callout-note}
+### 結論
+
+- **ならない** 
+- caffeinate は生き残り，スリープ抑止は続く（それが `nohup` を付けた目的）
+- スリープが再び有効になるのは caffeinate が終了したとき．
+
+:::
+
+![SSH 切断時に起きること](./figures/fig2-hangup.png)
+
+1. SSH 接続が切れると，sshd がセッションの擬似端末（pty）を閉じる．
+2. カーネルは端末のハングアップを，セッションリーダー（ログインシェルの zsh）に SIGHUP で通知する．
+3. zsh は終了する前に，自分の管理するジョブ全部に SIGHUP を送る（zsh の `HUP` オプション，既定で ON）．
+4. caffeinate は `nohup` により SIGHUP を無視しているので，何も起きない．
+5. 親の zsh が終了すると，caffeinate は孤児プロセスになり，launchd（PID 1）が新しい親になる．
+6. caffeinate が生きている限りアサーションは保持され，`sleep prevented by caffeinate` のまま．
+
+`nohup` が無い場合，手順 3 の SIGHUP で caffeinate は既定動作（終了）し，`powerd` がアサーションを解放する → スリープが再び有効になります．
+
+## 運用上の注意
+
+- **AC 電源のときだけ効く**：`-s` の仕様．MacBook をバッテリーで動かしているなら `-i`（アイドルスリープ抑止．バッテリーでも有効）を使う．
+- **多重起動に注意**：ログインのたびに実行すると caffeinate が溜まっていく．起動前に確認するとよい：
+
+  ```zsh
+  pgrep -x caffeinate >/dev/null || nohup caffeinate -s >/dev/null 2>&1 &
+  ```
+
+- **`exit` で抜けるとき**：zsh は実行中のジョブがあると最初の `exit` で `you have running jobs.` と警告して止まることがある．もう一度 `exit` すれば抜けられ，caffeinate は生き残る．警告を避けたいなら起動直後に `disown` する（ジョブ表から外れるので，そもそも zsh が SIGHUP を送らなくなる）．
+- **ディスプレイは消える**：`-s` はシステムスリープだけを止める．画面は通常どおり消えるが SSH には影響しない．
+- **再起動で消える**：プロセスなので再起動後は残らない．恒久的にしたいなら `sudo pmset -c sleep 0`（AC 時のみスリープしない設定）か，launchd の LaunchAgent で caffeinate を常駐させる．
+
+## 📘 用語集
+
+:::{.glossary-container}
+
+```yaml
+glossary:
+  - def: アサーション (power assertion)
+    description: |
+      プロセスが macOS の電源管理に対して「今はスリープさせないでほしい」といった要求を宣言する仕組み．
+      IOKit の `IOPMAssertionCreateWithName` 系 API で作成し，`powerd` に登録される．
+      種類があり，`caffeinate -s` は `PreventSystemSleep`，`-i` は `PreventUserIdleSystemSleep`，
+      `-d` は `PreventUserIdleDisplaySleep`，`-m` は `PreventDiskIdle` を作る．
+      電源設定（`pmset` の `sleep` 値など）は書き換えず，作成したプロセスに紐づいて保持される．
+      プロセスが終了すると自動的に解放されるため，root 権限は不要．
+      現在有効なアサーションと所有プロセスは `pmset -g assertions` で確認できる．
+
+  - def: `powerd`
+    description: |
+      macOS の電源管理デーモン．launchd から root 権限で起動される．
+      `pmset` で設定された電源設定と，各プロセスから登録されたアサーションを突き合わせて，
+      システムやディスプレイをスリープさせてよいかを判断する．
+      アサーションを作成したプロセスの終了を検知すると，そのアサーションを自動で解放する．
+      `pmset -g` に表示される `(sleep prevented by caffeinate)` は，
+      `powerd` がアサーションによってスリープを抑止している状態を示す．
+
+  - def: `SIGHUP` (hangup signal)
+    description: |
+      制御端末が切断（ハングアップ）されたことを知らせるシグナル．シグナル番号は 1．
+      端末が閉じられると，カーネルがセッションリーダー（ログインシェルなど）に送り，
+      シェルは終了前に自分の管理するジョブにも転送する（zsh では `HUP` オプション，既定で ON）．
+      既定動作はプロセスの終了なので，何も対策しないとバックグラウンドジョブも SSH 切断と一緒に終了する．
+      なお，デーモンでは慣習的に「設定ファイルの再読み込み」の合図として使われることも多い．
+
+  - def: `SIG_IGN`
+    description: |
+      シグナルの処理方法（disposition）として「無視する」を表す定数．
+      `signal(SIGHUP, SIG_IGN)` や `sigaction` で設定すると，そのシグナルが届いても何も起きない．
+      `fork` した子プロセスに引き継がれ，`exec` で別のプログラムに置き換わっても保持される
+      （自前のハンドラ関数は `exec` で既定動作に戻るが，`SIG_IGN` は戻らない）．
+      `nohup` はこの性質を使い，`SIGHUP` を `SIG_IGN` にしてから対象コマンドを `exec` する．
+      `SIGKILL` と `SIGSTOP` は無視できない．
+
+  - def: `/dev/null`
+    description: |
+      書き込まれたデータをすべて捨て，読み出すと即座に EOF を返す特殊ファイル（null デバイス）．
+      `>/dev/null` で標準出力を，`2>&1` を続けて標準エラーも同じ場所へ向けると，出力を一切残さない．
+      リダイレクトは左から順に処理されるため，`>/dev/null 2>&1` と `2>&1 >/dev/null` は結果が異なる
+      （後者は標準エラーが元の端末に残る）．
+      `nohup` は標準出力が端末のままだと `nohup.out` に書き出すので，`/dev/null` に向けてファイル生成を防ぐ．
+
+  - def: `&` (バックグラウンド実行)
+    description: |
+      コマンドの末尾に付けると，シェルはそのコマンドの終了を待たずにすぐ次のプロンプトを返す．
+      起動したプロセスはジョブとしてシェルのジョブ表に登録され，`jobs` で一覧，`fg %1` で前面に戻せる．
+      直前に起動したバックグラウンドプロセスの PID は `$!` で取れる．
+      バックグラウンドにしても同じセッション・同じ制御端末に属したままなので，
+      端末が切れればシェルから `SIGHUP` を受け取る．切断後も生かすには `nohup` か `disown` を併用する．
+```
+
+:::
