@@ -107,6 +107,42 @@ SSH のセッションは Mac にとっては tty の1つにすぎません．`p
 
 `sudo pmset -c sleep 0` で AC 電源時のスリープタイマー自体を無効にできます．root が必要で，システム全体に効き，再起動後も残ります
 
+
+::: {.callout-note}
+### シェル関数設定
+
+- 基本的には alias 設定で十分ですが，条件分岐を含めるような挙動が欲しい場合は，シェル関数として以下の形で定義します
+
+
+```zsh
+#!/bin/zsh
+
+start-nosleep() {
+  pgrep -x caffeinate >/dev/null && { echo "already running"; return 0; }
+  nohup caffeinate -s >/dev/null 2>&1 &
+}
+
+check-nosleep() {
+  local pids
+  pids=$(pgrep -d, -x caffeinate) || { echo "no caffeinate"; return 1; }
+  ps -o pid,ppid,user,lstart,etime,command -p "$pids"
+}
+
+kill-nosleep() {
+  local pids
+  pids=$(pgrep -x caffeinate) || { echo "no caffeinate"; return 1; }
+  pkill -x caffeinate && echo "killed: $(echo $pids | tr '\n' ' ')"
+}
+
+```
+
+
+:::
+
+
+
+
+
 ## 詳細解説
 
 ### 1. macOS が直近どれだけ sleep に入っているかの確認
