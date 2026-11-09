@@ -10,7 +10,1022 @@
 <atom:link href="https://ryonakagami.github.io/regmonkey-datascience-blog/index.xml" rel="self" type="application/rss+xml"/>
 <description>日々の徒然勉強日記</description>
 <generator>quarto-1.11.9</generator>
-<lastBuildDate>Wed, 28 Oct 2026 00:00:00 GMT</lastBuildDate>
+<lastBuildDate>Sun, 08 Nov 2026 00:00:00 GMT</lastBuildDate>
+<item>
+  <title>SSH 越し macOS を sleep させない</title>
+  <dc:creator>Ryo Nakagami</dc:creator>
+  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-11-08-macos-sleep-prevention/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>TL;DR
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li><code>caffeinate -s</code> は「システムを眠らせない」という<strong>アサーション</strong>を電源管理デーモン <code>powerd</code> に登録するのコマンド．
+<ul>
+<li>設定ファイルは書き換えないので <strong><code>sudo</code> は不要</strong>．</li>
+</ul></li>
+<li>アサーションは <strong>caffeinate プロセスが生きている間だけ</strong>有効．プロセスが死ぬと <code>powerd</code> が自動で解放する．</li>
+<li>元に戻すには <code>pkill -x caffeinate</code>．再起動でも消える．</li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb1-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># caffeinate</span></span>
+<span id="cb1-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">nohup</span> caffeinate <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-s</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span>/dev/null <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;&amp;</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">&amp;</span></span>
+<span id="cb1-3"></span>
+<span id="cb1-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># check process</span></span>
+<span id="cb1-5"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ps</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-o</span> pid,ppid,user,lstart,etime,command <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-p</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$(</span><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">pgrep</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-d,</span> caffeinate<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">)</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span></span>
+<span id="cb1-6"></span>
+<span id="cb1-7"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># kill process</span></span>
+<span id="cb1-8"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">pkill</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-x</span> caffeinate</span></code></pre></div></div>
+</div>
+</div>
+<section id="問題設定-macos-とスリープ" class="level2">
+<h2 class="anchored" data-anchor-id="問題設定-macos-とスリープ">問題設定: MacOS とスリープ</h2>
+<ul>
+<li>リモートの Mac に SSH でログインして長時間のジョブ（学習・ビルド・データ転送など）を走らせ，手元の端末を放置したり SSH を切断したりすると，しばらくして Mac がスリープに入ることがある</li>
+<li>スリープ中は CPU もネットワークも止まるので，SSH は応答しなくなり，実行中のジョブも進まない．</li>
+</ul>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="./figures/fig0-sleep-decision.png" class="lightbox" data-gallery="quarto-lightbox-gallery-1" title="macOS がアイドルスリープに入るまで"><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-11-08-macos-sleep-prevention/figures/fig0-sleep-decision.png" class="img-fluid figure-img" alt="macOS がアイドルスリープに入るまで"></a></p>
+<figcaption>macOS がアイドルスリープに入るまで</figcaption>
+</figure>
+</div>
+<p><span class="mini-section">スリープに入る仕組み</span></p>
+<p>macOS では，いつスリープするかを電源管理デーモン <code>powerd</code> が決めています．<code>powerd</code> はアイドルスリープの判定に次の3つを使っています．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 22%">
+<col style="width: 57%">
+<col style="width: 20%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>入力</th>
+<th>中身</th>
+<th>確認方法</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>電源設定のタイマー</td>
+<td>「何分操作が無ければスリープするか」．<code>pmset</code> の <code>sleep</code> 値（例：<code>sleep 1</code> なら1分）</td>
+<td><code>pmset -g</code></td>
+</tr>
+<tr class="even">
+<td>ユーザー操作</td>
+<td>キーボード・マウスの操作と，tty（SSH などのリモートログインを含む）の利用．最後の操作からの経過時間がアイドル時間になる</td>
+<td>—</td>
+</tr>
+<tr class="odd">
+<td>power assertion</td>
+<td>プロセスが登録する「今はスリープさせないでほしい」という要求</td>
+<td><code>pmset -g assertions</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>つまるところ，</p>
+<ul>
+<li><strong>アイドル時間がタイマー値を超え，かつスリープを抑止するアサーションが1つも無い</strong>とき，<code>powerd</code> はシステムをスリープさせる</li>
+<li>このとき <code>pmset -g log</code> には <code>Entering Sleep state due to 'Idle Sleep'</code> という行が残る</li>
+</ul>
+<p><span class="mini-section">SSH 越しだとなぜ眠るのか</span></p>
+<p>SSH のセッションは Mac にとっては tty の1つにすぎません．<code>pmset</code> の <code>ttyskeepawake</code> が有効なら，tty が使われている間は idle sleep しませんが，<strong>tty のアイドル時間がシステムスリープのタイマーを超えると，その tty は inactive 扱いになります</strong>（<code>man pmset</code>）．</p>
+<ul>
+<li><strong>SSH で放置した場合</strong>：ジョブが走っていても操作が無い限り tty のアイドル時間は伸び続け，いずれタイマーを超える</li>
+<li><strong>SSH を切断した場合</strong>：tty そのものが無くなるので，スリープを止める要素は残らない</li>
+</ul>
+<p>どちらの場合も Mac 側から見ると「誰も使っていない」状態になり，抑止するアサーションが無ければ設定どおりスリープになります．</p>
+</section>
+<section id="solutions" class="level2">
+<h2 class="anchored" data-anchor-id="solutions">Solutions</h2>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>スリープ抑止アサーションの設定
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li><code>caffeinate -s</code> が <code>PreventSystemSleep</code> アサーションを <code>powerd</code> に登録する（<code>sudo</code> 不要）</li>
+<li><code>nohup</code> により，SSH を切断しても caffeinate は終了せず，アサーションが残る</li>
+<li>タイマーには触れず，スリープを抑止する<strong>アサーションを作るプロセス</strong>を SSH 切断後も生かしておく</li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb2-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> nohup caffeinate <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-s</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span>/dev/null <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;&amp;</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">&amp;</span></span></code></pre></div></div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="./figures/fig1-command.png" class="lightbox" data-gallery="quarto-lightbox-gallery-2" title="コマンドの分解"><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-11-08-macos-sleep-prevention/figures/fig1-command.png" class="img-fluid figure-img" alt="コマンドの分解"></a></p>
+<figcaption>コマンドの分解</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p><span class="mini-section">効いているかの確認</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb3-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> pmset <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-g</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">grep</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'^ *sleep'</span></span>
+<span id="cb3-2"> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sleep</span>                1 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">(sleep prev</span>ented by caffeinate)</span></code></pre></div></div>
+<p><span class="mini-section">元に戻す方法</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb4-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> pkill <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-x</span> caffeinate          <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 停止するとスリープ設定が元どおり効く</span></span></code></pre></div></div>
+<p><span class="mini-section">恒久的に止めたい場合</span></p>
+<p><code>sudo pmset -c sleep 0</code> で AC 電源時のスリープタイマー自体を無効にできます．root が必要で，システム全体に効き，再起動後も残ります</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>シェル関数設定
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>基本的には alias 設定で十分ですが，条件分岐を含めるような挙動が欲しい場合は，シェル関数として以下の形で定義します</li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb5-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#!/bin/zsh</span></span>
+<span id="cb5-2"></span>
+<span id="cb5-3"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">start-nosleep()</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">{</span></span>
+<span id="cb5-4">  <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">pgrep</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-x</span> caffeinate <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span>/dev/null <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">&amp;&amp;</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">{</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"already running"</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">;</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">;</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">}</span></span>
+<span id="cb5-5">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">nohup</span> caffeinate <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-s</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span>/dev/null <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;&amp;</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">&amp;</span></span>
+<span id="cb5-6"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">}</span></span>
+<span id="cb5-7"></span>
+<span id="cb5-8"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">check-nosleep()</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">{</span></span>
+<span id="cb5-9">  <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">local</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">pids</span></span>
+<span id="cb5-10">  <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">pids</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$(</span><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">pgrep</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-d,</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-x</span> caffeinate<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">)</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">||</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">{</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"no caffeinate"</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">;</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">;</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">}</span></span>
+<span id="cb5-11">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ps</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-o</span> pid,ppid,user,lstart,etime,command <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-p</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$pids</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span></span>
+<span id="cb5-12"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">}</span></span>
+<span id="cb5-13"></span>
+<span id="cb5-14"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">kill-nosleep()</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">{</span></span>
+<span id="cb5-15">  <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">local</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">pids</span></span>
+<span id="cb5-16">  <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">pids</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$(</span><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">pgrep</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-x</span> caffeinate<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">)</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">||</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">{</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"no caffeinate"</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">;</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">;</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">}</span></span>
+<span id="cb5-17">  <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">pkill</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-x</span> caffeinate <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">&amp;&amp;</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"killed: </span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$(</span><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">echo</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$pids</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tr</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'\n'</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">' '</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">)</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span></span>
+<span id="cb5-18"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">}</span></span></code></pre></div></div>
+</div>
+</div>
+</section>
+<section id="詳細解説" class="level2">
+<h2 class="anchored" data-anchor-id="詳細解説">詳細解説</h2>
+<section id="macos-が直近どれだけ-sleep-に入っているかの確認" class="level3">
+<h3 class="anchored" data-anchor-id="macos-が直近どれだけ-sleep-に入っているかの確認">1. macOS が直近どれだけ sleep に入っているかの確認</h3>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title"><code>pmset</code> コマンド</span></p>
+<p>macOS の電源管理設定（idle sleep のタイマーなど）を参照・変更するコマンド．</p>
+<ul>
+<li><strong>参照は一般ユーザー，変更は root</strong>：<code>pmset -g ...</code> は誰でも実行できるが，<code>pmset -c sleep 0</code> のような設定変更には <code>sudo</code> が必要</li>
+<li><strong>変更は永続的</strong>：設定は <code>/Library/Preferences/</code> 配下の plist に保存され，システム全体に効き，再起動後も残る．</li>
+<li><strong>設定はアサーションで一時的に上書きされうる</strong>：caffeinate などのプロセスが power assertion を作ると，設定値はそのままでスリープが抑止される．上書きしているプロセスは <code>pmset -g</code> と <code>pmset -g assertions</code> に表示される</li>
+</ul>
+</div>
+<p><span class="mini-section">options</span></p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 30%">
+<col style="width: 70%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>コマンド</th>
+<th>表示内容</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>pmset -g</code></td>
+<td>現在使われている設定値．アサーションで抑止中ならその旨も併記される</td>
+</tr>
+<tr class="even">
+<td><code>pmset -g log</code></td>
+<td>スリープ・復帰などの電源管理イベントの履歴</td>
+</tr>
+<tr class="odd">
+<td><code>pmset -g stats</code></td>
+<td>起動以降のスリープ・復帰の回数</td>
+</tr>
+<tr class="even">
+<td><code>pmset -g assertions</code></td>
+<td>現在有効なアサーションと，それを作成したプロセスの一覧</td>
+</tr>
+<tr class="odd">
+<td><code>pmset -g assertionslog</code></td>
+<td>アサーションの作成・解放のログ</td>
+</tr>
+</tbody>
+</table>
+<p>設定変更時は <code>-a</code>（全電源）/ <code>-b</code>（バッテリー）/ <code>-c</code>（AC 電源）/ <code>-u</code>（UPS）で対象の電源ソースを指定します．</p>
+</div>
+<p><span class="mini-section">スリープ履歴を見る：<code>pmset -g log</code></span></p>
+<ul>
+<li><code>pmset -g log</code> は <code>powerd</code> が記録している電源イベントのログを表示</li>
+</ul>
+<p>Sleep / Wake の行だけに絞り，直近の分を見る場合は</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb6-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> pmset <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-g</span> log <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">grep</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-E</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'^\S+ \S+ \S+ (Sleep|Wake|DarkWake)\s'</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tail</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-n</span> 20</span></code></pre></div></div>
+<p>各行は「日時・タイムゾーン・種別・詳細」の順に並びます</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 80%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>種別</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>Sleep</code></td>
+<td>システムスリープに入った．詳細欄に <code>Entering Sleep state due to 'Idle Sleep'</code> のように理由が出る</td>
+</tr>
+<tr class="even">
+<td><code>Wake</code></td>
+<td>ユーザー操作などで通常の起動状態に復帰した</td>
+</tr>
+<tr class="odd">
+<td><code>DarkWake</code></td>
+<td>画面を点けずに一時的に起きた（Power Nap やネットワーク維持など）．すぐ再びスリープに戻る</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>回数だけ知りたい場合は次でまとめて見れます</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb7-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> pmset <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-g</span> log <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">grep</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-c</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'Entering Sleep'</span>   <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># ログに残っている範囲でのスリープ回数</span></span>
+<span id="cb7-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> pmset <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-g</span> stats                            <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 起動以降の Sleep / Wake の回数</span></span></code></pre></div></div>
+<p><span class="mini-section">現在の設定と抑止状態：<code>pmset -g</code> の読み方</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb8-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">%</span> pmset <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-g</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">grep</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-E</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'^\s*(sleep|disksleep|powernap)'</span></span>
+<span id="cb8-2"> <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">powernap</span>             1</span>
+<span id="cb8-3"> <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">disksleep</span>            10</span>
+<span id="cb8-4"> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sleep</span>                1 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">(sleep prev</span>ented by caffeinate)</span></code></pre></div></div>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 35%">
+<col style="width: 5%">
+<col style="width: 60%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>項目</th>
+<th>値</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>sleep</code></td>
+<td><code>1</code></td>
+<td>設定上は「1分無操作でシステムスリープ」．<strong>設定値は変わっていない</strong></td>
+</tr>
+<tr class="even">
+<td><code>(sleep prevented by caffeinate)</code></td>
+<td>—</td>
+<td>ただし今は caffeinate のアサーションによって抑止中</td>
+</tr>
+<tr class="odd">
+<td><code>disksleep</code></td>
+<td><code>10</code></td>
+<td>ディスクのアイドルスリープ．<code>-s</code> では止まらない（止めたいなら <code>-m</code>）</td>
+</tr>
+<tr class="even">
+<td><code>powernap</code></td>
+<td><code>1</code></td>
+<td>Power Nap．スリープ中の挙動なので，眠らなければ関係しない</td>
+</tr>
+</tbody>
+</table>
+</div>
+<ul>
+<li>ポイントは「<code>sleep 1</code> という<strong>設定</strong>」と「今それが<strong>抑止されている</strong>という状態」が別物として表示されていること</li>
+<li>caffeinate は前者に触らず，後者だけを作っている．</li>
+</ul>
+</section>
+<section id="コマンドの分解" class="level3">
+<h3 class="anchored" data-anchor-id="コマンドの分解">2. コマンドの分解</h3>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 2</strong></span> <span class="def-title"><code>caffeinate</code> コマンド</span></p>
+<p>スリープを抑止する power assertion を作成し，<code>caffeinate</code> プロセスが生きている間だけ保持するコマンド．</p>
+<ul>
+<li><strong>一般ユーザーで実行できる</strong>：電源設定（plist）は書き換えず，アサーションを <code>powerd</code> に登録するだけなので <code>sudo</code> は不要
+<ul>
+<li>動画プレイヤーが再生中に画面を消させない，ダウンロード中に眠らせない，といった普通のアプリが日常的に使う仕組み</li>
+</ul></li>
+<li><strong>効果はプロセスの寿命と同じ</strong>：終了するとアサーションは自動で解放される．終了のさせ方は「<code>-t</code> の秒数経過」「<code>-w</code> で指定したプロセスの終了」「引数のコマンドの終了」「シグナルで kill」のいずれか．何も指定しなければ kill されるまで動き続ける</li>
+<li><strong>抑止したい対象をフラグで選ぶ</strong>：フラグを付けない場合は <code>-i</code>（アイドルスリープ抑止）として動く</li>
+</ul>
+</div>
+<p><span class="mini-section">options</span></p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 15%">
+<col style="width: 40%">
+<col style="width: 45%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>フラグ</th>
+<th>作成するアサーション</th>
+<th>抑止する対象</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>-s</code></td>
+<td><code>PreventSystemSleep</code></td>
+<td>システムスリープ．<strong>AC 電源時のみ有効</strong></td>
+</tr>
+<tr class="even">
+<td><code>-i</code></td>
+<td><code>PreventUserIdleSystemSleep</code></td>
+<td>無操作によるシステムスリープ．バッテリーでも有効</td>
+</tr>
+<tr class="odd">
+<td><code>-d</code></td>
+<td><code>PreventUserIdleDisplaySleep</code></td>
+<td>無操作によるディスプレイスリープ</td>
+</tr>
+<tr class="even">
+<td><code>-m</code></td>
+<td><code>PreventDiskIdle</code></td>
+<td>ディスクのアイドルスリープ</td>
+</tr>
+<tr class="odd">
+<td><code>-t &lt;秒&gt;</code></td>
+<td>—</td>
+<td>指定秒数でアサーションを解放して終了する</td>
+</tr>
+<tr class="even">
+<td><code>-w &lt;PID&gt;</code></td>
+<td>—</td>
+<td>指定したプロセスが終了するまで保持する</td>
+</tr>
+</tbody>
+</table>
+<p><code>caffeinate -i make</code> のようにコマンドを渡すと，そのコマンドの実行中だけアサーションを保持します．</p>
+</div>
+<p><span class="mini-section">実行コマンドの分解</span></p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="./figures/fig1-command.png" class="lightbox" data-gallery="quarto-lightbox-gallery-3" title="コマンドの分解"><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-11-08-macos-sleep-prevention/figures/fig1-command.png" class="img-fluid figure-img" alt="コマンドの分解"></a></p>
+<figcaption>コマンドの分解</figcaption>
+</figure>
+</div>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 75%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>部品</th>
+<th>役割</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>nohup</code></td>
+<td>SIGHUP の処理を <code>SIG_IGN</code>（無視）にしてから <code>caffeinate</code> を <code>exec</code> する．無視設定は exec 後も引き継がれる</td>
+</tr>
+<tr class="even">
+<td><code>caffeinate -s</code></td>
+<td><code>PreventSystemSleep</code> アサーションを作成し，終了するまで保持し続ける（タイムアウトを付けなければ無期限）</td>
+</tr>
+<tr class="odd">
+<td><code>&gt;/dev/null</code></td>
+<td>標準出力を捨てる．これが無いと nohup は出力先を <code>nohup.out</code> に変え，カレントディレクトリにファイルを作る</td>
+</tr>
+<tr class="even">
+<td><code>2&gt;&amp;1</code></td>
+<td>標準エラーも同じ <code>/dev/null</code> へ．切断後に消えた tty へ書き込もうとして EIO 等になるのも防ぐ</td>
+</tr>
+<tr class="odd">
+<td><code>&amp;</code></td>
+<td>バックグラウンドで起動し，プロンプトをすぐ返す</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="ターミナルを切ったらスリープは再び有効になるのか" class="level3">
+<h3 class="anchored" data-anchor-id="ターミナルを切ったらスリープは再び有効になるのか">3. ターミナルを切ったら，スリープは再び有効になるのか</h3>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>結論
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li><strong>ならない</strong></li>
+<li>caffeinate は生き残り，スリープ抑止は続く（それが <code>nohup</code> を付けた目的）</li>
+<li>スリープが再び有効になるのは caffeinate が終了したとき．</li>
+</ul>
+</div>
+</div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="./figures/fig2-hangup.png" class="lightbox" data-gallery="quarto-lightbox-gallery-4" title="SSH 切断時に起きること"><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-11-08-macos-sleep-prevention/figures/fig2-hangup.png" class="img-fluid figure-img" alt="SSH 切断時に起きること"></a></p>
+<figcaption>SSH 切断時に起きること</figcaption>
+</figure>
+</div>
+<ol type="1">
+<li>SSH 接続が切れると，sshd がセッションの擬似端末（pty）を閉じる．</li>
+<li>カーネルは端末のハングアップを，セッションリーダー（ログインシェルの zsh）に SIGHUP で通知する．</li>
+<li>zsh は終了する前に，自分の管理するジョブ全部に SIGHUP を送る（zsh の <code>HUP</code> オプション，既定で ON）．</li>
+<li>caffeinate は <code>nohup</code> により SIGHUP を無視しているので，何も起きない．</li>
+<li>親の zsh が終了すると，caffeinate は孤児プロセスになり，launchd（PID 1）が新しい親になる．</li>
+<li>caffeinate が生きている限りアサーションは保持され，<code>sleep prevented by caffeinate</code> のまま．</li>
+</ol>
+<p><code>nohup</code> が無い場合，手順 3 の SIGHUP で caffeinate は既定動作（終了）し，<code>powerd</code> がアサーションを解放する → スリープが再び有効になります．</p>
+</section>
+</section>
+<section id="運用上の注意" class="level2">
+<h2 class="anchored" data-anchor-id="運用上の注意">運用上の注意</h2>
+<ul>
+<li><p><strong>AC 電源のときだけ効く</strong>：<code>-s</code> の仕様．MacBook をバッテリーで動かしているなら <code>-i</code>（アイドルスリープ抑止．バッテリーでも有効）を使う．</p></li>
+<li><p><strong>多重起動に注意</strong>：ログインのたびに実行すると caffeinate が溜まっていく．起動前に確認するとよい：</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb9-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">pgrep</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-x</span> caffeinate <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span>/dev/null <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">||</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">nohup</span> caffeinate <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-s</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span>/dev/null <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;&amp;</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">&amp;</span></span></code></pre></div></div></li>
+<li><p><strong><code>exit</code> で抜けるとき</strong>：zsh は実行中のジョブがあると最初の <code>exit</code> で <code>you have running jobs.</code> と警告して止まることがある．もう一度 <code>exit</code> すれば抜けられ，caffeinate は生き残る．警告を避けたいなら起動直後に <code>disown</code> する（ジョブ表から外れるので，そもそも zsh が SIGHUP を送らなくなる）．</p></li>
+<li><p><strong>ディスプレイは消える</strong>：<code>-s</code> はシステムスリープだけを止める．画面は通常どおり消えるが SSH には影響しない．</p></li>
+<li><p><strong>再起動で消える</strong>：プロセスなので再起動後は残らない．恒久的にしたいなら <code>sudo pmset -c sleep 0</code>（AC 時のみスリープしない設定）か，launchd の LaunchAgent で caffeinate を常駐させる．</p></li>
+</ul>
+</section>
+<section id="用語集" class="level2">
+<h2 class="anchored" data-anchor-id="用語集">📘 用語集</h2>
+<div class="glossary-container">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb10-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">glossary</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span></span>
+<span id="cb10-2"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> アサーション (power assertion)</span></span>
+<span id="cb10-3"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb10-4">      プロセスが macOS の電源管理に対して「今はスリープさせないでほしい」といった要求を宣言する仕組み．</span>
+<span id="cb10-5">      IOKit の `IOPMAssertionCreateWithName` 系 API で作成し，`powerd` に登録される．</span>
+<span id="cb10-6">      種類があり，`caffeinate -s` は `PreventSystemSleep`，`-i` は `PreventUserIdleSystemSleep`，</span>
+<span id="cb10-7">      `-d` は `PreventUserIdleDisplaySleep`，`-m` は `PreventDiskIdle` を作る．</span>
+<span id="cb10-8">      電源設定（`pmset` の `sleep` 値など）は書き換えず，作成したプロセスに紐づいて保持される．</span>
+<span id="cb10-9">      プロセスが終了すると自動的に解放されるため，root 権限は不要．</span>
+<span id="cb10-10">      現在有効なアサーションと所有プロセスは `pmset -g assertions` で確認できる．</span>
+<span id="cb10-11"></span>
+<span id="cb10-12"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> `powerd`</span></span>
+<span id="cb10-13"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb10-14">      macOS の電源管理デーモン．launchd から root 権限で起動される．</span>
+<span id="cb10-15">      `pmset` で設定された電源設定と，各プロセスから登録されたアサーションを突き合わせて，</span>
+<span id="cb10-16">      システムやディスプレイをスリープさせてよいかを判断する．</span>
+<span id="cb10-17">      アサーションを作成したプロセスの終了を検知すると，そのアサーションを自動で解放する．</span>
+<span id="cb10-18">      `pmset -g` に表示される `(sleep prevented by caffeinate)` は，</span>
+<span id="cb10-19">      `powerd` がアサーションによってスリープを抑止している状態を示す．</span>
+<span id="cb10-20"></span>
+<span id="cb10-21"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> `SIGHUP` (hangup signal)</span></span>
+<span id="cb10-22"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb10-23">      制御端末が切断（ハングアップ）されたことを知らせるシグナル．シグナル番号は 1．</span>
+<span id="cb10-24">      端末が閉じられると，カーネルがセッションリーダー（ログインシェルなど）に送り，</span>
+<span id="cb10-25">      シェルは終了前に自分の管理するジョブにも転送する（zsh では `HUP` オプション，既定で ON）．</span>
+<span id="cb10-26">      既定動作はプロセスの終了なので，何も対策しないとバックグラウンドジョブも SSH 切断と一緒に終了する．</span>
+<span id="cb10-27">      なお，デーモンでは慣習的に「設定ファイルの再読み込み」の合図として使われることも多い．</span>
+<span id="cb10-28"></span>
+<span id="cb10-29"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> `SIG_IGN`</span></span>
+<span id="cb10-30"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb10-31">      シグナルの処理方法（disposition）として「無視する」を表す定数．</span>
+<span id="cb10-32">      `signal(SIGHUP, SIG_IGN)` や `sigaction` で設定すると，そのシグナルが届いても何も起きない．</span>
+<span id="cb10-33">      `fork` した子プロセスに引き継がれ，`exec` で別のプログラムに置き換わっても保持される</span>
+<span id="cb10-34">      （自前のハンドラ関数は `exec` で既定動作に戻るが，`SIG_IGN` は戻らない）．</span>
+<span id="cb10-35">      `nohup` はこの性質を使い，`SIGHUP` を `SIG_IGN` にしてから対象コマンドを `exec` する．</span>
+<span id="cb10-36">      `SIGKILL` と `SIGSTOP` は無視できない．</span>
+<span id="cb10-37"></span>
+<span id="cb10-38"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> `/dev/null`</span></span>
+<span id="cb10-39"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb10-40">      書き込まれたデータをすべて捨て，読み出すと即座に EOF を返す特殊ファイル（null デバイス）．</span>
+<span id="cb10-41">      `&gt;/dev/null` で標準出力を，`2&gt;&amp;1` を続けて標準エラーも同じ場所へ向けると，出力を一切残さない．</span>
+<span id="cb10-42">      リダイレクトは左から順に処理されるため，`&gt;/dev/null 2&gt;&amp;1` と `2&gt;&amp;1 &gt;/dev/null` は結果が異なる</span>
+<span id="cb10-43">      （後者は標準エラーが元の端末に残る）．</span>
+<span id="cb10-44">      `nohup` は標準出力が端末のままだと `nohup.out` に書き出すので，`/dev/null` に向けてファイル生成を防ぐ．</span>
+<span id="cb10-45"></span>
+<span id="cb10-46"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> `&amp;` (バックグラウンド実行)</span></span>
+<span id="cb10-47"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb10-48">      コマンドの末尾に付けると，シェルはそのコマンドの終了を待たずにすぐ次のプロンプトを返す．</span>
+<span id="cb10-49">      起動したプロセスはジョブとしてシェルのジョブ表に登録され，`jobs` で一覧，`fg %1` で前面に戻せる．</span>
+<span id="cb10-50">      直前に起動したバックグラウンドプロセスの PID は `$!` で取れる．</span>
+<span id="cb10-51">      バックグラウンドにしても同じセッション・同じ制御端末に属したままなので，</span>
+<span id="cb10-52">      端末が切れればシェルから `SIGHUP` を受け取る．切断後も生かすには `nohup` か `disown` を併用する．</span></code></pre></div></div>
+</div>
+
+
+</section>
+
+ ]]></description>
+  <category>ssh</category>
+  <category>macos</category>
+  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-11-08-macos-sleep-prevention/</guid>
+  <pubDate>Sun, 08 Nov 2026 00:00:00 GMT</pubDate>
+</item>
 <item>
   <title>BigQuery で表記ゆれを補正する</title>
   <dc:creator>Ryo Nakagami</dc:creator>
@@ -5400,533 +6415,6 @@ font-style: inherit;">head</span></span></code></pre></div></div>
   <category>shellscript</category>
   <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-02-stdout-log/</guid>
   <pubDate>Fri, 02 Oct 2026 00:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>メール作成術</title>
-  <dc:creator>Ryo Nakagami</dc:creator>
-  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-01-how-to-write-email/</link>
-  <description><![CDATA[ 
-
-
-
-
-
-
-<section id="この記事について" class="level2">
-<h2 class="anchored" data-anchor-id="この記事について">この記事について</h2>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 25%">
-<col style="width: 75%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>観点</th>
-<th>内容</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><strong>What</strong>：何のドキュメントか</td>
-<td>日本語ビジネスメールを「読み手がすぐに理解して動ける」形で書くためのお作法まとめ．</td>
-</tr>
-<tr class="even">
-<td><strong>Who</strong>：誰に向けたものか</td>
-<td>業務でメールを書く人全般</td>
-</tr>
-<tr class="odd">
-<td><strong>Why</strong>：なぜ重要か</td>
-<td>読みづらいメールは，確認の往復，対応漏れ，判断の遅れにつながる．成果を左右するのは丁寧さより「伝わって動ける」かどうか</td>
-</tr>
-<tr class="even">
-<td><strong>How</strong>：どう活用するか</td>
-<td>一度通読して全体像をつかんだら，実務では末尾の「送信前に見直す順番」をチェックリストとして使う．件名タグの一覧や Bad / Better の例は，書くときのテンプレートとして参照する</td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-<section id="良いメールとは" class="level2">
-<h2 class="anchored" data-anchor-id="良いメールとは">良いメールとは？</h2>
-<p>メールの良し悪しは，丁寧な日本語かどうかよりも，読み手がすぐに理解して動けるかどうかで決まります．</p>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>良いメールの必要条件
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>読み手がメールを開いた瞬間に</p>
-<ul>
-<li>何のメールか</li>
-<li>自分は何をすればよいか</li>
-<li>一番重要な情報は何か</li>
-</ul>
-<p>が理解できる</p>
-</div>
-</div>
-<section id="良いメールの構成要素" class="level3">
-<h3 class="anchored" data-anchor-id="良いメールの構成要素">良いメールの構成要素</h3>
-<p>上の3条件を満たすために，メールを次の構成要素に分けて考えます．読み手は上から順に読むので，<strong>重要なものほど上に置く</strong>のが基本です．</p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 25%">
-<col style="width: 25%">
-<col style="width: 25%">
-<col style="width: 25%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>構成要素</th>
-<th>役割</th>
-<th>答える問い</th>
-<th>主に満たす条件</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>件名（タグ）</td>
-<td>開く前にメールの目的と行動の要否を伝える</td>
-<td>What（何のメールか）</td>
-<td>何のメールか</td>
-</tr>
-<tr class="even">
-<td>冒頭1〜3文（MMUF）</td>
-<td>メインメッセージ・依頼内容・期限を伝える</td>
-<td>What / When</td>
-<td>一番重要な情報は何か</td>
-</tr>
-<tr class="odd">
-<td>依頼（Action）</td>
-<td>誰が・何を・いつまでにするかを明示する</td>
-<td>Who / How</td>
-<td>自分は何をすればよいか</td>
-</tr>
-<tr class="even">
-<td>背景</td>
-<td>依頼・判断に必要な理由だけを補う</td>
-<td>Why</td>
-<td>（上記3つの理解を補助）</td>
-</tr>
-<tr class="odd">
-<td>詳細・参照</td>
-<td>変更点，確認事項，リンクなどを整理して示す</td>
-<td>Where</td>
-<td>（必要なときに参照）</td>
-</tr>
-</tbody>
-</table>
-<p>前半の「件名・冒頭・依頼」の3つが必要条件を直接満たす<strong>骨格</strong>で，「背景・詳細」はそれを支える<strong>補足</strong>です．</p>
-<p>なお，すべての要素が毎回必要なわけではありません．返信不要の共有メールなら依頼（Action）は「ご対応は不要です」の一言で済みますし，短い連絡なら背景や詳細を省いても構いません．以降の節では，この構成要素を件名から順に見ていきます．</p>
-<p><span class="mini-section">よくある失敗</span></p>
-<p>よくある失敗は，この順序が逆になり，経緯の説明から書き始めて依頼が最後の一文に埋もれてしまうこと</p>
-<ul>
-<li>❌ Bad: 経緯 → 背景 → 詳細 → （最後に）ご確認お願いします</li>
-<li>✅ Good: 件名で目的 → 冒頭でメインメッセージと依頼・期限 → 背景 → 詳細</li>
-</ul>
-</section>
-</section>
-<section id="件名目的をタグで示す" class="level2">
-<h2 class="anchored" data-anchor-id="件名目的をタグで示す">件名：目的をタグで示す</h2>
-<div id="cor-naming" class="custom_problem custom_rule blog-custom-border theorem corollary">
-<p><span class="theorem-title"><strong>系 1</strong></span> <span class="def-title">目的をタグで示す</span></p>
-<p>件名には，メールの目的を示すタグを原則1つ付ける</p>
-<pre class="text"><code>【対応依頼】契約書の確認
-【共有】10月のプロジェクト体制
-【承認依頼】来期予算案</code></pre>
-</div>
-<p><span class="mini-section">タグ体系</span></p>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-01-how-to-write-email/figures/subject-tag-taxonomy.svg" class="img-fluid figure-img" style="width:85.0%"></p>
-<figcaption>件名タグの体系（点線は補助タグ）</figcaption>
-</figure>
-</div>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>Semantic Type</th>
-<th>Japanese Tag</th>
-<th>意味</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>ACTION</td>
-<td><code>【対応依頼】</code></td>
-<td>受信者に具体的な行動を求める</td>
-</tr>
-<tr class="even">
-<td>SIGN</td>
-<td><code>【署名依頼】</code></td>
-<td>署名を求める</td>
-</tr>
-<tr class="odd">
-<td>INFO</td>
-<td><code>【共有】</code></td>
-<td>情報共有のみで原則対応不要</td>
-</tr>
-<tr class="even">
-<td>DECISION</td>
-<td><code>【判断依頼】</code></td>
-<td>選択・意思決定を求める</td>
-</tr>
-<tr class="odd">
-<td>REQUEST</td>
-<td><code>【承認依頼】</code></td>
-<td>許可・承認を求める</td>
-</tr>
-<tr class="even">
-<td>COORD</td>
-<td><code>【調整依頼】</code></td>
-<td>関係者との調整を求める</td>
-</tr>
-</tbody>
-</table>
-<div id="cor-tag" class="custom_problem custom_rule blog-custom-border theorem corollary">
-<p><span class="theorem-title"><strong>系 2</strong></span> <span class="def-title">タグは「受信者に何を求めるか」で選ぶ</span></p>
-<ul>
-<li>タグは「メールに何が書いてあるか」ではなく，受信者に何を求めているかで決め</li>
-<li>求めるものが複数だと混乱を生むので，原則タグは１つ</li>
-</ul>
-</div>
-<p><span class="mini-section">受信者に何を求めているか</span></p>
-<p>タグは「メールに何が書いてあるか」ではなく，<strong>受信者に何を求めているか</strong>で決めます．</p>
-<pre class="text"><code>契約書を送ります．
-内容をご確認ください．</code></pre>
-<p>は資料を送っていても，求めているのは確認なので <code>【確認依頼】</code> です．一方，</p>
-<pre class="text"><code>契約書の最新版を共有します．
-ご対応は不要です．</code></pre>
-<p>であれば <code>【共有】</code> になります．</p>
-<p><span class="mini-section">タグは原則1つ</span></p>
-<pre class="text"><code>【共有】【確認】【重要】【依頼】契約書について</code></pre>
-<p>のようにタグを重ねると，結局何を求めているのかが分からなくなります．Primary Intent を1つに決め，<code>【確認依頼】契約書ドラフト</code> とします．期限は件名に含めても構いません．</p>
-<pre class="text"><code>【確認依頼｜10/4まで】契約書ドラフト</code></pre>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>件名を見直す3観点
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 33%">
-<col style="width: 33%">
-<col style="width: 33%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>観点</th>
-<th>Bad</th>
-<th>Better</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>Intent：件名だけで目的が分かるか</td>
-<td><code>資料について</code></td>
-<td><code>【確認依頼】来期予算案</code></td>
-</tr>
-<tr class="even">
-<td>Action：行動の要否が件名から分かるか</td>
-<td><code>契約書</code></td>
-<td><code>【署名依頼】業務委託契約書</code></td>
-</tr>
-<tr class="odd">
-<td>Specificity：何についてか具体的か</td>
-<td><code>【確認依頼】確認お願いします</code></td>
-<td><code>【確認依頼】10月プロジェクト体制案</code></td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-</section>
-<section id="mmufmain-message-up-front" class="level2">
-<h2 class="anchored" data-anchor-id="mmufmain-message-up-front">MMUF（Main Message Up Front）</h2>
-<div id="cor-mmuf" class="custom_problem custom_rule blog-custom-border theorem corollary">
-<p><span class="theorem-title"><strong>系 3</strong></span> <span class="def-title">読み手が最初に知るべきメインメッセージをメール冒頭に置く</span></p>
-<ul>
-<li>受信者に行動・判断・承認が必要 → 依頼内容・期限をメインメッセージにする</li>
-<li>行動は不要だが，単一の明確な結論がある → 結論をメインメッセージにする</li>
-<li>情報共有・状況報告・周知が中心 → 最も重要な情報・変更点をメインメッセージにする</li>
-</ul>
-</div>
-<p><span class="mini-section">メインメッセージはメールの種類で変わる</span></p>
-<p>何が「メインメッセージ」になるかは，受信者に何を求めるメールかによって変わります．</p>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-01-how-to-write-email/figures/mmuf-main-message.svg" class="img-fluid figure-img" style="width:90.0%"></p>
-<figcaption>MMUF におけるメインメッセージの決め方</figcaption>
-</figure>
-</div>
-<p><span class="mini-section">MMUF は「ラベル」ではなく「構造」</span></p>
-<p>よくある失敗が，<code>結論：</code> <code>背景：</code> といった見出しを機械的に付けてしまうことです．</p>
-<pre class="text"><code>結論：10月4日までにご承認ください．</code></pre>
-<p>よりも，</p>
-<pre class="text"><code>10月4日（金）までに，本資料のご承認をお願いいたします．</code></pre>
-<p>のほうが自然な日本語ビジネスメールです．MMUF は表示形式ではなく<strong>情報配置の原則</strong>として扱います．見出しは，長めのメールで情報整理に有効な場合に限って使います．</p>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>冒頭1〜3文が最重要
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>メール冒頭の1〜3文は最重要領域．ここには Who / What / When / Where / Why / Required Action のうち，メールの理解に必要なものをできるだけ含める</li>
-<li>ただし5Wを機械的にすべて詰め込んで冗長にしてはいけない．特に重要なのは <strong>What / Required Action / When</strong> の3つ．</li>
-</ul>
-</div>
-</div>
-</section>
-<section id="本文行動を明示するwho-how" class="level2">
-<h2 class="anchored" data-anchor-id="本文行動を明示するwho-how">本文：行動を明示する（Who / How）</h2>
-<div id="cor-action" class="custom_problem custom_rule blog-custom-border theorem corollary">
-<p><span class="theorem-title"><strong>系 4</strong></span> <span class="def-title">誰が・何を・いつまでにを明示する</span></p>
-<ul>
-<li>受信者に行動を求めるなら，依頼先・依頼内容・期限を曖昧にしない</li>
-<li>丁寧さのために Action を曖昧にしてはいけない</li>
-<li>責任主体が曖昧になる場合は行動主体を補う</li>
-</ul>
-</div>
-<p><span class="mini-section">誰が・何を・いつまでに</span></p>
-<p>受信者に行動を求めるメールでは，<strong>誰が・何を・いつまでに</strong>を明確にします．複数人に送る場合も，依頼先や意思決定者を曖昧にしません．</p>
-<ul>
-<li>❌ Bad: こちらについて確認できればと思っています．</li>
-<li>✅ Better: 10月4日（金）までに，内容をご確認ください．</li>
-</ul>
-<p><span class="mini-section">日本語特有の曖昧表現</span></p>
-<p>次のような表現には注意が必要です．</p>
-<pre class="text"><code>〜できればと思います
-〜いただければと思います
-〜かと思います
-〜という認識です
-〜の方
-〜についてですが
-一応
-念のため
-とりあえず</code></pre>
-<p>これらを一律に禁止する必要はありません．<strong>行動・責任・結論を曖昧にしていないか</strong>で判断します．たとえば <code>ご確認いただければと思います．</code> は，依頼であることをはっきりさせたいなら <code>ご確認をお願いいたします．</code> とします．</p>
-<p><span class="mini-section">能動態と行動主体</span></p>
-<ul>
-<li>❌ Bad: 資料について確認が行われました．</li>
-<li>✅ Better: 営業チームが資料を確認しました．</li>
-</ul>
-<!-- -->
-<ul>
-<li>❌ Bad: 対応をお願いできればと思います．</li>
-<li>✅ Better: 山田さんにご対応をお願いいたします．</li>
-</ul>
-<p>主語を書くことが目的ではなく，主語を明示することによって<strong>責任主体が曖昧になるのを防ぐ</strong>であることを忘れないでください．</p>
-</section>
-<section id="本文背景は必要な分だけwhy" class="level2">
-<h2 class="anchored" data-anchor-id="本文背景は必要な分だけwhy">本文：背景は必要な分だけ（Why）</h2>
-<div id="cor-why" class="custom_problem custom_rule blog-custom-border theorem corollary">
-<p><span class="theorem-title"><strong>系 5</strong></span> <span class="def-title">背景は What の理解・判断に必要な分だけ書く</span></p>
-<ul>
-<li>経緯をすべて説明する必要はない</li>
-<li>背景はメインメッセージと依頼の後ろに置く</li>
-</ul>
-</div>
-<p><span class="mini-section">背景に書くこと</span></p>
-<p>相手が「なぜ今この連絡を受け取っているのか」「なぜ対応が必要なのか」を理解できるように，背景を添えます．</p>
-<ul>
-<li>メールを送る目的</li>
-<li>依頼・判断が必要になった背景</li>
-<li>対応しない場合の影響</li>
-<li>必要であれば期限を設定する理由</li>
-</ul>
-<p>ただし，経緯をすべて説明する必要はありません．<strong>What を理解・判断するために必要な Why</strong> だけを，メインメッセージと依頼の後ろに置きます．</p>
-</section>
-<section id="本文の構成" class="level2">
-<h2 class="anchored" data-anchor-id="本文の構成">本文の構成</h2>
-<div id="cor-structure" class="custom_problem custom_rule blog-custom-border theorem corollary">
-<p><span class="theorem-title"><strong>系 6</strong></span> <span class="def-title">メインメッセージ → 依頼 → 背景 → 詳細の順に組み立てる</span></p>
-<ul>
-<li>複数の Action・変更点・確認事項・日程候補などは箇条書きにする</li>
-<li>参照先は添付よりリンクで具体的に示すことも検討する</li>
-</ul>
-</div>
-<p><span class="mini-section">長いメールの構成</span></p>
-<p>ここまでの要素をまとめると，情報量が多いメールは次の順序で組み立てます．</p>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-01-how-to-write-email/figures/long-email-structure.svg" class="img-fluid figure-img" style="width:100.0%"></p>
-<figcaption>長いメールの構成と記述例</figcaption>
-</figure>
-</div>
-<pre class="text"><code>山田さん
-
-10月4日（金）までに，来期予算案をご確認ください．
-
-主な変更点は以下の3点です．
-
-- 広告費を前年比10%増額
-- 採用費を500万円追加
-- 開発予算を第2四半期へ移動
-
-背景として，9月の経営会議で事業計画が更新されています．
-
-詳細：
-&lt;URL&gt;</code></pre>
-<p>複数の Action，複数の変更点，背景情報，複数の確認事項，日程候補などは，長い文章にまとめず箇条書きにします．</p>
-<pre class="text"><code>以下3点をご確認ください．
-
-- 金額
-- 契約期間
-- 支払条件</code></pre>
-<p><span class="mini-section">リンクと添付ファイル</span></p>
-<ul>
-<li>Google Drive，Notion，SharePoint などの共有ドキュメントがあるなら，添付ファイルではなくリンクで示すことも検討します</li>
-<li>How の「どこを確認すればよいか」を明確にするためにも，参照先は具体的に示します．</li>
-</ul>
-</section>
-<section id="簡潔に書く" class="level2">
-<h2 class="anchored" data-anchor-id="簡潔に書く">簡潔に書く</h2>
-<div id="cor-concise" class="custom_problem custom_rule blog-custom-border theorem corollary">
-<p><span class="theorem-title"><strong>系 7</strong></span> <span class="def-title">明確・簡潔・礼儀正しいのバランスを取る</span></p>
-<ul>
-<li>重複・不要な前置き・名詞化・回りくどい表現を削る</li>
-<li>「短くする＝無愛想にする」ではない．一方で過剰敬語は修正対象</li>
-</ul>
-</div>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>簡潔にする4観点
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 33%">
-<col style="width: 33%">
-<col style="width: 33%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>種類</th>
-<th>Before</th>
-<th>After</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>重複</td>
-<td>念のため改めて再度共有します．</td>
-<td>改めて共有します．</td>
-</tr>
-<tr class="even">
-<td>不要な前置き</td>
-<td>お忙しいところ大変恐縮ではございますが，一点ご相談させていただきたい事項がございます．</td>
-<td>○○についてご相談です．</td>
-</tr>
-<tr class="odd">
-<td>名詞化</td>
-<td>確認の実施をお願いいたします．</td>
-<td>ご確認をお願いいたします．</td>
-</tr>
-<tr class="even">
-<td>回りくどい表現</td>
-<td>対応いただくことは可能でしょうか．</td>
-<td>ご対応いただけますでしょうか．／ご対応をお願いいたします．</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-<p><span class="mini-section">丁寧さと明確さのバランス</span></p>
-<p>日本語メールでは「短くする＝無愛想にする」ではありません．<strong>明確・簡潔・礼儀正しい</strong>の3つのバランスを取ります．一方で過剰敬語は修正対象です．</p>
-<ul>
-<li>❌ Bad: ご確認していただけますでしょうか．</li>
-<li>✅ Better: ご確認いただけますでしょうか．</li>
-<li>✅ Better: ご確認をお願いいたします．</li>
-</ul>
-</section>
-<section id="推敲添削で守ること" class="level2">
-<h2 class="anchored" data-anchor-id="推敲添削で守ること">推敲・添削で守ること</h2>
-<div id="cor-edit" class="custom_problem custom_rule blog-custom-border theorem corollary">
-<p><span class="theorem-title"><strong>系 8</strong></span> <span class="def-title">事実を追加せず，原文の意図を変えない</span></p>
-<ul>
-<li>日付・人名・金額・URL・締切などを推測で書き足さない</li>
-<li>依頼・提案・命令・相談・共有・報告の強さは変えない</li>
-</ul>
-</div>
-<p><span class="mini-section">事実を追加しない</span></p>
-<p>自分のメールを推敲するときも，他人のメールを添削するときも，日付，時刻，人名，金額，URL，プロジェクト名，決定事項，締切，承認状況を推測で書き足してはいけません．情報が欠けている場合は <code>[期限]</code> <code>[URL]</code> <code>[担当者]</code> などのプレースホルダーを置くか，不足していることを指摘します．</p>
-<p><span class="mini-section">原文の意図を変えない</span></p>
-<p>文章を短くするときも，依頼・提案・命令・相談・共有・報告の<strong>強さ</strong>は変えません．</p>
-<pre class="text"><code>可能であれば10月4日までにお願いします．</code></pre>
-<p>を</p>
-<pre class="text"><code>10月4日までに必ず対応してください．</code></pre>
-<p>に変えるのは，簡潔化ではなく改変です．</p>
-</section>
-<section id="送信前に見直す順番" class="level2">
-<h2 class="anchored" data-anchor-id="送信前に見直す順番">送信前に見直す順番</h2>
-<div id="cor-review" class="custom_problem custom_rule blog-custom-border theorem corollary">
-<p><span class="theorem-title"><strong>系 9</strong></span> <span class="def-title">構造 → 文脈 → 表現の順に見直す</span></p>
-<ul>
-<li>文章表現の細かい修正から始めない</li>
-<li>構造が壊れているメールの表現をいくら磨いても，読み手の負担は減らない</li>
-</ul>
-</div>
-<p>最後に，書き上げたメールを見直す順番です．文章表現の細かい修正から始めると，「丁寧だけれど何をすればよいか分からないメール」が完成しがちです．</p>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-01-how-to-write-email/figures/review-order.svg" class="img-fluid figure-img" style="width:100.0%"></p>
-<figcaption>見直しの優先順位：構造 → 文脈 → 表現</figcaption>
-</figure>
-</div>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>送信前チェックリスト
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ol type="1">
-<li>件名から目的が分かるか</li>
-<li>冒頭からメインメッセージ（MMUF）が分かるか</li>
-<li>受信者が何をすべきか分かるか</li>
-<li>その後に背景説明があるか</li>
-<li>文章が簡潔か</li>
-<li>日本語ビジネス文体として自然か</li>
-</ol>
-</div>
-</div>
-<p>前半3つは「メールの目的が伝わるか」という<strong>構造</strong>の問題で，後半は<strong>表現</strong>の問題です．構造が壊れているメールの表現をいくら磨いても，読み手の負担は減りません．</p>
-</section>
-<section id="references" class="level2">
-<h2 class="anchored" data-anchor-id="references">References</h2>
-<ul>
-<li><a href="https://dhbr.diamond.jp/articles/-/4662">米軍に学ぶ，相手に一瞬で伝わるメール術</a></li>
-</ul>
-
-
-</section>
-
- ]]></description>
-  <category>方法論</category>
-  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-01-how-to-write-email/</guid>
-  <pubDate>Thu, 01 Oct 2026 00:00:00 GMT</pubDate>
 </item>
 </channel>
 </rss>

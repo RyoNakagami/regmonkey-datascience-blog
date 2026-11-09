@@ -1,0 +1,1654 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="ja" xml:lang="ja"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.11.9">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Ryo Nakagami">
+<meta name="dcterms.date" content="2026-11-08">
+
+<title>SSH 越し macOS を sleep させない – regmonkey datascience blog</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<link href="../../img/favicon.ico" rel="icon">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/scrollable-regions/scrollable-regions.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-5de16f5e46225c21e2daa90d340bf64f.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark-3218d7d29a29f08bc4fdf3802c3e3ca5.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-5de16f5e46225c21e2daa90d340bf64f.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-af18259a854216f0522d5e7742dba421.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark-165ea26c02c9279d901e121765156747.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../site_libs/bootstrap/bootstrap-af18259a854216f0522d5e7742dba421.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script src="../../site_libs/quarto-contrib/pseudocode-2.4.1/pseudocode.min.js"></script>
+<link href="../../site_libs/quarto-contrib/pseudocode-2.4.1/pseudocode.min.css" rel="stylesheet">
+<script src="../../site_libs/quarto-contrib/glightbox/glightbox.min.js"></script>
+<link href="../../site_libs/quarto-contrib/glightbox/glightbox.min.css" rel="stylesheet">
+<link href="../../site_libs/quarto-contrib/glightbox/lightbox.css" rel="stylesheet">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "一致なし",
+    "search-matching-documents-text": "一致した文書",
+    "search-copy-link-title": "検索へのリンクをコピー",
+    "search-hide-matches-text": "追加の検索結果を非表示",
+    "search-more-match-text": "追加の検索結果",
+    "search-more-matches-text": "追加の検索結果",
+    "search-clear-button-title": "消去",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "取消",
+    "search-submit-button-title": "検索",
+    "search-label": "サーチ"
+  }
+}</script>
+<script async="" src="https://www.googletagmanager.com/gtag/js?id=G-EX9H7GRLTH"></script>
+
+<script type="text/javascript">
+
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
+</script>
+<style>
+
+      .quarto-title-block .quarto-title-banner h1,
+      .quarto-title-block .quarto-title-banner h2,
+      .quarto-title-block .quarto-title-banner h3,
+      .quarto-title-block .quarto-title-banner h4,
+      .quarto-title-block .quarto-title-banner h5,
+      .quarto-title-block .quarto-title-banner h6
+      {
+        color: #ffffff;
+      }
+
+      .quarto-title-block .quarto-title-banner {
+        color: #ffffff;
+      }
+</style>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-M27Z2BWG');</script>
+    <!-- End Google Tag Manager -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&amp;display=swap" rel="stylesheet">
+<script>
+    MathJax = {
+        tex: {
+            inlineMath: [['$','$'], ['\\(','\\)']],
+            displayMath: [['$$','$$'], ['\\[','\\]']],
+            processEscapes: true,
+            processEnvironments: true,
+            tags: 'all',
+        }
+    }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml-full.js" integrity="sha256-kbAFUDxdHwlYv01zraGjvjNZayxKtdoiJ38bDTFJtaQ=" crossorigin="anonymous">
+</script>
+<link rel="stylesheet" href="../../js/regmonkey_glossary_generator/regmonkey_glossary_generator.css">
+<script type="text/javascript" src="../../js/regmonkey_glossary_generator/regmonkey_glossary_generator.js"></script>
+
+
+<link rel="stylesheet" href="../../styles.css">
+<meta property="og:title" content="SSH 越し macOS を sleep させない – regmonkey datascience blog">
+<meta property="og:description" content="日々の徒然勉強日記">
+<meta property="og:image" content="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-11-08-macos-sleep-prevention/figures/fig0-sleep-decision.png">
+<meta property="og:site_name" content="regmonkey datascience blog">
+<meta property="og:image:alt" content="macOS がアイドルスリープに入るまで">
+</head>
+
+<body class="nav-fixed quarto-light"><a id="quarto-skip-link" class="visually-hidden-focusable" href="#quarto-document-content">メインコンテンツにスキップ</a><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          toggle.setAttribute("aria-checked", alternate ? "true" : "false");
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+    }
+    // Hack to workaround the fact that safari doesn't
+    // properly recolor the scrollbar when toggling (#1455).
+    // Not run on load: stylesheets are set before first paint there, and
+    // scrolling would undo the scroll to a URL fragment (#14973).
+    // The one pixel nudge keeps the reader where they were.
+    const refreshSafariScrollbar = () => {
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        const scrollY = window.scrollY;
+        window.scrollTo(0, scrollY > 0 ? scrollY - 1 : 1);
+        setTimeout(() => {
+          window.scrollTo(0, scrollY);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      refreshSafariScrollbar();
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top quarto-banner">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark" aria-label="ウェブサイト">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">Home</span>
+    </a>
+  </div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="ナビゲーションを切り替える" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-bi-book" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+      <i class="bi bi-book" role="img">
+</i> 
+ <span class="menu-text"></span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-bi-book">    
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/statistics-for-regression-monkey/">
+ <span class="dropdown-text">Statistics Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/python-statisticalpackage-techniques/">
+ <span class="dropdown-text">Python package building Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/regmonkey_datavisualization/">
+ <span class="dropdown-text">Data Visualization Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/regmonkey-presentation/">
+ <span class="dropdown-text">Presentation Blog</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../link_list/link_table.html"> 
+<span class="menu-text">便利リンク集</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../dictionary/dict.html"> 
+<span class="menu-text">備忘録</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../FAQ/faq.html"> 
+<span class="menu-text">FAQ</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../about.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/RyoNakagami/regmonkey-datascience-blog"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="../../index.xml"> <i class="bi bi-rss" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <button type="button" role="switch" aria-checked="false" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="ダークモードの切り替え" aria-label="ダークモードの切り替え"><i class="bi"></i></button>
+</div>
+            <div id="quarto-search" class="" title="サーチ"></div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">SSH 越し macOS を sleep させない</h1>
+                                <div class="quarto-categories">
+                <div class="quarto-category">ssh</div>
+                <div class="quarto-category">macos</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      <div>
+      <div class="quarto-title-meta-heading">作者</div>
+      <div class="quarto-title-meta-contents">
+               <p>Ryo Nakagami </p>
+            </div>
+    </div>
+      
+      <div>
+      <div class="quarto-title-meta-heading">公開</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">2026-11-08</p>
+      </div>
+    </div>
+    
+      <div>
+      <div class="quarto-title-meta-heading">更新日</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date-modified">2026-11-09</p>
+      </div>
+    </div>
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" aria-labelledby="toc-title" class="toc-active">
+    <h2 id="toc-title">目次</h2>
+   
+  <ul>
+  <li><a href="#問題設定-macos-とスリープ" id="toc-問題設定-macos-とスリープ" class="nav-link active" data-scroll-target="#問題設定-macos-とスリープ">問題設定: MacOS とスリープ</a></li>
+  <li><a href="#solutions" id="toc-solutions" class="nav-link" data-scroll-target="#solutions">Solutions</a></li>
+  <li><a href="#詳細解説" id="toc-詳細解説" class="nav-link" data-scroll-target="#詳細解説">詳細解説</a>
+  <ul class="collapse">
+  <li><a href="#macos-が直近どれだけ-sleep-に入っているかの確認" id="toc-macos-が直近どれだけ-sleep-に入っているかの確認" class="nav-link" data-scroll-target="#macos-が直近どれだけ-sleep-に入っているかの確認">1. macOS が直近どれだけ sleep に入っているかの確認</a></li>
+  <li><a href="#コマンドの分解" id="toc-コマンドの分解" class="nav-link" data-scroll-target="#コマンドの分解">2. コマンドの分解</a></li>
+  <li><a href="#ターミナルを切ったらスリープは再び有効になるのか" id="toc-ターミナルを切ったらスリープは再び有効になるのか" class="nav-link" data-scroll-target="#ターミナルを切ったらスリープは再び有効になるのか">3. ターミナルを切ったら，スリープは再び有効になるのか</a></li>
+  </ul></li>
+  <li><a href="#運用上の注意" id="toc-運用上の注意" class="nav-link" data-scroll-target="#運用上の注意">運用上の注意</a></li>
+  <li><a href="#用語集" id="toc-用語集" class="nav-link" data-scroll-target="#用語集">📘 用語集</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>問題を報告</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content" tabindex="-1">
+
+
+
+
+
+
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>TL;DR
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li><code>caffeinate -s</code> は「システムを眠らせない」という<strong>アサーション</strong>を電源管理デーモン <code>powerd</code> に登録するのコマンド．
+<ul>
+<li>設定ファイルは書き換えないので <strong><code>sudo</code> は不要</strong>．</li>
+</ul></li>
+<li>アサーションは <strong>caffeinate プロセスが生きている間だけ</strong>有効．プロセスが死ぬと <code>powerd</code> が自動で解放する．</li>
+<li>元に戻すには <code>pkill -x caffeinate</code>．再起動でも消える．</li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># caffeinate</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">nohup</span> caffeinate <span class="at">-s</span> <span class="op">&gt;</span>/dev/null <span class="dv">2</span><span class="op">&gt;&amp;</span><span class="dv">1</span> <span class="kw">&amp;</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="co"># check process</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">ps</span> <span class="at">-o</span> pid,ppid,user,lstart,etime,command <span class="at">-p</span> <span class="st">"</span><span class="va">$(</span><span class="ex">pgrep</span> <span class="at">-d,</span> caffeinate<span class="va">)</span><span class="st">"</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co"># kill process</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="ex">pkill</span> <span class="at">-x</span> caffeinate</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</div>
+<section id="問題設定-macos-とスリープ" class="level2">
+<h2 class="anchored" data-anchor-id="問題設定-macos-とスリープ">問題設定: MacOS とスリープ</h2>
+<ul>
+<li>リモートの Mac に SSH でログインして長時間のジョブ（学習・ビルド・データ転送など）を走らせ，手元の端末を放置したり SSH を切断したりすると，しばらくして Mac がスリープに入ることがある</li>
+<li>スリープ中は CPU もネットワークも止まるので，SSH は応答しなくなり，実行中のジョブも進まない．</li>
+</ul>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="./figures/fig0-sleep-decision.png" class="lightbox" data-gallery="quarto-lightbox-gallery-1" title="macOS がアイドルスリープに入るまで"><img src="./figures/fig0-sleep-decision.png" class="img-fluid figure-img" alt="macOS がアイドルスリープに入るまで"></a></p>
+<figcaption>macOS がアイドルスリープに入るまで</figcaption>
+</figure>
+</div>
+<p><span class="mini-section">スリープに入る仕組み</span></p>
+<p>macOS では，いつスリープするかを電源管理デーモン <code>powerd</code> が決めています．<code>powerd</code> はアイドルスリープの判定に次の3つを使っています．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 22%">
+<col style="width: 57%">
+<col style="width: 20%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>入力</th>
+<th>中身</th>
+<th>確認方法</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>電源設定のタイマー</td>
+<td>「何分操作が無ければスリープするか」．<code>pmset</code> の <code>sleep</code> 値（例：<code>sleep 1</code> なら1分）</td>
+<td><code>pmset -g</code></td>
+</tr>
+<tr class="even">
+<td>ユーザー操作</td>
+<td>キーボード・マウスの操作と，tty（SSH などのリモートログインを含む）の利用．最後の操作からの経過時間がアイドル時間になる</td>
+<td>—</td>
+</tr>
+<tr class="odd">
+<td>power assertion</td>
+<td>プロセスが登録する「今はスリープさせないでほしい」という要求</td>
+<td><code>pmset -g assertions</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>つまるところ，</p>
+<ul>
+<li><strong>アイドル時間がタイマー値を超え，かつスリープを抑止するアサーションが1つも無い</strong>とき，<code>powerd</code> はシステムをスリープさせる</li>
+<li>このとき <code>pmset -g log</code> には <code>Entering Sleep state due to 'Idle Sleep'</code> という行が残る</li>
+</ul>
+<p><span class="mini-section">SSH 越しだとなぜ眠るのか</span></p>
+<p>SSH のセッションは Mac にとっては tty の1つにすぎません．<code>pmset</code> の <code>ttyskeepawake</code> が有効なら，tty が使われている間は idle sleep しませんが，<strong>tty のアイドル時間がシステムスリープのタイマーを超えると，その tty は inactive 扱いになります</strong>（<code>man pmset</code>）．</p>
+<ul>
+<li><strong>SSH で放置した場合</strong>：ジョブが走っていても操作が無い限り tty のアイドル時間は伸び続け，いずれタイマーを超える</li>
+<li><strong>SSH を切断した場合</strong>：tty そのものが無くなるので，スリープを止める要素は残らない</li>
+</ul>
+<p>どちらの場合も Mac 側から見ると「誰も使っていない」状態になり，抑止するアサーションが無ければ設定どおりスリープになります．</p>
+</section>
+<section id="solutions" class="level2">
+<h2 class="anchored" data-anchor-id="solutions">Solutions</h2>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>スリープ抑止アサーションの設定
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li><code>caffeinate -s</code> が <code>PreventSystemSleep</code> アサーションを <code>powerd</code> に登録する（<code>sudo</code> 不要）</li>
+<li><code>nohup</code> により，SSH を切断しても caffeinate は終了せず，アサーションが残る</li>
+<li>タイマーには触れず，スリープを抑止する<strong>アサーションを作るプロセス</strong>を SSH 切断後も生かしておく</li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> nohup caffeinate <span class="at">-s</span> <span class="op">&gt;</span>/dev/null <span class="dv">2</span><span class="op">&gt;&amp;</span><span class="dv">1</span> <span class="kw">&amp;</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="./figures/fig1-command.png" class="lightbox" data-gallery="quarto-lightbox-gallery-2" title="コマンドの分解"><img src="./figures/fig1-command.png" class="img-fluid figure-img" alt="コマンドの分解"></a></p>
+<figcaption>コマンドの分解</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p><span class="mini-section">効いているかの確認</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> pmset <span class="at">-g</span> <span class="kw">|</span> <span class="fu">grep</span> <span class="st">'^ *sleep'</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a> <span class="fu">sleep</span>                1 <span class="op">(sleep prev</span>ented by caffeinate)</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p><span class="mini-section">元に戻す方法</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> pkill <span class="at">-x</span> caffeinate          <span class="co"># 停止するとスリープ設定が元どおり効く</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p><span class="mini-section">恒久的に止めたい場合</span></p>
+<p><code>sudo pmset -c sleep 0</code> で AC 電源時のスリープタイマー自体を無効にできます．root が必要で，システム全体に効き，再起動後も残ります</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>シェル関数設定
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>基本的には alias 設定で十分ですが，条件分岐を含めるような挙動が欲しい場合は，シェル関数として以下の形で定義します</li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/bin/zsh</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="fu">start-nosleep()</span> <span class="kw">{</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  <span class="ex">pgrep</span> <span class="at">-x</span> caffeinate <span class="op">&gt;</span>/dev/null <span class="kw">&amp;&amp;</span> <span class="kw">{</span> <span class="bu">echo</span> <span class="st">"already running"</span><span class="kw">;</span> <span class="cf">return</span> <span class="dv">0</span><span class="kw">;</span> <span class="kw">}</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">nohup</span> caffeinate <span class="at">-s</span> <span class="op">&gt;</span>/dev/null <span class="dv">2</span><span class="op">&gt;&amp;</span><span class="dv">1</span> <span class="kw">&amp;</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="kw">}</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="fu">check-nosleep()</span> <span class="kw">{</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  <span class="bu">local</span> <span class="va">pids</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>  <span class="va">pids</span><span class="op">=</span><span class="va">$(</span><span class="ex">pgrep</span> <span class="at">-d,</span> <span class="at">-x</span> caffeinate<span class="va">)</span> <span class="kw">||</span> <span class="kw">{</span> <span class="bu">echo</span> <span class="st">"no caffeinate"</span><span class="kw">;</span> <span class="cf">return</span> <span class="dv">1</span><span class="kw">;</span> <span class="kw">}</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ps</span> <span class="at">-o</span> pid,ppid,user,lstart,etime,command <span class="at">-p</span> <span class="st">"</span><span class="va">$pids</span><span class="st">"</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="kw">}</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a><span class="fu">kill-nosleep()</span> <span class="kw">{</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>  <span class="bu">local</span> <span class="va">pids</span></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>  <span class="va">pids</span><span class="op">=</span><span class="va">$(</span><span class="ex">pgrep</span> <span class="at">-x</span> caffeinate<span class="va">)</span> <span class="kw">||</span> <span class="kw">{</span> <span class="bu">echo</span> <span class="st">"no caffeinate"</span><span class="kw">;</span> <span class="cf">return</span> <span class="dv">1</span><span class="kw">;</span> <span class="kw">}</span></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>  <span class="ex">pkill</span> <span class="at">-x</span> caffeinate <span class="kw">&amp;&amp;</span> <span class="bu">echo</span> <span class="st">"killed: </span><span class="va">$(</span><span class="bu">echo</span> <span class="va">$pids</span> <span class="kw">|</span> <span class="fu">tr</span> <span class="st">'\n'</span> <span class="st">' '</span><span class="va">)</span><span class="st">"</span></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a><span class="kw">}</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</div>
+</section>
+<section id="詳細解説" class="level2">
+<h2 class="anchored" data-anchor-id="詳細解説">詳細解説</h2>
+<section id="macos-が直近どれだけ-sleep-に入っているかの確認" class="level3">
+<h3 class="anchored" data-anchor-id="macos-が直近どれだけ-sleep-に入っているかの確認">1. macOS が直近どれだけ sleep に入っているかの確認</h3>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title"><code>pmset</code> コマンド</span></p>
+<p>macOS の電源管理設定（idle sleep のタイマーなど）を参照・変更するコマンド．</p>
+<ul>
+<li><strong>参照は一般ユーザー，変更は root</strong>：<code>pmset -g ...</code> は誰でも実行できるが，<code>pmset -c sleep 0</code> のような設定変更には <code>sudo</code> が必要</li>
+<li><strong>変更は永続的</strong>：設定は <code>/Library/Preferences/</code> 配下の plist に保存され，システム全体に効き，再起動後も残る．</li>
+<li><strong>設定はアサーションで一時的に上書きされうる</strong>：caffeinate などのプロセスが power assertion を作ると，設定値はそのままでスリープが抑止される．上書きしているプロセスは <code>pmset -g</code> と <code>pmset -g assertions</code> に表示される</li>
+</ul>
+</div>
+<p><span class="mini-section">options</span></p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 30%">
+<col style="width: 70%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>コマンド</th>
+<th>表示内容</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>pmset -g</code></td>
+<td>現在使われている設定値．アサーションで抑止中ならその旨も併記される</td>
+</tr>
+<tr class="even">
+<td><code>pmset -g log</code></td>
+<td>スリープ・復帰などの電源管理イベントの履歴</td>
+</tr>
+<tr class="odd">
+<td><code>pmset -g stats</code></td>
+<td>起動以降のスリープ・復帰の回数</td>
+</tr>
+<tr class="even">
+<td><code>pmset -g assertions</code></td>
+<td>現在有効なアサーションと，それを作成したプロセスの一覧</td>
+</tr>
+<tr class="odd">
+<td><code>pmset -g assertionslog</code></td>
+<td>アサーションの作成・解放のログ</td>
+</tr>
+</tbody>
+</table>
+<p>設定変更時は <code>-a</code>（全電源）/ <code>-b</code>（バッテリー）/ <code>-c</code>（AC 電源）/ <code>-u</code>（UPS）で対象の電源ソースを指定します．</p>
+</div>
+<p><span class="mini-section">スリープ履歴を見る：<code>pmset -g log</code></span></p>
+<ul>
+<li><code>pmset -g log</code> は <code>powerd</code> が記録している電源イベントのログを表示</li>
+</ul>
+<p>Sleep / Wake の行だけに絞り，直近の分を見る場合は</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> pmset <span class="at">-g</span> log <span class="kw">|</span> <span class="fu">grep</span> <span class="at">-E</span> <span class="st">'^\S+ \S+ \S+ (Sleep|Wake|DarkWake)\s'</span> <span class="kw">|</span> <span class="fu">tail</span> <span class="at">-n</span> 20</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>各行は「日時・タイムゾーン・種別・詳細」の順に並びます</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 80%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>種別</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>Sleep</code></td>
+<td>システムスリープに入った．詳細欄に <code>Entering Sleep state due to 'Idle Sleep'</code> のように理由が出る</td>
+</tr>
+<tr class="even">
+<td><code>Wake</code></td>
+<td>ユーザー操作などで通常の起動状態に復帰した</td>
+</tr>
+<tr class="odd">
+<td><code>DarkWake</code></td>
+<td>画面を点けずに一時的に起きた（Power Nap やネットワーク維持など）．すぐ再びスリープに戻る</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>回数だけ知りたい場合は次でまとめて見れます</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> pmset <span class="at">-g</span> log <span class="kw">|</span> <span class="fu">grep</span> <span class="at">-c</span> <span class="st">'Entering Sleep'</span>   <span class="co"># ログに残っている範囲でのスリープ回数</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> pmset <span class="at">-g</span> stats                            <span class="co"># 起動以降の Sleep / Wake の回数</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p><span class="mini-section">現在の設定と抑止状態：<code>pmset -g</code> の読み方</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> pmset <span class="at">-g</span> <span class="kw">|</span> <span class="fu">grep</span> <span class="at">-E</span> <span class="st">'^\s*(sleep|disksleep|powernap)'</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a> <span class="ex">powernap</span>             1</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a> <span class="ex">disksleep</span>            10</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a> <span class="fu">sleep</span>                1 <span class="op">(sleep prev</span>ented by caffeinate)</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 35%">
+<col style="width: 5%">
+<col style="width: 60%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>項目</th>
+<th>値</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>sleep</code></td>
+<td><code>1</code></td>
+<td>設定上は「1分無操作でシステムスリープ」．<strong>設定値は変わっていない</strong></td>
+</tr>
+<tr class="even">
+<td><code>(sleep prevented by caffeinate)</code></td>
+<td>—</td>
+<td>ただし今は caffeinate のアサーションによって抑止中</td>
+</tr>
+<tr class="odd">
+<td><code>disksleep</code></td>
+<td><code>10</code></td>
+<td>ディスクのアイドルスリープ．<code>-s</code> では止まらない（止めたいなら <code>-m</code>）</td>
+</tr>
+<tr class="even">
+<td><code>powernap</code></td>
+<td><code>1</code></td>
+<td>Power Nap．スリープ中の挙動なので，眠らなければ関係しない</td>
+</tr>
+</tbody>
+</table>
+</div>
+<ul>
+<li>ポイントは「<code>sleep 1</code> という<strong>設定</strong>」と「今それが<strong>抑止されている</strong>という状態」が別物として表示されていること</li>
+<li>caffeinate は前者に触らず，後者だけを作っている．</li>
+</ul>
+</section>
+<section id="コマンドの分解" class="level3">
+<h3 class="anchored" data-anchor-id="コマンドの分解">2. コマンドの分解</h3>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 2</strong></span> <span class="def-title"><code>caffeinate</code> コマンド</span></p>
+<p>スリープを抑止する power assertion を作成し，<code>caffeinate</code> プロセスが生きている間だけ保持するコマンド．</p>
+<ul>
+<li><strong>一般ユーザーで実行できる</strong>：電源設定（plist）は書き換えず，アサーションを <code>powerd</code> に登録するだけなので <code>sudo</code> は不要
+<ul>
+<li>動画プレイヤーが再生中に画面を消させない，ダウンロード中に眠らせない，といった普通のアプリが日常的に使う仕組み</li>
+</ul></li>
+<li><strong>効果はプロセスの寿命と同じ</strong>：終了するとアサーションは自動で解放される．終了のさせ方は「<code>-t</code> の秒数経過」「<code>-w</code> で指定したプロセスの終了」「引数のコマンドの終了」「シグナルで kill」のいずれか．何も指定しなければ kill されるまで動き続ける</li>
+<li><strong>抑止したい対象をフラグで選ぶ</strong>：フラグを付けない場合は <code>-i</code>（アイドルスリープ抑止）として動く</li>
+</ul>
+</div>
+<p><span class="mini-section">options</span></p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 15%">
+<col style="width: 40%">
+<col style="width: 45%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>フラグ</th>
+<th>作成するアサーション</th>
+<th>抑止する対象</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>-s</code></td>
+<td><code>PreventSystemSleep</code></td>
+<td>システムスリープ．<strong>AC 電源時のみ有効</strong></td>
+</tr>
+<tr class="even">
+<td><code>-i</code></td>
+<td><code>PreventUserIdleSystemSleep</code></td>
+<td>無操作によるシステムスリープ．バッテリーでも有効</td>
+</tr>
+<tr class="odd">
+<td><code>-d</code></td>
+<td><code>PreventUserIdleDisplaySleep</code></td>
+<td>無操作によるディスプレイスリープ</td>
+</tr>
+<tr class="even">
+<td><code>-m</code></td>
+<td><code>PreventDiskIdle</code></td>
+<td>ディスクのアイドルスリープ</td>
+</tr>
+<tr class="odd">
+<td><code>-t &lt;秒&gt;</code></td>
+<td>—</td>
+<td>指定秒数でアサーションを解放して終了する</td>
+</tr>
+<tr class="even">
+<td><code>-w &lt;PID&gt;</code></td>
+<td>—</td>
+<td>指定したプロセスが終了するまで保持する</td>
+</tr>
+</tbody>
+</table>
+<p><code>caffeinate -i make</code> のようにコマンドを渡すと，そのコマンドの実行中だけアサーションを保持します．</p>
+</div>
+<p><span class="mini-section">実行コマンドの分解</span></p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="./figures/fig1-command.png" class="lightbox" data-gallery="quarto-lightbox-gallery-3" title="コマンドの分解"><img src="./figures/fig1-command.png" class="img-fluid figure-img" alt="コマンドの分解"></a></p>
+<figcaption>コマンドの分解</figcaption>
+</figure>
+</div>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 75%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>部品</th>
+<th>役割</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>nohup</code></td>
+<td>SIGHUP の処理を <code>SIG_IGN</code>（無視）にしてから <code>caffeinate</code> を <code>exec</code> する．無視設定は exec 後も引き継がれる</td>
+</tr>
+<tr class="even">
+<td><code>caffeinate -s</code></td>
+<td><code>PreventSystemSleep</code> アサーションを作成し，終了するまで保持し続ける（タイムアウトを付けなければ無期限）</td>
+</tr>
+<tr class="odd">
+<td><code>&gt;/dev/null</code></td>
+<td>標準出力を捨てる．これが無いと nohup は出力先を <code>nohup.out</code> に変え，カレントディレクトリにファイルを作る</td>
+</tr>
+<tr class="even">
+<td><code>2&gt;&amp;1</code></td>
+<td>標準エラーも同じ <code>/dev/null</code> へ．切断後に消えた tty へ書き込もうとして EIO 等になるのも防ぐ</td>
+</tr>
+<tr class="odd">
+<td><code>&amp;</code></td>
+<td>バックグラウンドで起動し，プロンプトをすぐ返す</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="ターミナルを切ったらスリープは再び有効になるのか" class="level3">
+<h3 class="anchored" data-anchor-id="ターミナルを切ったらスリープは再び有効になるのか">3. ターミナルを切ったら，スリープは再び有効になるのか</h3>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>結論
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li><strong>ならない</strong></li>
+<li>caffeinate は生き残り，スリープ抑止は続く（それが <code>nohup</code> を付けた目的）</li>
+<li>スリープが再び有効になるのは caffeinate が終了したとき．</li>
+</ul>
+</div>
+</div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="./figures/fig2-hangup.png" class="lightbox" data-gallery="quarto-lightbox-gallery-4" title="SSH 切断時に起きること"><img src="./figures/fig2-hangup.png" class="img-fluid figure-img" alt="SSH 切断時に起きること"></a></p>
+<figcaption>SSH 切断時に起きること</figcaption>
+</figure>
+</div>
+<ol type="1">
+<li>SSH 接続が切れると，sshd がセッションの擬似端末（pty）を閉じる．</li>
+<li>カーネルは端末のハングアップを，セッションリーダー（ログインシェルの zsh）に SIGHUP で通知する．</li>
+<li>zsh は終了する前に，自分の管理するジョブ全部に SIGHUP を送る（zsh の <code>HUP</code> オプション，既定で ON）．</li>
+<li>caffeinate は <code>nohup</code> により SIGHUP を無視しているので，何も起きない．</li>
+<li>親の zsh が終了すると，caffeinate は孤児プロセスになり，launchd（PID 1）が新しい親になる．</li>
+<li>caffeinate が生きている限りアサーションは保持され，<code>sleep prevented by caffeinate</code> のまま．</li>
+</ol>
+<p><code>nohup</code> が無い場合，手順 3 の SIGHUP で caffeinate は既定動作（終了）し，<code>powerd</code> がアサーションを解放する → スリープが再び有効になります．</p>
+</section>
+</section>
+<section id="運用上の注意" class="level2">
+<h2 class="anchored" data-anchor-id="運用上の注意">運用上の注意</h2>
+<ul>
+<li><p><strong>AC 電源のときだけ効く</strong>：<code>-s</code> の仕様．MacBook をバッテリーで動かしているなら <code>-i</code>（アイドルスリープ抑止．バッテリーでも有効）を使う．</p></li>
+<li><p><strong>多重起動に注意</strong>：ログインのたびに実行すると caffeinate が溜まっていく．起動前に確認するとよい：</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pgrep</span> <span class="at">-x</span> caffeinate <span class="op">&gt;</span>/dev/null <span class="kw">||</span> <span class="fu">nohup</span> caffeinate <span class="at">-s</span> <span class="op">&gt;</span>/dev/null <span class="dv">2</span><span class="op">&gt;&amp;</span><span class="dv">1</span> <span class="kw">&amp;</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div></li>
+<li><p><strong><code>exit</code> で抜けるとき</strong>：zsh は実行中のジョブがあると最初の <code>exit</code> で <code>you have running jobs.</code> と警告して止まることがある．もう一度 <code>exit</code> すれば抜けられ，caffeinate は生き残る．警告を避けたいなら起動直後に <code>disown</code> する（ジョブ表から外れるので，そもそも zsh が SIGHUP を送らなくなる）．</p></li>
+<li><p><strong>ディスプレイは消える</strong>：<code>-s</code> はシステムスリープだけを止める．画面は通常どおり消えるが SSH には影響しない．</p></li>
+<li><p><strong>再起動で消える</strong>：プロセスなので再起動後は残らない．恒久的にしたいなら <code>sudo pmset -c sleep 0</code>（AC 時のみスリープしない設定）か，launchd の LaunchAgent で caffeinate を常駐させる．</p></li>
+</ul>
+</section>
+<section id="用語集" class="level2">
+<h2 class="anchored" data-anchor-id="用語集">📘 用語集</h2>
+<div class="glossary-container">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">glossary</span><span class="kw">:</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> アサーション (power assertion)</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>      プロセスが macOS の電源管理に対して「今はスリープさせないでほしい」といった要求を宣言する仕組み．</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>      IOKit の `IOPMAssertionCreateWithName` 系 API で作成し，`powerd` に登録される．</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>      種類があり，`caffeinate -s` は `PreventSystemSleep`，`-i` は `PreventUserIdleSystemSleep`，</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>      `-d` は `PreventUserIdleDisplaySleep`，`-m` は `PreventDiskIdle` を作る．</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>      電源設定（`pmset` の `sleep` 値など）は書き換えず，作成したプロセスに紐づいて保持される．</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>      プロセスが終了すると自動的に解放されるため，root 権限は不要．</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>      現在有効なアサーションと所有プロセスは `pmset -g assertions` で確認できる．</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> `powerd`</span></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>      macOS の電源管理デーモン．launchd から root 権限で起動される．</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>      `pmset` で設定された電源設定と，各プロセスから登録されたアサーションを突き合わせて，</span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>      システムやディスプレイをスリープさせてよいかを判断する．</span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>      アサーションを作成したプロセスの終了を検知すると，そのアサーションを自動で解放する．</span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>      `pmset -g` に表示される `(sleep prevented by caffeinate)` は，</span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>      `powerd` がアサーションによってスリープを抑止している状態を示す．</span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> `SIGHUP` (hangup signal)</span></span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>      制御端末が切断（ハングアップ）されたことを知らせるシグナル．シグナル番号は 1．</span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a>      端末が閉じられると，カーネルがセッションリーダー（ログインシェルなど）に送り，</span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>      シェルは終了前に自分の管理するジョブにも転送する（zsh では `HUP` オプション，既定で ON）．</span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a>      既定動作はプロセスの終了なので，何も対策しないとバックグラウンドジョブも SSH 切断と一緒に終了する．</span>
+<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a>      なお，デーモンでは慣習的に「設定ファイルの再読み込み」の合図として使われることも多い．</span>
+<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> `SIG_IGN`</span></span>
+<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a>      シグナルの処理方法（disposition）として「無視する」を表す定数．</span>
+<span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a>      `signal(SIGHUP, SIG_IGN)` や `sigaction` で設定すると，そのシグナルが届いても何も起きない．</span>
+<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a>      `fork` した子プロセスに引き継がれ，`exec` で別のプログラムに置き換わっても保持される</span>
+<span id="cb10-34"><a href="#cb10-34" aria-hidden="true" tabindex="-1"></a>      （自前のハンドラ関数は `exec` で既定動作に戻るが，`SIG_IGN` は戻らない）．</span>
+<span id="cb10-35"><a href="#cb10-35" aria-hidden="true" tabindex="-1"></a>      `nohup` はこの性質を使い，`SIGHUP` を `SIG_IGN` にしてから対象コマンドを `exec` する．</span>
+<span id="cb10-36"><a href="#cb10-36" aria-hidden="true" tabindex="-1"></a>      `SIGKILL` と `SIGSTOP` は無視できない．</span>
+<span id="cb10-37"><a href="#cb10-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-38"><a href="#cb10-38" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> `/dev/null`</span></span>
+<span id="cb10-39"><a href="#cb10-39" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb10-40"><a href="#cb10-40" aria-hidden="true" tabindex="-1"></a>      書き込まれたデータをすべて捨て，読み出すと即座に EOF を返す特殊ファイル（null デバイス）．</span>
+<span id="cb10-41"><a href="#cb10-41" aria-hidden="true" tabindex="-1"></a>      `&gt;/dev/null` で標準出力を，`2&gt;&amp;1` を続けて標準エラーも同じ場所へ向けると，出力を一切残さない．</span>
+<span id="cb10-42"><a href="#cb10-42" aria-hidden="true" tabindex="-1"></a>      リダイレクトは左から順に処理されるため，`&gt;/dev/null 2&gt;&amp;1` と `2&gt;&amp;1 &gt;/dev/null` は結果が異なる</span>
+<span id="cb10-43"><a href="#cb10-43" aria-hidden="true" tabindex="-1"></a>      （後者は標準エラーが元の端末に残る）．</span>
+<span id="cb10-44"><a href="#cb10-44" aria-hidden="true" tabindex="-1"></a>      `nohup` は標準出力が端末のままだと `nohup.out` に書き出すので，`/dev/null` に向けてファイル生成を防ぐ．</span>
+<span id="cb10-45"><a href="#cb10-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-46"><a href="#cb10-46" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> `&amp;` (バックグラウンド実行)</span></span>
+<span id="cb10-47"><a href="#cb10-47" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb10-48"><a href="#cb10-48" aria-hidden="true" tabindex="-1"></a>      コマンドの末尾に付けると，シェルはそのコマンドの終了を待たずにすぐ次のプロンプトを返す．</span>
+<span id="cb10-49"><a href="#cb10-49" aria-hidden="true" tabindex="-1"></a>      起動したプロセスはジョブとしてシェルのジョブ表に登録され，`jobs` で一覧，`fg %1` で前面に戻せる．</span>
+<span id="cb10-50"><a href="#cb10-50" aria-hidden="true" tabindex="-1"></a>      直前に起動したバックグラウンドプロセスの PID は `$!` で取れる．</span>
+<span id="cb10-51"><a href="#cb10-51" aria-hidden="true" tabindex="-1"></a>      バックグラウンドにしても同じセッション・同じ制御端末に属したままなので，</span>
+<span id="cb10-52"><a href="#cb10-52" aria-hidden="true" tabindex="-1"></a>      端末が切れればシェルから `SIGHUP` を受け取る．切断後も生かすには `nohup` か `disown` を併用する．</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+
+
+</section>
+
+</main> <!-- /main -->
+<script>
+    document.querySelectorAll('.custom_problem .theorem-title').forEach((title) => {
+        let modName = title.innerHTML;
+        modName = modName.replace("Exercise", "Problem");
+        modName = modName.replace("Proposition", "Property");
+        modName = modName.replace("Example", "<strong>&#9654;</strong>&nbsp; Example");
+        title.innerHTML = modName;
+    });
+
+    // Rule: 未使用の Corollary (#cor-, lang: ja では「系」) を Rule として表示する
+    document.querySelectorAll('.custom_rule .theorem-title').forEach((title) => {
+        title.innerHTML = title.innerHTML
+            .replace(/^<strong>(系|Corollary)/, "<strong>Rule")
+            .replace(/\s*\((.*)\)<\/strong>$/, ": $1</strong>");
+        // タイトルの後で改行し，本文を次の行から始める
+        title.style.display = "block";
+        title.style.paddingBottom = "0.5em";
+        title.style.fontSize = "1.1em";
+        // 本文がリスト等で始まると Quarto がタイトル後に &nbsp; を残し空行になるため除去する
+        while (title.nextSibling && title.nextSibling.nodeType === Node.TEXT_NODE
+               && title.nextSibling.textContent.trim() === "") {
+            title.nextSibling.remove();
+        }
+        if (!title.nextSibling) {
+            title.parentElement.style.marginBottom = "0";
+        }
+    });
+ </script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const toggle = window.document.createElement('button');
+      toggle.type = "button";
+      toggle.setAttribute("role", "switch");
+      toggle.setAttribute("aria-checked", "false");
+      toggle.classList.add('top-right');
+      toggle.classList.add('quarto-color-scheme-toggle');
+      toggle.setAttribute("aria-label", "ダークモードの切り替え");
+      toggle.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      toggle.appendChild(i);
+      // Put the toggle in a landmark of its own, so that landmark navigation
+      // can reach it.
+      //
+      // The container is always a fresh direct child of body, and the toggle is
+      // never moved into page furniture that the theme or the author controls.
+      // The toggle is positioned against the page, so any ancestor that
+      // establishes a containing block captures it: a positioned element or a
+      // grid for position: absolute, and transform, filter, will-change or
+      // contain for position: fixed. A direct child of body has none of these
+      // to inherit, and the shift when one appears is silent and visual.
+      //
+      // ARIA says a document should have at most one banner, and axe reports a
+      // duplicate whether or not the banners carry distinct labels. So use a
+      // header when the page has no banner yet, and a named region otherwise.
+      //
+      // A header is a banner wherever it sits, unless it is inside sectioning
+      // content, so this cannot just look at the children of body: a custom
+      // page layout wraps the title block header in a plain div. An explicit
+      // role="banner" always counts.
+      const sectioning = 'article, aside, main, nav, section, [role="article"], [role="complementary"], [role="main"], [role="navigation"], [role="region"]';
+      const hasBanner = Array.from(
+        window.document.querySelectorAll('header:not([role]), [role="banner"]')
+      ).some(function(el) {
+        return el.hasAttribute("role") || el.closest(sectioning) === null;
+      });
+      const container = window.document.createElement(hasBanner ? "div" : "header");
+      if (hasBanner) {
+        container.setAttribute("role", "region");
+        container.setAttribute("aria-label", "ダークモードの切り替え");
+      }
+      container.classList.add('quarto-color-scheme-toggle-container');
+      container.appendChild(toggle);
+      window.document.body.appendChild(container);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "コピーしました");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "コピーしました");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/ryonakagami\.github\.io\/regmonkey-datascience-blog");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+      window.quartoDecorateExternalLinks = function (root) {
+     var links = (root || window.document).querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+          if (!link.classList.contains('no-external-icon')) {
+          }
+        }
+      }
+      };
+      window.quartoDecorateExternalLinks(window.document);
+    // Esc closes the popup (WCAG 1.4.13) and focus leaving both trigger and
+    // popup closes it (WCAG 2.4.11); tippy handles neither for interactive popups.
+    const hideOnEscAndFocusOut = {
+      name: 'hideOnEscAndFocusOut',
+      defaultValue: true,
+      fn(instance) {
+        const dismiss = () => {
+          // A show scheduled by the trigger delay would otherwise reopen it
+          instance.clearDelayTimeouts();
+          instance.hide();
+        };
+        const onKeyDown = (event) => {
+          if (event.key !== 'Escape') {
+            return;
+          }
+          // Keep Esc from also reaching page handlers (e.g. reveal.js overview),
+          // except an open reveal.js slide menu, which Esc should close too.
+          // The menu handles keys only when its keyboard option is on.
+          const menuHandlesEsc = window.Reveal?.getPlugin?.('menu')?.isOpen() &&
+            window.Reveal.getConfig().menu?.keyboard !== false;
+          if (!menuHandlesEsc) {
+            event.stopPropagation();
+          }
+          if (instance.popper.contains(window.document.activeElement)) {
+            // Disabled while refocusing so the focus trigger does not reopen it
+            instance.disable();
+            instance.reference.focus();
+            instance.enable();
+          }
+          dismiss();
+        };
+        const onFocusOut = (event) => {
+          const target = event.relatedTarget;
+          if (target && !instance.reference.contains(target) &&
+              !instance.popper.contains(target)) {
+            dismiss();
+          }
+        };
+        // On the trigger too: a click trigger (code-annotations: select) has no
+        // blur handling. Attached for the instance's lifetime so leaving the
+        // trigger also cancels a show still pending on the trigger delay.
+        instance.reference.addEventListener('focusout', onFocusOut);
+        return {
+          onShow() {
+            window.document.addEventListener('keydown', onKeyDown, true);
+            instance.popper.addEventListener('focusout', onFocusOut);
+          },
+          onHide() {
+            window.document.removeEventListener('keydown', onKeyDown, true);
+            instance.popper.removeEventListener('focusout', onFocusOut);
+          },
+          onDestroy() {
+            instance.reference.removeEventListener('focusout', onFocusOut);
+          },
+        };
+      },
+    };
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+        plugins: [hideOnEscAndFocusOut],
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          // Each band is positioned against its own containing block, which is
+          // not the offsetParent of the lines, so place it from client rects.
+          const placeBand = (band, firstEl, lastEl, codeBlock) => {
+            const container = band.offsetParent;
+            if (container === null) {
+              return;
+            }
+            const containerRect = container.getBoundingClientRect();
+            // Reveal.js scales slides with a transform, so convert client
+            // pixels back to the CSS pixels of the container.
+            const scale = containerRect.height / container.offsetHeight || 1;
+            const firstRect = firstEl.getBoundingClientRect();
+            const lastRect = lastEl.getBoundingClientRect();
+            const top = (firstRect.top - containerRect.top) / scale - container.clientTop + container.scrollTop;
+            const height = (lastRect.bottom - firstRect.top) / scale;
+            band.style.top = top - 2 + "px";
+            band.style.height = height + 4 + "px";
+            if (codeBlock) {
+              // Without the copy button wrapper, the containing block is wider
+              // than the code block, so span the code block explicitly.
+              const blockRect = codeBlock.getBoundingClientRect();
+              band.style.left = (blockRect.left - containerRect.left) / scale - container.clientLeft + container.scrollLeft + "px";
+              band.style.width = blockRect.width / scale + "px";
+            }
+          };
+          if (lineIds.length > 0) {
+            const el = window.document.getElementById(lineIds[0]);
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const parent = el.parentElement.parentElement;
+            // cook up a div (if necessary) and position it
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            placeBand(div, el, lastEl, parent.closest("div.sourceCode") || parent);
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            placeBand(gutterDiv, el, lastEl);
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+  <script type="application/javascript">
+  window.quartoScrollableRegionsLabels = {"code":"スクロール可能なコード","output":"スクロール可能な出力"};
+  </script>
+<script src="https://utteranc.es/client.js" repo="RyoNakagami/regmonkey-datascience-blog" issue-term="title" theme="github-light" crossorigin="anonymous" async="">
+</script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+      &nbsp;
+    </div>   
+    <div class="nav-footer-center">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+ © Copyright RyoNak
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="../../LICENSE">
+<p>License</p>
+</a>
+  </li>  
+</ul>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>問題を報告</a></li></ul></div></div>
+    <div class="nav-footer-right">
+      &nbsp;
+    </div>
+  </div>
+</footer>
+    <script type="text/javascript">
+    (function(d) {
+      d.querySelectorAll(".pseudocode-container").forEach(function(el) {
+        let pseudocodeOptions = {
+          indentSize: el.dataset.indentSize || "1.2em",
+          commentDelimiter: el.dataset.commentDelimiter || "//",
+          lineNumber: el.dataset.lineNumber === "true" ? true : false,
+          lineNumberPunc: el.dataset.lineNumberPunc || ":",
+          noEnd: el.dataset.noEnd === "true" ? true : false,
+          titlePrefix: el.dataset.captionPrefix || "Algorithm"
+        };
+        pseudocode.renderElement(el.querySelector(".pseudocode"), pseudocodeOptions);
+      });
+    })(document);
+    (function(d) {
+      d.querySelectorAll(".pseudocode-container").forEach(function(el) {
+        let captionSpan = el.querySelector(".ps-root > .ps-algorithm > .ps-line > .ps-keyword")
+        if (captionSpan !== null) {
+          let captionPrefix = el.dataset.captionPrefix + " ";
+          let captionNumber = "";
+          if (el.dataset.pseudocodeNumber) {
+            captionNumber = el.dataset.pseudocodeNumber + " ";
+            if (el.dataset.chapterLevel) {
+              captionNumber = el.dataset.chapterLevel + "." + captionNumber;
+            }
+          }
+          captionSpan.innerHTML = captionPrefix + captionNumber;
+        }
+      });
+    })(document);
+    </script>
+  
+<script>var lightboxQuarto = GLightbox({"closeEffect":"zoom","descPosition":"bottom","loop":false,"openEffect":"zoom","selector":".lightbox"});
+(function() {
+  let previousOnload = window.onload;
+  window.onload = () => {
+    if (previousOnload) {
+      previousOnload();
+    }
+    lightboxQuarto.on('slide_before_load', (data) => {
+      const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+      const href = trigger.getAttribute('href');
+      if (href !== null) {
+        const imgEl = window.document.querySelector(`a[href="${href}"] img`);
+        if (imgEl !== null) {
+          const srcAttr = imgEl.getAttribute("src");
+          if (srcAttr && srcAttr.startsWith("data:")) {
+            slideConfig.href = srcAttr;
+          }
+        }
+      } 
+    });
+  
+    lightboxQuarto.on('slide_after_load', (data) => {
+      const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(slideNode);
+      }
+    });
+  
+  };
+  
+})();
+          </script>
+
+
+
+
+</body></html>
