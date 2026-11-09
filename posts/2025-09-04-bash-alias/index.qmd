@@ -2,9 +2,8 @@
 title: "シェルスクリプトにおけるAlias"
 author: "Ryo Nakagami"
 date: "2025-09-04"
-date-modified: "2026-01-08"
-categories: [shell]
-listing_category: development
+date-modified: "2026-11-09"
+categories: [shell, shellscript, Linux]
 comments:
   utterances:
        repo: RyoNakagami/regmonkey-datascience-blog
@@ -14,37 +13,38 @@ comments:
 
 ## Aliasとは
 
-Aliasは，コマンド及びコマンドとオプションの組み合わせに別名をつける機能です．
-`alias`および`unalias`組み込みコマンドを使用して，alias名と対応する値を設定・解除します．
+::: {#def- .custom_problem .blog-custom-border}
+### `alias` コマンド
 
-[Aliasの展開動作]{.mini-section}
+- aliasは，コマンド及びコマンドとオプションの組み合わせに別名をつける機能
+- `alias`および`unalias`組み込みコマンドを使用して，alias名と対応する値を設定・解除する
+- alias 定義において，コマンドはシングルクオートで囲むのが一般的
 
-1. シェルが適切な位置で引用符で囲まれていない単語を読み取ると，その単語がalias名と一致するかをチェック
-2. 一致する場合，シェルはその単語をalias値に置き換え，元の単語の代わりにその値を読み取ったかのように処理
+[syntax]{.mini-section}
 
-alias置換を試みるときに，単語の後に続く文字は確認しません．
+```bash
+alias エイリアス名='コマンド'
+```
 
-[Aliasの名前と置換テキストの制約]{.mini-section}
+:::
 
-- **名前の制約**: `/`, `$`, `` ` ``, `=`およびシェルのメタキャラクタや引用符文字をalias名に含めることはできません
-- **置換テキスト**: 有効なシェル入力（メタキャラクタを含む）を含めることができます
-- **再帰的展開の防止**: 置換テキストの最初の単語はaliasとしてテストされますが，展開中のaliasと同一の単語は2回展開されません．例えば，`ls`を`ls -F`にaliasしても，Bashは再帰的に展開しようとしません
+[コマンド挙動]{.mini-section}
 
-[連続的なalias展開]{.mini-section}
+引数を指定せずに `alias` コマンドを実行すると，現在設定されているエイリアス一覧を表示します
 
-- alias値の最後の文字が空白の場合，シェルはaliasに続く次のコマンド単語もalias展開の対象として確認します．
+```zsh
+% alias
+clear-trash='gio trash --empty'
+ls='ls -F --color=auto --group-directories-first'
+grep='grep --color=auto'
+....
+```
 
-[Aliasの制限]{.mini-section}
+エイリアスの設定は以下のようにコマンドをシングルクオートで囲って定義します
 
-- **引数の扱い**: cshのように置換テキストに引数を使用するメカニズムはありません
-- **非対話モードでの展開**: シェルが非対話モードの場合，`shopt`を使用して`expand_aliases`オプションを設定しない限り，aliasは展開されません
-
-[Aliasの定義と実行タイミング]{.mini-section}
-
-- aliasは，コマンドが**実行される時**ではなく，**読み取られる時**に展開されます
-- 同じ行に他のコマンドと一緒に記述されたalias定義は，シェルが次の入力行を読み取るまで有効になりません
-- 複合コマンド内のalias定義は，シェルが複合コマンド全体を解析・実行するまで有効になりません
-- alias定義に続くその行のコマンドは，新しいaliasの影響を受けません
+```zsh
+% alias setclip='xclip -selection clipboard -o'
+```
 
 [Aliasかどうかの確認]{.mini-section}
 
@@ -54,6 +54,66 @@ alias置換を試みるときに，単語の後に続く文字は確認しませ
 $ type ls
 ls is an alias for ls -F --color=auto --group-directories-first
 ```
+
+[Aliasの名前と置換テキストの制約]{.mini-section}
+
+- **名前の制約**: `/`, `$`, `` ` ``, `=`およびシェルのメタキャラクタや引用符文字をalias名に含めることはできません
+- **置換テキスト**: 有効なシェル入力（メタキャラクタを含む）を含めることができます
+- **再帰的展開の防止**: 置換テキストの最初の単語はaliasとしてテストされますが，展開中のaliasと同一の単語は2回展開されません．例えば，`ls`を`ls -F`にaliasしても，Bashは再帰的に展開しようとしません
+
+
+[Aliasの制限]{.mini-section}
+
+- **引数の扱い**: cshのように置換テキストに引数を使用するメカニズムはありません
+- **非対話モードでの展開**: シェルが非対話モードの場合，`shopt`を使用して`expand_aliases`オプションを設定しない限り，aliasは展開されません
+
+### Aliasの展開動作
+
+aliasの展開は，シェルがコマンドラインを読み取る段階で行われる単純な文字列の置き換えです．処理は次の2ステップで進みます．
+
+1. シェルが適切な位置（基本的には単純コマンドの先頭）で引用符で囲まれていない単語を読み取ると，その単語がalias名と一致するかをチェック
+2. 一致する場合，シェルはその単語をalias値に置き換え，元の単語の代わりにその値を読み取ったかのように処理
+
+![alias展開の流れ．置き換わるのは一致した単語だけで，後続の文字はそのまま残る](./figures/alias-expansion.svg){width="100%" fig-align="center"}
+
+ポイントは，置換が単語単位で行われることです．alias置換を試みるとき，シェルは単語の後に続く文字を確認しません．たとえば `alias ll='ls -l'` を定義して `ll -a /tmp` と入力すると，置き換わるのは先頭の `ll` だけです．後ろの `-a /tmp` は中身を確認されないまま残り，シェルは `ls -l -a /tmp` を読み取ったものとして処理します．
+
+また，チェックの対象は「引用符で囲まれていない単語」に限られます．`\ll` や `'ll'` のように引用すればaliasを経由せずにコマンドを実行できるのはこのためです（後述の「Aliasを一時的に解除する方法」を参照）．
+
+[連続的なalias展開]{.mini-section}
+
+上のルールでは，チェックされるのは原則としてコマンドの先頭の単語だけです．そのため，`sudo` のように別のコマンドを引数にとるコマンドの後ろでは，aliasは展開されません．これを補うのが次のルールです．
+
+- alias値の最後の文字が空白の場合，シェルはaliasに続く次のコマンド単語もalias展開の対象として確認します
+
+![alias値の末尾の空白の有無による違い．末尾に空白があると，次の単語もalias展開の対象になる](./figures/alias-chained-expansion.svg){width="100%" fig-align="center"}
+
+`alias sudo='sudo '` のように値の末尾に空白を入れておくと，`sudo ll /tmp` の `ll` もaliasとして確認され，シェルは `sudo ls -l /tmp` を読み取ります．末尾に空白がない場合，`ll` は展開されないまま `sudo` に渡ります．aliasはシェルの機能で `sudo` からは見えないため，`sudo` は `ll` というコマンドを探して `command not found` で失敗します．
+
+```bash
+# ~/.bashrc
+alias sudo='sudo '   # sudo の後ろの単語も alias 展開の対象にする
+```
+
+[Aliasの定義と実行タイミング]{.mini-section}
+
+aliasの展開はコマンドを読み取る段階で行われます．このことから，aliasを定義するタイミングについて次の注意点が生まれます．
+
+- aliasは，コマンドが**実行される時**ではなく，**読み取られる時**に展開されます
+- 同じ行に他のコマンドと一緒に記述されたalias定義は，シェルが次の入力行を読み取るまで有効になりません
+- 複合コマンド内のalias定義は，シェルが複合コマンド全体を解析・実行するまで有効になりません
+- alias定義に続くその行のコマンドは，新しいaliasの影響を受けません
+
+たとえば，aliasを定義して同じ行ですぐに使おうとしても展開されません．`hello` を含む行全体が，aliasを定義するより前にまとめて読み取られているためです．次の行からは定義済みのaliasとして展開されます．
+
+```bash
+$ alias hello='echo hello'; hello
+bash: hello: command not found
+$ hello
+hello
+```
+
+
 
 ## Aliasを一時的に解除する方法
 
@@ -162,6 +222,32 @@ source ~/.bash_aliases
 ```bash
 source ~/.bashrc
 ```
+
+::: {.callout-note}
+## なぜ `export` ではなく `source` なのか
+
+「設定を反映する」と聞くと `export` を思い浮かべるかもしれませんが，aliasの反映に使うのは `source` です．2つはまったく別の役割を持つコマンドです．
+
+- `source`（`.`）: 指定したファイルを**今のシェル自身で**1行ずつ実行する
+- `export`: 今のシェルの**変数**に「子プロセスへ渡す」印を付ける．ファイルを読み込むことはない．主な用途は `export PATH="$HOME/.local/bin:$PATH"` のように，`PATH` などの環境変数を，そのシェルから起動するコマンドやスクリプトに引き継がせること
+
+![`source` と `bash` によるファイル実行の違い．子プロセスで定義した alias は親に戻らず，`export` も親→子の一方向にしか働かない](./figures/alias-why-source.svg){width="100%" fig-align="center"}
+
+aliasを使いたいのは今のシェルなので，`~/.bash_aliases` に書かれた `alias` コマンドを今のシェルで実行する必要があります．これを行うのが `source` です．2.で見た `.bashrc` の `. ~/.bash_aliases` も同じ仕組みで，新しく開いたターミナルでaliasが使えるのは，起動時にこの行が実行されるからです．
+
+一方，`bash ~/.bash_aliases` のようにファイルを実行すると，中身は子プロセスで実行されます．子プロセスでaliasが定義されても，プロセスの終了とともに消え，親である今のシェルには何も戻りません．`export` もこの問題は解決できません．`export` が働くのは親→子の一方向だけで，対象も変数（と `export -f` による関数）に限られ，aliasを渡す仕組みはありません．
+
+```bash
+$ export ~/.bash_aliases     # ファイルを読み込むコマンドではない
+bash: export: `/home/user/.bash_aliases': not a valid identifier
+
+$ alias ll='ls -l'
+$ export ll                  # エラーにはならないが，印が付くのは変数 ll であって alias ではない
+$ bash -c 'type ll'
+bash: line 1: type: ll: not found
+```
+
+:::
 
 
 References

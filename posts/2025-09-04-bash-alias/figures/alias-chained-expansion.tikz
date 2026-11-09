@@ -1,0 +1,72 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.3cm, minimum width=4.2cm, inner sep=5pt},
+    ext/.style={draw=darkgray, dashed, fill=white, rounded corners=3pt,
+                align=center, inner sep=5pt},
+    step/.style={font=\footnotesize\bfseries, text=azureblue},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    ngnote/.style={font=\footnotesize, text=crimsonred, align=left},
+    tokbase/.style={rounded corners=2pt, font=\small\ttfamily,
+                    minimum height=0.75cm, inner sep=5pt},
+    chk/.style={tokbase, draw=navy, fill=paleskyblue},   % checked for alias
+    skip/.style={tokbase, draw=darkgray, dashed, fill=white}, % not checked
+    out/.style={tokbase, draw=navy, fill=aliceblue},     % replaced text
+    wire/.style={->, draw=navy},
+  ]
+  % ---- legend / common definition --------------------------------
+  \node[ext, anchor=west] (def) at (0,2.6) {共通の定義：\texttt{alias ll='ls -l'}};
+  \node[chk, minimum height=0.55cm, anchor=west] (lg1) at (7.0,2.6) {\phantom{x}};
+  \node[note, anchor=west, right=1mm of lg1] (lg1t) {alias展開の対象として確認};
+  \node[skip, minimum height=0.55cm, right=6mm of lg1t] (lg2) {\phantom{x}};
+  \node[note, anchor=west, right=1mm of lg2] {確認されない};
+
+  % ---- case 1: trailing space ------------------------------------
+  \node[block, anchor=west] (c1) at (0,0) {\texttt{alias sudo='sudo␣'}\\[2pt]
+    {\footnotesize\color{darkgray}値の最後の文字が空白}};
+  \node[step, above=2mm of c1] {ケース1：末尾に空白あり};
+
+  \node[chk]  (a1) at (6.3,0) {sudo};
+  \node[chk,  right=1.5mm of a1] (a2) {ll};
+  \node[skip, right=1.5mm of a2] (a3) {/tmp};
+
+  \draw[->, draw=azureblue] (a1.north) .. controls +(0,0.8) and +(0,0.8) ..
+    node[midway, above=1pt, step] {末尾の空白 → 次の単語も確認} (a2.north);
+
+  \node[out]  (o1) at (11.6,0) {sudo␣};
+  \node[out,  right=1.5mm of o1] (o2) {ls -l};
+  \node[skip, right=1.5mm of o2] (o3) {/tmp};
+  \draw[wire] ($(a3.east)+(0.3,0)$) -- ($(o1.west)+(-0.3,0)$);
+  \node[note, below=2mm of o2] {\texttt{ll} も展開される};
+
+  % ---- case 2: no trailing space ---------------------------------
+  \node[block, anchor=west] (c2) at (0,-3.0) {\texttt{alias sudo='sudo'}\\[2pt]
+    {\footnotesize\color{darkgray}値の最後の文字が空白でない}};
+  \node[step, above=2mm of c2] {ケース2：末尾に空白なし};
+
+  \node[chk]  (b1) at (6.3,-3.0) {sudo};
+  \node[skip, right=1.5mm of b1] (b2) {ll};
+  \node[skip, right=1.5mm of b2] (b3) {/tmp};
+
+  \node[out]  (p1) at (11.6,-3.0) {sudo};
+  \node[skip, right=1.5mm of p1] (p2) {ll};
+  \node[skip, right=1.5mm of p2] (p3) {/tmp};
+  \draw[wire] ($(b3.east)+(0.3,0)$) -- ($(p1.west)+(-0.3,0)$);
+  \node[ngnote, below=2mm of p2] {\texttt{ll} は展開されない\\
+    → \texttt{sudo: ll: command not found}};
+
+  % ---- column headers --------------------------------------------
+  \node[note, above=13mm of a2] {入力：\texttt{sudo ll /tmp}};
+  \node[note, above=13mm of o2] {シェルが読む入力};
+\end{tikzpicture}

@@ -1,0 +1,51 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.3cm, minimum width=5.4cm, inner sep=6pt},
+    accent/.style={block, fill=paleskyblue},
+    ext/.style={draw=darkgray, dashed, fill=white, rounded corners=3pt,
+                align=center, inner sep=6pt},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt, align=center},
+    ok/.style={font=\footnotesize, text=navy, align=left},
+    ngt/.style={font=\footnotesize, text=crimsonred, align=left},
+    wire/.style={->, draw=navy},
+  ]
+  % ---- file --------------------------------------------------------
+  \node[ext] (file) at (0,-1.6) {\texttt{\textasciitilde/.bash\_aliases}\\[2pt]
+    {\footnotesize\texttt{alias ll='ls -l'}}};
+
+  % ---- processes ---------------------------------------------------
+  \node[accent] (parent) at (7.2,0) {今のシェル（親）\\[2pt]
+    {\footnotesize ここで \texttt{ll} を使いたい}};
+  \node[block] (child) at (7.2,-3.2) {子プロセス\\[2pt]
+    {\footnotesize\texttt{bash \textasciitilde/.bash\_aliases} で起動}};
+
+  % ---- file -> processes ------------------------------------------
+  \draw[wire] (file.north) |- node[pos=0.75, above, sig]
+    {\texttt{source}：今のシェル自身で実行} (parent.west);
+  \draw[wire] (file.south) |- node[pos=0.75, below, sig]
+    {\texttt{bash}：別プロセスで実行} (child.west);
+
+  % ---- parent <-> child ------------------------------------------
+  \coordinate (dx) at ($(parent.south)+(-0.9,0)$);
+  \coordinate (ux) at ($(parent.south)+(0.9,0)$);
+  \draw[wire] (dx) -- (dx |- child.north)
+    node[midway, left, sig] {\texttt{export}\\環境変数を渡す\\（親→子の一方向）};
+  \draw[->, draw=crimsonred, dashed] (ux |- child.north) -- (ux)
+    node[midway, right, ngt] {子→親には\\何も戻らない};
+
+  % ---- results ------------------------------------------------------
+  \node[ok, anchor=west] at ($(parent.east)+(0.3,0)$) {✓ \texttt{ll} が使える};
+  \node[ngt, anchor=west] at ($(child.east)+(0.3,0)$) {× \texttt{ll} は定義されても\\\phantom{× }終了とともに消える};
+\end{tikzpicture}
