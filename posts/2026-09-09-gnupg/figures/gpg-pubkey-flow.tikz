@@ -1,0 +1,77 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, minimum width=3.4cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    file/.style={draw=navy, fill=white, rounded corners=3pt,
+                 align=center, minimum height=1.1cm, minimum width=3.4cm, inner sep=5pt},
+    zone/.style={draw=navy, fill=none, rounded corners=8pt, inner sep=12pt},
+    ring/.style={draw=paleskyblue, line width=1.2pt, fill=none, rounded corners=8pt, inner sep=8pt},
+    zlabel/.style={anchor=south, font=\bfseries, text=navy},
+    rlabel/.style={anchor=north west, font=\footnotesize\bfseries, text=azureblue},
+    step/.style={font=\footnotesize\bfseries, text=azureblue},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    wire/.style={->, draw=navy},
+    use/.style={->, draw=darkgray, dashed},
+    cmd/.style={font=\footnotesize, text=fontblack, anchor=west},
+  ]
+
+  % ---------------- ryo（送信者） ----------------
+  \node[file]  (pubL)   at (4.6,4.9) {公開鍵ファイル\\{\footnotesize\texttt{gpg-pub-yuko.key}}};
+  \node[block] (keyL)   at (4.6,2.0) {yuko の公開鍵};
+  \node[file]  (plainL) at (-0.6,0)   {平文\\{\footnotesize\texttt{secret-document.txt}}};
+  \node[accent] (encL)  at (4.6,0)   {暗号文\\{\footnotesize\texttt{secret-document.txt.gpg}}};
+
+  % ---------------- yuko（受信者） ----------------
+  \node[file]  (pubR)   at (11.8,4.9) {公開鍵ファイル\\{\footnotesize\texttt{gpg-pub-yuko.key}}};
+  \node[block] (pkR)    at (11.8,2.0) {yuko の公開鍵};
+  \node[block] (skR)    at (16.8,2.0) {yuko の秘密鍵};
+  \node[accent] (encR)  at (11.8,0)   {暗号文\\{\footnotesize\texttt{secret-document.txt.gpg}}};
+  \node[file]  (plainR) at (16.8,0)   {平文\\{\footnotesize\texttt{secret-document.txt}}};
+
+  % ---------------- キーリング・人物ゾーン ----------------
+  \begin{scope}[on background layer]
+    \node[ring, fit=(keyL)([yshift=5mm]keyL.north)] (ringL) {};
+    \node[ring, fit=(pkR)(skR)([yshift=5mm]pkR.north)] (ringR) {};
+    \node[zone, fit=(pubL)(plainL)(encL)(ringL)([yshift=3mm]pubL.north)] (zL) {};
+    \node[zone, fit=(pubR)(skR)(plainR)(ringR)([yshift=3mm]pubR.north)] (zR) {};
+  \end{scope}
+  \node[rlabel] at ([xshift=1mm,yshift=-1mm]ringL.north west) {GPG キーリング（\texttt{\textasciitilde/.gnupg}）};
+  \node[rlabel, anchor=north east] at ([xshift=-1mm,yshift=-1mm]ringR.north east) {GPG キーリング（\texttt{\textasciitilde/.gnupg}）};
+  \node[zlabel] at (zL.north) {ryo（送信者）};
+  \node[zlabel] at (zR.north) {yuko（受信者）};
+
+  % ---------------- 処理の流れ ----------------
+  % ① export
+  \draw[wire] (pkR) -- node[pos=0.75, left, sig] {\textcolor{azureblue}{①} \texttt{--export}} (pubR);
+  % ② 公開鍵ファイルを渡す
+  \draw[wire] (pubR) -- node[midway, above, sig] {\textcolor{azureblue}{②} 公開鍵を渡す} (pubL);
+  % ③ import
+  \draw[wire] (pubL) -- node[midway, right, sig] {\textcolor{azureblue}{③} \texttt{--import}} (ringL.north -| pubL);
+  % ④ encrypt
+  \draw[wire] (plainL) -- node[midway, above, sig] {\textcolor{azureblue}{④}} node[midway, below, sig] {\texttt{--encrypt}} (encL);
+  \draw[use] (ringL.south -| keyL) -- node[midway, right, sig] {受信者の公開鍵で暗号化} (encL);
+  % ⑤ 暗号文を送る
+  \draw[wire] (encL) -- node[midway, above, sig] {\textcolor{azureblue}{⑤} 暗号文を送る} (encR);
+  % ⑥ decrypt
+  \draw[wire] (encR) -- node[midway, above, sig] {\textcolor{azureblue}{⑥}} node[midway, below, sig] {\texttt{--decrypt}} (plainR);
+  \draw[use] (ringR.south -| skR) -- node[midway, left, sig] {自分の秘密鍵で復号} (plainR);
+
+  % ---------------- コマンド ----------------
+  \coordinate (c0) at ([yshift=-0.7cm]zL.south west);
+  \node[cmd] (c1) at (c0) {\textcolor{azureblue}{①} \texttt{yuko\$~gpg --export yuko@mylinuc.com > gpg-pub-yuko.key}};
+  \node[cmd, below=1mm of c1.south west, anchor=north west] (c3) {\textcolor{azureblue}{③} \texttt{ryo\$~~gpg --import gpg-pub-yuko.key}};
+  \node[cmd, below=1mm of c3.south west, anchor=north west] (c4) {\textcolor{azureblue}{④} \texttt{ryo\$~~gpg --encrypt --recipient yuko@mylinuc.com secret-document.txt}\quad {\color{darkgray}（\texttt{-e -r} でも可）}};
+  \node[cmd, below=1mm of c4.south west, anchor=north west] (c6) {\textcolor{azureblue}{⑥} \texttt{yuko\$~gpg --decrypt secret-document.txt.gpg > secret-document.txt}};
+\end{tikzpicture}
