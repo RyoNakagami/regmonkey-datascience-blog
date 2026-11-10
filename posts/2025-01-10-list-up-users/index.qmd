@@ -2,8 +2,8 @@
 title: "Linuxシステム上のユーザー一覧を条件に応じて表示する"
 author: "Ryo Nakagami"
 date: "2025-01-10"
-date-modified: "2025-07-24"
-categories: [shell,Linux]
+date-modified: "2026-11-10"
+categories: [shellscript,Linux]
 listing_category: development
 comments:
   utterances:
@@ -150,6 +150,7 @@ esac
 [`/etc/passwd`ファイル]{.def-title}
 
 - Linux においてユーザーアカウント情報を管理するためのテキストファイル
+- ユーザーのプライマリグループは `/etc/passwd` の第４フィールドにGIDとして登録される
 
 :::
 
@@ -167,6 +168,47 @@ kirby:x:1001:1001:Hoshino Kirby:/home/kirby:/bin/bash
 ```
 
 第２フィールドは多くの場合 `x` という表記になっています．実際のハッシュは `/etc/shadow` に保存されています．
+
+
+::: {.callout-note}
+### `/etc/group` のフィールド
+
+グループ情報は `/etc/group` に `:` 区切りの４フィールドで保存されています．
+
+```bash
+グループ名:パスワード:GID:メンバー一覧
+```
+
+```bash
+% getent group kirby docker
+kirby:x:1001:
+docker:x:999:kirby,dedede
+```
+
+:::: {.no-border-top-table}
+
+|フィールド|例（`docker` 行）|説明|
+|---|---|---|
+|グループ名|`docker`|グループの名前|
+|パスワード|`x`|多くの場合 `x` で，実体は `/etc/gshadow` に保存される|
+|GID|`999`|グループID．`/etc/passwd` の第４フィールドはこの値を参照する|
+|メンバー一覧|`kirby,dedede`|このグループを**補助グループ**として持つユーザー（カンマ区切り）|
+: {tbl-colwidths="[20,20,60]"}
+
+::::
+
+- `kirby` 行のメンバー一覧が空なのは，`kirby` グループがユーザー `kirby` の**プライマリグループ**だから
+- ユーザーが所属するグループを漏れなく確認するには `id` を使います
+
+```bash
+% id kirby
+uid=1001(kirby) gid=1001(kirby) groups=1001(kirby),999(docker)
+```
+
+:::
+
+
+
 
 
 ## LinuxにおけるUserとGroup
