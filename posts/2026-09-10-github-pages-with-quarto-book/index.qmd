@@ -1,0 +1,139 @@
+---
+title: "Quarto book を GitHub Pages で公開する"
+author: "Ryo Nakagami"
+date: "2026-09-10"
+date-modified: "2026-11-10"
+categories: [GitHub]
+lightbox: true
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+::: {.callout-note}
+## TL:DRs
+
+![Quarto book を GitHub Pages に公開する5ステップ](figures/quarto-book-pages-steps.svg){width="100%" fig-align="center"}
+- Settings → Pages の **Source** を「GitHub Actions」にしても，デプロイ用ワークフロー（Step 4）がなければ何も公開されない．
+- Source の設定とワークフローの追加は必ずセットで行う．
+
+:::
+
+## Step 1：Quarto book を作成する
+
+```bash
+quarto create project book mybook
+cd mybook
+quarto preview   # ローカルで表示を確認
+```
+
+- book プロジェクトの出力先は既定で `_book/` になる
+- ビルド成果物はコミットしないので `.gitignore` に追加すること
+
+```ini
+/.quarto/
+/_book/
+```
+
+## Step 2：GitHub に push する
+
+```bash
+git init && git add . && git commit -m "init quarto book"
+git remote add origin git@github.com:<user>/<repo>.git
+git push -u origin main
+```
+
+- Free プランでは，GitHub Pages を使えるのは public リポジトリだけ
+- private のまま公開するには Pro / Team 以上のプランが必要
+
+## Step 3：Pages の Source を GitHub Actions にする
+
+![](./figures/choose-source.png)
+
+- リポジトリの **Settings → Pages → Build and deployment → Source** で **GitHub Actions** を選ぶ．
+- 画面に出る「Jekyll」「Static HTML」の **Configure** は押さなくてよい．ワークフローは次の Step で自分で書く．
+
+## Step 4：ワークフローを追加する
+
+`.github/workflows/publish.yml` を作成する．
+
+```{.yaml filename=".github/workflows/publish.yml"}
+name: Publish Quarto Book
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: quarto-dev/quarto-actions/setup@v2
+      - uses: quarto-dev/quarto-actions/render@v2
+        with:
+          to: html          # PDF も出すと TeX が必要になるため HTML だけビルド
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _book       # Quarto book の出力先
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
+```
+
+| 項目 | 役割 |
+|---|---|
+| `permissions` | `pages: write` と `id-token: write` がないとデプロイできない |
+| `render` の `to: html` | `quarto create` の book テンプレートには PDF 出力も含まれる．PDF を出す場合は TinyTeX のセットアップが別途必要 |
+| `path: _book` | `_quarto.yml` で `output-dir` を変えた場合はそれに合わせる |
+| `environment: github-pages` | 初回デプロイ時に自動作成される |
+
+## Step 5：main に push して公開を確認する
+
+```bash
+git add .github/workflows/publish.yml
+git commit -m "ci: publish quarto book to github pages"
+git push
+```
+
+- **Actions** タブでワークフローの成功を確認する
+- `deploy` ジョブのログ末尾に `Reported success!` と公開 URL が出ていれば完了
+- 公開 URL は Settings → Pages にも表示される
+
+
+![deploy ジョブの成功ログ（本ブログでの実行例．ジョブ構成は Step 4 のワークフローと一部異なる）](figures/actions-deploy-log.png){width="100%" fig-align="center"}
+
+## Tips
+
+:::: {.no-border-top-table}
+
+| 症状・状況 | 対処 |
+|---|---|
+| コードセル（Python / R）を含む章のビルドが失敗する | `_quarto.yml` に `execute: freeze: auto` を設定し，ローカルで `quarto render` してから `_freeze/` をコミットする．Runner に実行環境を用意しなくて済む |
+| ワークフローが動かない | Settings → Actions → General で Actions が無効化されていないか確認する |
+| main 以外のブランチからデプロイすると拒否される | `github-pages` environment は既定でデフォルトブランチからのデプロイだけを許可する．Settings → Environments → github-pages で許可するブランチを追加する |
+| カスタムドメインを使いたい | Settings → Pages の Custom domain に入力し，DNS を設定してから Enforce HTTPS を有効にする |
+| ワークフローを書かずに公開したい | ローカルで `quarto publish gh-pages` を実行し，Source を「Deploy from a branch」（`gh-pages` / `/(root)`）にする |
+
+
+::::
