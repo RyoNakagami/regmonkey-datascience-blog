@@ -1,0 +1,59 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    ng/.style={block, draw=crimsonred, fill=mistyrose},
+    ext/.style={draw=darkgray, dashed, fill=white, rounded corners=3pt,
+                align=center, inner sep=5pt, minimum height=1.1cm},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south, font=\bfseries, text=navy},
+    step/.style={font=\footnotesize\bfseries, text=azureblue},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    tgt/.style={block, minimum width=4.4cm},
+    wire/.style={->, draw=navy},
+  ]
+  % ---------- ソース（Git 管理） ----------
+  \node[accent, minimum width=4.0cm, minimum height=1.5cm] (pp) at (0,0)
+    {\texttt{pyproject.toml}\\{\footnotesize 直接依存とバージョン範囲}};
+  \node[accent, minimum width=4.0cm, minimum height=1.5cm] (lock) at (6.4,0)
+    {\texttt{uv.lock}\\{\footnotesize 推移的依存まで厳密に固定}};
+  \draw[wire] (pp) -- node[above, sig] {\texttt{uv lock}} node[below, sig] {依存解決} (lock);
+
+  \node[step, above=2mm of pp] (s1) {宣言：何が欲しいか};
+  \node[step, above=2mm of lock] {解決結果：何を入れるか};
+
+  % 人の操作
+  \node[ext, below=1.4cm of pp] (dev) {\texttt{uv add} / \texttt{uv remove}\\{\footnotesize 変更はソースに対して行う}};
+  \draw[->, draw=darkgray, dashed] (dev) -- (pp);
+
+  % ---------- ターゲット ----------
+  \node[tgt] (t1) at (13.4,1.9)  {手元 PC の \texttt{.venv}\\{\footnotesize \texttt{uv sync}}};
+  \node[tgt] (t2) at (13.4,0)    {CI ランナー\\{\footnotesize \texttt{uv sync --locked}}};
+  \node[tgt] (t3) at (13.4,-1.9) {Docker イメージ\\{\footnotesize \texttt{uv sync --locked}}};
+  \node[step, above=2mm of t1] {ターゲット環境};
+  \foreach \t in {t1,t2,t3} { \draw[wire] (lock.east) -- (\t.west); }
+
+  % ---------- アンチパターン ----------
+  \node[ng, anchor=west] (bad) at ($(t1.east)+(1.3,0)$) {\texttt{uv pip install}\\{\footnotesize で直接変更}};
+  \draw[->, draw=crimsonred] (bad) -- (t1);
+  \node[note, text=crimsonred, below=2mm of bad] {定義に残らない\\＝ドリフト};
+
+  % ---------- ゾーン ----------
+  \begin{scope}[on background layer]
+    \node[zone, fit=(pp)(lock)(s1)(dev)] (zg) {};
+  \end{scope}
+  \node[zlabel] at (zg.north) {Git でバージョン管理するソース};
+\end{tikzpicture}

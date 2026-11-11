@@ -1,0 +1,58 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    ng/.style={block, draw=crimsonred, fill=mistyrose},
+    ext/.style={draw=darkgray, dashed, fill=white, rounded corners=3pt,
+                align=center, inner sep=5pt, minimum height=1.1cm},
+    env/.style={block, minimum width=2.6cm, minimum height=1.6cm},
+    ngenv/.style={ng, minimum width=2.6cm, minimum height=1.6cm},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south, font=\bfseries, text=navy},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    wire/.style={->, draw=navy},
+    ngwire/.style={->, draw=crimsonred},
+  ]
+  % ---------- 左：IaC なし ----------
+  \node[ext, minimum width=4.2cm] (lsrc) at (4,2.2) {手順書・担当者の記憶};
+  \node[ng, minimum width=4.2cm] (lop) at (4,0) {手作業で個別に設定\\（SSH・GUI・pip install）};
+  \node[ngenv] (l1) at (1.1,-3) {\textbf{開発}\\Python 3.12\\numpy 2.1};
+  \node[ngenv] (l2) at (4,-3)   {\textbf{検証}\\Python 3.11\\numpy 1.26};
+  \node[ngenv] (l3) at (6.9,-3) {\textbf{本番}\\Python 3.10\\numpy ?};
+  \draw[->, draw=darkgray, dashed] (lsrc) -- (lop);
+  \foreach \e in {l1,l2,l3} { \draw[ngwire] (lop.south) -- (\e.north); }
+  \node[note, text=crimsonred, below=3mm of l2] (lnote) {環境ごとに設定が少しずつずれる\\＝スノーフレーク（再現できない）};
+
+  % ---------- 右：IaC あり ----------
+  \node[accent, minimum width=4.2cm] (rsrc) at (14.2,2.2) {定義ファイル\\（Git でバージョン管理）};
+  \node[block, minimum width=4.2cm] (rop) at (14.2,0) {パイプラインが\\定義を適用};
+  \node[env] (r1) at (11.3,-3) {\textbf{開発}\\Python 3.12\\numpy 2.1};
+  \node[env] (r2) at (14.2,-3) {\textbf{検証}\\Python 3.12\\numpy 2.1};
+  \node[env] (r3) at (17.1,-3) {\textbf{本番}\\Python 3.12\\numpy 2.1};
+  \draw[wire] (rsrc) -- (rop);
+  \foreach \e in {r1,r2,r3} { \draw[wire] (rop.south) -- (\e.north); }
+  \node[note, below=3mm of r2] (rnote) {毎回同じ環境ができる\\変更はターゲットではなくソースを編集する};
+
+  % ---------- ゾーン ----------
+  \coordinate (ztop) at ($(lsrc.north)+(0,0.1)$);
+  \coordinate (zbot) at ($(lnote.south)+(0,-0.05)$);
+  \begin{scope}[on background layer]
+    \node[zone, fit=(l1)(l3)(l1 |- ztop)(l1 |- zbot)] (zl) {};
+    \node[zone, fit=(r1)(r3)(r1 |- ztop)(r1 |- zbot)] (zr) {};
+  \end{scope}
+  \node[zlabel, text=crimsonred] at (zl.north) {IaC なし：環境を直接いじる};
+  \node[zlabel] at (zr.north) {IaC あり：定義から環境を作る};
+\end{tikzpicture}

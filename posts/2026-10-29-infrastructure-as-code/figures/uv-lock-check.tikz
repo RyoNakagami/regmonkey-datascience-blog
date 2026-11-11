@@ -1,0 +1,57 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    ng/.style={block, draw=crimsonred, fill=mistyrose},
+    ext/.style={draw=darkgray, dashed, fill=white, rounded corners=3pt,
+                align=center, inner sep=5pt, minimum height=1.1cm},
+    cmp/.style={draw=navy, fill=white, diamond, aspect=1.6, align=center, inner sep=1pt},
+    step/.style={font=\footnotesize\bfseries, text=azureblue},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    dot/.style={circle, fill=navy, inner sep=1.4pt},
+    wire/.style={->, draw=navy},
+  ]
+  % 入力
+  \node[accent, minimum width=3.6cm] (pp) at (0,1.3)
+    {\texttt{pyproject.toml}\\{\footnotesize 依存・制約・requires-python}};
+  \node[accent, minimum width=3.6cm] (lock) at (0,-1.3)
+    {現在の \texttt{uv.lock}\\{\footnotesize 固定バージョン＋宣言の控え}};
+  \node[step, above=2mm of pp] {入力（どちらも Git 管理）};
+
+  % 仮の uv lock
+  \node[block, minimum width=4.0cm, minimum height=1.6cm] (sim) at (5.4,0)
+    {\textbf{仮に \texttt{uv lock} を実行}\\{\footnotesize ファイルには書き込まない}\\{\footnotesize 既存の固定バージョンを優先}};
+  \node[block, minimum width=3.0cm] (cand) at (10.0,0) {あるべき\\\texttt{uv.lock}};
+
+  \draw[wire] (pp.east) -- (sim.west);
+  \draw[wire] (lock.east) -- (sim.west);
+  \draw[wire] (sim) -- (cand);
+
+  % 比較
+  \node[cmp] (cmp) at (14.0,0) {現在の lock\\と一致？};
+  \draw[wire] (cand) -- (cmp);
+  \draw[->, draw=darkgray, dashed] ($(lock.south)+(0,0)$) |- ($(lock.south)+(0,-0.6)$) -| (cmp.south)
+    node[pos=0.25, below, sig] {比較の基準：現在の \texttt{uv.lock}};
+
+  % 結果
+  \node[block, minimum width=3.2cm, anchor=west] (ok) at (17.0,1.3)
+    {\textbf{exit 0}\\{\footnotesize 最新（up-to-date）}};
+  \node[ng, minimum width=3.2cm, anchor=west] (bad) at (17.0,-1.3)
+    {\textbf{exit 1}\\{\footnotesize 要更新：\texttt{uv lock} を実行}};
+  \draw[wire] (cmp.north) |- node[pos=0.75, above, sig] {一致} (ok.west);
+  \draw[->, draw=crimsonred] (cmp.east) -- ++(0.9,0) |- (bad.west);
+  \node[sig, text=crimsonred, anchor=south west] at ($(cmp.east)+(0.05,0.05)$) {差分あり};
+\end{tikzpicture}

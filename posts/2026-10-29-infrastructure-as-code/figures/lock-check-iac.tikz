@@ -1,0 +1,59 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, inner sep=5pt, minimum width=4.2cm},
+    accent/.style={block, fill=paleskyblue},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south, font=\bfseries, text=navy},
+    rowlabel/.style={font=\footnotesize\bfseries, text=azureblue, anchor=east, align=right},
+    chk/.style={font=\footnotesize\bfseries, text=navy, align=center},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    brace/.style={draw=navy, decorate, decoration={brace, amplitude=6pt}},
+    wire/.style={->, draw=navy},
+  ]
+  % ---------- 上段：IaC 一般 ----------
+  \node[accent] (a1) at (0,0)   {定義ファイル\\{\footnotesize \texttt{*.tf}・Bicep・ARM}};
+  \node[accent] (a2) at (6.4,0) {計画・状態\\{\footnotesize plan・state}};
+  \node[block]  (a3) at (12.8,0) {実環境\\{\footnotesize VM・ストレージ・DWH}};
+  \draw[wire] (a1) -- node[above, font=\footnotesize, text=darkgray] {plan} (a2);
+  \draw[wire] (a2) -- node[above, font=\footnotesize, text=darkgray] {apply} (a3);
+  \node[rowlabel] at ($(a1.west)+(-0.4,0)$) {IaC 一般};
+
+  % ---------- 下段：uv ----------
+  \node[accent] (b1) at (0,-2.3)   {\texttt{pyproject.toml}\\{\footnotesize 何が欲しいか}};
+  \node[accent] (b2) at (6.4,-2.3) {\texttt{uv.lock}\\{\footnotesize 何を入れるか}};
+  \node[block]  (b3) at (12.8,-2.3) {\texttt{.venv}\\{\footnotesize 実際に入っているもの}};
+  \draw[wire] (b1) -- node[above, font=\footnotesize, text=darkgray] {\texttt{uv lock}} (b2);
+  \draw[wire] (b2) -- node[above, font=\footnotesize, text=darkgray] {\texttt{uv sync}} (b3);
+  \node[rowlabel] at ($(b1.west)+(-0.4,0)$) {uv\\（Python 環境）};
+
+  \foreach \u/\d in {a1/b1,a2/b2,a3/b3} { \draw[draw=darkgray, dashed, line width=0.5pt] (\u.south) -- (\d.north); }
+
+  % ---------- 下：2種類の検証（範囲をブレースで示す） ----------
+  \coordinate (y) at (0,-3.55);
+  \draw[brace] ($(b2 |- y)+(-0.15,0)$) -- ($(b1 |- y)+(0.15,0)$);
+  \draw[brace] ($(b3 |- y)+(-0.15,0)$) -- ($(b2 |- y)+(0.15,0)$);
+  \node[chk, anchor=north] (c1) at ($(b1 |- y)!0.5!(b2 |- y)+(0,-0.35)$) {① 定義ファイルの検証};
+  \node[note, below=1mm of c1] {IaC：テンプレートの静的チェック・lint\\uv：\texttt{uv lock --check}};
+  \node[chk, anchor=north] (c2) at ($(b2 |- y)!0.5!(b3 |- y)+(0,-0.35)$) {② 環境のドリフト検出};
+  \node[note, below=1mm of c2] {IaC：\texttt{terraform plan} で実環境と比較\\uv：\texttt{uv sync --check}};
+
+  % ---------- ゾーン ----------
+  \begin{scope}[on background layer]
+    \node[zone, fit=(a1)(a2)(b1)(b2)] (zs) {};
+    \node[zone, fit=(a3)(b3)] (zt) {};
+  \end{scope}
+  \node[zlabel] at (zs.north) {ソース（Git 管理・環境には触らない）};
+  \node[zlabel] at (zt.north) {ターゲット};
+\end{tikzpicture}
