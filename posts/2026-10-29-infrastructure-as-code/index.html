@@ -1,0 +1,1731 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="ja" xml:lang="ja"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.11.9">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Ryo Nakagami">
+<meta name="dcterms.date" content="2026-10-29">
+
+<title>Infrastructure as Code (IaC) とはなにか？ – regmonkey datascience blog</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<link href="../../img/favicon.ico" rel="icon">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/scrollable-regions/scrollable-regions.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-5de16f5e46225c21e2daa90d340bf64f.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark-3218d7d29a29f08bc4fdf3802c3e3ca5.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-5de16f5e46225c21e2daa90d340bf64f.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-af18259a854216f0522d5e7742dba421.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark-165ea26c02c9279d901e121765156747.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../site_libs/bootstrap/bootstrap-af18259a854216f0522d5e7742dba421.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script src="../../site_libs/quarto-contrib/pseudocode-2.4.1/pseudocode.min.js"></script>
+<link href="../../site_libs/quarto-contrib/pseudocode-2.4.1/pseudocode.min.css" rel="stylesheet">
+<link href="../../site_libs/quarto-contrib/reveal_vspace-1.0.0/reveal_vspace.css" rel="stylesheet">
+<script src="../../site_libs/quarto-contrib/glightbox/glightbox.min.js"></script>
+<link href="../../site_libs/quarto-contrib/glightbox/glightbox.min.css" rel="stylesheet">
+<link href="../../site_libs/quarto-contrib/glightbox/lightbox.css" rel="stylesheet">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "一致なし",
+    "search-matching-documents-text": "一致した文書",
+    "search-copy-link-title": "検索へのリンクをコピー",
+    "search-hide-matches-text": "追加の検索結果を非表示",
+    "search-more-match-text": "追加の検索結果",
+    "search-more-matches-text": "追加の検索結果",
+    "search-clear-button-title": "消去",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "取消",
+    "search-submit-button-title": "検索",
+    "search-label": "サーチ"
+  }
+}</script>
+<script async="" src="https://www.googletagmanager.com/gtag/js?id=G-EX9H7GRLTH"></script>
+
+<script type="text/javascript">
+
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
+</script>
+<style>
+
+      .quarto-title-block .quarto-title-banner h1,
+      .quarto-title-block .quarto-title-banner h2,
+      .quarto-title-block .quarto-title-banner h3,
+      .quarto-title-block .quarto-title-banner h4,
+      .quarto-title-block .quarto-title-banner h5,
+      .quarto-title-block .quarto-title-banner h6
+      {
+        color: #ffffff;
+      }
+
+      .quarto-title-block .quarto-title-banner {
+        color: #ffffff;
+      }
+</style>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-M27Z2BWG');</script>
+    <!-- End Google Tag Manager -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&amp;display=swap" rel="stylesheet">
+<script>
+    MathJax = {
+        tex: {
+            inlineMath: [['$','$'], ['\\(','\\)']],
+            displayMath: [['$$','$$'], ['\\[','\\]']],
+            processEscapes: true,
+            processEnvironments: true,
+            tags: 'all',
+        }
+    }
+</script>
+<!-- MathJax 本体は _quarto.yml の html-math-method.url で読み込む -->
+<link rel="stylesheet" href="../../js/regmonkey_glossary_generator/regmonkey_glossary_generator.css">
+<script type="text/javascript" src="../../js/regmonkey_glossary_generator/regmonkey_glossary_generator.js"></script>
+
+
+<link rel="stylesheet" href="../../styles.css">
+<meta property="og:title" content="Infrastructure as Code (IaC) とはなにか？ – regmonkey datascience blog">
+<meta property="og:description" content="日々の徒然勉強日記">
+<meta property="og:image" content="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-29-infrastructure-as-code/figures/drift-vs-iac.svg">
+<meta property="og:site_name" content="regmonkey datascience blog">
+<meta property="og:image:alt" content="IaC なし（左）では環境ごとに設定がずれてスノーフレークになる．IaC あり（右）では同じ定義ファイルから毎回同じ環境ができる">
+</head>
+
+<body class="nav-fixed quarto-light"><a id="quarto-skip-link" class="visually-hidden-focusable" href="#quarto-document-content">メインコンテンツにスキップ</a><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          toggle.setAttribute("aria-checked", alternate ? "true" : "false");
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+    }
+    // Hack to workaround the fact that safari doesn't
+    // properly recolor the scrollbar when toggling (#1455).
+    // Not run on load: stylesheets are set before first paint there, and
+    // scrolling would undo the scroll to a URL fragment (#14973).
+    // The one pixel nudge keeps the reader where they were.
+    const refreshSafariScrollbar = () => {
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        const scrollY = window.scrollY;
+        window.scrollTo(0, scrollY > 0 ? scrollY - 1 : 1);
+        setTimeout(() => {
+          window.scrollTo(0, scrollY);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      refreshSafariScrollbar();
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top quarto-banner">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark" aria-label="ウェブサイト">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">Home</span>
+    </a>
+  </div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="ナビゲーションを切り替える" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-bi-book" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+      <i class="bi bi-book" role="img">
+</i> 
+ <span class="menu-text"></span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-bi-book">    
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/statistics-for-regression-monkey/">
+ <span class="dropdown-text">Statistics Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/python-statisticalpackage-techniques/">
+ <span class="dropdown-text">Python package building Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/regmonkey_datavisualization/">
+ <span class="dropdown-text">Data Visualization Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/regmonkey-presentation/">
+ <span class="dropdown-text">Presentation Blog</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../link_list/link_table.html"> 
+<span class="menu-text">便利リンク集</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../dictionary/dict.html"> 
+<span class="menu-text">備忘録</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../FAQ/faq.html"> 
+<span class="menu-text">FAQ</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../about.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/RyoNakagami/regmonkey-datascience-blog"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="../../index.xml"> <i class="bi bi-rss" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <button type="button" role="switch" aria-checked="false" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="ダークモードの切り替え" aria-label="ダークモードの切り替え"><i class="bi"></i></button>
+</div>
+            <div id="quarto-search" class="" title="サーチ"></div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">Infrastructure as Code (IaC) とはなにか？</h1>
+                                <div class="quarto-categories">
+                <div class="quarto-category">環境構築</div>
+                <div class="quarto-category">uv</div>
+                <div class="quarto-category">方法論</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      <div>
+      <div class="quarto-title-meta-heading">作者</div>
+      <div class="quarto-title-meta-contents">
+               <p>Ryo Nakagami </p>
+            </div>
+    </div>
+      
+      <div>
+      <div class="quarto-title-meta-heading">公開</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">2026-10-29</p>
+      </div>
+    </div>
+    
+      <div>
+      <div class="quarto-title-meta-heading">更新日</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date-modified">2026-11-11</p>
+      </div>
+    </div>
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" aria-labelledby="toc-title" class="toc-active">
+    <h2 id="toc-title">目次</h2>
+   
+  <ul>
+  <li><a href="#iac-とは" id="toc-iac-とは" class="nav-link active" data-scroll-target="#iac-とは">IaC とは</a></li>
+  <li><a href="#iac-が解決する問題環境ドリフトとスノーフレーク" id="toc-iac-が解決する問題環境ドリフトとスノーフレーク" class="nav-link" data-scroll-target="#iac-が解決する問題環境ドリフトとスノーフレーク">IaC が解決する問題：環境ドリフトとスノーフレーク</a></li>
+  <li><a href="#冪等性idempotence" id="toc-冪等性idempotence" class="nav-link" data-scroll-target="#冪等性idempotence">冪等性（Idempotence）</a></li>
+  <li><a href="#本番に近い環境で早くテストする" id="toc-本番に近い環境で早くテストする" class="nav-link" data-scroll-target="#本番に近い環境で早くテストする">本番に近い環境で早くテストする</a></li>
+  <li><a href="#宣言的定義と命令的スクリプト" id="toc-宣言的定義と命令的スクリプト" class="nav-link" data-scroll-target="#宣言的定義と命令的スクリプト">宣言的定義と命令的スクリプト</a></li>
+  <li><a href="#sec-uv" id="toc-sec-uv" class="nav-link" data-scroll-target="#sec-uv">Appendix: データサイエンスにおける IaC：uv と pyproject.toml</a>
+  <ul class="collapse">
+  <li><a href="#分析環境はレイヤーの積み重ね" id="toc-分析環境はレイヤーの積み重ね" class="nav-link" data-scroll-target="#分析環境はレイヤーの積み重ね">分析環境はレイヤーの積み重ね</a></li>
+  <li><a href="#uv-を-iac-として読む" id="toc-uv-を-iac-として読む" class="nav-link" data-scroll-target="#uv-を-iac-として読む">uv を IaC として読む</a></li>
+  <li><a href="#主なコマンドと-iac-上の意味" id="toc-主なコマンドと-iac-上の意味" class="nav-link" data-scroll-target="#主なコマンドと-iac-上の意味">主なコマンドと IaC 上の意味</a></li>
+  <li><a href="#運用ルール" id="toc-運用ルール" class="nav-link" data-scroll-target="#運用ルール">運用ルール</a></li>
+  <li><a href="#uv.lock-だけでは固定できないもの" id="toc-uv.lock-だけでは固定できないもの" class="nav-link" data-scroll-target="#uv.lock-だけでは固定できないもの">uv.lock だけでは固定できないもの</a></li>
+  </ul></li>
+  <li><a href="#用語集" id="toc-用語集" class="nav-link" data-scroll-target="#用語集">📘 用語集</a></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>問題を報告</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content" tabindex="-1">
+
+
+
+
+
+
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>TL;DRs
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>分析結果の再現性は，コードだけでなく <strong>実行環境が同じであること</strong> に依存する．ここでいう実行環境には，Python のバージョン，パッケージのバージョン，OS・システムライブラリ（CUDA など），クラウド資源が含まれる</li>
+<li>環境を手作業で管理すると，その場しのぎの <code>pip install</code> や設定変更が記録に残らないまま積み重なる．その結果，気づかないうちに環境ごとの差（<strong>環境ドリフト</strong>）が生まれ，最終的には誰も再現できない一点物の環境（<strong>スノーフレーク</strong>）になる</li>
+<li>1つ1つの差は小さくても，チリツモで「手元では動くのに CI や本番で動かない」「半年前の分析結果を再現できない」という問題に直面しやすくなる</li>
+<li>IaC は，環境を <strong>バージョン管理された宣言的な定義ファイル</strong> で記述し，<strong>冪等な操作</strong> で何度でも同じ環境を作ることで，この問題を防ぐ</li>
+<li>Python 環境では，<code>uv</code> のワークフローがそのまま IaC にあたる．<code>pyproject.toml</code> に「何が欲しいか」を宣言し，<code>uv.lock</code> に「何を入れるか」を固定し，<code>uv sync</code> で定義どおりに環境を揃える</li>
+</ul>
+</div>
+</div>
+<section id="iac-とは" class="level2">
+<h2 class="anchored" data-anchor-id="iac-とは">IaC とは</h2>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title">IaC</span></p>
+<blockquote class="blockquote">
+<p>Just as the same source code always generates the same binary, an IaC model generates the same environment every time it deploys.</p>
+</blockquote>
+<ul>
+<li><strong>Infrastructure as Code（IaC）</strong> とは，ネットワーク・仮想マシン・ロードバランサー・それらの接続構成といったインフラを，<strong>バージョン管理された記述的なモデル（定義ファイル）</strong> で定義し，そこから環境をデプロイするプラクティスのこと</li>
+<li>例: 望ましい環境の状態を<span class="regmonkey-bold">よく文書化されたコード（JSON などの形式）</span>として表現する</li>
+</ul>
+</div>
+<p>同じソースコードからは常に同じバイナリができるのと同じように，同じ IaC モデルからは何度デプロイしても同じ環境ができる（＝<span class="regmonkey-bold">再現性の確保</span>）ようにしよう，というのが IaC の考え方です．</p>
+<p>IaC は DevOps の中心的なプラクティスであり，継続的デリバリー（Continuous Delivery）の構成要素の1つです．アプリケーションとそれを支えるインフラを，チームが同じ手順・同じツールで，速く・確実に・大規模に届けるために使われます．</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>データサイエンスに置き換えると
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>「インフラ」を「分析の実行環境」と読み替えると，IaC の考え方はそのままデータサイエンスに当てはまります．</p>
+<ul>
+<li>同じ <code>pyproject.toml</code> と <code>uv.lock</code> からは，誰の PC でも，CI でも，Docker イメージの中でも，同じ Python 環境ができる</li>
+<li>環境を変えたいときは，環境（<code>.venv</code>）を直接いじるのではなく，定義ファイルを編集する</li>
+</ul>
+<p>この対応は後半の「<a href="#sec-uv">データサイエンスにおける IaC：uv と pyproject.toml</a>」で詳しく扱います．</p>
+</div>
+</div>
+</section>
+<section id="iac-が解決する問題環境ドリフトとスノーフレーク" class="level2">
+<h2 class="anchored" data-anchor-id="iac-が解決する問題環境ドリフトとスノーフレーク">IaC が解決する問題：環境ドリフトとスノーフレーク</h2>
+<p>IaC は，リリースパイプラインにおける <strong>環境ドリフト（environment drift）</strong> の問題を解決するために発展してきました．</p>
+<p>IaC がない場合，開発・検証・本番といったデプロイ先の環境設定を，それぞれ個別に手作業で維持することになります．</p>
+<ul>
+<li>手順書を見ながら SSH でログインして設定を変える</li>
+<li>GUI でパラメータを変える</li>
+<li>必要になったパッケージをその場でインストール．</li>
+</ul>
+<p>このような運用を続けると，各環境は少しずつ異なる設定を持つようになり，最終的には自動では再現できない一点物の構成になります．これを <strong>スノーフレーク（snowflake）</strong> と呼びます．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/drift-vs-iac.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-1" title="IaC なし（左）では環境ごとに設定がずれてスノーフレークになる．IaC あり（右）では同じ定義ファイルから毎回同じ環境ができる"><img src="figures/drift-vs-iac.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="IaC なし（左）では環境ごとに設定がずれてスノーフレークになる．IaC あり（右）では同じ定義ファイルから毎回同じ環境ができる"></a></p>
+</figure>
+</div>
+<figcaption>IaC なし（左）では環境ごとに設定がずれてスノーフレークになる．IaC あり（右）では同じ定義ファイルから毎回同じ環境ができる</figcaption>
+</figure>
+</div>
+<p>環境間の不整合は，デプロイ時のトラブルの原因になります．また，手作業によるインフラの管理・保守は，間違いが起きやすく，誰がいつ何を変えたかを追跡するのも困難です．</p>
+<p>IaC は，望ましい環境の状態を <strong>よく文書化されたコード（JSON などの形式）</strong> として表現することで，手作業の設定をなくし，環境間の一貫性を強制します．リリースパイプラインは，この環境定義を実行し，バージョン管理された構成モデルにしたがってターゲット環境を構成します．</p>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">重要</span>RULE: 変更はターゲットではなくソースを編集する
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<div class="reveal_vspace" style="--vspace-height: 1em;"></div>
+<blockquote class="blockquote">
+<p>To make changes, the team edits the source, not the target.</p>
+</blockquote>
+<p>環境を変えたいときは，動いている環境（ターゲット）を直接変更するのではなく，定義ファイル（ソース）を編集し，それを適用します．ターゲットを直接変更すると，その変更は定義ファイルに残らず，次にデプロイしたときに失われるか，環境ごとの差として残り続けます．</p>
+</div>
+</div>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Exmaple 1</strong></span> <span class="def-title">データ分析の現場で起きるスノーフレーク</span></p>
+<p>データ分析の現場でも，同じ問題は頻繁に起きます．</p>
+<ul>
+<li>分析担当者の PC では <code>numpy 2.x</code> が入っているが，共有サーバーには <code>numpy 1.x</code> が残っている</li>
+<li>ノートブックの途中で <code>!pip install</code> したパッケージが，どこにも記録されていない</li>
+<li>半年前のレポートを再現しようとしたら，当時のライブラリのバージョンがわからない</li>
+</ul>
+<p>これらはいずれも，分析環境がスノーフレークになっている状態です．</p>
+</div>
+<hr>
+</section>
+<section id="冪等性idempotence" class="level2">
+<h2 class="anchored" data-anchor-id="冪等性idempotence">冪等性（Idempotence）</h2>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 2</strong></span> <span class="def-title">冪等性</span></p>
+<ul>
+<li>冪等性とは，ある操作を何回実行しても常に同じ結果になる性質のこと</li>
+</ul>
+</div>
+<p>IaC の重要な原則の1つが <strong>冪等性（idempotence）</strong> です．</p>
+<p>IaC におけるデプロイ操作は，<strong>ターゲット環境の開始時の状態にかかわらず</strong>，常に同じ構成をもたらす必要があります．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/idempotence.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-2" title="開始状態がばらばらでも，同じ操作を実行すれば定義ファイルどおりの目標状態に到達する"><img src="figures/idempotence.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="開始状態がばらばらでも，同じ操作を実行すれば定義ファイルどおりの目標状態に到達する"></a></p>
+</figure>
+</div>
+<figcaption>開始状態がばらばらでも，同じ操作を実行すれば定義ファイルどおりの目標状態に到達する</figcaption>
+</figure>
+</div>
+<p><span class="mini-section">冪等性の実現方法</span></p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 15%">
+<col style="width: 50%">
+<col style="width: 35%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>方法</th>
+<th>やり方</th>
+<th>特徴</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>① 収束</td>
+<td>既存のターゲット環境を自動で構成し直し，定義との差分だけを修正する</td>
+<td>速い．ただし差分を正しく検出できることが前提</td>
+</tr>
+<tr class="even">
+<td>② 再作成</td>
+<td>既存のターゲット環境を破棄し，まっさらな環境を作り直す</td>
+<td>確実．ただし作り直しのコストがかかる</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code>uv</code> で言えば，<code>uv sync</code> が ① 収束にあたります．<code>uv sync</code> は既定で，<code>uv.lock</code> に記載されたパッケージを過不足なくインストールし，<strong>lock にない余分なパッケージは削除</strong> します（残したい場合は <code>--inexact</code> を付ける）．<code>.venv</code> を削除してから <code>uv sync</code> するのが ② 再作成にあたります．</p>
+</section>
+<section id="本番に近い環境で早くテストする" class="level2">
+<h2 class="anchored" data-anchor-id="本番に近い環境で早くテストする">本番に近い環境で早くテストする</h2>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>IaC のメリット
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>IaC を使うと，開発サイクルの早い段階で，本番に近い環境でアプリケーションをテストできる</li>
+</ul>
+</div>
+</div>
+<p>IaC を使うと，開発サイクルの早い段階で，本番に近い環境でアプリケーションをテストできます．定義ファイルがあれば，テスト環境を必要なときに必要な数だけ確実に用意できるからです．クラウドでは，IaC の定義にもとづいて環境を動的に作成し，使い終わったら破棄できます．</p>
+<p>また，インフラのコードそのものも検証・テストの対象になります．定義ファイルに対して静的チェックをかけることで，デプロイ時によくある問題を事前に防げます．Microsoft Defender for Cloud のように，IaC テンプレートの設定ミスを検出するツールもあります．</p>
+<p><span class="mini-section"><code>uv lock --check</code> を用いたインフラコードの検証</span></p>
+<ul>
+<li><code>uv lock --check</code> は，<code>uv.lock</code> が <code>pyproject.toml</code> に対して最新（up-to-date）かどうかを検査するコマンド</li>
+<li>最新なら exit 0，更新が必要なら exit 1 で終了し，<code>uv.lock</code> にも <code>.venv</code> にも書き込まない</li>
+<li>環境（<code>.venv</code>）には一切触れず，<strong>ソースである定義ファイルどうしが整合しているか</strong> を検査</li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> lock <span class="at">--check</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>つまるところ，<code>uv lock --check</code> の動作は，「<strong>仮にいま <code>uv lock</code> を実行したら，<code>uv.lock</code> は書き換わるか？</strong>」を確かめることで，これは IaC の「インフラのコードそのものも検証・テストできる」ことと対応しています．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/uv-lock-check.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-3" title="uv lock –check の動作．現在の pyproject.toml と uv.lock から，あるべき uv.lock を（ファイルに書き込まずに）求め，現在の uv.lock と比較する"><img src="figures/uv-lock-check.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="uv lock –check の動作．現在の pyproject.toml と uv.lock から，あるべき uv.lock を（ファイルに書き込まずに）求め，現在の uv.lock と比較する"></a></p>
+</figure>
+</div>
+<figcaption>uv lock –check の動作．現在の pyproject.toml と uv.lock から，あるべき uv.lock を（ファイルに書き込まずに）求め，現在の uv.lock と比較する</figcaption>
+</figure>
+</div>
+<p>一方，定義どおりの環境が実際にできているか（ターゲットがドリフトしていないか）を確かめるのは， <code>uv sync --check</code> の役割です．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/lock-check-iac.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-4" title="IaC 一般と uv の対応．① 定義ファイルの検証（uv lock –check）はソースの中で完結し，② 環境のドリフト検出（uv sync –check）はソースとターゲットを比較する"><img src="figures/lock-check-iac.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="IaC 一般と uv の対応．① 定義ファイルの検証（uv lock –check）はソースの中で完結し，② 環境のドリフト検出（uv sync –check）はソースとターゲットを比較する"></a></p>
+</figure>
+</div>
+<figcaption>IaC 一般と uv の対応．① 定義ファイルの検証（uv lock –check）はソースの中で完結し，② 環境のドリフト検出（uv sync –check）はソースとターゲットを比較する</figcaption>
+</figure>
+</div>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 22%">
+<col style="width: 30%">
+<col style="width: 26%">
+<col style="width: 22%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>検証</th>
+<th>何と何を比べるか</th>
+<th>IaC 一般</th>
+<th>uv</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>① 定義ファイルの検証</td>
+<td>定義ファイル ↔︎ 計画（ソースどうし）</td>
+<td>テンプレートの静的チェック・lint</td>
+<td><code>uv lock --check</code></td>
+</tr>
+<tr class="even">
+<td>② 環境のドリフト検出</td>
+<td>計画 ↔︎ 実環境（ソースとターゲット）</td>
+<td><code>terraform plan</code> で実環境との差分を確認</td>
+<td><code>uv sync --check</code></td>
+</tr>
+</tbody>
+</table>
+<p>CI で使うときは，①を最初に実行して「<code>pyproject.toml</code> を変えたのに <code>uv.lock</code> を commit し忘れた」状態を検出します．これは，デプロイ前にインフラのコードを検証するのと同じ位置づけです．環境を作る段階では <code>uv sync --locked</code> を使います．これは「lock の更新が必要なら止める（①）」と「lock どおりに環境を作る」をまとめて行います．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># CI：インフラのコード（定義ファイル）を検証してから，環境を作ってテストする</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> lock <span class="at">--check</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> sync <span class="at">--locked</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run pytest</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<hr>
+</section>
+<section id="宣言的定義と命令的スクリプト" class="level2">
+<h2 class="anchored" data-anchor-id="宣言的定義と命令的スクリプト">宣言的定義と命令的スクリプト</h2>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">重要</span>RULE: 宣言的な定義ファイルの使用
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<div class="reveal_vspace" style="--vspace-height: 1em;"></div>
+<blockquote class="blockquote">
+<p>IaC should use declarative definition files if possible.</p>
+</blockquote>
+<p>IaC では，可能な限り <strong>宣言的（declarative）</strong> な定義ファイルを使うべき</p>
+</div>
+</div>
+<p>宣言的な定義ファイルは，環境に必要なコンポーネントと構成（<strong>何が欲しいか</strong>）を記述しますが，その構成を実現する手順（<strong>どうやるか</strong>）は必ずしも記述しません．たとえば，必要なサーバーのバージョンと構成は定義するが，インストールや設定の手順は書きません．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 40%">
+<col style="width: 40%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>観点</th>
+<th>宣言的（declarative）</th>
+<th>命令的（imperative）</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>記述する内容</td>
+<td>最終的にあるべき状態</td>
+<td>状態にたどり着くための手順</td>
+</tr>
+<tr class="even">
+<td>例</td>
+<td><code>pyproject.toml</code>，Terraform（<code>.tf</code>），Bicep</td>
+<td>シェルスクリプト，手順書</td>
+</tr>
+<tr class="odd">
+<td>再実行したとき</td>
+<td>定義との差分だけが適用される</td>
+<td>開始状態によって結果が変わりうる</td>
+</tr>
+<tr class="even">
+<td>手順の最適化</td>
+<td>ツール（インフラの提供者）に任せられる</td>
+<td>書いた人が自分で最適化する</td>
+</tr>
+<tr class="odd">
+<td>保守</td>
+<td>定義だけを保守すればよい</td>
+<td>スクリプトの技術的負債が溜まりやすい</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>この抽象化によって，インフラの提供者が用意する最適化された手法を柔軟に利用できます．また，デプロイスクリプトのような命令的なコードは時間とともに技術的負債になりがちですが，宣言的な定義はその負債を減らします．</p>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Exmaple 2</strong></span> <span class="def-title">Python 環境セットアップ</span></p>
+<p>Python 環境で比べると，declarative vs imperative の違いがわかりやすくなります．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 命令的：手順を書く（setup.sh）</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> <span class="at">-m</span> venv .venv</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="bu">source</span> .venv/bin/activate</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="ex">pip</span> install pandas</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="ex">pip</span> install scikit-learn==1.5.2</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="ex">pip</span> install lightgbm</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>このスクリプトには次の問題があります．</p>
+<ul>
+<li>実行した日によって <code>pandas</code> や <code>lightgbm</code> のバージョンが変わる（同じソースから同じ環境ができない）</li>
+<li>既存の <code>.venv</code> に余分なパッケージが入っていても，それは残り続ける（開始状態によって結果が変わる）</li>
+<li>推移的依存（<code>numpy</code> や <code>scipy</code> など）のバージョンはどこにも記録されない</li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode toml code-with-copy"><code class="sourceCode toml"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 宣言的：あるべき状態を書く（pyproject.toml）</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="kw">[project]</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="dt">name</span> <span class="op">=</span> <span class="st">"churn-analysis"</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"0.1.0"</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="dt">requires-python</span> <span class="op">=</span> <span class="st">"&gt;=3.12,&lt;3.13"</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="dt">dependencies</span> <span class="op">=</span> <span class="op">[</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">"pandas&gt;=2.2"</span><span class="op">,</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">"scikit-learn&gt;=1.5"</span><span class="op">,</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    <span class="st">"lightgbm&gt;=4.5"</span><span class="op">,</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="op">]</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="kw">[dependency-groups]</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="dt">dev</span> <span class="op">=</span> <span class="op">[</span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>    <span class="st">"pytest&gt;=8.3"</span><span class="op">,</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>    <span class="st">"ruff&gt;=0.8"</span><span class="op">,</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a><span class="op">]</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>pyproject.toml</code> には「どのパッケージがどの範囲で必要か」だけを書きます．依存関係をどう解決するか，どの順序でダウンロード・インストールするか，キャッシュをどう使うかは <code>uv</code> に任せます．</p>
+</div>
+<hr>
+</section>
+<section id="sec-uv" class="level2">
+<h2 class="anchored" data-anchor-id="sec-uv">Appendix: データサイエンスにおける IaC：uv と pyproject.toml</h2>
+<section id="分析環境はレイヤーの積み重ね" class="level3">
+<h3 class="anchored" data-anchor-id="分析環境はレイヤーの積み重ね">分析環境はレイヤーの積み重ね</h3>
+<p>分析の実行環境は，いくつかのレイヤーの積み重ねとして捉えられます．IaC の考え方は，どのレイヤーにも同じように適用できます．各レイヤーで「宣言ファイル（ソース）」と「適用・固定の手段」の組を用意するのが基本です．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/ds-env-layers.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-5" title="分析環境のレイヤーと，それぞれのレイヤーで使う宣言ファイル・適用の手段"><img src="figures/ds-env-layers.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="分析環境のレイヤーと，それぞれのレイヤーで使う宣言ファイル・適用の手段"></a></p>
+</figure>
+</div>
+<figcaption>分析環境のレイヤーと，それぞれのレイヤーで使う宣言ファイル・適用の手段</figcaption>
+</figure>
+</div>
+<p>データサイエンティストが最も頻繁に触るのは <strong>Python 環境</strong> のレイヤーです．このレイヤーの IaC ツールとして <code>uv</code> を位置づけると，運用ルールが整理しやすくなります．</p>
+</section>
+<section id="uv-を-iac-として読む" class="level3">
+<h3 class="anchored" data-anchor-id="uv-を-iac-として読む">uv を IaC として読む</h3>
+<p><code>uv</code> のワークフローは，IaC の構成要素にそのまま対応します．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/uv-as-iac.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-6" title="uv のワークフロー．pyproject.toml（宣言）から uv.lock（解決結果）を作り，同じ uv.lock から各ターゲット環境を作る．環境を直接変更すると定義に残らずドリフトになる"><img src="figures/uv-as-iac.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="uv のワークフロー．pyproject.toml（宣言）から uv.lock（解決結果）を作り，同じ uv.lock から各ターゲット環境を作る．環境を直接変更すると定義に残らずドリフトになる"></a></p>
+</figure>
+</div>
+<figcaption>uv のワークフロー．pyproject.toml（宣言）から uv.lock（解決結果）を作り，同じ uv.lock から各ターゲット環境を作る．環境を直接変更すると定義に残らずドリフトになる</figcaption>
+</figure>
+</div>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 35%">
+<col style="width: 65%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>IaC の概念</th>
+<th>uv での対応</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>宣言的な定義ファイル</td>
+<td><code>pyproject.toml</code>（直接依存とバージョン範囲），<code>.python-version</code></td>
+</tr>
+<tr class="even">
+<td>定義のバージョン管理</td>
+<td><code>pyproject.toml</code> と <code>uv.lock</code> を Git に commit する</td>
+</tr>
+<tr class="odd">
+<td>同じソースから同じ環境</td>
+<td><code>uv.lock</code> が推移的依存まで，バージョンとハッシュで固定する</td>
+</tr>
+<tr class="even">
+<td>冪等なデプロイ（収束）</td>
+<td><code>uv sync</code>（lock にないパッケージは削除して一致させる）</td>
+</tr>
+<tr class="odd">
+<td>冪等なデプロイ（再作成）</td>
+<td><code>.venv</code> を削除してから <code>uv sync</code></td>
+</tr>
+<tr class="even">
+<td>ソースを編集する</td>
+<td><code>uv add</code> / <code>uv remove</code> で <code>pyproject.toml</code> と <code>uv.lock</code> を同時に更新する</td>
+</tr>
+<tr class="odd">
+<td>ドリフトの検出</td>
+<td><code>uv lock --check</code>，<code>uv sync --locked</code>，<code>uv sync --check</code></td>
+</tr>
+<tr class="even">
+<td>本番に近い環境でのテスト</td>
+<td>CI や Docker の中で，同じ <code>uv.lock</code> から <code>uv sync</code> する</td>
+</tr>
+</tbody>
+</table>
+<p><code>pyproject.toml</code> と <code>uv.lock</code> の役割分担は，Terraform の定義ファイル（<code>.tf</code>）と実行計画の関係に似ています．<code>pyproject.toml</code> は「<code>pandas&gt;=2.2</code> が欲しい」という <strong>意図</strong> を表し，<code>uv.lock</code> は「その意図を満たすために，<code>pandas 2.3.3</code>・<code>numpy 2.3.4</code>・… を入れる」という <strong>解決結果</strong> を表します．意図だけでは環境は一意に決まらないため，再現性のためには <code>uv.lock</code> まで commit する必要があります．</p>
+</section>
+<section id="主なコマンドと-iac-上の意味" class="level3">
+<h3 class="anchored" data-anchor-id="主なコマンドと-iac-上の意味">主なコマンドと IaC 上の意味</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 45%">
+<col style="width: 30%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>コマンド</th>
+<th>何をするか</th>
+<th>IaC 上の意味</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>uv add pandas</code></td>
+<td><code>pyproject.toml</code> に依存を追加し，<code>uv.lock</code> を更新し，環境を同期する</td>
+<td>ソースを編集して適用する</td>
+</tr>
+<tr class="even">
+<td><code>uv remove pandas</code></td>
+<td>依存を削除し，<code>uv.lock</code> と環境を更新する</td>
+<td>ソースを編集して適用する</td>
+</tr>
+<tr class="odd">
+<td><code>uv lock</code></td>
+<td><code>pyproject.toml</code> から依存を解決し，<code>uv.lock</code> を書き出す</td>
+<td>定義から計画を作る</td>
+</tr>
+<tr class="even">
+<td><code>uv lock --check</code></td>
+<td><code>uv.lock</code> が <code>pyproject.toml</code> に対して最新かを検査する</td>
+<td>定義ファイルの検証</td>
+</tr>
+<tr class="odd">
+<td><code>uv sync</code></td>
+<td><code>uv.lock</code> どおりに <code>.venv</code> を構成する（余分なものは削除）</td>
+<td>冪等なデプロイ</td>
+</tr>
+<tr class="even">
+<td><code>uv sync --locked</code></td>
+<td><code>uv.lock</code> の更新が必要ならエラーにして止める</td>
+<td>CI 向け：ドリフトを検出したら失敗させる</td>
+</tr>
+<tr class="odd">
+<td><code>uv sync --frozen</code></td>
+<td><code>uv.lock</code> を更新せず，そのまま使う</td>
+<td>lock を唯一の正とみなして適用する</td>
+</tr>
+<tr class="even">
+<td><code>uv run python train.py</code></td>
+<td>実行前に環境が lock と一致することを確認してから実行する</td>
+<td>適用してから実行する</td>
+</tr>
+<tr class="odd">
+<td><code>uv pip install foo</code></td>
+<td><code>.venv</code> を直接変更する．<code>pyproject.toml</code> には残らない</td>
+<td><strong>ターゲットを直接編集する（アンチパターン）</strong></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="運用ルール" class="level3">
+<h3 class="anchored" data-anchor-id="運用ルール">運用ルール</h3>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">重要</span>Python 環境を IaC として運用するためのルール
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li><code>pyproject.toml</code> と <code>uv.lock</code> は必ず Git に commit する．<code>.venv</code> は commit しない（<code>.venv</code> はターゲットであってソースではない）</li>
+<li>パッケージの追加・削除は <code>uv add</code> / <code>uv remove</code> で行う．<code>uv pip install</code> や <code>pip install</code> で <code>.venv</code> を直接いじらない</li>
+<li>ノートブックの中で <code>!pip install</code> しない．必要になったらターミナルで <code>uv add</code> する</li>
+<li>Python のバージョンは <code>requires-python</code> と <code>.python-version</code>（<code>uv python pin</code> で作成）で宣言する</li>
+<li>環境がおかしくなったら，原因を手で直すより <code>.venv</code> を削除して <code>uv sync</code> で作り直す（再作成による冪等性）</li>
+<li>CI では <code>uv sync --locked</code> を使い，lock のずれを失敗として扱う</li>
+</ul>
+</div>
+</div>
+</section>
+<section id="uv.lock-だけでは固定できないもの" class="level3">
+<h3 class="anchored" data-anchor-id="uv.lock-だけでは固定できないもの">uv.lock だけでは固定できないもの</h3>
+<p><code>uv.lock</code> が固定するのは Python パッケージのレイヤーだけです．分析結果の再現性のためには，他のレイヤーも IaC で扱う必要があります．</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 22%">
+<col style="width: 43%">
+<col style="width: 35%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>固定できないもの</th>
+<th>例</th>
+<th>対処</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>OS・システムライブラリ</td>
+<td>CUDA・cuDNN のバージョン，GDAL，日本語フォント</td>
+<td><code>Dockerfile</code> や <code>devcontainer.json</code> で宣言する</td>
+</tr>
+<tr class="even">
+<td>クラウド資源</td>
+<td>GPU インスタンスの種類，ストレージ，DWH のデータセット</td>
+<td>Terraform や Bicep で宣言する</td>
+</tr>
+<tr class="odd">
+<td>入力データ</td>
+<td>分析時点のテーブルの中身</td>
+<td>データのスナップショット・バージョンを記録する</td>
+</tr>
+<tr class="even">
+<td>実行時の設定</td>
+<td>乱数シード，ハイパーパラメータ</td>
+<td>設定ファイル（<code>configs/*.yaml</code>）にして Git で管理する</td>
+</tr>
+</tbody>
+</table>
+<p>「同じ環境」は「同じ結果」の必要条件ではあっても十分条件ではありません．環境の IaC 化は，再現性を確保するための土台と位置づけるのがよいでしょう．</p>
+</section>
+</section>
+<section id="用語集" class="level2">
+<h2 class="anchored" data-anchor-id="用語集">📘 用語集</h2>
+<div class="glossary-container">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">glossary</span><span class="kw">:</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> 環境ドリフト（configuration drift）</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>      本来同じであるべき複数の環境（開発・検証・本番など）の設定が，手作業での変更や記録されない修正の積み重ねによって，少しずつ食い違っていく現象．ドリフトが進むと，ある環境で動いたものが別の環境で動かない，という問題が起きる．</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> スノーフレーク（snowflake）</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>      手作業での変更が積み重なった結果，自動では再現できなくなった一点物の環境（サーバー）のこと．雪の結晶が1つとして同じ形を持たないことに由来する．壊れたときに作り直す手段がなく，変更するのも怖いため，さらに手作業での延命が続くという悪循環に陥りやすい．</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> 冪等性（idempotence）</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>      ある操作を1回実行しても複数回実行しても，結果が同じになる性質．IaC では，ターゲット環境の開始時の状態にかかわらず，デプロイ操作を実行すれば常に定義どおりの状態になることを指す．</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> 宣言的（declarative）</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>      最終的にあるべき状態（何が欲しいか）を記述し，そこに至る手順はツールに任せる記述スタイル．`pyproject.toml`，Terraform，Bicep などが該当する．対になるのが，手順（どうやるか）を順番に記述する命令的（imperative）なスタイルで，シェルスクリプトや手順書が該当する．</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> ロックファイル（lockfile）</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>      依存関係の解決結果を，推移的依存も含めて厳密なバージョン（とハッシュ）で記録したファイル．`uv` では `uv.lock` がこれにあたる．`pyproject.toml` に書いたバージョン範囲だけでは，解決した日によって入るバージョンが変わるため，同じ環境を再現するにはロックファイルが必要になる．</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<ul>
+<li><a href="https://learn.microsoft.com/en-us/devops/deliver/what-is-infrastructure-as-code">learn microsoft.com &gt; What is infrastructure as code (IaC)? - Azure DevOps</a></li>
+<li><a href="https://docs.astral.sh/uv/concepts/projects/sync/">uv documentation &gt; Locking and syncing</a></li>
+<li><a href="https://docs.astral.sh/uv/concepts/projects/sync/#automatic-lock-and-sync">uv documentation &gt; Locking and syncing &gt; Automatic lock and sync</a></li>
+<li><a href="https://docs.astral.sh/uv/guides/integration/docker/">uv documentation &gt; Using uv in Docker</a></li>
+<li><a href="https://packaging.python.org/en/latest/specifications/pyproject-toml/">Python Packaging User Guide &gt; pyproject.toml specification</a></li>
+</ul>
+
+
+</section>
+
+</main> <!-- /main -->
+<script>
+    document.querySelectorAll('.custom_problem .theorem-title').forEach((title) => {
+        let modName = title.innerHTML;
+        modName = modName.replace("Exercise", "Problem");
+        modName = modName.replace("Proposition", "Property");
+        modName = modName.replace("Example", "<strong>&#9654;</strong>&nbsp; Example");
+        title.innerHTML = modName;
+    });
+
+    // Rule: 未使用の Corollary (#cor-, lang: ja では「系」) を Rule として表示する
+    document.querySelectorAll('.custom_rule .theorem-title').forEach((title) => {
+        title.innerHTML = title.innerHTML
+            .replace(/^<strong>(系|Corollary)/, "<strong>Rule")
+            .replace(/\s*\((.*)\)<\/strong>$/, ": $1</strong>");
+        // タイトルの後で改行し，本文を次の行から始める
+        title.style.display = "block";
+        title.style.paddingBottom = "0.5em";
+        title.style.fontSize = "1.1em";
+        // 本文がリスト等で始まると Quarto がタイトル後に &nbsp; を残し空行になるため除去する
+        while (title.nextSibling && title.nextSibling.nodeType === Node.TEXT_NODE
+               && title.nextSibling.textContent.trim() === "") {
+            title.nextSibling.remove();
+        }
+        if (!title.nextSibling) {
+            title.parentElement.style.marginBottom = "0";
+        }
+    });
+ </script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const toggle = window.document.createElement('button');
+      toggle.type = "button";
+      toggle.setAttribute("role", "switch");
+      toggle.setAttribute("aria-checked", "false");
+      toggle.classList.add('top-right');
+      toggle.classList.add('quarto-color-scheme-toggle');
+      toggle.setAttribute("aria-label", "ダークモードの切り替え");
+      toggle.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      toggle.appendChild(i);
+      // Put the toggle in a landmark of its own, so that landmark navigation
+      // can reach it.
+      //
+      // The container is always a fresh direct child of body, and the toggle is
+      // never moved into page furniture that the theme or the author controls.
+      // The toggle is positioned against the page, so any ancestor that
+      // establishes a containing block captures it: a positioned element or a
+      // grid for position: absolute, and transform, filter, will-change or
+      // contain for position: fixed. A direct child of body has none of these
+      // to inherit, and the shift when one appears is silent and visual.
+      //
+      // ARIA says a document should have at most one banner, and axe reports a
+      // duplicate whether or not the banners carry distinct labels. So use a
+      // header when the page has no banner yet, and a named region otherwise.
+      //
+      // A header is a banner wherever it sits, unless it is inside sectioning
+      // content, so this cannot just look at the children of body: a custom
+      // page layout wraps the title block header in a plain div. An explicit
+      // role="banner" always counts.
+      const sectioning = 'article, aside, main, nav, section, [role="article"], [role="complementary"], [role="main"], [role="navigation"], [role="region"]';
+      const hasBanner = Array.from(
+        window.document.querySelectorAll('header:not([role]), [role="banner"]')
+      ).some(function(el) {
+        return el.hasAttribute("role") || el.closest(sectioning) === null;
+      });
+      const container = window.document.createElement(hasBanner ? "div" : "header");
+      if (hasBanner) {
+        container.setAttribute("role", "region");
+        container.setAttribute("aria-label", "ダークモードの切り替え");
+      }
+      container.classList.add('quarto-color-scheme-toggle-container');
+      container.appendChild(toggle);
+      window.document.body.appendChild(container);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "コピーしました");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "コピーしました");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/ryonakagami\.github\.io\/regmonkey-datascience-blog");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+      window.quartoDecorateExternalLinks = function (root) {
+     var links = (root || window.document).querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+          if (!link.classList.contains('no-external-icon')) {
+          }
+        }
+      }
+      };
+      window.quartoDecorateExternalLinks(window.document);
+    // Esc closes the popup (WCAG 1.4.13) and focus leaving both trigger and
+    // popup closes it (WCAG 2.4.11); tippy handles neither for interactive popups.
+    const hideOnEscAndFocusOut = {
+      name: 'hideOnEscAndFocusOut',
+      defaultValue: true,
+      fn(instance) {
+        const dismiss = () => {
+          // A show scheduled by the trigger delay would otherwise reopen it
+          instance.clearDelayTimeouts();
+          instance.hide();
+        };
+        const onKeyDown = (event) => {
+          if (event.key !== 'Escape') {
+            return;
+          }
+          // Keep Esc from also reaching page handlers (e.g. reveal.js overview),
+          // except an open reveal.js slide menu, which Esc should close too.
+          // The menu handles keys only when its keyboard option is on.
+          const menuHandlesEsc = window.Reveal?.getPlugin?.('menu')?.isOpen() &&
+            window.Reveal.getConfig().menu?.keyboard !== false;
+          if (!menuHandlesEsc) {
+            event.stopPropagation();
+          }
+          if (instance.popper.contains(window.document.activeElement)) {
+            // Disabled while refocusing so the focus trigger does not reopen it
+            instance.disable();
+            instance.reference.focus();
+            instance.enable();
+          }
+          dismiss();
+        };
+        const onFocusOut = (event) => {
+          const target = event.relatedTarget;
+          if (target && !instance.reference.contains(target) &&
+              !instance.popper.contains(target)) {
+            dismiss();
+          }
+        };
+        // On the trigger too: a click trigger (code-annotations: select) has no
+        // blur handling. Attached for the instance's lifetime so leaving the
+        // trigger also cancels a show still pending on the trigger delay.
+        instance.reference.addEventListener('focusout', onFocusOut);
+        return {
+          onShow() {
+            window.document.addEventListener('keydown', onKeyDown, true);
+            instance.popper.addEventListener('focusout', onFocusOut);
+          },
+          onHide() {
+            window.document.removeEventListener('keydown', onKeyDown, true);
+            instance.popper.removeEventListener('focusout', onFocusOut);
+          },
+          onDestroy() {
+            instance.reference.removeEventListener('focusout', onFocusOut);
+          },
+        };
+      },
+    };
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+        plugins: [hideOnEscAndFocusOut],
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          // Each band is positioned against its own containing block, which is
+          // not the offsetParent of the lines, so place it from client rects.
+          const placeBand = (band, firstEl, lastEl, codeBlock) => {
+            const container = band.offsetParent;
+            if (container === null) {
+              return;
+            }
+            const containerRect = container.getBoundingClientRect();
+            // Reveal.js scales slides with a transform, so convert client
+            // pixels back to the CSS pixels of the container.
+            const scale = containerRect.height / container.offsetHeight || 1;
+            const firstRect = firstEl.getBoundingClientRect();
+            const lastRect = lastEl.getBoundingClientRect();
+            const top = (firstRect.top - containerRect.top) / scale - container.clientTop + container.scrollTop;
+            const height = (lastRect.bottom - firstRect.top) / scale;
+            band.style.top = top - 2 + "px";
+            band.style.height = height + 4 + "px";
+            if (codeBlock) {
+              // Without the copy button wrapper, the containing block is wider
+              // than the code block, so span the code block explicitly.
+              const blockRect = codeBlock.getBoundingClientRect();
+              band.style.left = (blockRect.left - containerRect.left) / scale - container.clientLeft + container.scrollLeft + "px";
+              band.style.width = blockRect.width / scale + "px";
+            }
+          };
+          if (lineIds.length > 0) {
+            const el = window.document.getElementById(lineIds[0]);
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const parent = el.parentElement.parentElement;
+            // cook up a div (if necessary) and position it
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            placeBand(div, el, lastEl, parent.closest("div.sourceCode") || parent);
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            placeBand(gutterDiv, el, lastEl);
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+  <script type="application/javascript">
+  window.quartoScrollableRegionsLabels = {"code":"スクロール可能なコード","output":"スクロール可能な出力"};
+  </script>
+<script src="https://utteranc.es/client.js" repo="RyoNakagami/regmonkey-datascience-blog" issue-term="title" theme="github-light" crossorigin="anonymous" async="">
+</script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+      &nbsp;
+    </div>   
+    <div class="nav-footer-center">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+ © Copyright RyoNak
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="../../LICENSE">
+<p>License</p>
+</a>
+  </li>  
+</ul>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>問題を報告</a></li></ul></div></div>
+    <div class="nav-footer-right">
+      &nbsp;
+    </div>
+  </div>
+</footer>
+    <script type="text/javascript">
+    (function(d) {
+      d.querySelectorAll(".pseudocode-container").forEach(function(el) {
+        let pseudocodeOptions = {
+          indentSize: el.dataset.indentSize || "1.2em",
+          commentDelimiter: el.dataset.commentDelimiter || "//",
+          lineNumber: el.dataset.lineNumber === "true" ? true : false,
+          lineNumberPunc: el.dataset.lineNumberPunc || ":",
+          noEnd: el.dataset.noEnd === "true" ? true : false,
+          titlePrefix: el.dataset.captionPrefix || "Algorithm"
+        };
+        pseudocode.renderElement(el.querySelector(".pseudocode"), pseudocodeOptions);
+      });
+    })(document);
+    (function(d) {
+      d.querySelectorAll(".pseudocode-container").forEach(function(el) {
+        let captionSpan = el.querySelector(".ps-root > .ps-algorithm > .ps-line > .ps-keyword")
+        if (captionSpan !== null) {
+          let captionPrefix = el.dataset.captionPrefix + " ";
+          let captionNumber = "";
+          if (el.dataset.pseudocodeNumber) {
+            captionNumber = el.dataset.pseudocodeNumber + " ";
+            if (el.dataset.chapterLevel) {
+              captionNumber = el.dataset.chapterLevel + "." + captionNumber;
+            }
+          }
+          captionSpan.innerHTML = captionPrefix + captionNumber;
+        }
+      });
+    })(document);
+    </script>
+  
+<script>var lightboxQuarto = GLightbox({"closeEffect":"zoom","descPosition":"bottom","loop":false,"openEffect":"zoom","selector":".lightbox"});
+(function() {
+  let previousOnload = window.onload;
+  window.onload = () => {
+    if (previousOnload) {
+      previousOnload();
+    }
+    lightboxQuarto.on('slide_before_load', (data) => {
+      const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+      const href = trigger.getAttribute('href');
+      if (href !== null) {
+        const imgEl = window.document.querySelector(`a[href="${href}"] img`);
+        if (imgEl !== null) {
+          const srcAttr = imgEl.getAttribute("src");
+          if (srcAttr && srcAttr.startsWith("data:")) {
+            slideConfig.href = srcAttr;
+          }
+        }
+      } 
+    });
+  
+    lightboxQuarto.on('slide_after_load', (data) => {
+      const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(slideNode);
+      }
+    });
+  
+  };
+  
+})();
+          </script>
+
+
+
+
+</body></html>

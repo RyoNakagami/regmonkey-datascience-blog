@@ -455,7 +455,7 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
       <div>
       <div class="quarto-title-meta-heading">更新日</div>
       <div class="quarto-title-meta-contents">
-        <p class="date-modified">2026-10-31</p>
+        <p class="date-modified">2026-11-11</p>
       </div>
     </div>
       
@@ -483,6 +483,7 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
   <li><a href="#典型的な構成" id="toc-典型的な構成" class="nav-link" data-scroll-target="#典型的な構成">典型的な構成</a></li>
   </ul></li>
   <li><a href="#手元で観察してみる" id="toc-手元で観察してみる" class="nav-link" data-scroll-target="#手元で観察してみる">手元で観察してみる</a></li>
+  <li><a href="#appendix-機器としてのゲートウェイと役割としてのゲートウェイ" id="toc-appendix-機器としてのゲートウェイと役割としてのゲートウェイ" class="nav-link" data-scroll-target="#appendix-機器としてのゲートウェイと役割としてのゲートウェイ">Appendix: 機器としてのゲートウェイと役割としてのゲートウェイ</a></li>
   <li><a href="#用語集" id="toc-用語集" class="nav-link" data-scroll-target="#用語集">📘 用語集</a></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>問題を報告</a></li></ul></div></nav>
@@ -815,6 +816,92 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 <li><code>ip neigh</code> に出てくるのは同じサブネット内の相手だけです．別のサブネットの相手は，ゲートウェイの MAC 宛てに送るので，ARP キャッシュにはゲートウェイの MAC が載ります</li>
 <li><code>traceroute</code> は TTL を1ずつ増やしながらパケットを送り，TTL が 0 になった機器が返す ICMP Time Exceeded を集めて経路を表示します．TTL を減らすのは L3 の機器だけなので，<strong>L2スイッチは何台経由しても <code>traceroute</code> には現れません</strong>．1ホップ目に表示されるのはデフォルトゲートウェイ（L3スイッチの SVI や家庭用ルーター）です</li>
 </ul>
+</section>
+<section id="appendix-機器としてのゲートウェイと役割としてのゲートウェイ" class="level2">
+<h2 class="anchored" data-anchor-id="appendix-機器としてのゲートウェイと役割としてのゲートウェイ">Appendix: 機器としてのゲートウェイと役割としてのゲートウェイ</h2>
+<p>本文では「ゲートウェイ」という語を何度も使いましたが，この語は文脈によって2つの意味で使われます．</p>
+<div id="fig-gateway-device-vs-role" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-gateway-device-vs-role-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="./figures/gateway-device-vs-role.svg" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-gateway-device-vs-role-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+図&nbsp;8: 機器としてのゲートウェイはプロトコルを変換する装置の名前（左）．役割としてのゲートウェイは端末から見た「サブネットの出口」で，L3 で転送できる機器ならどれでも担える（右）
+</figcaption>
+</figure>
+</div>
+<p><span class="mini-section">機器としてのゲートウェイ</span></p>
+<p><strong>プロトコル（通信規約）が異なるネットワークどうしの境界に置き，データを変換して中継する装置</strong> を指します． ハブ・L2スイッチ・L3スイッチ・ルーターと並ぶ「機器の種類」としての呼び名で，ルーターがIPのまま転送するのに対し，ゲートウェイはプロトコルそのものを変換するため，トランスポート層（L4）〜アプリケーション層（L7）の情報まで扱います．</p>
+<ul>
+<li><strong>IoT ゲートウェイ</strong>：センサー側の Modbus や BLE と，クラウド側の MQTT（TCP/IP）を相互に変換する</li>
+<li><strong>VoIP ゲートウェイ</strong>：電話回線の音声と IP 上の音声パケット（SIP / RTP）を相互に変換する</li>
+<li><strong>アプリケーションゲートウェイ</strong>：HTTP などをアプリケーション層で中継・検査する（プロキシサーバー，WAF など）</li>
+</ul>
+<p><span class="mini-section">役割としてのゲートウェイ（デフォルトゲートウェイ）</span></p>
+<p>端末から見た <strong>「自分のサブネットの外へ出るときの最初の転送先」</strong> を指します． 特定の機器の種類ではなく，端末のルーティングテーブルに書かれた <strong>設定（<code>default via</code> の IP アドレス）</strong> です． 端末は宛先が自分のサブネット外だと判断すると，宛先 IP はそのままに，宛先 MAC だけをこのゲートウェイの MAC にしたフレームを送り出します（<a href="#fig-vlan-routing" class="quarto-xref">図&nbsp;6</a> の手順1）．</p>
+<p>L3 で転送できる機器であれば何でもこの役割を担えます．</p>
+<ul>
+<li>家庭用ルーター（家庭 LAN の <code>192.168.1.1</code> など）</li>
+<li>L3スイッチの SVI（VLAN ごとに1つ．<a href="#fig-office-network" class="quarto-xref">図&nbsp;7</a> のコア層）</li>
+<li>Linux ホスト（Docker の bridge ネットワークでは，ホスト側の <code>docker0</code> の IP がコンテナのデフォルトゲートウェイになる）</li>
+</ul>
+<p>逆に L2スイッチは IP を見ないので，デフォルトゲートウェイにはなれません（管理用の IP アドレスを持つ機種でも，それは自分宛ての通信を受けるためのもので，他のサブネットへは転送しません）．</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>2つのゲートウェイの比較
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>観点</th>
+<th>機器としてのゲートウェイ</th>
+<th>役割としてのゲートウェイ</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>何を指すか</td>
+<td>プロトコル変換装置という機器の種類</td>
+<td>端末から見たサブネットの出口（設定値）</td>
+</tr>
+<tr class="even">
+<td>動作する層</td>
+<td>L4〜L7</td>
+<td>L3</td>
+</tr>
+<tr class="odd">
+<td>データの扱い</td>
+<td>プロトコルを変換する</td>
+<td>IP パケットのまま転送する（MAC 付け替え・TTL 減算のみ）</td>
+</tr>
+<tr class="even">
+<td>具体例</td>
+<td>IoT・VoIP・アプリケーションゲートウェイ</td>
+<td>家庭用ルーター，L3スイッチの SVI，Linux ホスト</td>
+</tr>
+<tr class="odd">
+<td>確認方法</td>
+<td>構成図・機器の仕様</td>
+<td><code>ip route</code> の <code>default via</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>インターネットの初期の文書（RFC 1009 など）では，ルーターのことを「gateway」と呼んでいました． 「デフォルトゲートウェイ」という名前はその名残で，中身は「デフォルトルーター」（IPv6 の NDP ではこの名前）と同じ意味です．</p>
+</div>
+</div>
 </section>
 <section id="用語集" class="level2">
 <h2 class="anchored" data-anchor-id="用語集">📘 用語集</h2>

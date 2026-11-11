@@ -1360,6 +1360,805 @@ font-style: inherit;">|</span></span>
   <pubDate>Sun, 08 Nov 2026 00:00:00 GMT</pubDate>
 </item>
 <item>
+  <title>Infrastructure as Code (IaC) とはなにか？</title>
+  <dc:creator>Ryo Nakagami</dc:creator>
+  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-29-infrastructure-as-code/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>TL;DRs
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>分析結果の再現性は，コードだけでなく <strong>実行環境が同じであること</strong> に依存する．ここでいう実行環境には，Python のバージョン，パッケージのバージョン，OS・システムライブラリ（CUDA など），クラウド資源が含まれる</li>
+<li>環境を手作業で管理すると，その場しのぎの <code>pip install</code> や設定変更が記録に残らないまま積み重なる．その結果，気づかないうちに環境ごとの差（<strong>環境ドリフト</strong>）が生まれ，最終的には誰も再現できない一点物の環境（<strong>スノーフレーク</strong>）になる</li>
+<li>1つ1つの差は小さくても，チリツモで「手元では動くのに CI や本番で動かない」「半年前の分析結果を再現できない」という問題に直面しやすくなる</li>
+<li>IaC は，環境を <strong>バージョン管理された宣言的な定義ファイル</strong> で記述し，<strong>冪等な操作</strong> で何度でも同じ環境を作ることで，この問題を防ぐ</li>
+<li>Python 環境では，<code>uv</code> のワークフローがそのまま IaC にあたる．<code>pyproject.toml</code> に「何が欲しいか」を宣言し，<code>uv.lock</code> に「何を入れるか」を固定し，<code>uv sync</code> で定義どおりに環境を揃える</li>
+</ul>
+</div>
+</div>
+<section id="iac-とは" class="level2">
+<h2 class="anchored" data-anchor-id="iac-とは">IaC とは</h2>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title">IaC</span></p>
+<blockquote class="blockquote">
+<p>Just as the same source code always generates the same binary, an IaC model generates the same environment every time it deploys.</p>
+</blockquote>
+<ul>
+<li><strong>Infrastructure as Code（IaC）</strong> とは，ネットワーク・仮想マシン・ロードバランサー・それらの接続構成といったインフラを，<strong>バージョン管理された記述的なモデル（定義ファイル）</strong> で定義し，そこから環境をデプロイするプラクティスのこと</li>
+<li>例: 望ましい環境の状態を<span class="regmonkey-bold">よく文書化されたコード（JSON などの形式）</span>として表現する</li>
+</ul>
+</div>
+<p>同じソースコードからは常に同じバイナリができるのと同じように，同じ IaC モデルからは何度デプロイしても同じ環境ができる（＝<span class="regmonkey-bold">再現性の確保</span>）ようにしよう，というのが IaC の考え方です．</p>
+<p>IaC は DevOps の中心的なプラクティスであり，継続的デリバリー（Continuous Delivery）の構成要素の1つです．アプリケーションとそれを支えるインフラを，チームが同じ手順・同じツールで，速く・確実に・大規模に届けるために使われます．</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>データサイエンスに置き換えると
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>「インフラ」を「分析の実行環境」と読み替えると，IaC の考え方はそのままデータサイエンスに当てはまります．</p>
+<ul>
+<li>同じ <code>pyproject.toml</code> と <code>uv.lock</code> からは，誰の PC でも，CI でも，Docker イメージの中でも，同じ Python 環境ができる</li>
+<li>環境を変えたいときは，環境（<code>.venv</code>）を直接いじるのではなく，定義ファイルを編集する</li>
+</ul>
+<p>この対応は後半の「データサイエンスにおける IaC：uv と pyproject.toml」で詳しく扱います．</p>
+</div>
+</div>
+</section>
+<section id="iac-が解決する問題環境ドリフトとスノーフレーク" class="level2">
+<h2 class="anchored" data-anchor-id="iac-が解決する問題環境ドリフトとスノーフレーク">IaC が解決する問題：環境ドリフトとスノーフレーク</h2>
+<p>IaC は，リリースパイプラインにおける <strong>環境ドリフト（environment drift）</strong> の問題を解決するために発展してきました．</p>
+<p>IaC がない場合，開発・検証・本番といったデプロイ先の環境設定を，それぞれ個別に手作業で維持することになります．</p>
+<ul>
+<li>手順書を見ながら SSH でログインして設定を変える</li>
+<li>GUI でパラメータを変える</li>
+<li>必要になったパッケージをその場でインストール．</li>
+</ul>
+<p>このような運用を続けると，各環境は少しずつ異なる設定を持つようになり，最終的には自動では再現できない一点物の構成になります．これを <strong>スノーフレーク（snowflake）</strong> と呼びます．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/drift-vs-iac.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-1" title="IaC なし（左）では環境ごとに設定がずれてスノーフレークになる．IaC あり（右）では同じ定義ファイルから毎回同じ環境ができる"><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-29-infrastructure-as-code/figures/drift-vs-iac.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="IaC なし（左）では環境ごとに設定がずれてスノーフレークになる．IaC あり（右）では同じ定義ファイルから毎回同じ環境ができる"></a></p>
+</figure>
+</div>
+<figcaption>IaC なし（左）では環境ごとに設定がずれてスノーフレークになる．IaC あり（右）では同じ定義ファイルから毎回同じ環境ができる</figcaption>
+</figure>
+</div>
+<p>環境間の不整合は，デプロイ時のトラブルの原因になります．また，手作業によるインフラの管理・保守は，間違いが起きやすく，誰がいつ何を変えたかを追跡するのも困難です．</p>
+<p>IaC は，望ましい環境の状態を <strong>よく文書化されたコード（JSON などの形式）</strong> として表現することで，手作業の設定をなくし，環境間の一貫性を強制します．リリースパイプラインは，この環境定義を実行し，バージョン管理された構成モデルにしたがってターゲット環境を構成します．</p>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">重要</span>RULE: 変更はターゲットではなくソースを編集する
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<div class="reveal_vspace" style="--vspace-height: 1em;"></div>
+<blockquote class="blockquote">
+<p>To make changes, the team edits the source, not the target.</p>
+</blockquote>
+<p>環境を変えたいときは，動いている環境（ターゲット）を直接変更するのではなく，定義ファイル（ソース）を編集し，それを適用します．ターゲットを直接変更すると，その変更は定義ファイルに残らず，次にデプロイしたときに失われるか，環境ごとの差として残り続けます．</p>
+</div>
+</div>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Exmaple 1</strong></span> <span class="def-title">データ分析の現場で起きるスノーフレーク</span></p>
+<p>データ分析の現場でも，同じ問題は頻繁に起きます．</p>
+<ul>
+<li>分析担当者の PC では <code>numpy 2.x</code> が入っているが，共有サーバーには <code>numpy 1.x</code> が残っている</li>
+<li>ノートブックの途中で <code>!pip install</code> したパッケージが，どこにも記録されていない</li>
+<li>半年前のレポートを再現しようとしたら，当時のライブラリのバージョンがわからない</li>
+</ul>
+<p>これらはいずれも，分析環境がスノーフレークになっている状態です．</p>
+</div>
+<hr>
+</section>
+<section id="冪等性idempotence" class="level2">
+<h2 class="anchored" data-anchor-id="冪等性idempotence">冪等性（Idempotence）</h2>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 2</strong></span> <span class="def-title">冪等性</span></p>
+<ul>
+<li>冪等性とは，ある操作を何回実行しても常に同じ結果になる性質のこと</li>
+</ul>
+</div>
+<p>IaC の重要な原則の1つが <strong>冪等性（idempotence）</strong> です．</p>
+<p>IaC におけるデプロイ操作は，<strong>ターゲット環境の開始時の状態にかかわらず</strong>，常に同じ構成をもたらす必要があります．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/idempotence.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-2" title="開始状態がばらばらでも，同じ操作を実行すれば定義ファイルどおりの目標状態に到達する"><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-29-infrastructure-as-code/figures/idempotence.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="開始状態がばらばらでも，同じ操作を実行すれば定義ファイルどおりの目標状態に到達する"></a></p>
+</figure>
+</div>
+<figcaption>開始状態がばらばらでも，同じ操作を実行すれば定義ファイルどおりの目標状態に到達する</figcaption>
+</figure>
+</div>
+<p><span class="mini-section">冪等性の実現方法</span></p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 15%">
+<col style="width: 50%">
+<col style="width: 35%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>方法</th>
+<th>やり方</th>
+<th>特徴</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>① 収束</td>
+<td>既存のターゲット環境を自動で構成し直し，定義との差分だけを修正する</td>
+<td>速い．ただし差分を正しく検出できることが前提</td>
+</tr>
+<tr class="even">
+<td>② 再作成</td>
+<td>既存のターゲット環境を破棄し，まっさらな環境を作り直す</td>
+<td>確実．ただし作り直しのコストがかかる</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code>uv</code> で言えば，<code>uv sync</code> が ① 収束にあたります．<code>uv sync</code> は既定で，<code>uv.lock</code> に記載されたパッケージを過不足なくインストールし，<strong>lock にない余分なパッケージは削除</strong> します（残したい場合は <code>--inexact</code> を付ける）．<code>.venv</code> を削除してから <code>uv sync</code> するのが ② 再作成にあたります．</p>
+</section>
+<section id="本番に近い環境で早くテストする" class="level2">
+<h2 class="anchored" data-anchor-id="本番に近い環境で早くテストする">本番に近い環境で早くテストする</h2>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>IaC のメリット
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>IaC を使うと，開発サイクルの早い段階で，本番に近い環境でアプリケーションをテストできる</li>
+</ul>
+</div>
+</div>
+<p>IaC を使うと，開発サイクルの早い段階で，本番に近い環境でアプリケーションをテストできます．定義ファイルがあれば，テスト環境を必要なときに必要な数だけ確実に用意できるからです．クラウドでは，IaC の定義にもとづいて環境を動的に作成し，使い終わったら破棄できます．</p>
+<p>また，インフラのコードそのものも検証・テストの対象になります．定義ファイルに対して静的チェックをかけることで，デプロイ時によくある問題を事前に防げます．Microsoft Defender for Cloud のように，IaC テンプレートの設定ミスを検出するツールもあります．</p>
+<p><span class="mini-section"><code>uv lock --check</code> を用いたインフラコードの検証</span></p>
+<ul>
+<li><code>uv lock --check</code> は，<code>uv.lock</code> が <code>pyproject.toml</code> に対して最新（up-to-date）かどうかを検査するコマンド</li>
+<li>最新なら exit 0，更新が必要なら exit 1 で終了し，<code>uv.lock</code> にも <code>.venv</code> にも書き込まない</li>
+<li>環境（<code>.venv</code>）には一切触れず，<strong>ソースである定義ファイルどうしが整合しているか</strong> を検査</li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">uv</span> lock <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--check</span></span></code></pre></div></div>
+<p>つまるところ，<code>uv lock --check</code> の動作は，「<strong>仮にいま <code>uv lock</code> を実行したら，<code>uv.lock</code> は書き換わるか？</strong>」を確かめることで，これは IaC の「インフラのコードそのものも検証・テストできる」ことと対応しています．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/uv-lock-check.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-3" title="uv lock –check の動作．現在の pyproject.toml と uv.lock から，あるべき uv.lock を（ファイルに書き込まずに）求め，現在の uv.lock と比較する"><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-29-infrastructure-as-code/figures/uv-lock-check.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="uv lock –check の動作．現在の pyproject.toml と uv.lock から，あるべき uv.lock を（ファイルに書き込まずに）求め，現在の uv.lock と比較する"></a></p>
+</figure>
+</div>
+<figcaption>uv lock –check の動作．現在の pyproject.toml と uv.lock から，あるべき uv.lock を（ファイルに書き込まずに）求め，現在の uv.lock と比較する</figcaption>
+</figure>
+</div>
+<p>一方，定義どおりの環境が実際にできているか（ターゲットがドリフトしていないか）を確かめるのは， <code>uv sync --check</code> の役割です．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/lock-check-iac.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-4" title="IaC 一般と uv の対応．① 定義ファイルの検証（uv lock –check）はソースの中で完結し，② 環境のドリフト検出（uv sync –check）はソースとターゲットを比較する"><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-29-infrastructure-as-code/figures/lock-check-iac.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="IaC 一般と uv の対応．① 定義ファイルの検証（uv lock –check）はソースの中で完結し，② 環境のドリフト検出（uv sync –check）はソースとターゲットを比較する"></a></p>
+</figure>
+</div>
+<figcaption>IaC 一般と uv の対応．① 定義ファイルの検証（uv lock –check）はソースの中で完結し，② 環境のドリフト検出（uv sync –check）はソースとターゲットを比較する</figcaption>
+</figure>
+</div>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 22%">
+<col style="width: 30%">
+<col style="width: 26%">
+<col style="width: 22%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>検証</th>
+<th>何と何を比べるか</th>
+<th>IaC 一般</th>
+<th>uv</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>① 定義ファイルの検証</td>
+<td>定義ファイル ↔︎ 計画（ソースどうし）</td>
+<td>テンプレートの静的チェック・lint</td>
+<td><code>uv lock --check</code></td>
+</tr>
+<tr class="even">
+<td>② 環境のドリフト検出</td>
+<td>計画 ↔︎ 実環境（ソースとターゲット）</td>
+<td><code>terraform plan</code> で実環境との差分を確認</td>
+<td><code>uv sync --check</code></td>
+</tr>
+</tbody>
+</table>
+<p>CI で使うときは，①を最初に実行して「<code>pyproject.toml</code> を変えたのに <code>uv.lock</code> を commit し忘れた」状態を検出します．これは，デプロイ前にインフラのコードを検証するのと同じ位置づけです．環境を作る段階では <code>uv sync --locked</code> を使います．これは「lock の更新が必要なら止める（①）」と「lock どおりに環境を作る」をまとめて行います．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># CI：インフラのコード（定義ファイル）を検証してから，環境を作ってテストする</span></span>
+<span id="cb2-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">uv</span> lock <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--check</span></span>
+<span id="cb2-3"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">uv</span> sync <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--locked</span></span>
+<span id="cb2-4"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">uv</span> run pytest</span></code></pre></div></div>
+<hr>
+</section>
+<section id="宣言的定義と命令的スクリプト" class="level2">
+<h2 class="anchored" data-anchor-id="宣言的定義と命令的スクリプト">宣言的定義と命令的スクリプト</h2>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">重要</span>RULE: 宣言的な定義ファイルの使用
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<div class="reveal_vspace" style="--vspace-height: 1em;"></div>
+<blockquote class="blockquote">
+<p>IaC should use declarative definition files if possible.</p>
+</blockquote>
+<p>IaC では，可能な限り <strong>宣言的（declarative）</strong> な定義ファイルを使うべき</p>
+</div>
+</div>
+<p>宣言的な定義ファイルは，環境に必要なコンポーネントと構成（<strong>何が欲しいか</strong>）を記述しますが，その構成を実現する手順（<strong>どうやるか</strong>）は必ずしも記述しません．たとえば，必要なサーバーのバージョンと構成は定義するが，インストールや設定の手順は書きません．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 40%">
+<col style="width: 40%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>観点</th>
+<th>宣言的（declarative）</th>
+<th>命令的（imperative）</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>記述する内容</td>
+<td>最終的にあるべき状態</td>
+<td>状態にたどり着くための手順</td>
+</tr>
+<tr class="even">
+<td>例</td>
+<td><code>pyproject.toml</code>，Terraform（<code>.tf</code>），Bicep</td>
+<td>シェルスクリプト，手順書</td>
+</tr>
+<tr class="odd">
+<td>再実行したとき</td>
+<td>定義との差分だけが適用される</td>
+<td>開始状態によって結果が変わりうる</td>
+</tr>
+<tr class="even">
+<td>手順の最適化</td>
+<td>ツール（インフラの提供者）に任せられる</td>
+<td>書いた人が自分で最適化する</td>
+</tr>
+<tr class="odd">
+<td>保守</td>
+<td>定義だけを保守すればよい</td>
+<td>スクリプトの技術的負債が溜まりやすい</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>この抽象化によって，インフラの提供者が用意する最適化された手法を柔軟に利用できます．また，デプロイスクリプトのような命令的なコードは時間とともに技術的負債になりがちですが，宣言的な定義はその負債を減らします．</p>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Exmaple 2</strong></span> <span class="def-title">Python 環境セットアップ</span></p>
+<p>Python 環境で比べると，declarative vs imperative の違いがわかりやすくなります．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 命令的：手順を書く（setup.sh）</span></span>
+<span id="cb3-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">python3</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-m</span> venv .venv</span>
+<span id="cb3-3"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">source</span> .venv/bin/activate</span>
+<span id="cb3-4"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">pip</span> install pandas</span>
+<span id="cb3-5"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">pip</span> install scikit-learn==1.5.2</span>
+<span id="cb3-6"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">pip</span> install lightgbm</span></code></pre></div></div>
+<p>このスクリプトには次の問題があります．</p>
+<ul>
+<li>実行した日によって <code>pandas</code> や <code>lightgbm</code> のバージョンが変わる（同じソースから同じ環境ができない）</li>
+<li>既存の <code>.venv</code> に余分なパッケージが入っていても，それは残り続ける（開始状態によって結果が変わる）</li>
+<li>推移的依存（<code>numpy</code> や <code>scipy</code> など）のバージョンはどこにも記録されない</li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode toml code-with-copy"><code class="sourceCode toml"><span id="cb4-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 宣言的：あるべき状態を書く（pyproject.toml）</span></span>
+<span id="cb4-2"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">[project]</span></span>
+<span id="cb4-3"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">name</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"churn-analysis"</span></span>
+<span id="cb4-4"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">version</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"0.1.0"</span></span>
+<span id="cb4-5"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">requires-python</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"&gt;=3.12,&lt;3.13"</span></span>
+<span id="cb4-6"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">dependencies</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">[</span></span>
+<span id="cb4-7">    <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"pandas&gt;=2.2"</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">,</span></span>
+<span id="cb4-8">    <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"scikit-learn&gt;=1.5"</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">,</span></span>
+<span id="cb4-9">    <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"lightgbm&gt;=4.5"</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">,</span></span>
+<span id="cb4-10"><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">]</span></span>
+<span id="cb4-11"></span>
+<span id="cb4-12"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">[dependency-groups]</span></span>
+<span id="cb4-13"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">dev</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">[</span></span>
+<span id="cb4-14">    <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"pytest&gt;=8.3"</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">,</span></span>
+<span id="cb4-15">    <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"ruff&gt;=0.8"</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">,</span></span>
+<span id="cb4-16"><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">]</span></span></code></pre></div></div>
+<p><code>pyproject.toml</code> には「どのパッケージがどの範囲で必要か」だけを書きます．依存関係をどう解決するか，どの順序でダウンロード・インストールするか，キャッシュをどう使うかは <code>uv</code> に任せます．</p>
+</div>
+<hr>
+</section>
+<section id="sec-uv" class="level2">
+<h2 class="anchored" data-anchor-id="sec-uv">Appendix: データサイエンスにおける IaC：uv と pyproject.toml</h2>
+<section id="分析環境はレイヤーの積み重ね" class="level3">
+<h3 class="anchored" data-anchor-id="分析環境はレイヤーの積み重ね">分析環境はレイヤーの積み重ね</h3>
+<p>分析の実行環境は，いくつかのレイヤーの積み重ねとして捉えられます．IaC の考え方は，どのレイヤーにも同じように適用できます．各レイヤーで「宣言ファイル（ソース）」と「適用・固定の手段」の組を用意するのが基本です．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/ds-env-layers.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-5" title="分析環境のレイヤーと，それぞれのレイヤーで使う宣言ファイル・適用の手段"><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-29-infrastructure-as-code/figures/ds-env-layers.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="分析環境のレイヤーと，それぞれのレイヤーで使う宣言ファイル・適用の手段"></a></p>
+</figure>
+</div>
+<figcaption>分析環境のレイヤーと，それぞれのレイヤーで使う宣言ファイル・適用の手段</figcaption>
+</figure>
+</div>
+<p>データサイエンティストが最も頻繁に触るのは <strong>Python 環境</strong> のレイヤーです．このレイヤーの IaC ツールとして <code>uv</code> を位置づけると，運用ルールが整理しやすくなります．</p>
+</section>
+<section id="uv-を-iac-として読む" class="level3">
+<h3 class="anchored" data-anchor-id="uv-を-iac-として読む">uv を IaC として読む</h3>
+<p><code>uv</code> のワークフローは，IaC の構成要素にそのまま対応します．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/uv-as-iac.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-6" title="uv のワークフロー．pyproject.toml（宣言）から uv.lock（解決結果）を作り，同じ uv.lock から各ターゲット環境を作る．環境を直接変更すると定義に残らずドリフトになる"><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-29-infrastructure-as-code/figures/uv-as-iac.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="uv のワークフロー．pyproject.toml（宣言）から uv.lock（解決結果）を作り，同じ uv.lock から各ターゲット環境を作る．環境を直接変更すると定義に残らずドリフトになる"></a></p>
+</figure>
+</div>
+<figcaption>uv のワークフロー．pyproject.toml（宣言）から uv.lock（解決結果）を作り，同じ uv.lock から各ターゲット環境を作る．環境を直接変更すると定義に残らずドリフトになる</figcaption>
+</figure>
+</div>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 35%">
+<col style="width: 65%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>IaC の概念</th>
+<th>uv での対応</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>宣言的な定義ファイル</td>
+<td><code>pyproject.toml</code>（直接依存とバージョン範囲），<code>.python-version</code></td>
+</tr>
+<tr class="even">
+<td>定義のバージョン管理</td>
+<td><code>pyproject.toml</code> と <code>uv.lock</code> を Git に commit する</td>
+</tr>
+<tr class="odd">
+<td>同じソースから同じ環境</td>
+<td><code>uv.lock</code> が推移的依存まで，バージョンとハッシュで固定する</td>
+</tr>
+<tr class="even">
+<td>冪等なデプロイ（収束）</td>
+<td><code>uv sync</code>（lock にないパッケージは削除して一致させる）</td>
+</tr>
+<tr class="odd">
+<td>冪等なデプロイ（再作成）</td>
+<td><code>.venv</code> を削除してから <code>uv sync</code></td>
+</tr>
+<tr class="even">
+<td>ソースを編集する</td>
+<td><code>uv add</code> / <code>uv remove</code> で <code>pyproject.toml</code> と <code>uv.lock</code> を同時に更新する</td>
+</tr>
+<tr class="odd">
+<td>ドリフトの検出</td>
+<td><code>uv lock --check</code>，<code>uv sync --locked</code>，<code>uv sync --check</code></td>
+</tr>
+<tr class="even">
+<td>本番に近い環境でのテスト</td>
+<td>CI や Docker の中で，同じ <code>uv.lock</code> から <code>uv sync</code> する</td>
+</tr>
+</tbody>
+</table>
+<p><code>pyproject.toml</code> と <code>uv.lock</code> の役割分担は，Terraform の定義ファイル（<code>.tf</code>）と実行計画の関係に似ています．<code>pyproject.toml</code> は「<code>pandas&gt;=2.2</code> が欲しい」という <strong>意図</strong> を表し，<code>uv.lock</code> は「その意図を満たすために，<code>pandas 2.3.3</code>・<code>numpy 2.3.4</code>・… を入れる」という <strong>解決結果</strong> を表します．意図だけでは環境は一意に決まらないため，再現性のためには <code>uv.lock</code> まで commit する必要があります．</p>
+</section>
+<section id="主なコマンドと-iac-上の意味" class="level3">
+<h3 class="anchored" data-anchor-id="主なコマンドと-iac-上の意味">主なコマンドと IaC 上の意味</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 45%">
+<col style="width: 30%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>コマンド</th>
+<th>何をするか</th>
+<th>IaC 上の意味</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>uv add pandas</code></td>
+<td><code>pyproject.toml</code> に依存を追加し，<code>uv.lock</code> を更新し，環境を同期する</td>
+<td>ソースを編集して適用する</td>
+</tr>
+<tr class="even">
+<td><code>uv remove pandas</code></td>
+<td>依存を削除し，<code>uv.lock</code> と環境を更新する</td>
+<td>ソースを編集して適用する</td>
+</tr>
+<tr class="odd">
+<td><code>uv lock</code></td>
+<td><code>pyproject.toml</code> から依存を解決し，<code>uv.lock</code> を書き出す</td>
+<td>定義から計画を作る</td>
+</tr>
+<tr class="even">
+<td><code>uv lock --check</code></td>
+<td><code>uv.lock</code> が <code>pyproject.toml</code> に対して最新かを検査する</td>
+<td>定義ファイルの検証</td>
+</tr>
+<tr class="odd">
+<td><code>uv sync</code></td>
+<td><code>uv.lock</code> どおりに <code>.venv</code> を構成する（余分なものは削除）</td>
+<td>冪等なデプロイ</td>
+</tr>
+<tr class="even">
+<td><code>uv sync --locked</code></td>
+<td><code>uv.lock</code> の更新が必要ならエラーにして止める</td>
+<td>CI 向け：ドリフトを検出したら失敗させる</td>
+</tr>
+<tr class="odd">
+<td><code>uv sync --frozen</code></td>
+<td><code>uv.lock</code> を更新せず，そのまま使う</td>
+<td>lock を唯一の正とみなして適用する</td>
+</tr>
+<tr class="even">
+<td><code>uv run python train.py</code></td>
+<td>実行前に環境が lock と一致することを確認してから実行する</td>
+<td>適用してから実行する</td>
+</tr>
+<tr class="odd">
+<td><code>uv pip install foo</code></td>
+<td><code>.venv</code> を直接変更する．<code>pyproject.toml</code> には残らない</td>
+<td><strong>ターゲットを直接編集する（アンチパターン）</strong></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="運用ルール" class="level3">
+<h3 class="anchored" data-anchor-id="運用ルール">運用ルール</h3>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">重要</span>Python 環境を IaC として運用するためのルール
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li><code>pyproject.toml</code> と <code>uv.lock</code> は必ず Git に commit する．<code>.venv</code> は commit しない（<code>.venv</code> はターゲットであってソースではない）</li>
+<li>パッケージの追加・削除は <code>uv add</code> / <code>uv remove</code> で行う．<code>uv pip install</code> や <code>pip install</code> で <code>.venv</code> を直接いじらない</li>
+<li>ノートブックの中で <code>!pip install</code> しない．必要になったらターミナルで <code>uv add</code> する</li>
+<li>Python のバージョンは <code>requires-python</code> と <code>.python-version</code>（<code>uv python pin</code> で作成）で宣言する</li>
+<li>環境がおかしくなったら，原因を手で直すより <code>.venv</code> を削除して <code>uv sync</code> で作り直す（再作成による冪等性）</li>
+<li>CI では <code>uv sync --locked</code> を使い，lock のずれを失敗として扱う</li>
+</ul>
+</div>
+</div>
+</section>
+<section id="uv.lock-だけでは固定できないもの" class="level3">
+<h3 class="anchored" data-anchor-id="uv.lock-だけでは固定できないもの">uv.lock だけでは固定できないもの</h3>
+<p><code>uv.lock</code> が固定するのは Python パッケージのレイヤーだけです．分析結果の再現性のためには，他のレイヤーも IaC で扱う必要があります．</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 22%">
+<col style="width: 43%">
+<col style="width: 35%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>固定できないもの</th>
+<th>例</th>
+<th>対処</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>OS・システムライブラリ</td>
+<td>CUDA・cuDNN のバージョン，GDAL，日本語フォント</td>
+<td><code>Dockerfile</code> や <code>devcontainer.json</code> で宣言する</td>
+</tr>
+<tr class="even">
+<td>クラウド資源</td>
+<td>GPU インスタンスの種類，ストレージ，DWH のデータセット</td>
+<td>Terraform や Bicep で宣言する</td>
+</tr>
+<tr class="odd">
+<td>入力データ</td>
+<td>分析時点のテーブルの中身</td>
+<td>データのスナップショット・バージョンを記録する</td>
+</tr>
+<tr class="even">
+<td>実行時の設定</td>
+<td>乱数シード，ハイパーパラメータ</td>
+<td>設定ファイル（<code>configs/*.yaml</code>）にして Git で管理する</td>
+</tr>
+</tbody>
+</table>
+<p>「同じ環境」は「同じ結果」の必要条件ではあっても十分条件ではありません．環境の IaC 化は，再現性を確保するための土台と位置づけるのがよいでしょう．</p>
+</section>
+</section>
+<section id="用語集" class="level2">
+<h2 class="anchored" data-anchor-id="用語集">📘 用語集</h2>
+<div class="glossary-container">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb5-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">glossary</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span></span>
+<span id="cb5-2"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> 環境ドリフト（configuration drift）</span></span>
+<span id="cb5-3"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb5-4">      本来同じであるべき複数の環境（開発・検証・本番など）の設定が，手作業での変更や記録されない修正の積み重ねによって，少しずつ食い違っていく現象．ドリフトが進むと，ある環境で動いたものが別の環境で動かない，という問題が起きる．</span>
+<span id="cb5-5"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> スノーフレーク（snowflake）</span></span>
+<span id="cb5-6"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb5-7">      手作業での変更が積み重なった結果，自動では再現できなくなった一点物の環境（サーバー）のこと．雪の結晶が1つとして同じ形を持たないことに由来する．壊れたときに作り直す手段がなく，変更するのも怖いため，さらに手作業での延命が続くという悪循環に陥りやすい．</span>
+<span id="cb5-8"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> 冪等性（idempotence）</span></span>
+<span id="cb5-9"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb5-10">      ある操作を1回実行しても複数回実行しても，結果が同じになる性質．IaC では，ターゲット環境の開始時の状態にかかわらず，デプロイ操作を実行すれば常に定義どおりの状態になることを指す．</span>
+<span id="cb5-11"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> 宣言的（declarative）</span></span>
+<span id="cb5-12"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb5-13">      最終的にあるべき状態（何が欲しいか）を記述し，そこに至る手順はツールに任せる記述スタイル．`pyproject.toml`，Terraform，Bicep などが該当する．対になるのが，手順（どうやるか）を順番に記述する命令的（imperative）なスタイルで，シェルスクリプトや手順書が該当する．</span>
+<span id="cb5-14"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> ロックファイル（lockfile）</span></span>
+<span id="cb5-15"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">: </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|</span></span>
+<span id="cb5-16">      依存関係の解決結果を，推移的依存も含めて厳密なバージョン（とハッシュ）で記録したファイル．`uv` では `uv.lock` がこれにあたる．`pyproject.toml` に書いたバージョン範囲だけでは，解決した日によって入るバージョンが変わるため，同じ環境を再現するにはロックファイルが必要になる．</span></code></pre></div></div>
+</div>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<ul>
+<li><a href="https://learn.microsoft.com/en-us/devops/deliver/what-is-infrastructure-as-code">learn microsoft.com &gt; What is infrastructure as code (IaC)? - Azure DevOps</a></li>
+<li><a href="https://docs.astral.sh/uv/concepts/projects/sync/">uv documentation &gt; Locking and syncing</a></li>
+<li><a href="https://docs.astral.sh/uv/concepts/projects/sync/#automatic-lock-and-sync">uv documentation &gt; Locking and syncing &gt; Automatic lock and sync</a></li>
+<li><a href="https://docs.astral.sh/uv/guides/integration/docker/">uv documentation &gt; Using uv in Docker</a></li>
+<li><a href="https://packaging.python.org/en/latest/specifications/pyproject-toml/">Python Packaging User Guide &gt; pyproject.toml specification</a></li>
+</ul>
+
+
+</section>
+
+ ]]></description>
+  <category>環境構築</category>
+  <category>uv</category>
+  <category>方法論</category>
+  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-29-infrastructure-as-code/</guid>
+  <pubDate>Thu, 29 Oct 2026 00:00:00 GMT</pubDate>
+</item>
+<item>
   <title>BigQuery で表記ゆれを補正する</title>
   <dc:creator>Ryo Nakagami</dc:creator>
   <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-28-bq-command-memo/</link>
@@ -5845,287 +6644,6 @@ font-style: inherit;">false</span></span></code></pre></div></div>
   <category>quarto</category>
   <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-10-quarto-tips/</guid>
   <pubDate>Sat, 10 Oct 2026 00:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>SSH 接続先で Codex CLI を認証する</title>
-  <dc:creator>Ryo Nakagami</dc:creator>
-  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-07-codex-in-server/</link>
-  <description><![CDATA[ 
-
-
-
-
-
-
-<section id="problem" class="level2">
-<h2 class="anchored" data-anchor-id="problem">Problem</h2>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>Problem
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>SSH 接続先（Ubuntu サーバーなど）で Codex CLI に ChatGPT アカウントでログインしようとしても，通常のブラウザログインができない</li>
-</ul>
-</div>
-</div>
-<p>Codex CLI の通常の ChatGPT ログインは，ブラウザでサインインした後に localhost へのコールバックで OAuth トークンを CLI に返す仕組みです．そのため，</p>
-<ul>
-<li>リモート環境やヘッドレス環境（SSH 先のサーバーなど）で CLI を動かしている</li>
-<li>ローカルのネットワーク設定によって，localhost へのコールバックがブロックされている</li>
-</ul>
-<p>ような状況ではブラウザベースのログインがうまく動きません．</p>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><a href="figures/localhost-callback.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-1" title="通常のログインと SSH 先で CLI を実行した場合の比較．SSH 先では，リダイレクト先の localhost が手元の PC を指すため，トークンが CLI に届かない"><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-07-codex-in-server/figures/localhost-callback.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="通常のログインと SSH 先で CLI を実行した場合の比較．SSH 先では，リダイレクト先の localhost が手元の PC を指すため，トークンが CLI に届かない"></a></p>
-</figure>
-</div>
-<figcaption>通常のログインと SSH 先で CLI を実行した場合の比較．SSH 先では，リダイレクト先の localhost が手元の PC を指すため，トークンが CLI に届かない</figcaption>
-</figure>
-</div>
-</section>
-<section id="solution" class="level2">
-<h2 class="anchored" data-anchor-id="solution">Solution</h2>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>TL:DRs
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li><code>codex login --device-auth</code> によるデバイスコード認証（beta）を使う</li>
-<li>公式ドキュメントでも，このような場合にはデバイスコード認証が推奨されている</li>
-</ul>
-</div>
-</div>
-<p>SSH 先にブラウザがなくても，手元の PC のブラウザで ChatGPT 認証を完了できます．</p>
-</section>
-<section id="steps" class="level2">
-<h2 class="anchored" data-anchor-id="steps">Steps</h2>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>事前準備
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>デバイスコード認証を使うには，以下の設定を有効にしておく必要があります．</p>
-<ul>
-<li>個人アカウント: ChatGPT の Settings &gt; Security and login で <strong>Enable device code sign-in for Codex, Excel, PowerPoint, and Word</strong> を ON にする</li>
-<li>ワークスペース: ワークスペース管理者が ChatGPT workspace permissions でデバイスコードログインを許可する</li>
-</ul>
-<p>この設定が OFF のままだと，リモート環境やヘッドレス環境からデバイスコードで Codex にサインインできません．なお，デバイスコードはフィッシングに悪用されうるため，他人と共有しないよう注意してください．</p>
-</div>
-</div>
-<p><span class="mini-section">認証手順</span></p>
-<ol type="1">
-<li><p>SSH 接続先にログイン</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ssh</span> user@remote-host</span></code></pre></div></div></li>
-<li><p>SSH 先でデバイスコード認証を開始</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">codex</span> login <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--device-auth</span></span></code></pre></div></div>
-<p><code>codex</code> を起動したときの対話型ログイン UI で <strong>Sign in with Device Code</strong> を選んでも同じです．実行すると，以下のように認証用 URL とワンタイムコードが表示されます．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb3-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">user@remote-host</span> ~ % codex login <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--device-auth</span></span>
-<span id="cb3-2"></span>
-<span id="cb3-3"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">Welcome</span> to Codex <span class="pp" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">[</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">v0.166.0</span><span class="pp" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">]</span></span>
-<span id="cb3-4"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">OpenAI</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">'s command-line coding agent</span></span>
-<span id="cb3-5"></span>
-<span id="cb3-6"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">Follow these steps to sign in with ChatGPT using device code authorization:</span></span>
-<span id="cb3-7"></span>
-<span id="cb3-8"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">1. Open this link in your browser and sign in to your account</span></span>
-<span id="cb3-9"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">   https://auth.openai.com/codex/device</span></span>
-<span id="cb3-10"></span>
-<span id="cb3-11"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">2. Enter this one-time code (expires in 15 minutes)</span></span>
-<span id="cb3-12"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">   1234-56789</span></span>
-<span id="cb3-13"></span>
-<span id="cb3-14"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">Continue only if you started this login in Codex. If a website or another person gave you this code, cancel.</span></span></code></pre></div></div></li>
-<li><p>ローカル PC で認証</p>
-<ol type="1">
-<li>手元の PC のブラウザで，表示された認証用 URL を開く</li>
-<li>表示されたコードを入力する</li>
-<li>ChatGPT アカウントでログインして認証を完了する</li>
-</ol></li>
-<li><p>認証状態を確認</p>
-<p>SSH 先で以下を実行します．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">codex</span> login status</span></code></pre></div></div></li>
-</ol>
-<p><span class="mini-section">SSH 接続先の Codex CLI からログアウト</span></p>
-<div class="padding-left-20">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">codex</span> logout</span></code></pre></div></div>
-</div>
-<ul>
-<li>上記ログアウトコマンドは，認証情報を削除しますが、Codex の設定ファイルやセッション履歴までは削除しません</li>
-</ul>
-</section>
-<section id="デバイスコード認証が使えない場合" class="level2">
-<h2 class="anchored" data-anchor-id="デバイスコード認証が使えない場合">デバイスコード認証が使えない場合</h2>
-<p>環境によってデバイスコード認証が使えない場合は，ブラウザが使えるマシンでログインし，認証キャッシュをヘッドレス環境にコピーする方法があります．</p>
-<ol type="1">
-<li><p>ブラウザベースのログインが使えるマシンで <code>codex login</code> を実行する</p></li>
-<li><p><code>~/.codex/auth.json</code> にログインキャッシュが作成されていることを確認する</p></li>
-<li><p><code>~/.codex/auth.json</code> をヘッドレス環境の <code>~/.codex/auth.json</code> にコピーする</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">scp</span> ~/.codex/auth.json user@remote-host:~/.codex/auth.json</span></code></pre></div></div></li>
-</ol>
-<div class="callout callout-style-default callout-warning callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-警告
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p><code>~/.codex/auth.json</code> にはアクセストークンが含まれるため，パスワードと同様に扱ってください．Git にコミットしたり，チケットやチャットに貼り付けたりしないようにしましょう．</p>
-</div>
-</div>
-</section>
-<section id="appendix-ssh-ポートフォワーディングでコールバックを転送する" class="level2">
-<h2 class="anchored" data-anchor-id="appendix-ssh-ポートフォワーディングでコールバックを転送する">Appendix: SSH ポートフォワーディングでコールバックを転送する</h2>
-<p>通常のブラウザログインが SSH 先で失敗するのは，ブラウザがリダイレクトする <code>localhost</code> が手元の PC を指し，SSH 先の CLI が待ち受けているポートに届かないためでした． そこで，SSH の<span class="regmonkey-bold">ポートフォワーディング</span>で手元の PC の <code>localhost:1455</code> を SSH 先の <code>localhost:1455</code> へ転送すれば，通常の <code>codex login</code> のままでもコールバックを CLI に届けられます． <code>1455</code> は Codex CLI がコールバックを待ち受ける既定のポートです．</p>
-<ol type="1">
-<li><p>ローカル PC からポートフォワーディング付きで SSH 接続する</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ssh</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-L</span> 1455:localhost:1455 user@remote-host</span></code></pre></div></div></li>
-<li><p>その SSH セッションで <code>codex login</code> を実行し，表示された URL を手元の PC のブラウザで開く</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">codex</span> login</span></code></pre></div></div></li>
-<li><p>ChatGPT アカウントでサインインする．<code>localhost:1455</code> へのリダイレクトは SSH トンネル経由で SSH 先の CLI に届く</p></li>
-<li><p>認証状態を確認する</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">codex</span> login status</span></code></pre></div></div></li>
-</ol>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-ノート
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>この方法を使うには，以下を満たしている必要があります．</p>
-<ul>
-<li>SSH サーバー側でポートフォワーディングが許可されている（<code>sshd_config</code> の <code>AllowTcpForwarding</code> が <code>no</code> になっていない）</li>
-<li>手元の PC の <code>1455</code> 番ポートを他のプロセスが使っていない</li>
-</ul>
-<p>公式ドキュメントでは，デバイスコード認証が使えない場合のフォールバックの1つとして紹介されています．</p>
-</div>
-</div>
-</section>
-<section id="用語集" class="level2">
-<h2 class="anchored" data-anchor-id="用語集">📘 用語集</h2>
-<div class="glossary-container">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb10-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">glossary</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span></span>
-<span id="cb10-2"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> ポートフォワーディング (SSH ポート転送)</span></span>
-<span id="cb10-3"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb10-4">      あるポートに届いた通信を，SSH 接続（トンネル）を経由して別のホストのポートへ転送する仕組み．</span>
-<span id="cb10-5">      `ssh -L &lt;ローカルポート&gt;:&lt;転送先ホスト&gt;:&lt;転送先ポート&gt; user@remote-host` の形で指定するものをローカルフォワードと呼び，</span>
-<span id="cb10-6">      手元の PC の `localhost:&lt;ローカルポート&gt;` への通信が，SSH 先から見た `&lt;転送先ホスト&gt;:&lt;転送先ポート&gt;` に届く．</span>
-<span id="cb10-7">      `&lt;転送先ホスト&gt;` に `localhost` を指定した場合は SSH 先サーバー自身を指す．</span>
-<span id="cb10-8">      逆向きに，SSH 先のポートへの通信を手元側へ転送するものは `ssh -R` によるリモートフォワードと呼ぶ．</span>
-<span id="cb10-9">      通信は SSH で暗号化されるため，外部に公開していないサーバー上のサービスへ安全にアクセスする用途でも使われる．</span></code></pre></div></div>
-</div>
-</section>
-<section id="references" class="level2">
-<h2 class="anchored" data-anchor-id="references">References</h2>
-<ul>
-<li><a href="https://learn.chatgpt.com/docs/auth?utm_source=chatgpt.com&amp;surface=cli#cli-login-on-headless-devices">Open AI &gt; Authentication - Login on headless devices</a></li>
-</ul>
-
-
-</section>
-
- ]]></description>
-  <category>環境構築</category>
-  <category>サーバー</category>
-  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-07-codex-in-server/</guid>
-  <pubDate>Wed, 07 Oct 2026 00:00:00 GMT</pubDate>
 </item>
 </channel>
 </rss>
