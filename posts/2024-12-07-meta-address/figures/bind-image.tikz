@@ -1,0 +1,88 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+% #1: 名前の接頭辞, #2: x オフセット, #3: タイトル, #4: 補足
+\newcommand{\panel}[4]{
+  \coordinate (#1o) at (#2,0);
+  \node[ptitle] at ($(#1o)+(2.7,5.0)$) {#3};
+  \node[note]   at ($(#1o)+(2.7,4.35)$) {#4};
+  \node[client] (#1c1) at ($(#1o)+(0,3.2)$)   {同じマシン内\\のクライアント};
+  \node[client] (#1c2) at ($(#1o)+(2.7,3.2)$) {LAN 内の\\端末};
+  \node[client] (#1c3) at ($(#1o)+(5.4,3.2)$) {VPN 先の\\端末};
+  \node[block, minimum width=7.8cm] (#1srv) at ($(#1o)+(2.7,-3.0)$)
+    {サーバープロセス\\{\footnotesize\texttt{listen :8000}}};
+}
+\begin{tikzpicture}[
+    >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.2cm, inner sep=5pt},
+    open/.style={block, fill=paleskyblue, minimum width=2.4cm},
+    closed/.style={block, draw=lightgray, fill=white, text=darkgray, minimum width=2.4cm},
+    client/.style={align=center, text=darkgray, font=\footnotesize},
+    ptitle/.style={font=\large\bfseries, text=navy},
+    note/.style={font=\footnotesize, text=azureblue},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=north, font=\footnotesize\bfseries, text=navy},
+    wire/.style={->, draw=navy},
+    deny/.style={->, draw=crimsonred, dashed},
+    ngmark/.style={font=\footnotesize\bfseries, text=crimsonred, anchor=west, inner sep=3pt},
+  ]
+
+  \panel{a}{0}{\texttt{127.0.0.1:8000} にバインド}{自分のマシンからだけ届く}
+  \panel{b}{9.8}{\texttt{192.168.1.10:8000} にバインド}{LAN 側の入口だけ開く}
+  \panel{c}{19.6}{\texttt{0.0.0.0:8000} にバインド}{すべての入口が開く}
+
+  % ---- インターフェース（開いている入口 = open，閉じている入口 = closed）----
+  \node[open]   (alo)  at ($(ao)+(0,0)$)   {lo\\{\footnotesize 127.0.0.1}};
+  \node[closed] (aeth) at ($(ao)+(2.7,0)$) {eth0\\{\footnotesize 192.168.1.10}};
+  \node[closed] (atun) at ($(ao)+(5.4,0)$) {tun0\\{\footnotesize 100.64.0.5}};
+
+  \node[closed] (blo)  at ($(bo)+(0,0)$)   {lo\\{\footnotesize 127.0.0.1}};
+  \node[open]   (beth) at ($(bo)+(2.7,0)$) {eth0\\{\footnotesize 192.168.1.10}};
+  \node[closed] (btun) at ($(bo)+(5.4,0)$) {tun0\\{\footnotesize 100.64.0.5}};
+
+  \node[open]   (clo)  at ($(co)+(0,0)$)   {lo\\{\footnotesize 127.0.0.1}};
+  \node[open]   (ceth) at ($(co)+(2.7,0)$) {eth0\\{\footnotesize 192.168.1.10}};
+  \node[open]   (ctun) at ($(co)+(5.4,0)$) {tun0\\{\footnotesize 100.64.0.5}};
+
+  % ---- サーバーマシンの枠 ----
+  \begin{scope}[on background layer]
+    \node[zone, fit=(alo)(atun)(asrv)] (az) {};
+    \node[zone, fit=(blo)(btun)(bsrv)] (bz) {};
+    \node[zone, fit=(clo)(ctun)(csrv)] (cz) {};
+  \end{scope}
+  \foreach \z in {az, bz, cz} {
+    \node[zlabel] at ([yshift=-1mm]\z.south) {サーバーマシン（入口＝ネットワークインターフェース）};
+  }
+
+  % ---- 接続：届く（実線）／拒否（赤破線）----
+  % (a) 127.0.0.1
+  \draw[wire] (ac1) -- (alo);
+  \draw[wire] (alo) -- (alo |- asrv.north);
+  \draw[deny] (ac2) -- (aeth) node[pos=0.45, ngmark] {× 拒否};
+  \draw[deny] (ac3) -- (atun) node[pos=0.45, ngmark] {× 拒否};
+  % (b) 192.168.1.10
+  \draw[deny] (bc1) -- (blo)  node[pos=0.45, ngmark] {× 拒否};
+  \draw[wire] (bc2) -- (beth);
+  \draw[wire] (beth) -- (beth |- bsrv.north);
+  \draw[deny] (bc3) -- (btun) node[pos=0.45, ngmark] {× 拒否};
+  % (c) 0.0.0.0
+  \foreach \c/\i in {cc1/clo, cc2/ceth, cc3/ctun} {
+    \draw[wire] (\c) -- (\i);
+    \draw[wire] (\i) -- (\i |- csrv.north);
+  }
+
+  % ---- 凡例 ----
+  \coordinate (lg) at ($(bsrv.south)+(-5.2,-2.0)$);
+  \draw[wire] (lg) -- ++(1.2,0) node[right, font=\footnotesize, text=darkgray] {接続が届く};
+  \draw[deny] ($(lg)+(3.6,0)$) -- ++(1.2,0)
+    node[right, font=\footnotesize, text=darkgray] {待ち受けていないので拒否される};
+\end{tikzpicture}
