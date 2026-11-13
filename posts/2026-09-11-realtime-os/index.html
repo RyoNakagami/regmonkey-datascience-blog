@@ -1,0 +1,2429 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="ja" xml:lang="ja"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.11.9">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Ryo Nakagami">
+<meta name="dcterms.date" content="2026-09-11">
+
+<title>リアルタイムOSとは？ – regmonkey datascience blog</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<link href="../../img/favicon.ico" rel="icon">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/scrollable-regions/scrollable-regions.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-5de16f5e46225c21e2daa90d340bf64f.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark-3218d7d29a29f08bc4fdf3802c3e3ca5.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-5de16f5e46225c21e2daa90d340bf64f.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-af18259a854216f0522d5e7742dba421.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark-165ea26c02c9279d901e121765156747.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../site_libs/bootstrap/bootstrap-af18259a854216f0522d5e7742dba421.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script src="../../site_libs/quarto-contrib/pseudocode-2.4.1/pseudocode.min.js"></script>
+<link href="../../site_libs/quarto-contrib/pseudocode-2.4.1/pseudocode.min.css" rel="stylesheet">
+<script src="../../site_libs/quarto-contrib/glightbox/glightbox.min.js"></script>
+<link href="../../site_libs/quarto-contrib/glightbox/glightbox.min.css" rel="stylesheet">
+<link href="../../site_libs/quarto-contrib/glightbox/lightbox.css" rel="stylesheet">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "一致なし",
+    "search-matching-documents-text": "一致した文書",
+    "search-copy-link-title": "検索へのリンクをコピー",
+    "search-hide-matches-text": "追加の検索結果を非表示",
+    "search-more-match-text": "追加の検索結果",
+    "search-more-matches-text": "追加の検索結果",
+    "search-clear-button-title": "消去",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "取消",
+    "search-submit-button-title": "検索",
+    "search-label": "サーチ"
+  }
+}</script>
+<script async="" src="https://www.googletagmanager.com/gtag/js?id=G-EX9H7GRLTH"></script>
+
+<script type="text/javascript">
+
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
+</script>
+<style>
+
+      .quarto-title-block .quarto-title-banner h1,
+      .quarto-title-block .quarto-title-banner h2,
+      .quarto-title-block .quarto-title-banner h3,
+      .quarto-title-block .quarto-title-banner h4,
+      .quarto-title-block .quarto-title-banner h5,
+      .quarto-title-block .quarto-title-banner h6
+      {
+        color: #ffffff;
+      }
+
+      .quarto-title-block .quarto-title-banner {
+        color: #ffffff;
+      }
+</style>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-M27Z2BWG');</script>
+    <!-- End Google Tag Manager -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&amp;display=swap" rel="stylesheet">
+<script>
+    MathJax = {
+        tex: {
+            inlineMath: [['$','$'], ['\\(','\\)']],
+            displayMath: [['$$','$$'], ['\\[','\\]']],
+            processEscapes: true,
+            processEnvironments: true,
+            tags: 'all',
+        }
+    }
+</script>
+<!-- MathJax 本体は _quarto.yml の html-math-method.url で読み込む -->
+<link rel="stylesheet" href="../../js/regmonkey_glossary_generator/regmonkey_glossary_generator.css">
+<script type="text/javascript" src="../../js/regmonkey_glossary_generator/regmonkey_glossary_generator.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../../styles.css">
+<meta property="og:title" content="リアルタイムOSとは？ – regmonkey datascience blog">
+<meta property="og:description" content="日々の徒然勉強日記">
+<meta property="og:image" content="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-09-11-realtime-os/figures/deadline.svg">
+<meta property="og:site_name" content="regmonkey datascience blog">
+<meta property="og:image:alt" content="イベントが発生してからデッドラインまでに応答できれば成功，デッドラインを過ぎれば結果が正しくても失敗になる">
+</head>
+
+<body class="nav-fixed quarto-light"><a id="quarto-skip-link" class="visually-hidden-focusable" href="#quarto-document-content">メインコンテンツにスキップ</a><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          toggle.setAttribute("aria-checked", alternate ? "true" : "false");
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+    }
+    // Hack to workaround the fact that safari doesn't
+    // properly recolor the scrollbar when toggling (#1455).
+    // Not run on load: stylesheets are set before first paint there, and
+    // scrolling would undo the scroll to a URL fragment (#14973).
+    // The one pixel nudge keeps the reader where they were.
+    const refreshSafariScrollbar = () => {
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        const scrollY = window.scrollY;
+        window.scrollTo(0, scrollY > 0 ? scrollY - 1 : 1);
+        setTimeout(() => {
+          window.scrollTo(0, scrollY);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      refreshSafariScrollbar();
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top quarto-banner">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark" aria-label="ウェブサイト">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">Home</span>
+    </a>
+  </div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="ナビゲーションを切り替える" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-bi-book" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+      <i class="bi bi-book" role="img">
+</i> 
+ <span class="menu-text"></span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-bi-book">    
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/statistics-for-regression-monkey/">
+ <span class="dropdown-text">Statistics Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/python-statisticalpackage-techniques/">
+ <span class="dropdown-text">Python package building Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/regmonkey_datavisualization/">
+ <span class="dropdown-text">Data Visualization Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/regmonkey-presentation/">
+ <span class="dropdown-text">Presentation Blog</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../link_list/link_table.html"> 
+<span class="menu-text">便利リンク集</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../dictionary/dict.html"> 
+<span class="menu-text">備忘録</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../FAQ/faq.html"> 
+<span class="menu-text">FAQ</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../about.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/RyoNakagami/regmonkey-datascience-blog"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="../../index.xml"> <i class="bi bi-rss" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <button type="button" role="switch" aria-checked="false" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="ダークモードの切り替え" aria-label="ダークモードの切り替え"><i class="bi"></i></button>
+</div>
+            <div id="quarto-search" class="" title="サーチ"></div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">リアルタイムOSとは？</h1>
+                                <div class="quarto-categories">
+                <div class="quarto-category">技術</div>
+                <div class="quarto-category">computer</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      <div>
+      <div class="quarto-title-meta-heading">作者</div>
+      <div class="quarto-title-meta-contents">
+               <p>Ryo Nakagami </p>
+            </div>
+    </div>
+      
+      <div>
+      <div class="quarto-title-meta-heading">公開</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">2026-09-11</p>
+      </div>
+    </div>
+    
+      <div>
+      <div class="quarto-title-meta-heading">更新日</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date-modified">2026-11-13</p>
+      </div>
+    </div>
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" aria-labelledby="toc-title" class="toc-active">
+    <h2 id="toc-title">目次</h2>
+   
+  <ul>
+  <li><a href="#リアルタイムに処理するとは" id="toc-リアルタイムに処理するとは" class="nav-link active" data-scroll-target="#リアルタイムに処理するとは">リアルタイムに処理するとは？</a>
+  <ul class="collapse">
+  <li><a href="#ハードリアルタイムとソフトリアルタイム" id="toc-ハードリアルタイムとソフトリアルタイム" class="nav-link" data-scroll-target="#ハードリアルタイムとソフトリアルタイム">ハードリアルタイムとソフトリアルタイム</a></li>
+  </ul></li>
+  <li><a href="#リアルタイムosrtos" id="toc-リアルタイムosrtos" class="nav-link" data-scroll-target="#リアルタイムosrtos">リアルタイムOS（RTOS）</a>
+  <ul class="collapse">
+  <li><a href="#優先度ベースのプリエンプティブスケジューリング" id="toc-優先度ベースのプリエンプティブスケジューリング" class="nav-link" data-scroll-target="#優先度ベースのプリエンプティブスケジューリング">優先度ベースのプリエンプティブスケジューリング</a></li>
+  <li><a href="#応答時間の内訳" id="toc-応答時間の内訳" class="nav-link" data-scroll-target="#応答時間の内訳">応答時間の内訳</a></li>
+  <li><a href="#優先度逆転と優先度継承" id="toc-優先度逆転と優先度継承" class="nav-link" data-scroll-target="#優先度逆転と優先度継承">優先度逆転と優先度継承</a></li>
+  </ul></li>
+  <li><a href="#周期タスクとスケジュール可能性" id="toc-周期タスクとスケジュール可能性" class="nav-link" data-scroll-target="#周期タスクとスケジュール可能性">周期タスクとスケジュール可能性</a></li>
+  <li><a href="#例題携帯端末の省電力" id="toc-例題携帯端末の省電力" class="nav-link" data-scroll-target="#例題携帯端末の省電力">例題：携帯端末の省電力</a>
+  <ul class="collapse">
+  <li><a href="#問題の設定を分解する" id="toc-問題の設定を分解する" class="nav-link" data-scroll-target="#問題の設定を分解する">問題の設定を分解する</a></li>
+  </ul></li>
+  <li><a href="#例題多言語多通貨対応両替システム" id="toc-例題多言語多通貨対応両替システム" class="nav-link" data-scroll-target="#例題多言語多通貨対応両替システム">例題：多言語多通貨対応両替システム</a>
+  <ul class="collapse">
+  <li><a href="#問題の設定を分解する-1" id="toc-問題の設定を分解する-1" class="nav-link" data-scroll-target="#問題の設定を分解する-1">問題の設定を分解する</a></li>
+  </ul></li>
+  <li><a href="#用語集" id="toc-用語集" class="nav-link" data-scroll-target="#用語集">📘 用語集</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>問題を報告</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content" tabindex="-1">
+
+
+
+
+
+
+<section id="リアルタイムに処理するとは" class="level2">
+<h2 class="anchored" data-anchor-id="リアルタイムに処理するとは">リアルタイムに処理するとは？</h2>
+<p>自動車のエアバッグは，衝突を検知してから数十ミリ秒程度で膨らみ切らなければ乗員を守れません． どれほど正確に衝突を判定できても，膨らむのが乗員がハンドルにぶつかった後では意味がありません． このように，組込みシステムでは <strong>計算結果が正しいことに加えて，決められた時間内に結果を出すこと</strong> が求められます． これがリアルタイム処理です．</p>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title">リアルタイム処理</span></p>
+<ul>
+<li>システムへの入力（イベント）が発生してから，応答を返すまでの制限時間が決まっている処理のこと</li>
+<li>制限時間の終わりの時刻を <strong>デッドライン</strong>（締切）と呼ぶ</li>
+<li>デッドラインまでに応答できなければ，計算結果が正しくても処理は失敗とみなす</li>
+</ul>
+</div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/deadline.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-1" title="イベントが発生してからデッドラインまでに応答できれば成功，デッドラインを過ぎれば結果が正しくても失敗になる"><img src="figures/deadline.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="イベントが発生してからデッドラインまでに応答できれば成功，デッドラインを過ぎれば結果が正しくても失敗になる"></a></p>
+</figure>
+</div>
+<figcaption>イベントが発生してからデッドラインまでに応答できれば成功，デッドラインを過ぎれば結果が正しくても失敗になる</figcaption>
+</figure>
+</div>
+<p><span class="mini-section">リアルタイム ≠ 高速</span></p>
+<p>リアルタイム処理で大事なのは，平均的に速いことではなく，<strong>最悪の場合でもデッドラインに間に合うと保証できること</strong> です．</p>
+<ul>
+<li>平均応答時間が 1 ミリ秒でも，1万回に1回 100 ミリ秒かかるシステムは，デッドラインが 10 ミリ秒なら使えない</li>
+<li>平均 5 ミリ秒でも，毎回必ず 8 ミリ秒以内に応答するシステムなら使える</li>
+</ul>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Exmaple 1</strong></span> <span class="def-title">平均・パーセンタイル・最大値で2つのシステムを比べる</span></p>
+<p>デッドライン <span class="math inline">\(D = 10\)</span> ミリ秒の処理について，応答時間 <span class="math inline">\(X\)</span>（ミリ秒）が次の分布に従う2つのシステムを考えます．</p>
+<ul>
+<li>システム A：確率 <span class="math inline">\(1 - 10^{-4}\)</span> で <span class="math inline">\(0.99\)</span>，確率 <span class="math inline">\(10^{-4}\)</span>（1万回に1回）で <span class="math inline">\(100\)</span></li>
+<li>システム B：区間 <span class="math inline">\([2, 8]\)</span> の一様分布</li>
+</ul>
+<p>よく使われる性能指標を計算すると次のようになります．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 40%">
+<col style="width: 30%">
+<col style="width: 30%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>指標</th>
+<th>システム A</th>
+<th>システム B</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>平均 <span class="math inline">\(E[X]\)</span></td>
+<td>約 1.00</td>
+<td>5.00</td>
+</tr>
+<tr class="even">
+<td>中央値（p50）</td>
+<td>0.99</td>
+<td>5.00</td>
+</tr>
+<tr class="odd">
+<td>p99</td>
+<td>0.99</td>
+<td>7.94</td>
+</tr>
+<tr class="even">
+<td>p99.99</td>
+<td>0.99</td>
+<td>7.9994</td>
+</tr>
+<tr class="odd">
+<td>最大値</td>
+<td><strong>100</strong></td>
+<td><strong>8</strong></td>
+</tr>
+<tr class="even">
+<td>デッドライン超過確率 <span class="math inline">\(P(X &gt; D)\)</span></td>
+<td><span class="math inline">\(\mathbf{10^{-4}}\)</span></td>
+<td><span class="math inline">\(\mathbf{0}\)</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>A の平均は <span class="math inline">\((1 - 10^{-4}) \times 0.99 + 10^{-4} \times 100 \approx 1.00\)</span> です． 平均・中央値・p99 のどれで比べても A のほうが速く，p99.99 でさえ A は 0.99 ミリ秒です（<span class="math inline">\(P(X_A \leq 0.99) = 0.9999\)</span> なので，100 ミリ秒の応答はこの分位点に現れない）． A がデッドラインを守れないことは，<strong>最大値</strong> と <strong>デッドライン超過確率</strong> を見て初めてわかります．</p>
+</div>
+<hr>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Exmaple 2</strong></span> <span class="def-title">「1万回に1回」を頻度に直す</span></p>
+<p>上の例のシステム A（確率 <span class="math inline">\(10^{-4}\)</span> で応答に 100 ミリ秒かかり，デッドライン <span class="math inline">\(D = 10\)</span> ミリ秒を超過する）を，ブレーキ制御のループで使うとします．</p>
+<ul>
+<li>制御周期は 10 ミリ秒（100 Hz）で，デッドラインと同じとする．処理は <strong>10 ミリ秒ごとに必ず1回</strong> 起動される（周期タスク）</li>
+<li>各回の処理は互いに独立に，確率 <span class="math inline">\(p = 10^{-4}\)</span> でデッドラインを超過する</li>
+<li>超過した回が後続の回を遅らせる影響は無視する</li>
+</ul>
+<p>起動は周期どおりなので， <span class="math inline">\(n = 60^2 \times 10^{2} = 3.6 \times 10^{5}\)</span> 回です． ランダムなのは各回が超過するかどうかだけで，1時間の超過回数は二項分布 <span class="math inline">\(\mathrm{Bin}(n, p)\)</span> に従います． その期待値は</p>
+<p><span class="math display">\[
+np = 3.6 \times 10^{5} \times 10^{-4} = 36 \text{ 回／時間}
+\]</span></p>
+<p>です． 「1万回に1回」は，平均して 100 秒に1回の頻度でブレーキ制御が遅れるということです． 超過確率を <span class="math inline">\(p\)</span>，実行回数を <span class="math inline">\(n\)</span> とすると，1回以上超過する確率は <span class="math inline">\(1 - (1 - p)^{n} \approx 1 - e^{-np}\)</span> で，<span class="math inline">\(np\)</span> が大きくなればほぼ確実に起こります．</p>
+</div>
+<hr>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>テストで測った最大値は上限ではない
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>上の例のシステム A を 1000 回動かして応答時間を測ったとします． 1000 回のうち一度も 100 ミリ秒の応答が出ない確率は</p>
+<p><span class="math display">\[
+(1 - 10^{-4})^{1000} \approx e^{-0.1} \approx 0.90
+\]</span></p>
+<p>で，約9割の確率で「最大 0.99 ミリ秒，デッドラインまで余裕あり」という誤った結論になります．</p>
+<p>逆に，<span class="math inline">\(n\)</span> 回のテストで超過が1回もなかったとき，そこから言えるのは超過確率の上限だけです． <span class="math inline">\((1 - p)^{n} = 0.05\)</span> を解くと <span class="math inline">\(p \approx -\ln 0.05 / n \approx 3/n\)</span> となり，超過確率の95%信頼上限は約 <span class="math inline">\(3/n\)</span> です（3の法則，rule of three）．</p>
+<p>法規制などで <span class="math inline">\(p \leq 10^{-9}\)</span> が求められているとしたとき，それをテストで示すには <span class="math inline">\(3 \times 10^{9}\)</span> 回，1 kHz で動かし続けて約35日間，一度も超過しないことを確かめる必要があります．しかも，その間の入力や内部状態が，本番で起こりうる最悪のケースを網羅している保証はありません．</p>
+</div>
+</div>
+<section id="ハードリアルタイムとソフトリアルタイム" class="level3">
+<h3 class="anchored" data-anchor-id="ハードリアルタイムとソフトリアルタイム">ハードリアルタイムとソフトリアルタイム</h3>
+<p>デッドラインを過ぎたときにどれだけ困るかは，システムによって異なります． デッドラインを過ぎた後の結果の価値によって，リアルタイム処理は次のように分類されます．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 22%">
+<col style="width: 40%">
+<col style="width: 38%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>分類</th>
+<th>デッドラインを過ぎると</th>
+<th>例</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>ハードリアルタイム</td>
+<td>システムの故障や事故につながる．1回の遅れも許されない</td>
+<td>エアバッグ，ブレーキ制御（ABS），ペースメーカー，産業用ロボットの制御</td>
+</tr>
+<tr class="even">
+<td>ファームリアルタイム</td>
+<td>遅れた結果には価値がなく捨てられる．ただし，ときどき遅れてもシステムは壊れない</td>
+<td>映像のフレーム描画（間に合わないフレームは表示を飛ばす），音声通話のパケット</td>
+</tr>
+<tr class="odd">
+<td>ソフトリアルタイム</td>
+<td>遅れるほど結果の価値が下がるが，遅れた結果にもある程度の価値は残る</td>
+<td>Web ページの表示，動画のストリーミング再生</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/rt-class.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-2" title="デッドライン d を過ぎた後の結果の価値．ハードリアルタイムでは損害が生じ，ファームリアルタイムでは価値がゼロになり，ソフトリアルタイムでは徐々に下がる"><img src="figures/rt-class.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="デッドライン d を過ぎた後の結果の価値．ハードリアルタイムでは損害が生じ，ファームリアルタイムでは価値がゼロになり，ソフトリアルタイムでは徐々に下がる"></a></p>
+</figure>
+</div>
+<figcaption>デッドライン <span class="math inline">\(d\)</span> を過ぎた後の結果の価値．ハードリアルタイムでは損害が生じ，ファームリアルタイムでは価値がゼロになり，ソフトリアルタイムでは徐々に下がる</figcaption>
+</figure>
+</div>
+<p>ファームリアルタイムはソフトリアルタイムに含めて，ハード／ソフトの2分類で説明されることもあります． 組込みシステムで特に問題になるのは，1回の遅れも許されないハードリアルタイムです．</p>
+</section>
+</section>
+<section id="リアルタイムosrtos" class="level2">
+<h2 class="anchored" data-anchor-id="リアルタイムosrtos">リアルタイムOS（RTOS）</h2>
+<p>組込みシステムでも，CPU が行う仕事は1つではありません． たとえば自動車のブレーキ制御用のマイコンは，車輪の回転センサの読み取り，ブレーキ圧の計算，他の制御装置との通信，故障診断のログ記録などを並行して行います． これらをそれぞれ <strong>タスク</strong> として分け，どのタスクにいつ CPU を割り当てるかを管理するのが OS の役割です（タスクとその状態遷移については <a href="../2020-10-08-how-program-works/index.qmd">プログラムが動く環境とは (1)</a> を参照）．</p>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 2</strong></span> <span class="def-title">リアルタイムOS:</span></p>
+<ul>
+<li>RTOS（Real-Time Operating System）とも呼ぶ</li>
+<li>タスクの応答時間の上限を保証できるように設計されたOS</li>
+<li>優先度の高いタスクが実行可能になったら，すぐに CPU を割り当てる（優先度ベースのプリエンプティブスケジューリング）</li>
+<li>割込みの受付やタスクの切り替えにかかる時間の上限が決まっている</li>
+</ul>
+</div>
+<p><span class="mini-section">汎用OSとの違い</span></p>
+<p>Windows や Linux などの汎用OSも，複数のタスクを切り替えて実行します． ただし，汎用OSが目指しているのは「全体として多くの処理をこなすこと（スループット）」と「どのタスクにも公平に CPU を割り当てること」であり，個々のタスクのデッドラインは保証しません．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 18%">
+<col style="width: 41%">
+<col style="width: 41%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>観点</th>
+<th>汎用OS</th>
+<th>リアルタイムOS</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>設計の目標</td>
+<td>スループット，公平性，平均応答時間</td>
+<td>決定性，最悪応答時間の保証</td>
+</tr>
+<tr class="even">
+<td>スケジューリング</td>
+<td>タイムシェアリング（各タスクに公平に時間を配分）</td>
+<td>優先度ベースのプリエンプティブ（優先度の高いタスクが常に先）</td>
+</tr>
+<tr class="odd">
+<td>応答時間</td>
+<td>平均は速いが，ばらつきが大きい</td>
+<td>上限を見積もれる</td>
+</tr>
+<tr class="even">
+<td>仮想記憶</td>
+<td>使う（ページフォールトで待たされることがある）</td>
+<td>使わないか，限定的に使う</td>
+</tr>
+<tr class="odd">
+<td>規模</td>
+<td>大きい（数百万行以上）</td>
+<td>小さい（数KB〜数百KB のメモリで動くものも多い）</td>
+</tr>
+<tr class="even">
+<td>例</td>
+<td>Windows，macOS，Linux</td>
+<td>μITRON / T-Kernel，FreeRTOS，Zephyr，VxWorks，QNX</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>代表的なリアルタイムOS
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li><strong>μITRON / T-Kernel</strong>：日本発の TRON プロジェクトの仕様に基づく RTOS．家電やデジタルカメラ，車載機器などで広く使われている</li>
+<li><strong>FreeRTOS</strong>：マイコン向けのオープンソース RTOS．現在は AWS が管理している</li>
+<li><strong>Zephyr</strong>：Linux Foundation がホストするオープンソース RTOS．IoT 機器向け</li>
+<li><strong>VxWorks</strong>：Wind River 社の商用 RTOS．火星探査機などの宇宙機にも使われている</li>
+<li><strong>QNX</strong>：マイクロカーネル構成の商用 RTOS．車載のインフォテインメントや医療機器で使われている</li>
+</ul>
+</div>
+</div>
+<section id="優先度ベースのプリエンプティブスケジューリング" class="level3">
+<h3 class="anchored" data-anchor-id="優先度ベースのプリエンプティブスケジューリング">優先度ベースのプリエンプティブスケジューリング</h3>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>RTOS のスケジューリングの基本
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>RTOS のスケジューリングの基本は，<strong>実行可能なタスクのうち，最も優先度の高いものに必ず CPU を割り当てる</strong> こと</li>
+<li>低優先度のタスクの実行中に高優先度のタスクが実行可能になれば，その場で CPU を取り上げて（プリエンプション）高優先度のタスクに切り替える</li>
+<li>汎用OSのラウンドロビンのように，実行中のタスクがタイムクォンタムを使い切るまで待つことはない</li>
+</ul>
+</div>
+</div>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Exmaple 3</strong></span> <span class="def-title">ブレーキ制御とログ保存</span></p>
+<p>次の2つのタスクが1つの CPU で動いているとします．時間の単位はミリ秒です．</p>
+<ul>
+<li>タスク H（高優先度）：ブレーキ制御．センサ入力から <strong>3 ミリ秒以内</strong> に処理を終える必要がある．処理時間は 2 ミリ秒</li>
+<li>タスク L（低優先度）：ログ保存．デッドラインはない</li>
+</ul>
+<p>時刻 0 にタスク L が実行を始め，時刻 2 にセンサ入力が発生してタスク H が実行可能になります． タスク H のデッドラインは時刻 <span class="math inline">\(2 + 3 = 5\)</span> です．</p>
+<ul>
+<li><strong>(a) ラウンドロビン（タイムクォンタム 4 ミリ秒）</strong>：タスク L は時刻 4 までタイムクォンタムを使い続ける．タスク H は時刻 4 から実行され，時刻 6 に完了する．デッドラインを 1 ミリ秒超過する</li>
+<li><strong>(b) 優先度ベースのプリエンプティブ</strong>：時刻 2 にタスク L から CPU を取り上げ，タスク H をすぐに実行する．タスク H は時刻 4 に完了し，デッドラインに間に合う</li>
+</ul>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/scheduling.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-3" title="ラウンドロビンでは高優先度のタスク H がタイムクォンタムの終わりまで待たされてデッドラインを超過するが，優先度ベースのプリエンプティブではタスク L を中断してすぐに実行するのでデッドラインに間に合う"><img src="figures/scheduling.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="ラウンドロビンでは高優先度のタスク H がタイムクォンタムの終わりまで待たされてデッドラインを超過するが，優先度ベースのプリエンプティブではタスク L を中断してすぐに実行するのでデッドラインに間に合う"></a></p>
+</figure>
+</div>
+<figcaption>ラウンドロビンでは高優先度のタスク H がタイムクォンタムの終わりまで待たされてデッドラインを超過するが，優先度ベースのプリエンプティブではタスク L を中断してすぐに実行するのでデッドラインに間に合う</figcaption>
+</figure>
+</div>
+<p>タスク L の処理時間の合計は，どちらの方式でも 6 ミリ秒で変わりません． 変わるのは <strong>どのタスクを先に実行するか</strong> だけですが，それによってデッドラインを守れるかどうかが決まります．</p>
+</div>
+<hr>
+<p>ここで，優先度は「どちらのタスクが重要か」ではなく，<strong>どちらのデッドラインが厳しいか</strong> で決めるのが基本です． この考え方は，後で説明するレートモノトニックスケジューリングにつながります．</p>
+</section>
+<section id="応答時間の内訳" class="level3">
+<h3 class="anchored" data-anchor-id="応答時間の内訳">応答時間の内訳</h3>
+<p>優先度ベースのプリエンプティブスケジューリングでも，イベントが発生した瞬間に高優先度のタスクが動き出すわけではありません． イベントが発生してから応答するまでの時間（応答時間）は，次の3つに分けられます．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/response-time.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-4" title="応答時間は，割込みレイテンシ・ディスパッチレイテンシ・タスクの処理時間の和になる．前の2つは RTOS が上限を保証し，最後の1つはアプリケーションの側で見積もる"><img src="figures/response-time.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="応答時間は，割込みレイテンシ・ディスパッチレイテンシ・タスクの処理時間の和になる．前の2つは RTOS が上限を保証し，最後の1つはアプリケーションの側で見積もる"></a></p>
+</figure>
+</div>
+<figcaption>応答時間は，割込みレイテンシ・ディスパッチレイテンシ・タスクの処理時間の和になる．前の2つは RTOS が上限を保証し，最後の1つはアプリケーションの側で見積もる</figcaption>
+</figure>
+</div>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 45%">
+<col style="width: 35%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>区間</th>
+<th>内容</th>
+<th>長くなる原因</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>割込みレイテンシ</td>
+<td>割込みが発生してから，割込みハンドラが動き出すまでの時間</td>
+<td>OS やドライバが割込みを禁止している区間が長い</td>
+</tr>
+<tr class="even">
+<td>ディスパッチレイテンシ</td>
+<td>割込みハンドラが終わってから，イベントを待っていたタスクに CPU が切り替わるまでの時間</td>
+<td>カーネル内にプリエンプトできない区間がある，タスクの切り替え処理が重い</td>
+</tr>
+<tr class="odd">
+<td>タスクの処理時間</td>
+<td>タスクが実際に処理を行う時間</td>
+<td>処理内容による．最悪の場合の実行時間（WCET: Worst-Case Execution Time）で見積もる</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>デッドラインを <span class="math inline">\(D\)</span> とすると，リアルタイム処理の要件は</p>
+<p><span class="math display">\[
+\underbrace{\text{割込みレイテンシ} + \text{ディスパッチレイテンシ}}_{\text{RTOS が上限を保証}} + \underbrace{\text{WCET}}_{\text{アプリが見積もる}} \leq D
+\]</span></p>
+<p>と書けます． RTOS が割込みレイテンシとディスパッチレイテンシの <strong>上限</strong> を示してくれるので，アプリケーションの開発者は自分のタスクの WCET を見積もれば，デッドラインに間に合うかを判断できます． 汎用OSではこの上限がわからないため，平均的には間に合っていても，間に合うことを保証できません．</p>
+</section>
+<section id="優先度逆転と優先度継承" class="level3">
+<h3 class="anchored" data-anchor-id="優先度逆転と優先度継承">優先度逆転と優先度継承</h3>
+<p>複数のタスクが同じ資源（共有メモリ上のデータ，通信バスなど）を使う場合，同時に書き換えて壊さないように，ミューテックスやセマフォで排他制御を行います．</p>
+<p><span class="mini-section">セマフォの仕組み</span></p>
+<p>セマフォは，資源の残り数を表す整数のカウンタ <span class="math inline">\(S\)</span> と，資源が空くのを待つタスクの待ち行列を組にしたものです． タスクはカウンタを直接書き換えず，OS が用意する次の2つの操作だけを使います． どちらの操作も，途中でほかのタスクに割り込まれない（不可分な）操作として OS が実行します．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 14%">
+<col style="width: 26%">
+<col style="width: 60%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>操作</th>
+<th>別名</th>
+<th>動作</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>P 操作</td>
+<td>wait，acquire，take</td>
+<td><span class="math inline">\(S &gt; 0\)</span> なら <span class="math inline">\(S\)</span> を1減らして先に進む．<span class="math inline">\(S = 0\)</span> なら，呼び出したタスクを待ち状態にしてセマフォの待ち行列に入れる</td>
+</tr>
+<tr class="even">
+<td>V 操作</td>
+<td>signal，release，give</td>
+<td>待ち行列にタスクがいれば，そのうち1つを実行可能状態に戻す．いなければ <span class="math inline">\(S\)</span> を1増やす</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>資源を使う区間（クリティカルセクション）を，P 操作と V 操作で挟んで使います．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/semaphore-flow.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-5" title="セマフォ S による資源 R の利用．P 操作で取得し，クリティカルセクションで資源を使い，V 操作で解放する．S = 0 のときに P 操作したタスクは待ち行列で待ち状態になり，ほかのタスクの V 操作で起こされて資源を引き継ぐ"><img src="figures/semaphore-flow.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="セマフォ S による資源 R の利用．P 操作で取得し，クリティカルセクションで資源を使い，V 操作で解放する．S = 0 のときに P 操作したタスクは待ち行列で待ち状態になり，ほかのタスクの V 操作で起こされて資源を引き継ぐ"></a></p>
+</figure>
+</div>
+<figcaption>セマフォ <span class="math inline">\(S\)</span> による資源 <span class="math inline">\(R\)</span> の利用．P 操作で取得し，クリティカルセクションで資源を使い，V 操作で解放する．<span class="math inline">\(S = 0\)</span> のときに P 操作したタスクは待ち行列で待ち状態になり，ほかのタスクの V 操作で起こされて資源を引き継ぐ</figcaption>
+</figure>
+</div>
+<ul>
+<li>カウンタの初期値を資源の数 <span class="math inline">\(N\)</span> にすると，同時に資源を使えるタスクは最大 <span class="math inline">\(N\)</span> 個になる（<strong>計数セマフォ</strong>）．例：3つあるバッファの割り当て</li>
+<li>初期値を1にすると，同時に使えるのは1タスクだけになり，排他制御に使える（<strong>バイナリセマフォ</strong>）</li>
+<li>P 操作で待たされている間，タスクは CPU を使わずに待ち状態にいるので，その間にほかのタスクが実行される．待ち行列から起こす順番は，RTOS では優先度順にできることが多い</li>
+</ul>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/semaphore.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-6" title="計数セマフォの動き（初期値 S = 2）．A と C が P 操作で資源を取ると S は 0 になり，続けて P 操作した B は待ち行列に入る．A が V 操作すると，S を増やす代わりに待っていた B を起こして資源を引き継がせる．CPU の割り当ては省略し，資源の使用と待ちだけを示している"><img src="figures/semaphore.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="計数セマフォの動き（初期値 S = 2）．A と C が P 操作で資源を取ると S は 0 になり，続けて P 操作した B は待ち行列に入る．A が V 操作すると，S を増やす代わりに待っていた B を起こして資源を引き継がせる．CPU の割り当ては省略し，資源の使用と待ちだけを示している"></a></p>
+</figure>
+</div>
+<figcaption>計数セマフォの動き（初期値 <span class="math inline">\(S = 2\)</span>）．A と C が P 操作で資源を取ると <span class="math inline">\(S\)</span> は 0 になり，続けて P 操作した B は待ち行列に入る．A が V 操作すると，<span class="math inline">\(S\)</span> を増やす代わりに待っていた B を起こして資源を引き継がせる．CPU の割り当ては省略し，資源の使用と待ちだけを示している</figcaption>
+</figure>
+</div>
+<p>セマフォには「誰が P 操作したか」という情報がありません． あるタスクが P 操作し，別のタスクや割込み処理が V 操作してもかまわないので，セマフォは排他制御だけでなく，「割込み処理がデータの到着をタスクに知らせる」といった同期（イベント通知）にも使われます．</p>
+<p><span class="mini-section">ミューテックスの仕組み</span></p>
+<p>ミューテックス（mutex：mutual exclusion の略）は，排他制御のための専用のロックです． バイナリセマフォに似ていますが，<strong>ロックしたタスクがそのミューテックスの所有者になり，所有者しか解放できない</strong> 点が異なります．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 18%">
+<col style="width: 82%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>操作</th>
+<th>動作</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>lock（取得）</td>
+<td>所有者がいなければ，呼び出したタスクが所有者になって先に進む．ほかのタスクが所有していれば，呼び出したタスクを待ち状態にして待ち行列に入れる</td>
+</tr>
+<tr class="even">
+<td>unlock（解放）</td>
+<td>所有者だけが呼び出せる．待ち行列にタスクがいれば，そのうち1つ（RTOS では通常，最も優先度の高いタスク）に所有権を渡して実行可能状態に戻す．いなければ所有者なしに戻る</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/mutex.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-7" title="ミューテックスの動き．L が lock すると L が所有者になり，続けて lock した H は待ち行列に入る．L が unlock すると，待っていた H に所有権が直接渡る．所有者でない X が unlock しようとしてもエラーになる．CPU の割り当ては省略している"><img src="figures/mutex.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="ミューテックスの動き．L が lock すると L が所有者になり，続けて lock した H は待ち行列に入る．L が unlock すると，待っていた H に所有権が直接渡る．所有者でない X が unlock しようとしてもエラーになる．CPU の割り当ては省略している"></a></p>
+</figure>
+</div>
+<figcaption>ミューテックスの動き．L が lock すると L が所有者になり，続けて lock した H は待ち行列に入る．L が unlock すると，待っていた H に所有権が直接渡る．所有者でない X が unlock しようとしてもエラーになる．CPU の割り当ては省略している</figcaption>
+</figure>
+</div>
+<p>所有者が決まっていることで，次のことができるようになります．</p>
+<ul>
+<li><strong>誤った解放を防げる</strong>：所有者でないタスクが unlock しようとするとエラーになる．セマフォでは誰でも V 操作できるので，バグで余計に V 操作すると，資源を使用中なのに別のタスクが入れてしまう</li>
+<li><strong>優先度継承</strong>：OS は「誰が資源を持っていて，誰が待っているか」を把握できるので，所有者の優先度を，待っているタスクの優先度まで一時的に引き上げられる（後で説明する）</li>
+<li><strong>再帰ロック</strong>：所有者が同じミューテックスを重ねて lock しても，自分自身を待たないようにできる（再帰ミューテックス）．lock した回数だけ unlock すると解放される</li>
+</ul>
+<p>一方で，割込み処理はタスクではないので所有者になれず，ミューテックスは割込み処理からは使えません． 割込み処理からタスクに知らせたいときは，セマフォを使います．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 28%">
+<col style="width: 36%">
+<col style="width: 36%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>観点</th>
+<th>セマフォ</th>
+<th>ミューテックス</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>中身</td>
+<td>カウンタと待ち行列</td>
+<td>所有者と待ち行列</td>
+</tr>
+<tr class="even">
+<td>同時に資源を使えるタスク数</td>
+<td>カウンタの初期値 <span class="math inline">\(N\)</span> まで</td>
+<td>1</td>
+</tr>
+<tr class="odd">
+<td>解放できるのは</td>
+<td>誰でも（ほかのタスクや割込み処理も可）</td>
+<td>lock した所有者だけ</td>
+</tr>
+<tr class="even">
+<td>優先度継承</td>
+<td>できない</td>
+<td>できる</td>
+</tr>
+<tr class="odd">
+<td>主な用途</td>
+<td>個数のある資源の管理，割込み処理からタスクへのイベント通知</td>
+<td>共有資源の排他制御</td>
+</tr>
+</tbody>
+</table>
+</div>
+<ul>
+<li>共有資源を守る排他制御にはミューテックス</li>
+<li>個数のある資源の管理やイベントの通知にはセマフォ</li>
+</ul>
+<p>と使い分けるのが基本です．</p>
+<p>ところが，セマフォやミューテックスによる排他制御と優先度ベースのスケジューリングを組み合わせると，<strong>優先度の高いタスクが，優先度の低いタスクより後回しにされる</strong> 現象が起こることがあります．</p>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 3</strong></span> <span class="def-title">優先度逆転</span></p>
+<ul>
+<li>高優先度のタスクが，それより優先度の低いタスクの実行のために待たされ続ける現象</li>
+<li>低優先度のタスク L が共有資源 R のロックを持ったまま，中優先度のタスク M に CPU を奪われる</li>
+<li>R を待っている高優先度のタスク H は，R と無関係なタスク M が終わるまで待たされる</li>
+<li>タスク M の実行時間に上限がなければ，タスク H の待ち時間にも上限がなくなる</li>
+</ul>
+</div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/priority-inversion.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-8" title="優先度逆転と優先度継承．(a) では R を待つタスク H が，R と無関係なタスク M の実行の間も待たされてデッドラインを超過する．(b) ではタスク L が H の優先度を一時的に引き継ぐので，M に割り込まれずに R をすぐ解放できる"><img src="figures/priority-inversion.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="優先度逆転と優先度継承．(a) では R を待つタスク H が，R と無関係なタスク M の実行の間も待たされてデッドラインを超過する．(b) ではタスク L が H の優先度を一時的に引き継ぐので，M に割り込まれずに R をすぐ解放できる"></a></p>
+</figure>
+</div>
+<figcaption>優先度逆転と優先度継承．(a) では R を待つタスク H が，R と無関係なタスク M の実行の間も待たされてデッドラインを超過する．(b) ではタスク L が H の優先度を一時的に引き継ぐので，M に割り込まれずに R をすぐ解放できる</figcaption>
+</figure>
+</div>
+<p>図の (a) を順に追うと次のようになります．</p>
+<ol type="1">
+<li>時刻 1 に，タスク L が共有資源 R をロックする</li>
+<li>時刻 2 にタスク H が実行可能になり，タスク L から CPU を奪う</li>
+<li>時刻 3 にタスク H が R を使おうとするが，L がロックしているのでブロックされる．CPU はタスク L に戻る</li>
+<li>時刻 4 にタスク M が実行可能になる．M は L より優先度が高いので，L から CPU を奪う</li>
+<li>タスク M が終わる時刻 8 まで，タスク L は R を解放できず，タスク H も動けない</li>
+</ol>
+<p>タスク H が待たされるのは，L が R を使っている時間（クリティカルセクション）だけであれば仕方ありません． 問題は，H と無関係な M の実行時間（時刻 4〜8）まで待たされることです． この区間では，中優先度の M が実質的に高優先度の H より先に実行されており，優先度が逆転しています．</p>
+<p><span class="mini-section">対策：優先度継承プロトコル</span></p>
+<p>優先度逆転の代表的な対策は，<strong>ロックを持っているタスクに，そのロックを待っているタスクの優先度を一時的に引き継がせる</strong> ことです． これを優先度継承（priority inheritance）といいます．</p>
+<p>図の (b) では，時刻 3 にタスク H が R を待ち始めた時点で，タスク L の優先度が H と同じまで引き上げられます． 時刻 4 にタスク M が実行可能になっても，L のほうが優先度が高いので CPU を奪われません． L は時刻 5 に R を解放して元の優先度に戻り，H がすぐに R を使って時刻 7 に完了します． H の待ち時間は L のクリティカルセクションの長さだけで済み，上限を見積もれるようになります．</p>
+<p>ほかに，資源ごとに「その資源を使うタスクの最高優先度」を決めておき，ロックを取った時点でその優先度まで引き上げる <strong>優先度上限プロトコル</strong>（priority ceiling protocol）もあります． 多くの RTOS は，ミューテックスの設定でこれらのプロトコルを選べるようになっています．</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>火星探査機 Mars Pathfinder のリセット
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>1997年に火星に着陸した Mars Pathfinder は，着陸後しばらくして，システムのリセットを繰り返すようになりました． 原因は優先度逆転でした．</p>
+<ul>
+<li>低優先度の気象データ収集タスクが，情報バスのミューテックスを持ったまま，中優先度の通信タスクに CPU を奪われた</li>
+<li>そのミューテックスを待っていた高優先度のバス管理タスクがデッドラインまでに動けず，異常を検知したウォッチドッグがシステムをリセットした</li>
+</ul>
+<p>探査機の RTOS は VxWorks で，ミューテックスには優先度継承を有効にするオプションがありましたが，無効になっていました． 地上からの指令でこのオプションを有効にすることで，問題は解決しました．</p>
+</div>
+</div>
+</section>
+</section>
+<section id="周期タスクとスケジュール可能性" class="level2">
+<h2 class="anchored" data-anchor-id="周期タスクとスケジュール可能性">周期タスクとスケジュール可能性</h2>
+<p>組込みシステムのタスクの多くは，「1 ミリ秒ごとにセンサを読む」「10 ミリ秒ごとに制御量を計算する」のように一定の周期で繰り返し実行されます． このようなタスクを <strong>周期タスク</strong> と呼びます． 周期タスクの集まりについては，実際に動かす前に「すべてのタスクが毎周期デッドラインを守れるか」（スケジュール可能性）を計算で確かめられます．</p>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 4</strong></span> <span class="def-title">周期タスクとCPU使用率</span></p>
+<p>周期タスク <span class="math inline">\(\tau_i\)</span> を，最悪実行時間 <span class="math inline">\(C_i\)</span> と周期 <span class="math inline">\(T_i\)</span> の組で表す．</p>
+<ul>
+<li>タスク <span class="math inline">\(\tau_i\)</span> は時間 <span class="math inline">\(T_i\)</span> ごとに実行可能になり（ジョブのリリース），次のリリースまでに <span class="math inline">\(C_i\)</span> の処理を終える必要がある（デッドライン <span class="math inline">\(= T_i\)</span>）</li>
+<li>タスク <span class="math inline">\(\tau_i\)</span> が CPU を使う割合は <span class="math inline">\(C_i / T_i\)</span> である</li>
+<li><span class="math inline">\(n\)</span> 個のタスク全体の CPU 使用率を次で定義する</li>
+</ul>
+<p><span class="math display">\[
+U = \sum_{i=1}^{n} \frac{C_i}{T_i}
+\]</span></p>
+</div>
+<ul>
+<li><span class="math inline">\(U &gt; 1\)</span> であれば，どんなスケジューリングをしても CPU の処理能力が足りないので，デッドラインを守れない</li>
+<li><span class="math inline">\(U \leq 1\)</span> ならいつでも守れるかというと，優先度の付け方によって結果が変わる</li>
+</ul>
+<p><span class="mini-section">レートモノトニックスケジューリング</span></p>
+<p>周期タスクの優先度を <strong>周期が短いタスクほど高くする</strong> 付け方を，レートモノトニック（RM: Rate Monotonic）スケジューリングといいます． 周期が短いタスクほどデッドラインまでの余裕が少ないので，先に実行させるという考え方です． 各タスクの優先度は周期だけで決まり，実行中に変わらない（固定優先度）ので，RTOS の優先度ベースのスケジューラでそのまま実現できます．</p>
+<p>RM については，CPU 使用率だけでスケジュール可能性を判定できる十分条件が知られています．</p>
+<div id="thm-" class="custom_problem blog-custom-border theorem">
+<p><span class="theorem-title"><strong>Theorem 1</strong></span> <span class="def-title">Liu &amp; Layland の上限</span></p>
+<p><span class="math inline">\(n\)</span> 個の周期タスクを RM で優先度付けして実行するとき，</p>
+<p><span class="math display">\[
+U = \sum_{i=1}^{n} \frac{C_i}{T_i} \leq n\left(2^{1/n} - 1\right)
+\]</span></p>
+<p>が成り立てば，すべてのタスクは毎周期デッドラインを守れる．</p>
+</div>
+<p>右辺の値は次のとおりで，<span class="math inline">\(n \to \infty\)</span> で <span class="math inline">\(\ln 2 \approx 0.693\)</span> に近づきます．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>タスク数 <span class="math inline">\(n\)</span></th>
+<th>1</th>
+<th>2</th>
+<th>3</th>
+<th>4</th>
+<th>5</th>
+<th><span class="math inline">\(\infty\)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>上限 <span class="math inline">\(n(2^{1/n}-1)\)</span></td>
+<td>1.000</td>
+<td>0.828</td>
+<td>0.780</td>
+<td>0.757</td>
+<td>0.743</td>
+<td>0.693</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>つまり，RM では CPU 使用率を <strong>約69% 以下に抑えておけば，タスク数によらずデッドラインを守れる</strong> ことが保証されます． 裏を返すと，この条件だけで判断する場合は，CPU の能力の約3割を余裕として残しておく必要があります．</p>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Exmaple 4</strong></span> <span class="def-title">3つの周期タスクを RM で動かす</span></p>
+<p>次の3つの周期タスクを考えます（時間の単位はミリ秒）． RM では周期の短い順に <span class="math inline">\(\tau_1\)</span>，<span class="math inline">\(\tau_2\)</span>，<span class="math inline">\(\tau_3\)</span> の優先度になります．</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>タスク</th>
+<th>最悪実行時間 <span class="math inline">\(C_i\)</span></th>
+<th>周期 <span class="math inline">\(T_i\)</span></th>
+<th>使用率 <span class="math inline">\(C_i / T_i\)</span></th>
+<th>優先度</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">\(\tau_1\)</span></td>
+<td>1</td>
+<td>4</td>
+<td>0.250</td>
+<td>高</td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\(\tau_2\)</span></td>
+<td>2</td>
+<td>6</td>
+<td>0.333</td>
+<td>中</td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\(\tau_3\)</span></td>
+<td>3</td>
+<td>12</td>
+<td>0.250</td>
+<td>低</td>
+</tr>
+</tbody>
+</table>
+<p>CPU 使用率は</p>
+<p><span class="math display">\[
+U = \frac{1}{4} + \frac{2}{6} + \frac{3}{12} \approx 0.833
+\]</span></p>
+<p>で，<span class="math inline">\(n = 3\)</span> の上限 <span class="math inline">\(0.780\)</span> を超えています． したがって Liu &amp; Layland の条件では，スケジュール可能とは <strong>判定できません</strong>．</p>
+<p>ところが，タスクの周期の最小公倍数である 12 ミリ秒の間のスケジュールを実際に書いてみると，すべてのジョブがデッドラインに間に合っています．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/rate-monotonic.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-9" title="RM による3つの周期タスクのスケジュール．\tau_3 は優先度の高い \tau_1，\tau_2 に何度も中断されるが，時刻 10 に完了してデッドライン 12 に間に合う"><img src="figures/rate-monotonic.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="RM による3つの周期タスクのスケジュール．\tau_3 は優先度の高い \tau_1，\tau_2 に何度も中断されるが，時刻 10 に完了してデッドライン 12 に間に合う"></a></p>
+</figure>
+</div>
+<figcaption>RM による3つの周期タスクのスケジュール．<span class="math inline">\(\tau_3\)</span> は優先度の高い <span class="math inline">\(\tau_1\)</span>，<span class="math inline">\(\tau_2\)</span> に何度も中断されるが，時刻 10 に完了してデッドライン 12 に間に合う</figcaption>
+</figure>
+</div>
+<ul>
+<li><span class="math inline">\(\tau_1\)</span> は毎周期の先頭ですぐに実行され，1 ミリ秒で完了する</li>
+<li><span class="math inline">\(\tau_2\)</span> は <span class="math inline">\(\tau_1\)</span> の後に実行され，時刻 3 と時刻 8 に完了する（デッドラインは 6 と 12）</li>
+<li><span class="math inline">\(\tau_3\)</span> は空いた時間に少しずつ実行され，時刻 4 と時刻 6〜9 に中断されながらも，時刻 10 に完了する（デッドラインは 12）</li>
+</ul>
+<p>Liu &amp; Layland の条件は <strong>十分条件</strong> であって必要条件ではないので，上限を超えてもスケジュール可能な場合があります．</p>
+</div>
+<hr>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-5-contents" aria-controls="callout-5" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>応答時間解析による厳密な判定
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-5" class="callout-5-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>上の例のように，使用率の上限を超えた場合でも，<strong>応答時間解析</strong> によってスケジュール可能性を厳密に判定できます． タスク <span class="math inline">\(\tau_i\)</span> の最悪応答時間 <span class="math inline">\(R_i\)</span> は，自分より優先度の高いタスクの集合を <span class="math inline">\(hp(i)\)</span> として，次の式を満たす最小の値です．</p>
+<p><span class="math display">\[
+R_i = C_i + \sum_{j \in hp(i)} \left\lceil \frac{R_i}{T_j} \right\rceil C_j
+\]</span></p>
+<p>右辺第2項は，<span class="math inline">\(R_i\)</span> の間に優先度の高いタスクが割り込んでくる時間の合計です． <span class="math inline">\(R_i^{(0)} = C_i\)</span> から始めて，右辺に代入する計算を値が変わらなくなるまで繰り返します．</p>
+<p>例の <span class="math inline">\(\tau_3\)</span> について計算すると，</p>
+<p><span class="math display">\[
+\begin{aligned}
+R_3^{(0)} &amp;= 3 \\
+R_3^{(1)} &amp;= 3 + \lceil 3/4 \rceil \cdot 1 + \lceil 3/6 \rceil \cdot 2 = 6 \\
+R_3^{(2)} &amp;= 3 + \lceil 6/4 \rceil \cdot 1 + \lceil 6/6 \rceil \cdot 2 = 7 \\
+R_3^{(3)} &amp;= 3 + \lceil 7/4 \rceil \cdot 1 + \lceil 7/6 \rceil \cdot 2 = 9 \\
+R_3^{(4)} &amp;= 3 + \lceil 9/4 \rceil \cdot 1 + \lceil 9/6 \rceil \cdot 2 = 10 \\
+R_3^{(5)} &amp;= 3 + \lceil 10/4 \rceil \cdot 1 + \lceil 10/6 \rceil \cdot 2 = 10
+\end{aligned}
+\]</span></p>
+<p>となって <span class="math inline">\(R_3 = 10\)</span> に収束します．<span class="math inline">\(R_3 = 10 \leq T_3 = 12\)</span> なので，<span class="math inline">\(\tau_3\)</span> はデッドラインを守れます． これは図で <span class="math inline">\(\tau_3\)</span> が時刻 10 に完了していることと一致します． 同様に <span class="math inline">\(R_1 = 1 \leq 4\)</span>，<span class="math inline">\(R_2 = 3 \leq 6\)</span> なので，3つのタスクはすべてスケジュール可能です．</p>
+</div>
+</div>
+</div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>動的優先度：EDF
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>優先度を固定せず，<strong>その時点でデッドラインが最も近いジョブを優先する</strong> 方式を EDF（Earliest Deadline First）といいます． デッドラインが周期と等しい周期タスクでは，EDF は <span class="math inline">\(U \leq 1\)</span> であれば必ずスケジュール可能であり，CPU を100%まで使い切れます． 一方で，実行のたびに優先度を計算し直す必要があることや，過負荷になったときにどのタスクが遅れるかを予測しにくいことから，実際の RTOS では RM のような固定優先度方式が広く使われています．</p>
+</div>
+</div>
+</section>
+<section id="例題携帯端末の省電力" class="level2">
+<h2 class="anchored" data-anchor-id="例題携帯端末の省電力">例題：携帯端末の省電力</h2>
+<p>RTOS の優先度スケジューリングは，デッドラインを守るためだけでなく，<strong>電池で動く機器の省電力</strong> にも使われます． 「やることがないときだけ MPU のクロックを止める」仕組みが，タスクの優先度とどう結びついているかを見ていきます．</p>
+<section id="問題の設定を分解する" class="level3">
+<h3 class="anchored" data-anchor-id="問題の設定を分解する">問題の設定を分解する</h3>
+<p>問題文は長いですが，登場するのは次の4つの要素です．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 80%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>要素</th>
+<th>問題文での設定</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>クロック制御回路</td>
+<td>MPU へのクロック供給，タイマ割込み，クロック発振の停止／再開を担当するハードウェア．タイマ割込み用のタイマは MPU とは別のクロックで動く</td>
+</tr>
+<tr class="even">
+<td>リアルタイムOS</td>
+<td>タスクの状態は実行・実行可能・待ちの3つ．優先度の高いタスクが起動すると実行中のタスクは実行可能状態になる（プリエンプティブ）．タスク間通信はメールボックスで行い，受信要求したタスクはメールが届くまで待ち状態になる</td>
+</tr>
+<tr class="odd">
+<td>省電力状態</td>
+<td>スタンバイモード（MPU へのクロック供給が停止）とアイドルモード（クロックは供給されたまま，割込みを検出するまで命令の実行を停止）の2つ</td>
+</tr>
+<tr class="even">
+<td>タスク</td>
+<td>クロック制御タスクは「①クロック発振の停止を指示 → ②MPU をアイドルモードにする」を繰り返す．それ以外のタスクは「メールボックスに受信要求 → メールを受信して処理 → 再び受信要求」を繰り返す</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>この問題の肝は，<strong>クロックの発振を止めるのは一瞬だが，再開してから安定するまでに <span class="math inline">\(T\)</span> ミリ秒かかる</strong> という点です． そのため，クロック制御回路は次のルールで動きます．</p>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 5</strong></span> <span class="def-title">クロック制御回路のルール</span></p>
+<ul>
+<li><strong>停止</strong>：停止指示を受けたら，次のタイマ割込みまでの時間を調べる．<span class="math inline">\(T\)</span> ミリ秒より長ければ発振を止め，<span class="math inline">\(T\)</span> ミリ秒以下なら停止指示を取り消して発振を続ける</li>
+<li><strong>再開</strong>：発振を止めている間に，タイマ割込みの <span class="math inline">\(T\)</span> ミリ秒前になるか，ほかの割込みを検出したら，発振を再開する</li>
+<li><strong>供給</strong>：MPU へのクロック供給は，発振の再開から <span class="math inline">\(T\)</span> ミリ秒後</li>
+<li><strong>保留</strong>：クロック制御タスクの①と②の間に割込みがあれば保留し，②の後に MPU に通知する</li>
+</ul>
+</div>
+<ul>
+<li>次のタイマ割込みまで <span class="math inline">\(T\)</span> ミリ秒以下のときに止めないのは，止めても再開がタイマ割込みに間に合わないから</li>
+<li>逆に，タイマ割込みの時刻は事前にわかっているので，<span class="math inline">\(T\)</span> ミリ秒前から再開しておけば，タイマ割込みの時刻ちょうどに MPU が動ける状態になる</li>
+</ul>
+<div id="exr-" class="custom_problem blog-custom-border theorem exercise">
+<p><span class="theorem-title"><strong>Problem 1</strong></span> <span class="def-title">クロック再開時に最初に実行される処理</span></p>
+<p>クロックの発振が再開し，MPU にクロックが供給されたとき，最初に実行される処理は，必ず [ a ] となる． それが [ b ] であれば遅延なく実行されるが，[ b ] 以外の場合は，ほかに割込みがなければ，割込み要求発生から [ c ] ミリ秒遅延してから実行される．</p>
+</div>
+<p>発振が止まるのは，クロック制御タスクが①で停止を指示し，②で MPU をアイドルモードにした後です． ①と②の間に来た割込みも②の後まで保留されるので，MPU は必ず <strong>アイドルモード中に割込みを受けて</strong> 再開します． アイドルモードは割込みを検出すると終了するので，再開後に最初に動くのは割込み処理です．</p>
+<p>発振を再開するきっかけは2通りあり，割込み処理が始まるまでの遅れが異なります．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/pm07-clock-timing.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-10" title="クロック発振の停止と再開のタイミング．(a) タイマ割込みの時刻はあらかじめわかっているので，T ミリ秒前から発振を再開しておけば遅延なく処理できる．(b) ほかの割込みはいつ来るかわからないので，割込みを検出してから発振を再開し，安定するまでの T ミリ秒だけ処理が遅れる"><img src="figures/pm07-clock-timing.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="クロック発振の停止と再開のタイミング．(a) タイマ割込みの時刻はあらかじめわかっているので，T ミリ秒前から発振を再開しておけば遅延なく処理できる．(b) ほかの割込みはいつ来るかわからないので，割込みを検出してから発振を再開し，安定するまでの T ミリ秒だけ処理が遅れる"></a></p>
+</figure>
+</div>
+<figcaption>クロック発振の停止と再開のタイミング．(a) タイマ割込みの時刻はあらかじめわかっているので，<span class="math inline">\(T\)</span> ミリ秒前から発振を再開しておけば遅延なく処理できる．(b) ほかの割込みはいつ来るかわからないので，割込みを検出してから発振を再開し，安定するまでの <span class="math inline">\(T\)</span> ミリ秒だけ処理が遅れる</figcaption>
+</figure>
+</div>
+<div class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-7-contents" aria-controls="callout-7" aria-expanded="true" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>解答
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-7" class="callout-7-contents callout-collapse collapse show">
+<div class="callout-body-container callout-body">
+<ul>
+<li>a：<strong>割込み処理</strong></li>
+<li>b：<strong>タイマ割込み</strong></li>
+<li>c：<strong><span class="math inline">\(T\)</span></strong></li>
+</ul>
+</div>
+</div>
+</div>
+<p><span class="mini-section">応答時間の内訳との関係</span></p>
+<ol start="2" type="a">
+<li>の <span class="math inline">\(T\)</span> ミリ秒は，<a href="#応答時間の内訳">応答時間の内訳</a> でいう割込みレイテンシにそのまま上乗せされます． 発振停止中にボタン操作や受信などの外部割込みが来ると，その応答は最悪で <span class="math inline">\(T\)</span> ミリ秒遅れます． クロックを止めて節電するほど，タイマ以外のイベントへの応答は遅くなるというトレードオフがあり， デッドラインのある処理では，この <span class="math inline">\(T\)</span> を見込んで最悪応答時間を見積もる必要があります．</li>
+</ol>
+<div id="exr-" class="custom_problem blog-custom-border theorem exercise">
+<p><span class="theorem-title"><strong>Problem 2</strong></span> <span class="def-title">省電力の効果</span></p>
+<p>MPU の単位時間当たりの消費電力は，命令を実行している場合 <span class="math inline">\(P\)</span>，アイドルモードの場合 <span class="math inline">\(0.5P\)</span>，スタンバイモードの場合 <span class="math inline">\(0\)</span> である．</p>
+<ul>
+<li>端末が通信中のとき，クロック供給は停止せず，80% は命令を実行している状態，20% はアイドルモードである．単位時間当たりの消費電力は [ d ] <span class="math inline">\(\times P\)</span></li>
+<li>端末が通信を行っていないとき，1秒ごとに 10 ミリ秒間 MPU にクロックが供給され，それ以外はスタンバイモードである．その 10 ミリ秒のうち 90% は命令を実行，10% はアイドルモードである．単位時間当たりの消費電力は [ e ] <span class="math inline">\(\times P\)</span></li>
+</ul>
+</div>
+<p>時間の割合で重み付けした平均を取るだけです． 通信中は</p>
+<p><span class="math display">\[
+d = 0.8 \times 1 + 0.2 \times 0.5 = 0.9
+\]</span></p>
+<p>通信していないときは，1000 ミリ秒のうちクロックが供給される 10 ミリ秒だけ電力を使うので，</p>
+<p><span class="math display">\[
+e = \frac{10}{1000} \times \left(0.9 \times 1 + 0.1 \times 0.5\right) = 0.01 \times 0.95 = 0.0095
+\]</span></p>
+<div class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-8-contents" aria-controls="callout-8" aria-expanded="true" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>解答
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-8" class="callout-8-contents callout-collapse collapse show">
+<div class="callout-body-container callout-body">
+<ul>
+<li>d：<strong>0.9</strong></li>
+<li>e：<strong>0.0095</strong></li>
+</ul>
+</div>
+</div>
+</div>
+<p>通信していないときの消費電力は通信中の約 <span class="math inline">\(1/95\)</span> です． アイドルモードでも <span class="math inline">\(0.5P\)</span> を使うので，クロック供給そのものを止めるスタンバイモードに入れることが，電池を長持ちさせる鍵になっています．</p>
+<div id="exr-" class="custom_problem blog-custom-border theorem exercise">
+<p><span class="theorem-title"><strong>Problem 3</strong></span> <span class="def-title">クロック制御タスクの優先度</span></p>
+<ol type="1">
+<li>クロック制御タスクの優先度はどのように設定すべきか，ほかのタスクの優先度を考慮して，25字以内で答えよ</li>
+<li>クロック制御タスクが実行状態にあるとき，ほかのタスクが取り得るタスクの状態をすべて選び，タスクの状態遷移図の状態で答えよ</li>
+</ol>
+</div>
+<p>クロック制御タスクは，動き出すとすぐに MPU を止めてしまうタスクです． もしほかのタスク X より優先度が高いと，X が処理すべきメールを受け取って実行可能になっていても，クロック制御タスクが先に実行されて MPU を止めてしまいます． クロックを止めてよいのは <strong>ほかのタスクにやることが何もないとき</strong> だけなので，クロック制御タスクは最も低い優先度にします．</p>
+<p>このとき，RTOS のルール「実行状態になるのは，実行状態と実行可能状態のタスクのうち最も優先度の高いもの」から，(2) の答えが決まります． 最低優先度のクロック制御タスクが実行状態にあるなら，実行可能状態のタスクは1つもないはずです（あればそちらが実行される）． したがって，ほかのタスクはすべて待ち状態，つまりメールボックスでメールを待っている状態です．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/pm07-task-cycle.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-11" title="クロック制御タスクを最低優先度にしたときの動き．タスク A，B がメールを待つ待ち状態になると，初めてクロック制御タスクが実行されて MPU を止める．割込み処理が A にメールを送ると A が実行可能になり，最高優先度なのですぐに実行される"><img src="figures/pm07-task-cycle.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="クロック制御タスクを最低優先度にしたときの動き．タスク A，B がメールを待つ待ち状態になると，初めてクロック制御タスクが実行されて MPU を止める．割込み処理が A にメールを送ると A が実行可能になり，最高優先度なのですぐに実行される"></a></p>
+</figure>
+</div>
+<figcaption>クロック制御タスクを最低優先度にしたときの動き．タスク A，B がメールを待つ待ち状態になると，初めてクロック制御タスクが実行されて MPU を止める．割込み処理が A にメールを送ると A が実行可能になり，最高優先度なのですぐに実行される</figcaption>
+</figure>
+</div>
+<div class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-9-contents" aria-controls="callout-9" aria-expanded="true" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>解答
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-9" class="callout-9-contents callout-collapse collapse show">
+<div class="callout-body-container callout-body">
+<ol type="1">
+<li><strong>ほかのすべてのタスクよりも低い優先度に設定する</strong></li>
+<li><strong>待ち状態</strong></li>
+</ol>
+</div>
+</div>
+</div>
+<p>ほかのタスクがすべて待ち状態なら，次に何かが起こるきっかけは，タスクにメールが届くこと，つまり割込み処理からのメールだけです． だから MPU を止めて割込みを待っても取りこぼしはなく，設問1で見たように，再開後は必ず割込み処理から始まります． 優先度の設定と割込みによる再開が組み合わさって，止めても安全な瞬間にだけ止める仕組みになっています．</p>
+</section>
+</section>
+<section id="例題多言語多通貨対応両替システム" class="level2">
+<h2 class="anchored" data-anchor-id="例題多言語多通貨対応両替システム">例題：多言語多通貨対応両替システム</h2>
+<p>次は，駅や商店に置かれ，訪日客の外貨紙幣を日本円に両替する両替機の制御です． 両替機の制御部は RTOS の上で複数のタスクを動かし，紙幣の入金・出金・明細書の印刷を担当する装置とは，10 ミリ秒周期のポーリングで通信します． <strong>最悪のケースでも周期内に通信が終わるか</strong> を見積もる設問と，<strong>RTOS のタイマでタイムアウトを作る</strong> 設問が，ここまでの話につながります．</p>
+<section id="問題の設定を分解する-1" class="level3">
+<h3 class="anchored" data-anchor-id="問題の設定を分解する-1">問題の設定を分解する</h3>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 80%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>要素</th>
+<th>問題文での設定</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>ハードウェア</td>
+<td>制御部（両替機全体の制御と管理サーバとの通信）と，タッチパネル・入金部・出金部・印刷部．入金部・出金部・印刷部はシリアルバスで制御部につながる</td>
+</tr>
+<tr class="even">
+<td>動作</td>
+<td>利用可のときに1枚目の外貨紙幣が挿入されると両替状態になる．紙幣は1枚ずつ通貨・金種を識別し，入金部の内部に格納するか入金口に戻す．両替ボタンで明細書の印刷・排出と日本円の出金を行い，すべて完了したら両替状態を解除する</td>
+</tr>
+<tr class="odd">
+<td>シリアルバス通信</td>
+<td>ポーリング方式．制御部が入金部 → 出金部 → 印刷部の順に 10 ミリ秒周期でデータを送り，各部は自分宛てのデータを受信したら制御部へデータを返す</td>
+</tr>
+<tr class="even">
+<td>制御部のタスク</td>
+<td>RTOS 上で，メイン（両替機全体の管理），表示操作（タッチパネル），シリアルバス（入金部・出金部・印刷部との通信），通信（管理サーバとの通信）の4つのタスクが動く</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>両替機の仕様のうち，設問に関わるものを抜き出すと次のとおりです．</p>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 6</strong></span> <span class="def-title">両替機の仕様（抜粋）</span></p>
+<ul>
+<li>1回の両替で出金できる日本円額の合計は，1円以上 10 万円以下</li>
+<li>次のいずれかの場合は，挿入された外貨紙幣を格納せずに入金口に戻す：識別できない，格納できない状態，格納しても合計が1円に満たない，<strong>格納すると合計が 10 万円を超える</strong>，格納すると出金部の紙幣・硬貨の組合せで出金できない</li>
+<li>入金部の内部に一度格納した外貨紙幣は，入金口に戻さない</li>
+<li>両替状態でないときは，定期的に管理サーバに問い合わせて両替レートを更新する．両替状態では更新せず，両替状態を解除した時に更新する</li>
+<li>両替状態となってから，入金部の内部に外貨紙幣を1枚も格納しないまま <strong>3分経過</strong> した場合も，両替状態を解除する</li>
+<li>印刷・排出と出金が全て完了した時，「外貨紙幣を格納できない」「出金部の日本円の合計が 10 万円未満」「明細書の用紙不足」のどれかがあれば利用不可とし，管理サーバに利用可・利用不可を報告する</li>
+</ul>
+</div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/pm08-states.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-12" title="両替機の状態遷移．1枚目の外貨紙幣の挿入で両替状態になり，両替完了か，3分間1枚も格納しないまま経過すると両替状態を解除する"><img src="figures/pm08-states.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="両替機の状態遷移．1枚目の外貨紙幣の挿入で両替状態になり，両替完了か，3分間1枚も格納しないまま経過すると両替状態を解除する"></a></p>
+</figure>
+</div>
+<figcaption>両替機の状態遷移．1枚目の外貨紙幣の挿入で両替状態になり，両替完了か，3分間1枚も格納しないまま経過すると両替状態を解除する</figcaption>
+</figure>
+</div>
+<p>制御部と各部の間でやりとりされる主なメッセージは次のとおりです．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 16%">
+<col style="width: 22%">
+<col style="width: 62%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>メッセージ</th>
+<th>送信元 → 送信先</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>出納指示</td>
+<td>制御部 → 入金部</td>
+<td>挿入された外貨紙幣を内部に格納させる，または入金口に戻させる</td>
+</tr>
+<tr class="even">
+<td>格納通知</td>
+<td>入金部 → 制御部</td>
+<td>外貨紙幣の格納完了と，まだ格納できるかどうか</td>
+</tr>
+<tr class="odd">
+<td>挿入通知</td>
+<td>入金部 → 制御部</td>
+<td>挿入された外貨紙幣の通貨・金種，または識別失敗</td>
+</tr>
+<tr class="even">
+<td>出金指示</td>
+<td>制御部 → 出金部</td>
+<td>日本円紙幣・硬貨を出金口から出金させる</td>
+</tr>
+<tr class="odd">
+<td>出金通知</td>
+<td>出金部 → 制御部</td>
+<td>出金完了と，日本円紙幣・硬貨の残り枚数</td>
+</tr>
+<tr class="even">
+<td>印刷指示</td>
+<td>制御部 → 印刷部</td>
+<td>明細書を印刷して排出させる</td>
+</tr>
+<tr class="odd">
+<td>印刷通知</td>
+<td>印刷部 → 制御部</td>
+<td>明細書の印刷・排出完了と，用紙が不足しているかどうか</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="exr-" class="custom_problem blog-custom-border theorem exercise">
+<p><span class="theorem-title"><strong>Problem 4</strong></span> <span class="def-title">両替状態の判断と利用可否の報告</span></p>
+<ol type="1">
+<li>制御部が両替状態となったことを判断するのは，どの構成要素から通知を受けたときか．構成要素名で答えよ</li>
+<li>制御部が管理サーバに利用可・利用不可のいずれかを報告するのは，二つのメッセージを受信した後である．その二つのメッセージ名を答えよ</li>
+</ol>
+</div>
+<ol type="1">
+<li><p>両替状態になるきっかけは，利用者が1枚目の外貨紙幣を入金口に挿入したことです． 挿入された紙幣を識別して制御部に知らせるのは入金部（挿入通知）なので，制御部は入金部からの通知で両替状態になったと判断します． 利用者はタッチパネルに触れずに紙幣を入れ始めるので，タッチパネルではありません．</p></li>
+<li><p>利用可・利用不可を報告するのは「印刷・排出と出金が全て完了した時」です． 完了を知らせるメッセージは，印刷部からの印刷通知と出金部からの出金通知です． しかも，利用不可の判定に使う「明細書の用紙不足」は印刷通知に，「出金部の日本円の合計が 10 万円未満」は出金通知の残り枚数に含まれています． 残る「外貨紙幣を格納できない」は，それ以前に受け取った格納通知でわかっています． 2つの通知がそろったところで，利用不可の判定に必要な情報がすべてそろいます．</p></li>
+</ol>
+<div class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-10-contents" aria-controls="callout-10" aria-expanded="true" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>解答
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-10" class="callout-10-contents callout-collapse collapse show">
+<div class="callout-body-container callout-body">
+<ol type="1">
+<li><strong>入金部</strong></li>
+<li><strong>出金通知，印刷通知</strong></li>
+</ol>
+</div>
+</div>
+</div>
+<div id="exr-" class="custom_problem blog-custom-border theorem exercise">
+<p><span class="theorem-title"><strong>Problem 5</strong></span> <span class="def-title">シリアルバスの通信速度</span></p>
+<p>シリアルバスの最適な通信速度を検討するために，通信データ量が最も多く，処理時間が最も長くなるケースを調査した結果，当該ケースは次のとおりであった．</p>
+<ol type="1">
+<li>制御部は，894 バイトのデータを印刷部に送信する</li>
+<li>印刷部はデータを受信し終えたら，750 マイクロ秒の処理を行った後に，6 バイトのデータを制御部に送信する</li>
+<li>制御部はデータを受信し終えたら，250 マイクロ秒の処理を行った後に，入金部へのデータ送信を開始する</li>
+</ol>
+<p>当該ケースにおいて，シリアルバスの通信速度は最低何ビット／秒必要か． 答えは小数第1位を切り上げて，整数で求めよ． ここで，1 バイトはスタートビット，ストップビットを含めて 10 ビットで送信されるものとする．</p>
+</div>
+<p>ポーリングでは，入金部・出金部・印刷部にそれぞれ 10 ミリ秒の区間が割り当てられています． 印刷部の区間（⑤⑥）では，制御部の送信，印刷部の処理，印刷部の返信，制御部の処理をすべて終えてから，次の区間で入金部への送信を始めなければなりません． つまり，<strong>この区間の中身すべてを 10 ミリ秒以内に収める</strong> という時間の制約です．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/pm08-polling.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-13" title="シリアルバスのポーリング．(a) 制御部は入金部・出金部・印刷部と 10 ミリ秒ずつ順番に通信する．(b) 印刷部の区間の最悪ケースでは，送信 9000 ビットと処理 1 ミリ秒を 10 ミリ秒に収める必要がある"><img src="figures/pm08-polling.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="シリアルバスのポーリング．(a) 制御部は入金部・出金部・印刷部と 10 ミリ秒ずつ順番に通信する．(b) 印刷部の区間の最悪ケースでは，送信 9000 ビットと処理 1 ミリ秒を 10 ミリ秒に収める必要がある"></a></p>
+</figure>
+</div>
+<figcaption>シリアルバスのポーリング．(a) 制御部は入金部・出金部・印刷部と 10 ミリ秒ずつ順番に通信する．(b) 印刷部の区間の最悪ケースでは，送信 9000 ビットと処理 1 ミリ秒を 10 ミリ秒に収める必要がある</figcaption>
+</figure>
+</div>
+<p>送信するビット数と，送信に使える時間は</p>
+<p><span class="math display">\[
+\begin{aligned}
+\text{ビット数} &amp;= (894 + 6) \times 10 = 9000 \text{ ビット} \\
+\text{送信に使える時間} &amp;= 10 \text{ ミリ秒} - 750 \text{ マイクロ秒} - 250 \text{ マイクロ秒} = 9 \text{ ミリ秒}
+\end{aligned}
+\]</span></p>
+<p>なので，必要な通信速度は</p>
+<p><span class="math display">\[
+\frac{9000 \text{ ビット}}{9 \times 10^{-3} \text{ 秒}} = 1{,}000{,}000 \text{ ビット／秒}
+\]</span></p>
+<p>です．</p>
+<div class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-11-contents" aria-controls="callout-11" aria-expanded="true" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>解答
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-11" class="callout-11-contents callout-collapse collapse show">
+<div class="callout-body-container callout-body">
+<p><strong>1,000,000 ビット／秒</strong></p>
+</div>
+</div>
+</div>
+<p><span class="mini-section">最悪ケースで設計する</span></p>
+<p>この設問は，<a href="#リアルタイムに処理するとは">リアルタイム ≠ 高速</a> で見た「最悪の場合でもデッドラインに間に合う」考え方そのものです． データ量が少ない普段の通信に合わせて通信速度を決めると，明細書の印刷データのように大きなデータを送るときに 10 ミリ秒の区間に収まらず，次の入金部への送信が遅れてしまいます． そこで，<strong>データ量が最も多く，処理時間が最も長いケース</strong> でも区間に収まる通信速度を求めています．</p>
+<p>また，ポーリングでは装置ごとに通信の順番が決まっているので，入金部で紙幣が挿入されてから制御部がそれを知るまでの時間も，最悪で1周分（30 ミリ秒）程度と見積もれます． 割込みと比べると反応は遅くなりますが，各装置との通信のタイミングが周期的に決まるので，最悪の応答時間を見積もりやすいという利点があります．</p>
+<div id="exr-" class="custom_problem blog-custom-border theorem exercise">
+<p><span class="theorem-title"><strong>Problem 6</strong></span> <span class="def-title">メインタスクのタイマ利用処理</span></p>
+<p>メインタスクは両替状態となった時，[ a ] 後にイベントを受信するように，リアルタイム OS のタイマを設定する． このイベントの受信時，両替状態となってから，①ある条件を満たしたら，[ b ] して，[ c ] を行う．</p>
+<ol type="1">
+<li>本文中の [ a ] 〜 [ c ] に入れる適切な字句を答えよ</li>
+<li>本文中の下線①の条件とは何か．30 字以内で述べよ</li>
+</ol>
+</div>
+<p>この処理は，仕様の「両替状態となってから，入金部の内部に外貨紙幣を1枚も格納しないまま3分経過した場合も，両替状態を解除する」と「両替状態を解除した時に両替レートを更新する」をそのまま実装したものです．</p>
+<ul>
+<li>両替状態になった時に，<strong>3分後</strong> にイベントが届くようにタイマを設定する（a）</li>
+<li>3分後にイベントを受信したら，それまでに <strong>入金部の内部に外貨紙幣を1枚も格納していない</strong> かを確かめる（①）</li>
+<li>1枚も格納していなければ，<strong>両替状態を解除</strong> して（b），<strong>両替レートの更新</strong> を行う（c）</li>
+</ul>
+<p>①の条件を確かめるのは，1枚でも格納していれば利用者が両替の途中だからです． 一度格納した紙幣は戻さない仕様なので，ここで両替状態を解除すると，利用者の入れたお金が宙に浮いてしまいます． 紙幣を挿入したが識別できずに戻された場合も，格納枚数は0枚のままなので解除の対象になります．</p>
+<div class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-12-contents" aria-controls="callout-12" aria-expanded="true" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>解答
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-12" class="callout-12-contents callout-collapse collapse show">
+<div class="callout-body-container callout-body">
+<ol type="1">
+<li>a：<strong>3分</strong>，b：<strong>両替状態を解除</strong>，c：<strong>両替レートの更新</strong></li>
+<li><strong>入金部の内部に外貨紙幣を1枚も格納していないこと</strong></li>
+</ol>
+</div>
+</div>
+</div>
+<p><span class="mini-section">RTOS のタイマとタイムアウト</span></p>
+<p>メインタスクは，入金部や表示操作タスクからの通知を待つのと同じように，タイマからのイベントも待ち状態で待ちます． 「3分たったか」を自分で繰り返し確かめる（ビジーウェイト）必要はなく，その間 CPU はほかのタスクの実行に使われます． 指定した時間後に1回だけイベントを送る RTOS のタイマ（ワンショットタイマ）は，このようなタイムアウト処理によく使われます．</p>
+<div id="exr-" class="custom_problem blog-custom-border theorem exercise">
+<p><span class="theorem-title"><strong>Problem 7</strong></span> <span class="def-title">外貨紙幣が戻された原因</span></p>
+<p>ある両替において，両替状態となってから，日本円額 91,000 円分の外貨紙幣を入金部の内部に格納したところに，利用者が 100 米ドル紙幣 1 枚を挿入したら，格納されずに入金口に戻された． 戻された原因を 25 字以内で述べよ．</p>
+<p>ここで，両替機が故障していない状態で，入金部は 100 米ドル紙幣が両替可能な通貨・金種と認識し，外貨紙幣を内部に格納できる状態であるものとする． また，両替レートは 1 米ドル 100 円とし，出金部は全ての金種の日本円紙幣・硬貨をそれぞれ 10 枚以上もっているものとする．</p>
+</div>
+<p>仕様の「格納せずに入金口に戻す」5つの条件を1つずつ確かめます．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 30%">
+<col style="width: 70%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>条件</th>
+<th>この場合</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>識別できない</td>
+<td>両替可能な通貨・金種と認識している → 該当しない</td>
+</tr>
+<tr class="even">
+<td>格納できない状態</td>
+<td>格納できる状態 → 該当しない</td>
+</tr>
+<tr class="odd">
+<td>合計が1円に満たない</td>
+<td>合計は 1 円以上 → 該当しない</td>
+</tr>
+<tr class="even">
+<td><strong>合計が 10 万円を超える</strong></td>
+<td><span class="math inline">\(91{,}000 + 100 \times 100 = 101{,}000\)</span> 円 <span class="math inline">\(&gt; 100{,}000\)</span> 円 → <strong>該当する</strong></td>
+</tr>
+<tr class="odd">
+<td>出金できない組合せ</td>
+<td>全金種を 10 枚以上もっている → 該当しない</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>この判定は，紙幣を格納する <strong>前</strong> に行う必要があります． 一度格納した紙幣は戻さない仕様なので，格納してから 10 万円を超えたことに気づいても取り返しがつかないからです．</p>
+<div class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-13-contents" aria-controls="callout-13" aria-expanded="true" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>解答
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-13" class="callout-13-contents callout-collapse collapse show">
+<div class="callout-body-container callout-body">
+<p><strong>日本円額の合計が 10 万円を超えてしまうから</strong></p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="用語集" class="level2">
+<h2 class="anchored" data-anchor-id="用語集">📘 用語集</h2>
+<div class="glossary-container">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">glossary</span><span class="kw">:</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> デッドライン (Deadline)</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>      リアルタイム処理で，処理を完了していなければならない時刻．イベントの発生時刻に制限時間を足した時刻として決まる．周期タスクでは，次のジョブのリリース時刻をデッドラインとすることが多い．</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> ハードリアルタイム (Hard Real-Time)</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>      デッドラインを1回でも過ぎると，システムの故障や事故につながるリアルタイム処理．エアバッグやブレーキ制御が代表例．遅れた結果の価値はゼロではなくマイナス（損害）になる．</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> ソフトリアルタイム (Soft Real-Time)</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>      デッドラインを過ぎると結果の価値が下がるが，ある程度の価値は残るリアルタイム処理．Web ページの表示などが例．遅れた結果の価値がゼロになり捨てられるものは，ファームリアルタイムとして区別することもある．</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> 決定性 (Determinism)</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>      同じ入力に対して，処理にかかる時間が毎回ほぼ同じで，最悪の場合の時間を事前に見積もれる性質．リアルタイムシステムでは，平均的な速さよりも決定性が重視される．</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> 最悪実行時間 (WCET: Worst-Case Execution Time)</span></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>      タスクの処理にかかる時間のうち，あらゆる入力・状態を考えたときの最大値．リアルタイム処理の設計では，平均ではなく WCET を使ってデッドラインに間に合うかを判断する．</span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> プリエンプション (Preemption)</span></span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>      実行中のタスクから OS が CPU を取り上げ，別のタスクに割り当てること．RTOS では，優先度の高いタスクが実行可能になった時点ですぐにプリエンプションが起こる．</span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> 割込みレイテンシ (Interrupt Latency)</span></span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>      割込みが発生してから，対応する割込みハンドラが動き出すまでの時間．OS やデバイスドライバが割込みを禁止している区間が長いほど大きくなる．</span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> 優先度逆転 (Priority Inversion)</span></span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>      共有資源のロックを持つ低優先度のタスクが中優先度のタスクに CPU を奪われ，そのロックを待つ高優先度のタスクが，無関係な中優先度のタスクの実行の間も待たされる現象．待ち時間に上限がなくなるため，ハードリアルタイムシステムでは致命的になりうる．</span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> 優先度継承 (Priority Inheritance)</span></span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>      ロックを持っているタスクに，そのロックを待っているタスクのうち最も高い優先度を一時的に引き継がせる仕組み．ロックを解放すると元の優先度に戻る．優先度逆転を防ぐ代表的な方法．</span>
+<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> レートモノトニックスケジューリング (Rate Monotonic Scheduling)</span></span>
+<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a>      周期タスクに対して，周期が短いタスクほど高い優先度を固定で割り当てるスケジューリング方式．CPU 使用率が n(2^(1/n) − 1) 以下であれば，すべてのタスクがデッドラインを守れることが知られている（Liu &amp; Layland の上限）．</span>
+<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> ウォッチドッグ (Watchdog Timer)</span></span>
+<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb1-44"><a href="#cb1-44" aria-hidden="true" tabindex="-1"></a>      システムが正常に動いているかを監視するためのタイマー．ウォッチドッグタイマー（WDT）とも呼ぶ．正常に動作しているソフトウェアは，決められた時間内に定期的にタイマーをクリアする（「キックする」「餌をやる」と表現される）．暴走や無限ループ，デッドロック，優先度逆転などでクリアが途絶えてタイマーが満了すると，システムに異常があるとみなしてリセットや割込みを発生させ，停止したままになるのを防ぐ．Mars Pathfinder でシステムのリセットを引き起こしたのも，この仕組みである．</span>
+<span id="cb1-45"><a href="#cb1-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-46"><a href="#cb1-46" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> タイムクォンタム (Time Quantum)</span></span>
+<span id="cb1-47"><a href="#cb1-47" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb1-48"><a href="#cb1-48" aria-hidden="true" tabindex="-1"></a>      ラウンドロビンなどのタイムシェアリング方式で，1つのタスクが連続して CPU を使える時間の上限．タイムスライスとも呼ぶ．使い切ったタスクは CPU を手放して実行可能なタスクの列の最後尾に回り，次のタスクに CPU が割り当てられる．短くするとタスクの切り替えが増えてその負担が大きくなり，長くするとほかのタスクが待たされる時間が長くなる．</span>
+<span id="cb1-49"><a href="#cb1-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-50"><a href="#cb1-50" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> MPU (Micro Processing Unit)</span></span>
+<span id="cb1-51"><a href="#cb1-51" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb1-52"><a href="#cb1-52" aria-hidden="true" tabindex="-1"></a>      命令を読み込んで実行する処理装置（マイクロプロセッサ）．CPU の機能を1つの半導体チップにまとめたもので，情報処理技術者試験の組込みシステムの問題では，CPU とほぼ同じ意味で使われる．クロックが供給されている間だけ命令を実行し，クロック周波数が高いほど，また命令を実行しているほど消費電力が大きくなる．なお，ARM Cortex-M などの組込み向けプロセッサでは，メモリ保護機構（Memory Protection Unit）も MPU と略されるので，文脈で区別する．</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+
+
+</section>
+
+</main> <!-- /main -->
+<script>
+    document.querySelectorAll('.custom_problem .theorem-title').forEach((title) => {
+        let modName = title.innerHTML;
+        modName = modName.replace("Exercise", "Problem");
+        modName = modName.replace("Proposition", "Property");
+        modName = modName.replace("Example", "<strong>&#9654;</strong>&nbsp; Example");
+        title.innerHTML = modName;
+    });
+
+    // Rule: 未使用の Corollary (#cor-, lang: ja では「系」) を Rule として表示する
+    document.querySelectorAll('.custom_rule .theorem-title').forEach((title) => {
+        title.innerHTML = title.innerHTML
+            .replace(/^<strong>(系|Corollary)/, "<strong>Rule")
+            .replace(/\s*\((.*)\)<\/strong>$/, ": $1</strong>");
+        // タイトルの後で改行し，本文を次の行から始める
+        title.style.display = "block";
+        title.style.paddingBottom = "0.5em";
+        title.style.fontSize = "1.1em";
+        // 本文がリスト等で始まると Quarto がタイトル後に &nbsp; を残し空行になるため除去する
+        while (title.nextSibling && title.nextSibling.nodeType === Node.TEXT_NODE
+               && title.nextSibling.textContent.trim() === "") {
+            title.nextSibling.remove();
+        }
+        if (!title.nextSibling) {
+            title.parentElement.style.marginBottom = "0";
+        }
+    });
+ </script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const toggle = window.document.createElement('button');
+      toggle.type = "button";
+      toggle.setAttribute("role", "switch");
+      toggle.setAttribute("aria-checked", "false");
+      toggle.classList.add('top-right');
+      toggle.classList.add('quarto-color-scheme-toggle');
+      toggle.setAttribute("aria-label", "ダークモードの切り替え");
+      toggle.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      toggle.appendChild(i);
+      // Put the toggle in a landmark of its own, so that landmark navigation
+      // can reach it.
+      //
+      // The container is always a fresh direct child of body, and the toggle is
+      // never moved into page furniture that the theme or the author controls.
+      // The toggle is positioned against the page, so any ancestor that
+      // establishes a containing block captures it: a positioned element or a
+      // grid for position: absolute, and transform, filter, will-change or
+      // contain for position: fixed. A direct child of body has none of these
+      // to inherit, and the shift when one appears is silent and visual.
+      //
+      // ARIA says a document should have at most one banner, and axe reports a
+      // duplicate whether or not the banners carry distinct labels. So use a
+      // header when the page has no banner yet, and a named region otherwise.
+      //
+      // A header is a banner wherever it sits, unless it is inside sectioning
+      // content, so this cannot just look at the children of body: a custom
+      // page layout wraps the title block header in a plain div. An explicit
+      // role="banner" always counts.
+      const sectioning = 'article, aside, main, nav, section, [role="article"], [role="complementary"], [role="main"], [role="navigation"], [role="region"]';
+      const hasBanner = Array.from(
+        window.document.querySelectorAll('header:not([role]), [role="banner"]')
+      ).some(function(el) {
+        return el.hasAttribute("role") || el.closest(sectioning) === null;
+      });
+      const container = window.document.createElement(hasBanner ? "div" : "header");
+      if (hasBanner) {
+        container.setAttribute("role", "region");
+        container.setAttribute("aria-label", "ダークモードの切り替え");
+      }
+      container.classList.add('quarto-color-scheme-toggle-container');
+      container.appendChild(toggle);
+      window.document.body.appendChild(container);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "コピーしました");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "コピーしました");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/ryonakagami\.github\.io\/regmonkey-datascience-blog");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+      window.quartoDecorateExternalLinks = function (root) {
+     var links = (root || window.document).querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+          if (!link.classList.contains('no-external-icon')) {
+          }
+        }
+      }
+      };
+      window.quartoDecorateExternalLinks(window.document);
+    // Esc closes the popup (WCAG 1.4.13) and focus leaving both trigger and
+    // popup closes it (WCAG 2.4.11); tippy handles neither for interactive popups.
+    const hideOnEscAndFocusOut = {
+      name: 'hideOnEscAndFocusOut',
+      defaultValue: true,
+      fn(instance) {
+        const dismiss = () => {
+          // A show scheduled by the trigger delay would otherwise reopen it
+          instance.clearDelayTimeouts();
+          instance.hide();
+        };
+        const onKeyDown = (event) => {
+          if (event.key !== 'Escape') {
+            return;
+          }
+          // Keep Esc from also reaching page handlers (e.g. reveal.js overview),
+          // except an open reveal.js slide menu, which Esc should close too.
+          // The menu handles keys only when its keyboard option is on.
+          const menuHandlesEsc = window.Reveal?.getPlugin?.('menu')?.isOpen() &&
+            window.Reveal.getConfig().menu?.keyboard !== false;
+          if (!menuHandlesEsc) {
+            event.stopPropagation();
+          }
+          if (instance.popper.contains(window.document.activeElement)) {
+            // Disabled while refocusing so the focus trigger does not reopen it
+            instance.disable();
+            instance.reference.focus();
+            instance.enable();
+          }
+          dismiss();
+        };
+        const onFocusOut = (event) => {
+          const target = event.relatedTarget;
+          if (target && !instance.reference.contains(target) &&
+              !instance.popper.contains(target)) {
+            dismiss();
+          }
+        };
+        // On the trigger too: a click trigger (code-annotations: select) has no
+        // blur handling. Attached for the instance's lifetime so leaving the
+        // trigger also cancels a show still pending on the trigger delay.
+        instance.reference.addEventListener('focusout', onFocusOut);
+        return {
+          onShow() {
+            window.document.addEventListener('keydown', onKeyDown, true);
+            instance.popper.addEventListener('focusout', onFocusOut);
+          },
+          onHide() {
+            window.document.removeEventListener('keydown', onKeyDown, true);
+            instance.popper.removeEventListener('focusout', onFocusOut);
+          },
+          onDestroy() {
+            instance.reference.removeEventListener('focusout', onFocusOut);
+          },
+        };
+      },
+    };
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+        plugins: [hideOnEscAndFocusOut],
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          // Each band is positioned against its own containing block, which is
+          // not the offsetParent of the lines, so place it from client rects.
+          const placeBand = (band, firstEl, lastEl, codeBlock) => {
+            const container = band.offsetParent;
+            if (container === null) {
+              return;
+            }
+            const containerRect = container.getBoundingClientRect();
+            // Reveal.js scales slides with a transform, so convert client
+            // pixels back to the CSS pixels of the container.
+            const scale = containerRect.height / container.offsetHeight || 1;
+            const firstRect = firstEl.getBoundingClientRect();
+            const lastRect = lastEl.getBoundingClientRect();
+            const top = (firstRect.top - containerRect.top) / scale - container.clientTop + container.scrollTop;
+            const height = (lastRect.bottom - firstRect.top) / scale;
+            band.style.top = top - 2 + "px";
+            band.style.height = height + 4 + "px";
+            if (codeBlock) {
+              // Without the copy button wrapper, the containing block is wider
+              // than the code block, so span the code block explicitly.
+              const blockRect = codeBlock.getBoundingClientRect();
+              band.style.left = (blockRect.left - containerRect.left) / scale - container.clientLeft + container.scrollLeft + "px";
+              band.style.width = blockRect.width / scale + "px";
+            }
+          };
+          if (lineIds.length > 0) {
+            const el = window.document.getElementById(lineIds[0]);
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const parent = el.parentElement.parentElement;
+            // cook up a div (if necessary) and position it
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            placeBand(div, el, lastEl, parent.closest("div.sourceCode") || parent);
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            placeBand(gutterDiv, el, lastEl);
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+  <script type="application/javascript">
+  window.quartoScrollableRegionsLabels = {"code":"スクロール可能なコード","output":"スクロール可能な出力"};
+  </script>
+<script src="https://utteranc.es/client.js" repo="RyoNakagami/regmonkey-datascience-blog" issue-term="title" theme="github-light" crossorigin="anonymous" async="">
+</script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+      &nbsp;
+    </div>   
+    <div class="nav-footer-center">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+ © Copyright RyoNak
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="../../LICENSE">
+<p>License</p>
+</a>
+  </li>  
+</ul>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>問題を報告</a></li></ul></div></div>
+    <div class="nav-footer-right">
+      &nbsp;
+    </div>
+  </div>
+</footer>
+    <script type="text/javascript">
+    (function(d) {
+      d.querySelectorAll(".pseudocode-container").forEach(function(el) {
+        let pseudocodeOptions = {
+          indentSize: el.dataset.indentSize || "1.2em",
+          commentDelimiter: el.dataset.commentDelimiter || "//",
+          lineNumber: el.dataset.lineNumber === "true" ? true : false,
+          lineNumberPunc: el.dataset.lineNumberPunc || ":",
+          noEnd: el.dataset.noEnd === "true" ? true : false,
+          titlePrefix: el.dataset.captionPrefix || "Algorithm"
+        };
+        pseudocode.renderElement(el.querySelector(".pseudocode"), pseudocodeOptions);
+      });
+    })(document);
+    (function(d) {
+      d.querySelectorAll(".pseudocode-container").forEach(function(el) {
+        let captionSpan = el.querySelector(".ps-root > .ps-algorithm > .ps-line > .ps-keyword")
+        if (captionSpan !== null) {
+          let captionPrefix = el.dataset.captionPrefix + " ";
+          let captionNumber = "";
+          if (el.dataset.pseudocodeNumber) {
+            captionNumber = el.dataset.pseudocodeNumber + " ";
+            if (el.dataset.chapterLevel) {
+              captionNumber = el.dataset.chapterLevel + "." + captionNumber;
+            }
+          }
+          captionSpan.innerHTML = captionPrefix + captionNumber;
+        }
+      });
+    })(document);
+    </script>
+  
+<script>var lightboxQuarto = GLightbox({"closeEffect":"zoom","descPosition":"bottom","loop":false,"openEffect":"zoom","selector":".lightbox"});
+(function() {
+  let previousOnload = window.onload;
+  window.onload = () => {
+    if (previousOnload) {
+      previousOnload();
+    }
+    lightboxQuarto.on('slide_before_load', (data) => {
+      const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+      const href = trigger.getAttribute('href');
+      if (href !== null) {
+        const imgEl = window.document.querySelector(`a[href="${href}"] img`);
+        if (imgEl !== null) {
+          const srcAttr = imgEl.getAttribute("src");
+          if (srcAttr && srcAttr.startsWith("data:")) {
+            slideConfig.href = srcAttr;
+          }
+        }
+      } 
+    });
+  
+    lightboxQuarto.on('slide_after_load', (data) => {
+      const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(slideNode);
+      }
+    });
+  
+  };
+  
+})();
+          </script>
+
+
+
+
+</body></html>
