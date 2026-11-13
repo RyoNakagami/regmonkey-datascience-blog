@@ -1,0 +1,51 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    >={Latex[length=2.4mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    card/.style={block, fill=white},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt, align=center},
+    step/.style={font=\footnotesize\bfseries, text=azureblue},
+    wire/.style={->, draw=navy},
+  ]
+  % 主経路
+  \node[card, minimum width=1.8cm] (task) at (0,0) {タスク};
+  \node[block, minimum width=2.0cm] (p) at (3.6,0) {\textbf{P($S$)}};
+  \node[accent, minimum width=3.6cm] (cs) at (8.7,0) {資源 $R$ を\\読み書きする};
+  \node[block, minimum width=2.0cm] (v) at (13.8,0) {\textbf{V($S$)}};
+  \node[sig, anchor=west] (next) at (17.6,0) {次の処理へ};
+
+  \node[step, above=2mm of p]  {① 取得（P 操作）};
+  \node[step, above=2mm of cs] {② クリティカルセクション};
+  \node[step, above=2mm of v]  {③ 解放（V 操作）};
+
+  \draw[wire] (task) -- (p);
+  \draw[wire] (p) -- (cs) node[midway, above, sig] {$S > 0$ なら\\$S$ を 1 減らす};
+  \draw[wire] (cs) -- (v);
+  \draw[wire] (v) -- (next) node[midway, above, sig] {待ちがなければ\\$S$ を 1 増やす};
+
+  % セマフォの待ち行列
+  \node[card, minimum width=4.4cm, minimum height=1.3cm] (q) at (8.7,-3.3)
+    {\textbf{セマフォ $S$ の待ち行列}\\{\footnotesize\color{darkgray}待ち状態のタスク：B，C，…}};
+
+  % P：S = 0 なら待ち行列へ
+  \draw[wire] (p.south) |- (q.west);
+  \node[sig, anchor=east] at (3.45,-1.9) {$S = 0$ なら\\待ち状態にして\\待ち行列へ};
+  % V：待ちタスクを起こす
+  \draw[wire] (v.south) |- (q.east);
+  \node[sig, anchor=west] at (13.95,-1.9) {待ちタスクがいれば\\1つを実行可能状態に\\戻す};
+  % 起こされたタスクが資源を引き継ぐ
+  \draw[->, draw=azureblue, line width=1.0pt] (q.north) -- (cs.south);
+  \node[sig, anchor=west, text=azureblue] at (8.85,-1.55) {起こされたタスクが\\資源 $R$ を引き継ぐ};
+\end{tikzpicture}
