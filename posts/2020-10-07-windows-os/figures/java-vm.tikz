@@ -1,0 +1,60 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    card/.style={block, fill=white},
+    step/.style={font=\footnotesize\bfseries, text=azureblue},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    wire/.style={->, draw=navy},
+    dot/.style={circle, fill=navy, inner sep=1.4pt},
+  ]
+  % --- 作成段階 → コンパイル → バイトコード（1本） ---
+  \node[card, minimum width=2.9cm] (src) at (0,0)
+    {ソースコード\\{\footnotesize\texttt{sample.java}}};
+  \node[block, minimum width=2.9cm, right=1.1cm of src] (javac)
+    {Java コンパイラ};
+  \node[accent, minimum width=3.0cm, right=1.1cm of javac] (bc)
+    {バイトコード\\{\footnotesize\texttt{sample.class}}};
+  \node[note, below=2mm of bc] {CPU 用のネイティブコードではない．\\どの環境にも同じファイルを配る};
+  \draw[wire] (src) -- (javac);
+  \draw[wire] (javac) -- (bc);
+
+  % --- 実行環境：OS・機種ごとの JavaVM ---
+  \def\xv{13.3}
+  \def\xc{19.0}
+  \foreach \i/\y/\env/\cpu in {1/2.1/Windows × AT 互換機/x86 CPU,
+                                2/0/Linux × AT 互換機/x86 CPU,
+                                3/-2.1/Linux × ARM 機/ARM CPU} {
+    \node[block, minimum width=3.6cm] (vm\i) at (\xv,\y)
+      {JavaVM\\{\footnotesize\textcolor{darkgray}{\env}}};
+    \node[card, minimum width=2.4cm] (cpu\i) at (\xc,\y) {\cpu};
+    \draw[wire] (vm\i) -- node[midway, above, sig, align=center] {逐次変換した\\ネイティブコード} (cpu\i);
+  }
+  \node[note] at (\xv,-3.25) {OS・機種ごとに用意しておく};
+
+  % --- バイトコード → 各 JavaVM（同じファイルを配る） ---
+  \coordinate (br) at ($(bc.east)+(1.0,0)$);
+  \draw[draw=navy] (bc.east) -- (br);
+  \node[dot] at (br) {};
+  \foreach \i in {1,2,3} {
+    \draw[wire] (br) |- (vm\i.west);
+  }
+
+  % --- 列見出し ---
+  \foreach \n/\t in {src/作成段階, javac/コンパイル, bc/配布される形, vm1/実行環境, cpu1/実行} {
+    \node[step] at (\n |- 0,3.4) {\t};
+  }
+\end{tikzpicture}
