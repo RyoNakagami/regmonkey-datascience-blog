@@ -1,0 +1,58 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    >={Latex[length=2.4mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    val/.style={draw=navy, fill=aliceblue, circle, minimum size=1.15cm,
+                inner sep=1pt, align=center, font=\footnotesize},
+    maxv/.style={val, fill=paleskyblue},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    wire/.style={->, draw=navy},
+    ngwire/.style={->, draw=crimsonred, line width=1.1pt},
+  ]
+  % ---- 左：3ビットカウンタの値の循環 ----
+  \foreach \k/\b in {0/000,1/001,2/010,3/011,4/100,5/101,6/110} {
+    \node[val] (n\k) at ({90-45*\k}:2.6) {\texttt{\b}\\[-1pt]$\k$};
+  }
+  \node[maxv] (n7) at ({90-45*7}:2.6) {\texttt{111}\\[-1pt]$7$};
+  \foreach \k in {0,...,5} {
+    \pgfmathtruncatemacro{\nx}{\k+1}
+    \draw[wire] (n\k) to[bend left=18] (n\nx);
+  }
+  \draw[wire] (n6) to[bend left=18] (n7);
+  \draw[ngwire] (n7) to[bend left=18] (n0);
+  \node[font=\footnotesize\bfseries, text=crimsonred, anchor=south east]
+    at ($(n7.north)+(-0.1,0.25)$) {オーバーフロー};
+  \node[align=center, font=\small\bfseries, text=navy] at (0,0.25) {3ビットの\\カウンタ};
+  \node[sig, align=center] at (0,-0.75) {$+1$ ごとに時計回り\\$2^3=8$ 通りで一周};
+
+  % ---- 右：時間とカウンタ値（のこぎり波） ----
+  \begin{scope}[xshift=5.2cm, yshift=-2.2cm, x=0.36cm, y=0.5cm]
+    \draw[->, draw=navy] (0,0) -- (17.2,0) node[sig, below left] {時間（tick）};
+    \draw[->, draw=navy] (0,0) -- (0,8.6) node[sig, above] {カウンタ値};
+    \draw[draw=lightgray, dashed] (0,7) -- (16.5,7);
+    \node[sig, anchor=east] at (0,7) {最大値 $7=2^3-1$};
+    \node[sig, anchor=east] at (0,0) {$0$};
+    \foreach \t in {0,...,15} {
+      \pgfmathtruncatemacro{\v}{mod(\t,8)}
+      \draw[draw=navy, line width=1.1pt] (\t,\v) -- (\t+1,\v);
+      \ifnum\v<7
+        \draw[draw=navy] (\t+1,\v) -- (\t+1,\v+1);
+      \fi
+    }
+    \foreach \t in {8,16} {
+      \draw[draw=crimsonred, line width=1.1pt] (\t,7) -- (\t,0);
+    }
+    \node[font=\footnotesize\bfseries, text=crimsonred, anchor=south] at (8,7.3) {0 に戻る};
+    \draw[<->, draw=azureblue] (0,-1.1) -- (8,-1.1)
+      node[midway, below, font=\footnotesize, text=azureblue] {$2^3$ tick で一周};
+  \end{scope}
+\end{tikzpicture}
