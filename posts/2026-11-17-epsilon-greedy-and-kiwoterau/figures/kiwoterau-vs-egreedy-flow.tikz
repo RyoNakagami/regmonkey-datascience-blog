@@ -1,0 +1,58 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt, align=center,
+                  minimum width=3.6cm, minimum height=1.1cm, inner sep=4pt},
+    accent/.style={block, fill=paleskyblue},
+    dec/.style={diamond, draw=azureblue, fill=white, line width=1pt, align=center,
+                font=\footnotesize, inner sep=1pt, aspect=1.6},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south west, font=\bfseries, text=navy},
+    goal/.style={anchor=south west, font=\footnotesize, text=azureblue},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    wire/.style={->, draw=navy},
+    back/.style={->, draw=darkgray, dashed},
+  ]
+  % ---------- 奇を衒う ----------
+  \node[block] (k1) at (1.6,5.0) {周囲が選びそうな\\選択肢を予想する};
+  \node[accent] (k2) at (8.0,5.0) {予想から最も遠い\\「変わった」選択肢を選ぶ};
+  \node[block] (k3) at (13.6,5.0) {周囲の反応を見る\\（目立てたか）};
+  \draw[wire] (k1) -- (k2);
+  \draw[wire] (k2) -- (k3);
+  \draw[back] (k3.south) -- ++(0,-0.6) -| (k1.south)
+    node[sig, pos=0.25, below] {目立てたかで，次の「変わり方」を調整する};
+
+  % ---------- epsilon-greedy ----------
+  \node[block, minimum width=2.6cm] (u) at (-0.6,0) {乱数 $u$ を\\$[0,1)$ から引く};
+  \node[dec] (d) at (3.4,0) {$u<\varepsilon$ ?};
+  \node[accent] (ex) at (8.0,1.0) {探索：全選択肢から\\一様ランダムに選ぶ};
+  \node[block] (ep) at (8.0,-1.0) {活用：推定値 $\hat{Q}(a)$ が\\最大の選択肢を選ぶ};
+  \node[block] (ob) at (13.6,0) {報酬 $r$ を観測し\\$\hat{Q}(a)$ を更新する};
+  \draw[wire] (u) -- (d);
+  \draw[wire] (d.north) |- (ex.west) node[sig, pos=0.75, above] {Yes（確率 $\varepsilon$）};
+  \draw[wire] (d.south) |- (ep.west) node[sig, pos=0.75, below] {No（確率 $1-\varepsilon$）};
+  \draw[wire] (ex.east) -| (ob.north);
+  \draw[wire] (ep.east) -| (ob.south);
+  \draw[back] (ob.east) -- ++(0.6,0) |- (0,-2.3) -| (u.south);
+  \node[sig, below] at (6.5,-2.3) {推定値が改善された状態で次の試行へ};
+
+  % ---------- ゾーン ----------
+  \begin{scope}[on background layer]
+    \node[zone, fit=(k1)(k2)(k3)(u.west |- k1.north)(ob.east |- k1.south)([yshift=-1.0cm]k1.south)] (zk) {};
+    \node[zone, fit=(u)(ex)(ep)(ob)([xshift=0.6cm]ob.east)(u.west |- 0,-2.8)] (ze) {};
+  \end{scope}
+  \node[zlabel] (lk) at ([xshift=2mm]zk.north west) {奇を衒う};
+  \node[goal] at (lk.south east) {目的：変わっていると見られること};
+  \node[zlabel] (le) at ([xshift=2mm]ze.north west) {$\varepsilon$-greedy};
+  \node[goal] at (le.south east) {目的：推定値を改善するための情報収集};
+\end{tikzpicture}
