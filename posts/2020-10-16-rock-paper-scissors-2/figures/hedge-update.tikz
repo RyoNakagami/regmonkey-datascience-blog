@@ -1,0 +1,73 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    card/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                 align=left, minimum width=2.9cm, minimum height=1.9cm, inner sep=6pt},
+    accent/.style={card, fill=paleskyblue},
+    step/.style={font=\footnotesize\bfseries, text=azureblue},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    head/.style={font=\small\bfseries, text=navy, align=center},
+    bar/.style={draw=navy, fill=paleskyblue},
+    wire/.style={->, draw=navy},
+  ]
+
+  % ---------- 上段：観測のたびに重みを掛け算で更新 ----------
+  \node[head, anchor=west] at (-1.6,2.5)
+       {① 人間の手を見るたびに，各手の重み $w$ に掛け算する（同じ行，$\eta = 0.1$）};
+  \node[note, anchor=west] at (-1.6,1.75)
+       {その手を出していたら勝ち → $\times e^{\eta}$，負け → $\times e^{-\eta}$，あいこ → $\times 1$};
+
+  \node[card] (c0) at (0,-0.35)    {グー：$1$\\チョキ：$1$\\パー：$1$};
+  \node[card] (c1) at (5.2,-0.35)  {グー：$e^{-\eta}$\\チョキ：$e^{\eta}$\\パー：$1$};
+  \node[card] (c2) at (10.4,-0.35) {グー：$e^{-2\eta}$\\チョキ：$e^{2\eta}$\\パー：$1$};
+  \node[accent] (c3) at (15.6,-0.35) {グー：$e^{-2\eta} = 0.82$\\チョキ：$e^{\eta} = 1.11$\\パー：$e^{\eta} = 1.11$};
+
+  \node[step, above=2mm of c0] {はじめ \texttt{\{0, 0, 0\}}};
+  \node[step, above=2mm of c1] {1回目のあと};
+  \node[step, above=2mm of c2] {2回目のあと};
+  \node[step, above=2mm of c3] {3回目のあと \texttt{\{1, 0, 2\}}};
+
+  \foreach \a/\b/\h/\m in {c0/c1/パー/{グー $\times e^{-\eta}$\\チョキ $\times e^{\eta}$\\パー $\times 1$},
+                           c1/c2/パー/{グー $\times e^{-\eta}$\\チョキ $\times e^{\eta}$\\パー $\times 1$},
+                           c2/c3/グー/{グー $\times 1$\\チョキ $\times e^{-\eta}$\\パー $\times e^{\eta}$}} {
+    \draw[wire] (\a.east) -- node[sig, above, font=\footnotesize, text=darkgray] {人間：\h} (\b.west);
+    \node[note, anchor=north, align=left] at ($(\a.east)!0.5!(\b.west)+(0,-0.15)$) {\m};
+  }
+
+  \node[note, anchor=north] at ($(c3.south)+(0,-0.15)$)
+       {\texttt{score} $= (-2, +1, +1)$ なので\\$w = \exp(\eta \cdot \texttt{score})$ と同じ};
+
+  % ---------- 下段：η を変えたときの確率 ----------
+  \draw[draw=lightgray] (-1.6,-3.0) -- (17.4,-3.0);
+  \node[head, anchor=west] at (-1.6,-3.45)
+       {② 学習率 $\eta$ と出す確率（行 \texttt{\{4, 0, 6\}}，\texttt{score} $= (-6, +2, +4)$）};
+
+  % 棒の高さ 2cm = 確率 1
+  \foreach \k/\lab/\pg/\pc/\pp/\tg/\tc/\tp/\cm in {
+      0/{$\eta = 0$}/0.333/0.333/0.333/33\%/33\%/33\%/一様なでたらめ,
+      1/{$\eta = 0.1$}/0.168/0.374/0.457/17\%/37\%/46\%/このプログラム,
+      2/{$\eta = 0.3$}/0.031/0.343/0.626/3\%/34\%/63\%/{},
+      3/{$\eta = 1$}/0.0/0.119/0.881/≈0\%/12\%/88\%/A に近い} {
+    \pgfmathsetmacro{\x}{0.4+\k*4.6}
+    \foreach \j/\h/\p/\t in {0/グー/\pg/\tg, 1/チョキ/\pc/\tc, 2/パー/\pp/\tp} {
+      \pgfmathsetmacro{\bxx}{\x+\j*0.95}
+      \draw[bar] (\bxx-0.3,-5.7) rectangle (\bxx+0.3,{-5.7+2*\p});
+      \node[font=\footnotesize] at (\bxx,{-5.7+2*\p+0.22}) {\t};
+      \node[font=\footnotesize] at (\bxx,-5.95) {\h};
+    }
+    \draw[draw=navy] (\x-0.5,-5.7) -- (\x+2.4,-5.7);
+    \node[font=\small] at (\x+0.95,-6.4) {\lab};
+    \node[note] at (\x+0.95,-6.85) {\cm};
+  }
+\end{tikzpicture}

@@ -1,0 +1,59 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.25cm, minimum width=2.9cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    step/.style={font=\footnotesize\bfseries, text=azureblue},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    head/.style={font=\small\bfseries, text=navy, align=center},
+    bar/.style={draw=navy, fill=paleskyblue},
+    wire/.style={->, draw=navy},
+  ]
+
+  % ---------- 上段：decide_thompson の手順 ----------
+  \node[block] (b1) at (0,0) {\texttt{row =}\\\texttt{memory[prev]}};
+  \node[block] (b2) at (3.9,0) {事後分布\\$\mathrm{Dirichlet}(\texttt{row} + 1)$};
+  \node[accent] (b3) at (7.8,0) {$p$ を1つ引く\\\texttt{gamma\_int(row[k] + 1)}};
+  \node[block] (b4) at (11.7,0) {一番大きい $p_k$\\の手 $k$};
+  \node[block] (b5) at (15.6,0) {\texttt{computer =}\\\texttt{(k + 2) \% 3}};
+  \foreach \a/\b in {b1/b2, b2/b3, b3/b4, b4/b5} { \draw[wire] (\a) -- (\b); }
+  \foreach \n/\s/\t in {b1/①/人間の手の回数,
+                        b2/②/前回のベイズ更新と同じ,
+                        b3/③/ここだけ乱数,
+                        b4/④/本文では回数の最大,
+                        b5/⑤/$k$ に勝つ手} {
+    \node[step, above=2mm of \n] {\s};
+    \node[note, below=2mm of \n] {\t};
+  }
+
+  % ---------- 下段：行の回数とコンピュータの手の確率 ----------
+  % 棒の高さ 2cm = 確率 1
+  \foreach \k/\lab/\pg/\pc/\pp/\tg/\tc/\tp in {
+      0/{\{0, 0, 0\}}/0.333/0.333/0.333/33\%/33\%/33\%,
+      1/{\{2, 0, 0\}}/0.106/0.106/0.788/11\%/11\%/79\%,
+      2/{\{20, 0, 0\}}/0.0/0.0/1.0/≈0\%/≈0\%/≈100\%} {
+    \pgfmathsetmacro{\x}{1.6+\k*5.6}
+    \node[head] at (\x+1.0,-2.25) {行 \texttt{\lab}};
+    \foreach \j/\h/\p/\t in {0/グー/\pg/\tg, 1/チョキ/\pc/\tc, 2/パー/\pp/\tp} {
+      \pgfmathsetmacro{\bxx}{\x+\j*1.0}
+      \draw[bar] (\bxx-0.3,-5.2) rectangle (\bxx+0.3,{-5.2+2*\p});
+      \node[font=\footnotesize] at (\bxx,{-5.2+2*\p+0.22}) {\t};
+      \node[font=\footnotesize] at (\bxx,-5.45) {\h};
+    }
+    \draw[draw=navy] (\x-0.55,-5.2) -- (\x+2.55,-5.2);
+  }
+  \node[note, anchor=west] at (-1.45,-2.25) {コンピュータが\\各手を出す確率};
+  \node[note] at (7.2,-6.05) {回数が増えると，ほぼ毎回パー（本文のルールと同じ手）になる};
+  \draw[draw=lightgray] (-1.5,-1.75) -- (17.1,-1.75);
+\end{tikzpicture}

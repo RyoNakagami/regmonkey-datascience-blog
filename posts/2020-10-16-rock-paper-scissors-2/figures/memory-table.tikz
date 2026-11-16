@@ -1,0 +1,77 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    cell/.style={draw=navy, fill=white, minimum width=2.2cm, minimum height=1.1cm,
+                 align=center, font=\normalsize},
+    hot/.style={cell, fill=paleskyblue},
+    head/.style={align=center, font=\small},
+    idx/.style={font=\footnotesize\ttfamily, text=darkgray},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=left, inner sep=6pt, text width=6.4cm},
+    step/.style={font=\footnotesize\bfseries, text=azureblue},
+    note/.style={font=\footnotesize, text=darkgray, align=left},
+    wire/.style={->, draw=navy},
+  ]
+
+  % ---------- 3×3 の表（行 = prev，列 = human） ----------
+  % 値は 0 1 2 0 1 2 0 1 2 と9回出したあとの memory
+  \def\cw{2.2}
+  \def\ch{1.1}
+  \foreach \r/\a/\b/\c in {0/1/3/0, 1/0/0/3, 2/2/0/0} {
+    \ifnum\r=2
+      \node[hot] (c\r0) at (0,-\r*\ch) {\a};
+      \node[hot] (c\r1) at (\cw,-\r*\ch) {\b};
+      \node[hot] (c\r2) at (2*\cw,-\r*\ch) {\c};
+    \else
+      \node[cell] (c\r0) at (0,-\r*\ch) {\a};
+      \node[cell] (c\r1) at (\cw,-\r*\ch) {\b};
+      \node[cell] (c\r2) at (2*\cw,-\r*\ch) {\c};
+    \fi
+  }
+  % 予測で選ばれるセル
+  \node[draw=azureblue, line width=1.6pt, minimum width=2.2cm, minimum height=1.1cm]
+       at (c20) {};
+
+  % 列見出し（今回の手）
+  \foreach \c/\h in {0/グー, 1/チョキ, 2/パー} {
+    \node[head, above=1mm of c0\c] (h\c) {\h\\[-1pt]{\footnotesize\texttt{[\c]}}};
+  }
+  \node[head, font=\small\bfseries, text=navy, above=1mm of h1] (colttl)
+       {今回の手 \texttt{human}（列）};
+
+  % 行見出し（直前の手）
+  \foreach \r/\h in {0/グーの次に, 1/チョキの次に, 2/パーの次に} {
+    \node[head, anchor=east, left=2mm of c\r0] (r\r) {\h~{\footnotesize\texttt{[\r]}}};
+  }
+  \node[head, font=\small\bfseries, text=navy, anchor=south] at ($(r0.north)+(0,0.35)$)
+       {直前の手 \texttt{prev}（行）};
+
+  \node[note, anchor=north west] at ($(c20.south west)+(0,-0.25)$)
+       {\texttt{memory[0][0] = 1} は，1回目の \texttt{prev = 0}（仮のグー）による記録};
+
+  % ---------- 右側：使い方 ----------
+  \node[block, anchor=north west] (upd) at (7.2,0.95)
+       {\texttt{memory[prev][human]++;}\\[2pt]
+        {\footnotesize 毎回，(直前の手，今回の手) のマスに1を足す}};
+  \node[step, anchor=south west] at (upd.north west) {記憶する（毎回）};
+
+  \node[block, anchor=north west, below=1.3cm of upd.south west] (prd)
+       {① 行を選ぶ：\texttt{prev = 2}（パー）\\[2pt]
+        ② 行の中で最大の列：\texttt{max = 0}（グー）\\[2pt]
+        ③ \texttt{computer = (0 + 2) \% 3 = 2}（パー）};
+  \node[step, anchor=south west] at (prd.north west) {予測する（10回目以降）};
+
+  \draw[wire, draw=azureblue] ($(c22.east)+(0,0)$) -- (prd.west |- c22.east);
+  \node[step, anchor=south west] at ($(colttl.north -| r0.west)+(0,0.2)$)
+       {例：\texttt{0 1 2 0 1 2 0 1 2} と9回出したあとの \texttt{memory}};
+\end{tikzpicture}

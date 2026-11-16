@@ -1,0 +1,69 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, minimum width=3.4cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    term/.style={draw=navy, fill=white, rounded corners=0.55cm,
+                 align=center, minimum height=1.1cm, inner sep=6pt},
+    decision/.style={draw=navy, fill=white, diamond, aspect=2,
+                     align=center, inner sep=1pt},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south, font=\bfseries, text=navy},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    bar/.style={draw=navy, fill=paleskyblue},
+    wire/.style={->, draw=navy},
+  ]
+
+  % ---------- 左：decide_eps_greedy の中身 ----------
+  \node[term] (in) at (0,0) {\texttt{row =}\\\texttt{memory[prev]}};
+  \node[decision] (d) at (3.4,0) {\texttt{rand() \% 10}\\\texttt{== 0}?};
+  \node[block] (rnd) at (7.4,1.3) {\texttt{rand() \% 3}\\でたらめに出す};
+  \node[accent] (grd) at (7.4,-1.3) {\texttt{decide\_greedy(row)}\\一番多い手に勝つ手 $g$};
+  \node[term] (out) at (11.0,0) {\texttt{computer}};
+
+  \draw[wire] (in) -- (d);
+  \draw[wire] (d.north) |- node[sig, pos=0.25, left] {Yes：確率 0.1} (rnd.west);
+  \draw[wire] (d.south) |- node[sig, pos=0.25, left] {No：確率 0.9} (grd.west);
+  \draw[wire] (rnd.east) -| ($(out.west)+(-0.6,0)$) -- (out.west);
+  \draw[draw=navy] (grd.east) -| ($(out.west)+(-0.6,0)$);
+
+  \node[note, below=2mm of grd] {\texttt{memory} が同じなら毎回同じ手};
+  \node[note, above=2mm of rnd] {グー・チョキ・パーが 1/3 ずつ};
+
+  \begin{scope}[on background layer]
+    \node[zone, fit=(in)(d)(rnd)(grd)(out)
+          ($(rnd.north)+(0,0.55)$) ($(grd.south)+(0,-0.55)$)] (z1) {};
+  \end{scope}
+  \node[zlabel] at (z1.north) {\texttt{decide\_eps\_greedy}：ε = 0.1};
+
+  % ---------- 右：hack.c から見た結果 ----------
+  % hack.c は g に勝つ手を出す．棒の長さ 5cm = 確率 1
+  \def\bx{14.0}
+  \node[anchor=south west, font=\bfseries, text=navy] at (\bx-0.1,1.95)
+       {\texttt{hack.c} から見た結果};
+  \node[note, anchor=north west] at (\bx-0.1,1.55) {\texttt{hack.c} は $g$ に勝つ手を出す};
+  \foreach \i/\lab/\p/\txt/\why in {
+      0/勝ち/0.9333/93.3\%/{\texttt{computer} = $g$（0.9 + 0.1 × 1/3）},
+      1/あいこ/0.0333/3.3\%/{でたらめが \texttt{hack.c} の手と一致（0.1 × 1/3）},
+      2/負け/0.0333/3.3\%/{でたらめが \texttt{hack.c} に勝つ手（0.1 × 1/3）}} {
+    \pgfmathsetmacro{\y}{0.75-\i*1.05}
+    \node[anchor=east, font=\small] at (\bx-0.15,\y) {\lab};
+    \fill[bar] (\bx,\y-0.2) rectangle ++(4.2*\p,0.4);
+    \draw[draw=navy] (\bx,\y-0.2) rectangle ++(4.2*\p,0.4);
+    \node[anchor=west, font=\small] at (\bx+4.2*\p+0.1,\y) {\txt};
+    \node[note, anchor=north west] at (\bx,\y-0.22) {\why};
+  }
+  \draw[draw=lightgray] (\bx,1.1) -- (\bx,-1.75);
+\end{tikzpicture}
