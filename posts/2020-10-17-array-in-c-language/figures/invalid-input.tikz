@@ -1,0 +1,64 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    ng/.style={draw=crimsonred, fill=mistyrose, rounded corners=3pt,
+               align=center, minimum height=1.1cm, inner sep=6pt},
+    ch/.style={draw=navy, fill=white, minimum width=0.8cm, minimum height=0.8cm,
+               inner sep=0pt, font=\ttfamily},
+    cell/.style={draw=navy, fill=white, minimum width=1.1cm, minimum height=0.8cm,
+                 inner sep=0pt},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    bad/.style={font=\footnotesize, text=crimsonred, inner sep=2pt},
+  ]
+  % ---- 入力バッファ ----
+  \node[ch, fill=paleskyblue] (b0) at (0.55,0) {1};
+  \node[ch, draw=crimsonred, fill=mistyrose, right=0pt of b0] (b1) {.};
+  \node[ch, right=0pt of b1] (b2) {1};
+  \node[ch, right=0pt of b2] (b3) {\verb|\n|};
+  \node[font=\footnotesize\bfseries, text=navy, anchor=south west] at (b0.north west) {入力（キーボードから「1.1」）};
+  \node[bad, anchor=west, align=left] at ($(b3.east)+(0.35,0)$)
+    {\texttt{i = 1〜9}：「.」を整数として読めず失敗（戻り値 0）．\\「.」は読み捨てられないので，9回とも同じ場所で止まる};
+
+  % ---- 配列 data ----
+  \foreach \k in {0,...,9} {
+    \pgfmathsetmacro{\x}{0.55+1.1*\k}
+    \ifnum\k=0
+      \node[cell, fill=paleskyblue] (d\k) at (\x,-3.2) {1};
+    \else
+      \node[cell, draw=crimsonred, fill=mistyrose, text=crimsonred] (d\k) at (\x,-3.2) {?};
+    \fi
+    \node[sig, below=1mm of d\k] {[\k]};
+  }
+  \node[font=\bfseries, text=navy, left=2mm of d0] {data};
+
+  % ---- i = 0：成功 ----
+  \draw[->, navy] (b0.south) -- (d0.north)
+    node[pos=0.45, left, sig, align=right, text=navy] {\texttt{i = 0}\\「1」を読んで\\格納（戻り値 1）};
+
+  % ---- i = 1〜9：失敗 ----
+  \draw[crimsonred, decorate, decoration={brace, amplitude=5pt}]
+    ($(d1.north west)+(0.05,0.1)$) -- ($(d9.north east)+(-0.05,0.1)$);
+  \coordinate (tip) at ($(d1.north west)!0.5!(d9.north east)+(0,0.32)$);
+  \draw[->, crimsonred, dashed] (b1.south) |- ($(tip)+(0,1.2)$) -- (tip);
+  \node[bad, anchor=west] at ($(tip)+(0.12,0.55)$)
+    {\texttt{data[1]}〜\texttt{data[9]} には何も書き込まれない};
+
+  \node[bad, anchor=north] (note) at ($(d1.south west)!0.5!(d9.south east)+(0,-0.45)$)
+    {定義したときのメモリの中身（不定値）が残ったまま};
+
+  % ---- 結果 ----
+  \node[ng, anchor=north] (res) at ($(note.south)+(0,-0.7)$)
+    {\texttt{sum = 1 + ? + ? + … + ?}\\[2pt]→ でたらめな平均（例：\texttt{70363096.000000}）};
+  \draw[->, crimsonred] (note.south) -- (res.north)
+    node[midway, right, sig] {10個すべてを \texttt{sum} に足す};
+\end{tikzpicture}

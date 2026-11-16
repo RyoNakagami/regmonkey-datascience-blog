@@ -1,0 +1,61 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    ext/.style={draw=darkgray, dashed, fill=white, rounded corners=3pt,
+                align=center, inner sep=5pt},
+    cell/.style={draw=navy, fill=white, minimum width=0.85cm, minimum height=0.75cm, inner sep=0pt},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    wire/.style={->, draw=navy},
+  ]
+  % ---- 配列 data[10] ----
+  \foreach \v [count=\k from 0] in {7,3,9,5,6,8,2,10,4,7} {
+    \pgfmathsetmacro{\x}{6.0+0.85*\k}
+    \ifnum\k=2
+      \node[cell, fill=paleskyblue] (c\k) at (\x,0) {\v};
+      \node[font=\footnotesize\bfseries, text=azureblue, above=1mm of c\k] {[\k]};
+    \else
+      \node[cell] (c\k) at (\x,0) {\v};
+      \node[sig, above=1mm of c\k] {[\k]};
+    \fi
+  }
+  \node[font=\bfseries, text=navy, left=2mm of c0] {data};
+  \node[note, anchor=west, right=4mm of c9] {int 型の箱が10個，\\メモリ上に連続して並ぶ};
+
+  % ---- 処理ブロック ----
+  \node[ext] (in) at (2.2,0) {標準入力（キーボード）\\[2pt]\texttt{7 3 9 5 6 8 2 10 4 7}};
+  \node[block] (scan) at (2.2,-2.4) {\texttt{scanf("\%d", \&data[i]);}\\[2pt]{\footnotesize 整数を1個読む}};
+  \node[block, minimum width=3.0cm] (sum) at (c2.south |- scan) {\texttt{sum += data[i];}\\[2pt]{\footnotesize 0→7→10→19→…→61}};
+  \node[block] (ave) at (13.0,-2.4) {\texttt{ave = sum / 10.0;}\\[2pt]{\footnotesize 61 / 10.0 = 6.1}};
+  \node[block] (out) at (17.3,-2.4) {\texttt{printf(..., ave);}\\[2pt]{\footnotesize 平均を表示}};
+  \node[note, below=2mm of ave] {\texttt{sum / 10} だと 6（小数が切り捨て）};
+  \node[note, below=2mm of out] {the average is 6.100000};
+
+  % ---- 配線 ----
+  \draw[wire] (in.south -| 1.0,0) -- (scan.north -| 1.0,0);
+  % 書き込み
+  \draw[wire] (scan.north -| 3.6,0) |- ($(c2.south)+(-0.2,-0.65)$) -- ($(c2.south)+(-0.2,0)$);
+  \node[sig, anchor=south] at (5.2,-1.0) {\texttt{\&data[i]} の場所へ格納};
+  % 読み出し
+  \draw[wire] ($(c2.south)+(0.2,0)$) -- ($(sum.north)+(0.2,0)$);
+  \node[sig, anchor=west] at ($(c2.south)+(0.3,-0.75)$) {sum に足す};
+  % ループ
+  \draw[wire] (sum.south) -- ++(0,-0.6) -| (scan.south);
+  \node[sig, anchor=north] at ($(scan.south)!0.5!(sum.south)+(0,-0.6)$) {\texttt{i++} して \texttt{i < 10} の間くり返す（10回）};
+  % ループ後
+  \draw[wire] (sum) -- (ave) node[midway, below, sig, align=center] {ループ\\終了後};
+  \draw[wire] (ave) -- (out);
+\end{tikzpicture}
