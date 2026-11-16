@@ -1,0 +1,249 @@
+---
+title: "BigQuery: データセット内のテーブル一覧・行数・サイズを確認する"
+author: "Ryo Nakagami"
+date: "2026-09-06"
+date-modified: "2026-11-16"
+categories: [BigQuery, shellscript]
+lightbox: true
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+
+::: {.callout-note}
+## TL;DRs
+
+- `<PROJECT_ID>.<DATASET_ID>.INFORMATION_SCHEMA.PARTITIONS` をテーブル単位に集計すると，データセット内のテーブルごとの行数・サイズ・最終データ書き込み時刻をリストアップできる
+- `__TABLES__` や `INFORMATION_SCHEMA.TABLE_STORAGE` を使う方法との比較は Appendix を参照
+
+:::
+
+## クエリ
+
+プロジェクト ID とデータセット ID はマスクして `<PROJECT_ID>`, `<DATASET_ID>` と表記します．
+
+```sql
+SELECT
+  table_schema AS dataset_id,
+  table_name AS table_id,
+  SUM(total_rows) AS row_count,
+  ROUND(SUM(total_logical_bytes) / 1e6, 2) AS size_mb,
+  MAX(last_modified_time) AS last_modified
+FROM `<PROJECT_ID>.<DATASET_ID>.INFORMATION_SCHEMA.PARTITIONS`
+GROUP BY 1, 2
+ORDER BY size_mb DESC
+```
+
+出力イメージは次のとおりです（値はダミー）．
+
+| dataset_id | table_id | row_count | size_mb | last_modified |
+|---|---|---:|---:|---|
+| `<DATASET_ID>` | orders | 1250000 | 182.47 | 2026-09-05 23:10:04 UTC |
+| `<DATASET_ID>` | users | 48210 | 3.91 | 2026-09-01 02:00:11 UTC |
+
+[このクエリで得られる情報]{.mini-section}
+
+データセット内の **テーブル1つにつき1行** で，次の情報が得られます．
+
+| カラム | 得られる情報 | 備考 |
+|---|---|---|
+| `dataset_id` | テーブルが属するデータセット名 | `<DATASET_ID>` で固定 |
+| `table_id` | テーブル名 | パーティション分割の有無にかかわらず1テーブル1行に集約 |
+| `row_count` | テーブルの総行数 | 全パーティションの `total_rows` の合計 |
+| `size_mb` | テーブルの論理サイズ（MB, $10^6$ bytes） | 非圧縮の論理バイト．ストレージ課金額とは一致しないことがある |
+| `last_modified` | テーブルに最後にデータが書き込まれた時刻（UTC） | 全パーティションの `last_modified_time` の最大値．削除だけの変更は反映されないことがある |
+
+: 出力カラムの意味 {tbl-colwidths="[18,40,42]"}
+
+結果はサイズの大きい順に並ぶので，次のような確認に使えます．
+
+- データセットにどんなテーブルがあるかの棚卸し
+- ストレージを多く使っているテーブルの特定
+- 空のテーブル（`row_count = 0`）や，長期間データが書き込まれていないテーブルの洗い出し
+
+## `FROM` 句: `INFORMATION_SCHEMA.PARTITIONS` ビュー
+
+::: {#def- .custom_problem .blog-custom-border}
+### INFORMATION_SCHEMA.PARTITIONS
+
+- [`INFORMATION_SCHEMA.PARTITIONS`](https://docs.cloud.google.com/bigquery/docs/information-schema-partitions) は，
+**パーティションごとに1行** を返すメタデータビュー
+- パーティション分割していないテーブルも1行（`partition_id` が `NULL`）として含まれるため，
+テーブル単位に集計すればデータセット内の全テーブルの行数・サイズが得られる
+
+:::
+
+
+今回使ったカラムは次のとおりです（説明は公式ドキュメントから引用）．
+
+| カラム | 型 | 公式の説明 |
+|---|---|---|
+| `table_schema` | `STRING` | "The name of the dataset that contains the table, also referred to AS the `datasetId`." |
+| `table_name` | `STRING` | "The name of the table, also referred to AS the `tableId`." |
+| `partition_id` | `STRING` | "A single partition's ID. For unpartitioned tables, the value is `NULL`." |
+| `total_rows` | `INTEGER` | "The total number of rows in the partition." |
+| `total_logical_bytes` | `INTEGER` | "The total number of logical bytes in the partition." |
+| `last_modified_time` | `TIMESTAMP` | "The most recent time that data was written to the partition." |
+
+: `INFORMATION_SCHEMA.PARTITIONS` の主なカラム {tbl-colwidths="[22,13,65]"}
+
+[パスの書き方: データセット単位でリージョン不要]{.mini-section}
+
+公式ドキュメントの書式は `[PROJECT_ID.]DATASET_ID.INFORMATION_SCHEMA.PARTITIONS` で，
+リージョンのスコープは "Dataset location" とされています．
+つまり **データセットを指定すれば，そのデータセットのロケーションで実行されるのでリージョン指定は不要** です．
+
+- プロジェクト ID は省略可能（省略時は実行中のプロジェクト）
+- 公式ドキュメントの例には "`INFORMATION_SCHEMA` view names are case-sensitive." との注記があるため，`INFORMATION_SCHEMA.PARTITIONS` は大文字で書く
+
+::: {.callout-warning}
+### 使う前に知っておくべき制約
+
+- **1000 テーブル上限**: "Querying the `INFORMATION_SCHEMA.PARTITIONS` view is limited to 1000 tables."
+  超えると `INFORMATION_SCHEMA.PARTITIONS query attempted to read too many tables. Please add more restrictive filters.` エラーになるので，`where table_name like 'xxx_%'` などで絞る
+- **権限**: `bigquery.tables.get` と `bigquery.tables.list` が必要（例: `roles/bigquery.dataViewer`）
+- **料金**: オンデマンド課金では `INFORMATION_SCHEMA` へのクエリは **最低 10 MB 分の処理料金** がかかり，結果はキャッシュされない（[Introduction to INFORMATION_SCHEMA](https://docs.cloud.google.com/bigquery/docs/information-schema-intro)）
+
+:::
+
+## `bq` コマンドで実行する
+
+[基本形]{.mini-section}
+
+SQL をシングルクオートで囲めば，SQL 中のバッククォートがシェルに解釈されないのでそのまま渡せます．
+
+```bash
+bq query \
+  --project_id=<PROJECT_ID> \
+  --use_legacy_sql=false \
+  --format=pretty \
+  'SELECT
+     table_schema AS dataset_id,
+     table_name AS table_id,
+     SUM(total_rows) AS row_count,
+     ROUND(SUM(total_logical_bytes) / 1e6, 2) AS size_mb,
+     MAX(last_modified_time) AS last_modified
+   FROM `<PROJECT_ID>.<DATASET_ID>.INFORMATION_SCHEMA.PARTITIONS`
+   GROUP BY 1, 2
+   ORDER BY size_mb DESC'
+```
+
+各フラグの意味は [bq command-line tool reference](https://docs.cloud.google.com/bigquery/docs/reference/bq-cli-reference) のとおりです．
+
+| フラグ | 公式の説明 | 補足 |
+|---|---|---|
+| `--project_id` | "Specifies the project to use for commands." | クエリジョブを実行（課金）するプロジェクト |
+| `--use_legacy_sql=false` | "To run a GoogleSQL query, set to `false`. The default value is determined by your configuration settings." | 設定に依存しないよう明示する |
+| `--format` | "Specifies the format of the command's output." | `pretty`, `sparse`, `prettyjson`, `json`, `csv` から選ぶ |
+| `--MAX_rows` / `-n` | "An integer specifying the number of rows to return in the query results. The default value is `100`." | テーブルが100を超えるなら増やす |
+| `--dry_run` | "When specified, the query is validated but not run." | 構文・権限の確認用 |
+
+: `bq query` の主なフラグ {tbl-colwidths="[20,50,30]"}
+
+::: {.callout-important}
+### デフォルトの最大行数は 100
+
+`--MAX_rows` を指定しないと，結果は **100行で打ち切られます**．
+テーブル数の多いデータセットでは `-n 1000` のように指定します（`PARTITIONS` の上限が1000テーブルなので1000あれば十分です）．
+
+:::
+
+[CSV に保存する]{.mini-section}
+
+```bash
+bq query \
+  --project_id=<PROJECT_ID> \
+  --use_legacy_sql=false \
+  --format=csv \
+  --MAX_rows=1000 \
+  'SELECT ... FROM`<PROJECT_ID>.<DATASET_ID>.INFORMATION_SCHEMA.PARTITIONS` ...' \
+  > table_list.csv
+```
+
+## References
+
+- [PARTITIONS view](https://docs.cloud.google.com/bigquery/docs/information-schema-partitions)
+- [Introduction to INFORMATION_SCHEMA](https://docs.cloud.google.com/bigquery/docs/information-schema-intro)
+- [TABLE_STORAGE view](https://docs.cloud.google.com/bigquery/docs/information-schema-table-storage)
+- [bq command-line tool reference](https://docs.cloud.google.com/bigquery/docs/reference/bq-cli-reference)
+- [Running parameterized queries](https://docs.cloud.google.com/bigquery/docs/parameterized-queries)
+- [Introduction to datasets](https://docs.cloud.google.com/bigquery/docs/datasets)
+- [Manage partitioned tables（メタテーブル）](https://docs.cloud.google.com/bigquery/docs/managing-partitioned-tables)
+- [REST Resource: tables](https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/tables)
+- [Lexical structure and syntax](https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/lexical)
+- [Operators](https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/operators)
+- [Mathematical functions](https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions)
+- [Timestamp functions](https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions)
+- [Datetime functions](https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions)
+
+## Appendix: ほかの取得方法との比較
+
+本文では `INFORMATION_SCHEMA.PARTITIONS` を使いましたが，同じ目的でよく使われる方法がほかに2つあります．
+
+[`__TABLES__` メタテーブル]{.mini-section}
+
+古くから使われている書き方として，次のクエリもあります．
+
+```sql
+SELECT
+  dataset_id,
+  table_id,
+  row_count,
+  ROUND(size_bytes / 1e6, 2) AS size_mb,
+  timestamp_millis(last_modified_time) AS last_modified
+FROM `<PROJECT_ID>.<DATASET_ID>.__TABLES__`
+```
+
+公式ドキュメントでは "Meta-tables are read-only tables that contain metadata." と説明されるメタテーブルの一種ですが
+（[Manage partitioned tables](https://docs.cloud.google.com/bigquery/docs/managing-partitioned-tables)），
+2026-11 時点で `__TABLES__` 自体のカラム定義を説明する公式ページはありません．
+
+- カラムは REST API の [Table リソース](https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/tables) の `numRows`, `numBytes`, `lastModifiedTime` に対応する値と読める
+- `last_modified_time` は "in milliseconds since the epoch" の `INT64` なので `TIMESTAMP_MILLIS` で変換している（[Timestamp functions – TIMESTAMP_MILLIS](https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions#timestamp_millis)）
+- この時刻は「テーブルが最後に変更された時刻」であり，データの書き込み時刻とは限らない
+
+仕様が公式に保証されていないため，本文では採用していません．
+
+[`INFORMATION_SCHEMA.TABLE_STORAGE` ビュー]{.mini-section}
+
+[`TABLE_STORAGE`](https://docs.cloud.google.com/bigquery/docs/information-schema-table-storage) はテーブル単位の行数・ストレージ量を返す GA のビューですが，
+書式は `[PROJECT_ID.]region-REGION.INFORMATION_SCHEMA.TABLE_STORAGE` で，
+"Queries against this view must include a region qualifier." と **リージョン指定が必須** です．
+
+- region qualifier を省略して `<PROJECT_ID>.<DATASET_ID>.INFORMATION_SCHEMA.TABLE_STORAGE` のようにデータセットで指定する書き方は用意されていない
+- "The location of the query execution must match the region of the `INFORMATION_SCHEMA` view." とあり，クエリの実行ロケーションもビューのリージョンに合わせる必要がある
+- "Region qualifiers aren't hierarchical" であり，たとえば `region-eu`（EU マルチリージョン）に `europe-*` リージョンは含まれない（[Introduction to INFORMATION_SCHEMA](https://docs.cloud.google.com/bigquery/docs/information-schema-intro)）
+- リージョンは project 全体が対象なので，特定のデータセットに絞るには `where table_schema = ...` を書く．削除済みテーブルも行として残るため `deleted` カラムで除外する
+
+データセットのリージョンが分からない場合は `bq show --dataset=true <PROJECT_ID>:<DATASET_ID>` で確認できますが，
+「リージョンを調べてから書く」手間がない点で，本文ではデータセット単位で書ける `PARTITIONS` を採用しました．
+
+```sql
+SELECT
+  table_schema AS dataset_id,
+  table_name AS table_id,
+  total_rows AS row_count,
+  ROUND(total_logical_bytes / 1e6, 2) AS size_mb,
+  storage_last_modified_time AS last_modified
+FROM `<PROJECT_ID>`.`region-<REGION>`.INFORMATION_SCHEMA.TABLE_STORAGE
+where
+  table_schema = '<DATASET_ID>'
+  AND NOT deleted
+ORDER BY total_logical_bytes DESC
+```
+
+[比較]{.mini-section}
+
+| 観点 | `PARTITIONS`（本記事） | `__TABLES__` | `TABLE_STORAGE` |
+|---|---|---|---|
+| 公式ドキュメント | あり（Preview） | なし（レガシー） | あり |
+| スコープ | データセット | データセット | リージョン |
+| リージョン指定 | 不要 | 不要 | **必須** |
+| 粒度 | パーティション（要集計） | テーブル | テーブル |
+| 最終更新時刻 | データの最終書き込み（`TIMESTAMP`） | テーブルの最終変更（`INT64` ミリ秒） | データの最終書き込み（`TIMESTAMP`） |
+| 制約 | 1000 テーブルまで | — | 数秒〜数分の反映遅延，削除済みテーブルを含む |
+
+: テーブル一覧の取得方法の比較 {tbl-colwidths="[18,28,26,28]"}
