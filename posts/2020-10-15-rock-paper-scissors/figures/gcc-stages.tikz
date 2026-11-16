@@ -1,0 +1,59 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.2cm, minimum width=2.7cm, inner sep=5pt},
+    file/.style={draw=navy, fill=white, rounded corners=3pt,
+                 align=center, minimum height=1.2cm, minimum width=1.9cm, inner sep=5pt},
+    accent/.style={file, fill=paleskyblue},
+    ext/.style={draw=darkgray, dashed, fill=white, rounded corners=3pt,
+                align=center, inner sep=5pt, minimum height=1.0cm},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt, align=center},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    step/.style={font=\footnotesize\bfseries, text=azureblue},
+    wire/.style={->, draw=navy},
+    dwire/.style={->, draw=darkgray, dashed},
+  ]
+
+  % ---------- 主経路 ----------
+  \node[file] (src) {\texttt{janken.c}\\ソース};
+  \node[block, right=1.6cm of src] (pp) {① プリプロセス\\\texttt{\#include} を展開};
+  \node[block, right=1.9cm of pp]  (cc) {② コンパイル\\C → アセンブリ};
+  \node[block, right=1.6cm of cc]  (as) {③ アセンブル\\アセンブリ → 機械語};
+  \node[block, right=1.6cm of as]  (ld) {④ リンク\\libc と結び付ける};
+  \node[accent, right=1.6cm of ld] (exe) {\texttt{janken}\\実行ファイル};
+
+  \draw[wire] (src) -- (pp);
+  \draw[wire] (pp) -- node[sig, above] {展開後の\\C ソース} (cc);
+  \draw[wire] (cc) -- node[sig, above] {\texttt{janken.s}} (as);
+  \draw[wire] (as) -- node[sig, above] {\texttt{janken.o}} (ld);
+  \draw[wire] (ld) -- (exe);
+
+  % ---------- 止めるオプション ----------
+  \node[note, below=2mm of pp] {\texttt{gcc -E} で止まる};
+  \node[note, below=2mm of cc] {\texttt{gcc -S} で止まる};
+  \node[note, below=2mm of as] {\texttt{gcc -c} で止まる};
+  \node[note, below=2mm of ld] (nld) {オプションなし（最後まで）};
+
+  % ---------- gcc 1回でまとめて実行 ----------
+  \coordinate (bl) at ($(pp.west |- nld.south)+(0,-0.15)$);
+  \coordinate (br) at ($(ld.east |- nld.south)+(0,-0.15)$);
+  \draw[draw=navy, decorate, decoration={brace, mirror, amplitude=6pt}] (bl) -- (br)
+    node[midway, below=9pt, note] {\texttt{gcc janken.c -o janken} は ①〜④ を続けて実行する};
+
+  % ---------- 外から使うもの ----------
+  \node[ext, above=1.1cm of pp] (hdr) {ヘッダ（宣言）\\\texttt{stdio.h} ほか};
+  \node[ext, above=1.1cm of ld] (lib) {ライブラリ（実体）\\\texttt{libc.so.6}，起動コード};
+  \draw[dwire] (hdr) -- (pp);
+  \draw[dwire] (lib) -- (ld);
+\end{tikzpicture}

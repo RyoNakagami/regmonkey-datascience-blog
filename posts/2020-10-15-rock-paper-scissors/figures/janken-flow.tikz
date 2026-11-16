@@ -1,0 +1,85 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, minimum width=3.0cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue, minimum width=2.2cm},
+    term/.style={draw=navy, fill=white, rounded corners=0.55cm,
+                 align=center, minimum height=1.1cm, minimum width=1.8cm},
+    decision/.style={draw=navy, fill=white, diamond, aspect=2,
+                     align=center, inner sep=1pt},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south, font=\bfseries, text=navy},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    dot/.style={circle, fill=navy, inner sep=1.4pt},
+    wire/.style={->, draw=navy},
+  ]
+
+  % ---------- 1段目：掛け声と入力待ち ----------
+  \node[term] (start) {開始};
+  \node[block, right=1.0cm of start] (jan)
+       {\texttt{printf}\\「じゃんけん．．．」};
+  \node[block, right=1.0cm of jan] (wait)
+       {\texttt{getchar()}\\Enter を待つ};
+  \node[block, right=1.0cm of wait] (pon)
+       {\texttt{printf}\\「ぽん！」};
+  \node[note, below=2mm of wait] (nwait) {Enter が押されるまで止まる};
+
+  \draw[wire] (start) -- (jan);
+  \draw[wire] (jan) -- (wait);
+  \draw[wire] (wait) -- (pon);
+
+  % ---------- 2段目：乱数生成と分岐 ----------
+  \node[block, below=3.2cm of jan.south west, anchor=north west] (seed)
+       {\texttt{srand(time(NULL))}\\乱数の種を設定};
+  \node[block, right=1.0cm of seed] (rnd)
+       {\texttt{computer =}\\\texttt{rand() \% 3}};
+  \node[note, below=2mm of seed] (nseed) {種＝現在時刻（秒）};
+  \node[note, below=2mm of rnd] (nrnd) {0，1，2 のどれか};
+
+  \node[decision, right=1.3cm of rnd] (d0) {\texttt{computer}\\\texttt{== 0}?};
+  \node[decision, right=1.3cm of d0] (d1) {\texttt{computer}\\\texttt{== 1}?};
+  \node[accent, right=1.3cm of d1] (par) {パー};
+  \node[accent, below=1.3cm of d0] (gu) {グー};
+  \node[accent, below=1.3cm of d1] (choki) {チョキ};
+  \node[term, right=1.0cm of par] (end) {終了};
+
+  \draw[wire] (seed) -- (rnd);
+  \draw[wire] (rnd) -- (d0);
+  \draw[wire] (d0) -- node[sig, above] {No} (d1);
+  \draw[wire] (d1) -- node[sig, above] {No} (par);
+  \draw[wire] (d0) -- node[sig, right] {Yes} (gu);
+  \draw[wire] (d1) -- node[sig, right] {Yes} (choki);
+  \draw[wire] (par) -- (end);
+
+  % グー・チョキ → 終了（下側のバス）
+  \coordinate (bus) at ($(gu.south)+(0,-0.75)$);
+  \draw[draw=navy] (gu.south) -- (bus);
+  \draw[draw=navy] (choki.south) -- (choki.south |- bus) node[dot] {};
+  \draw[wire] (bus) -| (end.south);
+
+  % 1段目 → 2段目
+  \coordinate (turn) at ($(pon.south)+(0,-1.3)$);
+  \draw[wire] (pon.south) -- (turn) -| ($(seed.west)+(-0.6,0)$) -- (seed.west);
+
+  % ---------- ゾーン ----------
+  \begin{scope}[on background layer]
+    \node[zone, fit=(start)(jan)(wait)(pon)(nwait)] (z1) {};
+    \node[zone, fit=(seed)(rnd)(nseed)(nrnd)] (z2) {};
+    \node[zone, fit=(d0)(d1)(par)(gu)(choki)] (z3) {};
+  \end{scope}
+  \node[zlabel] at (z1.north) {① 掛け声と入力待ち（stdio.h）};
+  \node[zlabel] at (z2.north) {② 乱数を作る（stdlib.h，time.h）};
+  \node[zlabel] at (z3.north) {③ 手を決めて表示（if / else if / else）};
+\end{tikzpicture}

@@ -1,0 +1,77 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, minimum width=3.0cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    ext/.style={draw=darkgray, dashed, fill=white, rounded corners=3pt,
+                align=center, inner sep=5pt, minimum height=1.0cm},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south, font=\bfseries, text=navy},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    step/.style={font=\footnotesize\bfseries, text=azureblue},
+    wire/.style={->, draw=navy},
+    dwire/.style={->, draw=darkgray, dashed},
+  ]
+
+  % ---------- ビルド時（動的リンク） ----------
+  \node[block] (obj) {\texttt{janken.o}\\\texttt{U printf}，\texttt{U rand} …};
+  \node[block, right=1.1cm of obj] (ld) {\texttt{ld}（リンカ）\\シンボルを照合};
+  \node[accent, right=1.1cm of ld] (exe) {\texttt{janken}\\NEEDED: \texttt{libc.so.6}};
+
+  \node[ext, above=1.3cm of ld] (auto)
+       {起動コード \texttt{Scrt1.o}，\texttt{crti.o}\\\texttt{-lc}（\texttt{libc.so.6}），\texttt{-lgcc}};
+  \node[step, above=1mm of auto] (autolabel) {gcc が自動で追加};
+
+  \node[note, below=2mm of obj] (nobj) {printf の実体はない};
+  \node[note, below=2mm of ld] (nld) {実体はコピーせず\\依存関係だけ記録};
+  \node[note, below=2mm of exe] (nexe) {16 KB};
+
+  \draw[wire] (obj) -- (ld);
+  \draw[wire] (ld) -- (exe);
+  \draw[dwire] (auto) -- node[sig, right] {シンボル表を参照} (ld);
+
+  % ---------- 実行時 ----------
+  \node[block, right=2.3cm of exe] (dl) {\texttt{ld-linux-x86-64.so.2}\\（動的リンカ）};
+  \node[accent, right=1.1cm of dl] (proc) {メモリ上のプロセス\\\texttt{janken} ＋ \texttt{libc.so.6}};
+  \node[ext, above=1.3cm of dl] (libfile) {\texttt{/lib/x86\_64-linux-gnu/}\\\texttt{libc.so.6}};
+
+  \node[note, below=2mm of dl] (ndl) {起動時に読み込み，\\printf のアドレスを解決};
+  \node[note, below=2mm of proc] (nproc) {printf の実体を\\呼び出せる};
+
+  \draw[wire] (exe) -- node[sig, above] {\texttt{./janken}} (dl);
+  \draw[wire] (dl) -- (proc);
+  \draw[dwire] (libfile) -- node[sig, right] {読み込む} (dl);
+
+  % ---------- 比較：静的リンク ----------
+  \node[block, below=3.0cm of obj] (sobj) {\texttt{janken.o}};
+  \node[block] (sld) at (ld |- sobj) {\texttt{ld}（リンカ）\\\texttt{libc.a} から実体をコピー};
+  \node[accent] (sexe) at (exe |- sobj) {\texttt{janken\_static}\\printf の実体を含む};
+  \node[note, below=2mm of sexe] (nsexe) {790 KB．実行時に\\\texttt{libc.so.6} は不要};
+
+  \draw[wire] (sobj) -- (sld);
+  \draw[wire] (sld) -- (sexe);
+
+  % ---------- ゾーン ----------
+  \begin{scope}[on background layer]
+    \node[zone, fit=(obj)(ld)(exe)(autolabel)(nobj)(nld)(nexe)] (z1) {};
+    \node[zone, fit=(dl)(proc)(libfile)(ndl)(nproc)(dl |- autolabel.north)] (z2) {};
+    \coordinate (zl) at ($(z1.west)+(0.353,0)$);
+    \coordinate (zr) at ($(z1.east)+(-0.353,0)$);
+    \node[zone, fit=(sobj)(sld)(sexe)(nsexe)(zl |- sobj)(zr |- sobj)] (z3) {};
+  \end{scope}
+  \node[zlabel] at (z1.north) {ビルド時：\texttt{gcc janken.o -o janken}};
+  \node[zlabel] at (z2.north) {実行時：\texttt{./janken}};
+  \node[zlabel] at (z3.north) {比較：\texttt{gcc -static janken.o -o janken\_static}};
+\end{tikzpicture}
