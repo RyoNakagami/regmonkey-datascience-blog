@@ -10,7 +10,2655 @@
 <atom:link href="https://ryonakagami.github.io/regmonkey-datascience-blog/index.xml" rel="self" type="application/rss+xml"/>
 <description>日々の徒然勉強日記</description>
 <generator>quarto-1.11.9</generator>
-<lastBuildDate>Fri, 13 Nov 2026 00:00:00 GMT</lastBuildDate>
+<lastBuildDate>Tue, 17 Nov 2026 00:00:00 GMT</lastBuildDate>
+<item>
+  <title>epsilon-greedy と 奇を衒う</title>
+  <dc:creator>Ryo Nakagami</dc:creator>
+  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-11-17-epsilon-greedy-and-kiwoterau/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>TL:DRs
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>「奇を衒う」の目的は「変わっていると見られること」で，変わった選択肢を意図的に選ぶ．</li>
+<li>epsilon-greedy の探索の目的は，推定値を改善するための情報収集で，選択肢を一様ランダムに選ぶ．</li>
+<li>違いは <strong>動機</strong>（見栄か情報収集か）と <strong>選び方</strong>（変わったものを狙うか一様ランダムか）の二つ．</li>
+<li>ただし「自分らしくない手（これまで最も出していない手）」を狙う奇を衒ったアルゴリズムは，結果的に試行回数の少ない手を優先する探索になり，じゃんけんでは ε-greedy と同等以上に戦える．このとき違いは動機だけになり，行動からは区別できない．</li>
+</ul>
+</div>
+</div>
+<section id="epsilon-greedy-と-奇を衒う-の違い" class="level2">
+<h2 class="anchored" data-anchor-id="epsilon-greedy-と-奇を衒う-の違い">epsilon-greedy と 奇を衒う の違い</h2>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title">奇を衒う</span></p>
+<ul>
+<li>「奇を衒う」は，人目を引くためにわざと変わったことをする</li>
+<li>目的は「変わっていると見られること」</li>
+</ul>
+</div>
+<p>「奇を衒う」の目的は「変わっていると見られること」です． 一方 epsilon-greedy は，確率 <img src="https://latex.codecogs.com/png.latex?1-%5Cvarepsilon"> で現時点の最良の選択肢を選び，確率 <img src="https://latex.codecogs.com/png.latex?%5Cvarepsilon"> でランダムに選びます． ランダムに選ぶ目的は，まだよく知らない選択肢の情報を集めることで，目立つことではありません．</p>
+<p>日本語で喩えるなら，epsilon-greedy は「基本はいつもの店に行くが，たまにサイコロを振って知らない店に入ってみる」が近いです． サイコロの目は店の珍しさとは無関係なので，入ってみた店が結果的に平凡な店であることも普通にあります．</p>
+<p>両者を行動アルゴリズムとして並べると次のようになります．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/kiwoterau-vs-egreedy-flow.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-1" title="奇を衒う行動と epsilon-greedy の比較．奇を衒う行動は周囲の予想から最も遠い選択肢を選び，周囲の反応で次の「変わり方」を調整する．epsilon-greedy は確率 ε で一様ランダムに探索し，観測した報酬で推定値を更新する"><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-11-17-epsilon-greedy-and-kiwoterau/figures/kiwoterau-vs-egreedy-flow.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="奇を衒う行動と epsilon-greedy の比較．奇を衒う行動は周囲の予想から最も遠い選択肢を選び，周囲の反応で次の「変わり方」を調整する．epsilon-greedy は確率 ε で一様ランダムに探索し，観測した報酬で推定値を更新する"></a></p>
+</figure>
+</div>
+<figcaption>奇を衒う行動と epsilon-greedy の比較．奇を衒う行動は周囲の予想から最も遠い選択肢を選び，周囲の反応で次の「変わり方」を調整する．epsilon-greedy は確率 ε で一様ランダムに探索し，観測した報酬で推定値を更新する</figcaption>
+</figure>
+</div>
+<section id="選び方の違いを選択確率で見る" class="level3">
+<h3 class="anchored" data-anchor-id="選び方の違いを選択確率で見る">選び方の違いを選択確率で見る</h3>
+<p>選択肢が <img src="https://latex.codecogs.com/png.latex?K"> 個あり，現時点の推定値を <img src="https://latex.codecogs.com/png.latex?%5Chat%7BQ%7D(a)"> とすると，epsilon-greedy が選択肢 <img src="https://latex.codecogs.com/png.latex?a"> を選ぶ確率は</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AP(a)%20=%20(1-%5Cvarepsilon)%5C,%5Cmathbf%7B1%7D%5C!%5Cleft%5Ba%20=%20%5Coperatorname*%7Barg%5C,max%7D_%7Ba'%7D%20%5Chat%7BQ%7D(a')%5Cright%5D%20+%20%5Cfrac%7B%5Cvarepsilon%7D%7BK%7D%0A"></p>
+<p>です．探索部分の <img src="https://latex.codecogs.com/png.latex?%5Cvarepsilon/K"> は，選択肢が定番か変わっているかに依存しません． これに対して奇を衒う行動は，「変わっている度合い」が最も大きい選択肢に確率を集中させます．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/choice-probability.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-2" title="店を「定番 → 変わった」の順に並べたときの選択確率．奇を衒う行動は最も変わった店Eだけを選ぶ．epsilon-greedy はいつもの店Bに 1−ε を上乗せし，残りの ε はどの店にも均等に配る（説明のため ε = 0.5 と大きめにしている）"><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-11-17-epsilon-greedy-and-kiwoterau/figures/choice-probability.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="店を「定番 → 変わった」の順に並べたときの選択確率．奇を衒う行動は最も変わった店Eだけを選ぶ．epsilon-greedy はいつもの店Bに 1−ε を上乗せし，残りの ε はどの店にも均等に配る（説明のため ε = 0.5 と大きめにしている）"></a></p>
+</figure>
+</div>
+<figcaption>店を「定番 → 変わった」の順に並べたときの選択確率．奇を衒う行動は最も変わった店Eだけを選ぶ．epsilon-greedy はいつもの店Bに 1−ε を上乗せし，残りの ε はどの店にも均等に配る（説明のため ε = 0.5 と大きめにしている）</figcaption>
+</figure>
+</div>
+</section>
+</section>
+<section id="奇を衒ったアルゴリズム" class="level2">
+<h2 class="anchored" data-anchor-id="奇を衒ったアルゴリズム">奇を衒ったアルゴリズム</h2>
+<p>epsilon-greedy を「改良」して，確率 <img src="https://latex.codecogs.com/png.latex?%5Cvarepsilon"> のときにランダムに選ぶのではなく，<strong>自分がこれまで最も選んでいない選択肢</strong>を選ぶようにしてみます．</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0Aa_t%20=%0A%5Cbegin%7Bcases%7D%0A%5Cdisplaystyle%20%5Coperatorname*%7Barg%5C,max%7D_a%20%5Chat%7BQ%7D(a)%20&amp;%20%5Ctext%7B%E7%A2%BA%E7%8E%87%20%7D%201-%5Cvarepsilon%20%5C%5C%5B6pt%5D%0A%5Cdisplaystyle%20%5Coperatorname*%7Barg%5C,min%7D_a%20n(a)%20&amp;%20%5Ctext%7B%E7%A2%BA%E7%8E%87%20%7D%20%5Cvarepsilon%0A%5Cend%7Bcases%7D%0A"></p>
+<p><img src="https://latex.codecogs.com/png.latex?n(a)"> は，自分がこれまで選択肢 <img src="https://latex.codecogs.com/png.latex?a"> を選んだ回数です．</p>
+<p>「奇を衒う」は，人目を引くためにわざと変わったことをすることでした． 自分をいつも見ている人（じゃんけんなら対戦相手）にとって，「変わったこと」とは <strong>自分らしくない行動</strong>，つまりこれまでほとんど選んでこなかった選択肢です． 確率 <img src="https://latex.codecogs.com/png.latex?%5Cvarepsilon"> の部分にこの行動を入れたアルゴリズムなので，これを奇を衒ったアルゴリズムと呼ぶことにします．</p>
+<section id="結果的に探索と同じ行動になる" class="level3">
+<h3 class="anchored" data-anchor-id="結果的に探索と同じ行動になる">結果的に探索と同じ行動になる</h3>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/kiwoterau-greedy-probability.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-3" title="epsilon-greedy と奇を衒ったアルゴリズムの選択確率．epsilon-greedy は来店回数に関係なくどの店にも ε/K の確率を配る．奇を衒ったアルゴリズムは ε をこれまで最も行っていない店Dに置く．行けば来店回数が増えるので，探索先は店を順に回っていく"><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-11-17-epsilon-greedy-and-kiwoterau/figures/kiwoterau-greedy-probability.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="epsilon-greedy と奇を衒ったアルゴリズムの選択確率．epsilon-greedy は来店回数に関係なくどの店にも ε/K の確率を配る．奇を衒ったアルゴリズムは ε をこれまで最も行っていない店Dに置く．行けば来店回数が増えるので，探索先は店を順に回っていく"></a></p>
+</figure>
+</div>
+<figcaption>epsilon-greedy と奇を衒ったアルゴリズムの選択確率．epsilon-greedy は来店回数に関係なくどの店にも ε/K の確率を配る．奇を衒ったアルゴリズムは ε をこれまで最も行っていない店Dに置く．行けば来店回数が増えるので，探索先は店を順に回っていく</figcaption>
+</figure>
+</div>
+<p>自分らしくない選択肢を選ぶと，その選択肢の <img src="https://latex.codecogs.com/png.latex?n(a)"> が増えるので，次に「自分らしくない」のは別の選択肢になります． そのため探索先はすべての選択肢を順に回り，次のことが起きます．</p>
+<ul>
+<li>どの選択肢も試され続けるので，epsilon-greedy と同じく <img src="https://latex.codecogs.com/png.latex?%5Chat%7BQ%7D"> は真の値に近づいていく</li>
+<li>試行回数が少ない選択肢ほど優先して試されるので，一様ランダムよりも偏りなく情報が集まる．これは試行回数が少ない選択肢に加点する UCB と同じ発想</li>
+<li>最も試していない選択肢は，推定値が最も不確かな選択肢でもある．目立つために選んだ「自分らしくない選択肢」が，情報収集の観点で最も価値のある選択肢と一致する</li>
+</ul>
+<p>つまり奇を衒ったアルゴリズムは，動機（見栄）が違っても，行動としては情報収集のための探索とほとんど区別がつかなくなります．</p>
+</section>
+</section>
+<section id="じゃんけんアルゴリズムバトル" class="level2">
+<h2 class="anchored" data-anchor-id="じゃんけんアルゴリズムバトル">じゃんけんアルゴリズムバトル</h2>
+<p>奇を衒ったアルゴリズムが探索としてどれくらい働くのかを，じゃんけんで確かめます． 自分の3つの手（グー・チョキ・パー）を腕とみなし，利得は勝ち <img src="https://latex.codecogs.com/png.latex?+1">，あいこ <img src="https://latex.codecogs.com/png.latex?0">，負け <img src="https://latex.codecogs.com/png.latex?-1"> とします． 戦わせるのは次の4つです．</p>
+<table class="caption-top table">
+<caption>対戦させるアルゴリズム</caption>
+<colgroup>
+<col style="width: 15%">
+<col style="width: 60%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>アルゴリズム</th>
+<th>手の決め方</th>
+<th>学習に使う情報</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>ε-greedy</td>
+<td>確率 <img src="https://latex.codecogs.com/png.latex?1-%5Cvarepsilon"> で <img src="https://latex.codecogs.com/png.latex?%5Chat%7BQ%7D(a)"> 最大の手，確率 <img src="https://latex.codecogs.com/png.latex?%5Cvarepsilon"> で一様ランダム</td>
+<td>自分が出した手の利得</td>
+</tr>
+<tr class="even">
+<td>奇を衒った</td>
+<td>確率 <img src="https://latex.codecogs.com/png.latex?1-%5Cvarepsilon"> で <img src="https://latex.codecogs.com/png.latex?%5Chat%7BQ%7D(a)"> 最大の手，確率 <img src="https://latex.codecogs.com/png.latex?%5Cvarepsilon"> で自分がこれまで最も出していない手</td>
+<td>自分が出した手の利得</td>
+</tr>
+<tr class="odd">
+<td>Thompson</td>
+<td>手ごとの勝ち・あいこ・負けの回数から <img src="https://latex.codecogs.com/png.latex?%5Cmathrm%7BDirichlet%7D"> 事後分布を作り，引いた確率で期待利得が最大の手</td>
+<td>自分が出した手の利得</td>
+</tr>
+<tr class="even">
+<td>Hedge</td>
+<td><img src="https://latex.codecogs.com/png.latex?%5Cpi(a)%20%5Cpropto%20%5Cexp(%5Ceta%20%5Ccdot%20%5Ctexttt%7Bscore%7D%5Ba%5D)"> で確率的に出す</td>
+<td>相手の手（全手の「出していたら」の利得）</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><img src="https://latex.codecogs.com/png.latex?%5Cvarepsilon%20=%200.1">，<img src="https://latex.codecogs.com/png.latex?%5Ceta%20=%200.1">，<img src="https://latex.codecogs.com/png.latex?%5Chat%7BQ%7D(a)"> は標本平均で初期値は <img src="https://latex.codecogs.com/png.latex?0"></li>
+<li>Hedge だけは相手の手を見て，出さなかった手の利得も使って更新する（じゃんけんでは相手の手が見えるので，これは反則ではない）</li>
+<li>1試合 <img src="https://latex.codecogs.com/png.latex?T%20=%201000"> 回のじゃんけんを，乱数を変えて <img src="https://latex.codecogs.com/png.latex?1000"> 試合くり返す</li>
+</ul>
+<div id="62fe2cbd" class="cell" data-execution_count="1">
+<details class="code-fold">
+<summary>シミュレーションのコード</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> numpy <span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">as</span> np</span>
+<span id="cb1-2"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> matplotlib.pyplot <span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">as</span> plt</span>
+<span id="cb1-3"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">from</span> IPython.display <span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> Markdown</span>
+<span id="cb1-4"></span>
+<span id="cb1-5">plt.rcParams[<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"font.family"</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Noto Sans CJK JP"</span></span>
+<span id="cb1-6"></span>
+<span id="cb1-7">T, R <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1000</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1000</span>  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 1試合の回数，試合数</span></span>
+<span id="cb1-8">G, C, P <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># グー，チョキ，パー（a は (a+1)%3 に勝つ）</span></span>
+<span id="cb1-9">PAYOFF <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.array([<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>])  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># (h - a) % 3 -&gt; a から見た利得</span></span>
+<span id="cb1-10"></span>
+<span id="cb1-11"></span>
+<span id="cb1-12"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> payoff(a, h):</span>
+<span id="cb1-13">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> PAYOFF[(h <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> a) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>]</span>
+<span id="cb1-14"></span>
+<span id="cb1-15"></span>
+<span id="cb1-16"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">class</span> EpsGreedy:</span>
+<span id="cb1-17">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""kiwo=False なら ε-greedy，kiwo=True なら奇を衒ったアルゴリズム"""</span></span>
+<span id="cb1-18"></span>
+<span id="cb1-19">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__init__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, eps<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.1</span>, kiwo<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">False</span>):</span>
+<span id="cb1-20">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.eps, <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.kiwo <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> eps, kiwo</span>
+<span id="cb1-21"></span>
+<span id="cb1-22">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> reset(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, rng):</span>
+<span id="cb1-23">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.rng <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> rng</span>
+<span id="cb1-24">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.Q <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.zeros((R, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>))</span>
+<span id="cb1-25">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.n <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.zeros((R, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>))  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 自分がその手を出した回数</span></span>
+<span id="cb1-26"></span>
+<span id="cb1-27">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> act(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>):</span>
+<span id="cb1-28">        <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 同点は乱数でくずす</span></span>
+<span id="cb1-29">        greedy <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.argmax(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.Q <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1e-9</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.rng.random((R, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>)), axis<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)</span>
+<span id="cb1-30">        explore <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.rng.random(R) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.eps</span>
+<span id="cb1-31">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.kiwo:</span>
+<span id="cb1-32">            <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 自分がこれまで最も出していない手（自分らしくない手）</span></span>
+<span id="cb1-33">            alt <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.argmin(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.n <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1e-9</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.rng.random((R, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>)), axis<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)</span>
+<span id="cb1-34">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">else</span>:</span>
+<span id="cb1-35">            alt <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.rng.integers(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>, size<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>R)</span>
+<span id="cb1-36">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.explore <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> explore  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 探索した回かどうか（対戦3の集計用）</span></span>
+<span id="cb1-37">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> np.where(explore, alt, greedy)</span>
+<span id="cb1-38"></span>
+<span id="cb1-39">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> update(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, a, h):</span>
+<span id="cb1-40">        r <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.arange(R)</span>
+<span id="cb1-41">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.n[r, a] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span></span>
+<span id="cb1-42">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.Q[r, a] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+=</span> (payoff(a, h) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.Q[r, a]) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.n[r, a]</span>
+<span id="cb1-43"></span>
+<span id="cb1-44"></span>
+<span id="cb1-45"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">class</span> Thompson:</span>
+<span id="cb1-46">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> reset(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, rng):</span>
+<span id="cb1-47">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.rng <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> rng</span>
+<span id="cb1-48">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.cnt <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.ones((R, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>))  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># [試合, 自分の手, 勝ち/あいこ/負け]</span></span>
+<span id="cb1-49"></span>
+<span id="cb1-50">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> act(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>):</span>
+<span id="cb1-51">        g <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.rng.gamma(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.cnt)</span>
+<span id="cb1-52">        p <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> g <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> g.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>(axis<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>, keepdims<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">True</span>)</span>
+<span id="cb1-53">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> np.argmax(p[:, :, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> p[:, :, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>], axis<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)</span>
+<span id="cb1-54"></span>
+<span id="cb1-55">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> update(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, a, h):</span>
+<span id="cb1-56">        outcome <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.array([<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>])[(h <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> a) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>]  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># あいこ→1, 勝ち→0, 負け→2</span></span>
+<span id="cb1-57">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.cnt[np.arange(R), a, outcome] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span></span>
+<span id="cb1-58"></span>
+<span id="cb1-59"></span>
+<span id="cb1-60"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">class</span> Hedge:</span>
+<span id="cb1-61">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__init__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, eta<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.1</span>):</span>
+<span id="cb1-62">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.eta <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> eta</span>
+<span id="cb1-63"></span>
+<span id="cb1-64">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> reset(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, rng):</span>
+<span id="cb1-65">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.rng <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> rng</span>
+<span id="cb1-66">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.S <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.zeros((R, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>))  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># score[a]：毎回 a を出していたときの累積利得</span></span>
+<span id="cb1-67"></span>
+<span id="cb1-68">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> act(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>):</span>
+<span id="cb1-69">        w <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.exp(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.eta <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> (<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.S <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.S.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">max</span>(axis<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, keepdims<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">True</span>)))</span>
+<span id="cb1-70">        cdf <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.cumsum(w <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> w.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>(axis<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, keepdims<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">True</span>), axis<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)</span>
+<span id="cb1-71">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> (<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.rng.random((R, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> cdf).<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>(axis<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>).clip(<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">max</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>)</span>
+<span id="cb1-72"></span>
+<span id="cb1-73">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> update(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, a, h):</span>
+<span id="cb1-74">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.S <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+=</span> payoff(np.arange(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>)[<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">None</span>, :], h[:, <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">None</span>])</span>
+<span id="cb1-75"></span>
+<span id="cb1-76"></span>
+<span id="cb1-77"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">class</span> Fixed:</span>
+<span id="cb1-78">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__init__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, p):</span>
+<span id="cb1-79">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.p <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.asarray(p, dtype<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">float</span>)</span>
+<span id="cb1-80"></span>
+<span id="cb1-81">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> reset(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, rng):</span>
+<span id="cb1-82">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.rng <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> rng</span>
+<span id="cb1-83"></span>
+<span id="cb1-84">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> act(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>):</span>
+<span id="cb1-85">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.rng.choice(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>, size<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>R, p<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.p)</span>
+<span id="cb1-86"></span>
+<span id="cb1-87">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> update(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, a, h):</span>
+<span id="cb1-88">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">pass</span></span>
+<span id="cb1-89"></span>
+<span id="cb1-90"></span>
+<span id="cb1-91"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> play(A, B, seed):</span>
+<span id="cb1-92">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""R 試合を並列に行い，A から見た利得と両者の手を返す"""</span></span>
+<span id="cb1-93">    rng <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.random.default_rng(seed)</span>
+<span id="cb1-94">    A.reset(rng)</span>
+<span id="cb1-95">    B.reset(rng)</span>
+<span id="cb1-96">    u <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.zeros((R, T))</span>
+<span id="cb1-97">    ha <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.zeros((R, T), dtype<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">int</span>)</span>
+<span id="cb1-98">    hb <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.zeros((R, T), dtype<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">int</span>)</span>
+<span id="cb1-99">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> t <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">range</span>(T):</span>
+<span id="cb1-100">        a, b <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> A.act(), B.act()</span>
+<span id="cb1-101">        u[:, t] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> payoff(a, b)</span>
+<span id="cb1-102">        ha[:, t], hb[:, t] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> a, b</span>
+<span id="cb1-103">        A.update(a, b)</span>
+<span id="cb1-104">        B.update(b, a)</span>
+<span id="cb1-105">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> u, ha, hb</span>
+<span id="cb1-106"></span>
+<span id="cb1-107"></span>
+<span id="cb1-108">algos <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> {</span>
+<span id="cb1-109">    <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"ε-greedy"</span>: <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">lambda</span>: EpsGreedy(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.1</span>),</span>
+<span id="cb1-110">    <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"奇を衒った"</span>: <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">lambda</span>: EpsGreedy(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.1</span>, kiwo<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">True</span>),</span>
+<span id="cb1-111">    <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Thompson"</span>: <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">lambda</span>: Thompson(),</span>
+<span id="cb1-112">    <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Hedge"</span>: <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">lambda</span>: Hedge(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.1</span>),</span>
+<span id="cb1-113">}</span>
+<span id="cb1-114">names <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">list</span>(algos)</span>
+<span id="cb1-115">colors <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> {<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"ε-greedy"</span>: <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#0E3666"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"奇を衒った"</span>: <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#D31804"</span>,</span>
+<span id="cb1-116">          <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Thompson"</span>: <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#428CE6"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Hedge"</span>: <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#575757"</span>}</span></code></pre></div></div>
+</details>
+</div>
+<p><span class="mini-section">対戦1：グー:チョキ:パー = 5:3:2 で出す相手</span></p>
+<p><a href="../../posts/2020-10-16-rock-paper-scissors-2/index.html">前回</a>と同じ，グー:チョキ:パー = 5:3:2 の確率で出す相手と戦います． 各手の期待利得はグー <img src="https://latex.codecogs.com/png.latex?+0.1">，チョキ <img src="https://latex.codecogs.com/png.latex?-0.3">，パー <img src="https://latex.codecogs.com/png.latex?+0.2"> なので，パーを出し続けるのが最善（1回あたり <img src="https://latex.codecogs.com/png.latex?+0.2">）です．</p>
+<div class="cell" data-execution_count="2">
+<details class="code-fold">
+<summary>コード</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1">results_532 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> {}</span>
+<span id="cb2-2"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> i, k <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">enumerate</span>(names):</span>
+<span id="cb2-3">    results_532[k] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> play(algos[k](), Fixed([<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.5</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.3</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.2</span>]), seed<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">100</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> i)</span>
+<span id="cb2-4"></span>
+<span id="cb2-5">fig, ax <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> plt.subplots(figsize<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">8</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>))</span>
+<span id="cb2-6">w <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">50</span></span>
+<span id="cb2-7"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> k, (u, ha, hb) <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> results_532.items():</span>
+<span id="cb2-8">    ma <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.convolve(u.mean(axis<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>), np.ones(w) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> w, mode<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"valid"</span>)</span>
+<span id="cb2-9">    ax.plot(np.arange(w, T <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>), ma, label<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>k, color<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>colors[k], lw<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.6</span>)</span>
+<span id="cb2-10">ax.axhline(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.2</span>, color<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#575757"</span>, ls<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"--"</span>, lw<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)</span>
+<span id="cb2-11">ax.set_xlabel(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"じゃんけんの回数"</span>)</span>
+<span id="cb2-12">ax.set_ylabel(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"1回あたりの平均利得"</span>)</span>
+<span id="cb2-13">ax.legend(frameon<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">False</span>, ncol<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>, loc<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"center right"</span>, bbox_to_anchor<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.36</span>))</span>
+<span id="cb2-14">ax.spines[[<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"top"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"right"</span>]].set_visible(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">False</span>)</span>
+<span id="cb2-15">plt.show()</span>
+<span id="cb2-16"></span>
+<span id="cb2-17">rows <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> [<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"| アルゴリズム | 平均利得 | 最後の100回の平均利得 | 最後の100回でパーを出した割合 | パーを一度も出さなかった試合 | チョキを出した回数 |"</span>,</span>
+<span id="cb2-18">        <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"|---|---:|---:|---:|---:|---:|"</span>]</span>
+<span id="cb2-19"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> k, (u, ha, hb) <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> results_532.items():</span>
+<span id="cb2-20">    rows.append(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"| </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>k<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> | </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>u<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>mean()<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:+.3f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> | </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>u[:, <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">100</span>:]<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>mean()<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:+.3f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> | "</span></span>
+<span id="cb2-21">                <span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>(ha[:, <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">100</span>:] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> P)<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>mean()<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.1%}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> | </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> (ha <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> P)<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">any</span>(axis<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>mean()<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.1%}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> | "</span></span>
+<span id="cb2-22">                <span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>(ha <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> C)<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>(axis<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>mean()<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.1f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> |"</span>)</span>
+<span id="cb2-23">Markdown(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">\n</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>.join(rows))</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stderr">
+<pre><code>findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+/home/runner/.cache/pypoetry/virtualenvs/regmonkey-datascience-blog-dGv4Dvlr-py3.13/lib/python3.13/site-packages/IPython/core/pylabtools.py:170: UserWarning: Glyph 12376 (\N{HIRAGANA LETTER ZI}) missing from font(s) DejaVu Sans.
+  fig.canvas.print_figure(bytes_io, **kw)
+/home/runner/.cache/pypoetry/virtualenvs/regmonkey-datascience-blog-dGv4Dvlr-py3.13/lib/python3.13/site-packages/IPython/core/pylabtools.py:170: UserWarning: Glyph 12419 (\N{HIRAGANA LETTER SMALL YA}) missing from font(s) DejaVu Sans.
+  fig.canvas.print_figure(bytes_io, **kw)
+/home/runner/.cache/pypoetry/virtualenvs/regmonkey-datascience-blog-dGv4Dvlr-py3.13/lib/python3.13/site-packages/IPython/core/pylabtools.py:170: UserWarning: Glyph 12435 (\N{HIRAGANA LETTER N}) missing from font(s) DejaVu Sans.
+  fig.canvas.print_figure(bytes_io, **kw)
+/home/runner/.cache/pypoetry/virtualenvs/regmonkey-datascience-blog-dGv4Dvlr-py3.13/lib/python3.13/site-packages/IPython/core/pylabtools.py:170: UserWarning: Glyph 12369 (\N{HIRAGANA LETTER KE}) missing from font(s) DejaVu Sans.
+  fig.canvas.print_figure(bytes_io, **kw)
+/home/runner/.cache/pypoetry/virtualenvs/regmonkey-datascience-blog-dGv4Dvlr-py3.13/lib/python3.13/site-packages/IPython/core/pylabtools.py:170: UserWarning: Glyph 12398 (\N{HIRAGANA LETTER NO}) missing from font(s) DejaVu Sans.
+  fig.canvas.print_figure(bytes_io, **kw)
+/home/runner/.cache/pypoetry/virtualenvs/regmonkey-datascience-blog-dGv4Dvlr-py3.13/lib/python3.13/site-packages/IPython/core/pylabtools.py:170: UserWarning: Glyph 22238 (\N{CJK UNIFIED IDEOGRAPH-56DE}) missing from font(s) DejaVu Sans.
+  fig.canvas.print_figure(bytes_io, **kw)
+/home/runner/.cache/pypoetry/virtualenvs/regmonkey-datascience-blog-dGv4Dvlr-py3.13/lib/python3.13/site-packages/IPython/core/pylabtools.py:170: UserWarning: Glyph 25968 (\N{CJK UNIFIED IDEOGRAPH-6570}) missing from font(s) DejaVu Sans.
+  fig.canvas.print_figure(bytes_io, **kw)
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+/home/runner/.cache/pypoetry/virtualenvs/regmonkey-datascience-blog-dGv4Dvlr-py3.13/lib/python3.13/site-packages/IPython/core/pylabtools.py:170: UserWarning: Glyph 12354 (\N{HIRAGANA LETTER A}) missing from font(s) DejaVu Sans.
+  fig.canvas.print_figure(bytes_io, **kw)
+/home/runner/.cache/pypoetry/virtualenvs/regmonkey-datascience-blog-dGv4Dvlr-py3.13/lib/python3.13/site-packages/IPython/core/pylabtools.py:170: UserWarning: Glyph 12383 (\N{HIRAGANA LETTER TA}) missing from font(s) DejaVu Sans.
+  fig.canvas.print_figure(bytes_io, **kw)
+/home/runner/.cache/pypoetry/virtualenvs/regmonkey-datascience-blog-dGv4Dvlr-py3.13/lib/python3.13/site-packages/IPython/core/pylabtools.py:170: UserWarning: Glyph 12426 (\N{HIRAGANA LETTER RI}) missing from font(s) DejaVu Sans.
+  fig.canvas.print_figure(bytes_io, **kw)
+/home/runner/.cache/pypoetry/virtualenvs/regmonkey-datascience-blog-dGv4Dvlr-py3.13/lib/python3.13/site-packages/IPython/core/pylabtools.py:170: UserWarning: Glyph 24179 (\N{CJK UNIFIED IDEOGRAPH-5E73}) missing from font(s) DejaVu Sans.
+  fig.canvas.print_figure(bytes_io, **kw)
+/home/runner/.cache/pypoetry/virtualenvs/regmonkey-datascience-blog-dGv4Dvlr-py3.13/lib/python3.13/site-packages/IPython/core/pylabtools.py:170: UserWarning: Glyph 22343 (\N{CJK UNIFIED IDEOGRAPH-5747}) missing from font(s) DejaVu Sans.
+  fig.canvas.print_figure(bytes_io, **kw)
+/home/runner/.cache/pypoetry/virtualenvs/regmonkey-datascience-blog-dGv4Dvlr-py3.13/lib/python3.13/site-packages/IPython/core/pylabtools.py:170: UserWarning: Glyph 21033 (\N{CJK UNIFIED IDEOGRAPH-5229}) missing from font(s) DejaVu Sans.
+  fig.canvas.print_figure(bytes_io, **kw)
+/home/runner/.cache/pypoetry/virtualenvs/regmonkey-datascience-blog-dGv4Dvlr-py3.13/lib/python3.13/site-packages/IPython/core/pylabtools.py:170: UserWarning: Glyph 24471 (\N{CJK UNIFIED IDEOGRAPH-5F97}) missing from font(s) DejaVu Sans.
+  fig.canvas.print_figure(bytes_io, **kw)
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+/home/runner/.cache/pypoetry/virtualenvs/regmonkey-datascience-blog-dGv4Dvlr-py3.13/lib/python3.13/site-packages/IPython/core/pylabtools.py:170: UserWarning: Glyph 22855 (\N{CJK UNIFIED IDEOGRAPH-5947}) missing from font(s) DejaVu Sans.
+  fig.canvas.print_figure(bytes_io, **kw)
+/home/runner/.cache/pypoetry/virtualenvs/regmonkey-datascience-blog-dGv4Dvlr-py3.13/lib/python3.13/site-packages/IPython/core/pylabtools.py:170: UserWarning: Glyph 12434 (\N{HIRAGANA LETTER WO}) missing from font(s) DejaVu Sans.
+  fig.canvas.print_figure(bytes_io, **kw)
+/home/runner/.cache/pypoetry/virtualenvs/regmonkey-datascience-blog-dGv4Dvlr-py3.13/lib/python3.13/site-packages/IPython/core/pylabtools.py:170: UserWarning: Glyph 34898 (\N{CJK UNIFIED IDEOGRAPH-8852}) missing from font(s) DejaVu Sans.
+  fig.canvas.print_figure(bytes_io, **kw)
+/home/runner/.cache/pypoetry/virtualenvs/regmonkey-datascience-blog-dGv4Dvlr-py3.13/lib/python3.13/site-packages/IPython/core/pylabtools.py:170: UserWarning: Glyph 12387 (\N{HIRAGANA LETTER SMALL TU}) missing from font(s) DejaVu Sans.
+  fig.canvas.print_figure(bytes_io, **kw)
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.</code></pre>
+</div>
+<div id="fig-vs-532" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="2">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-vs-532-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="cell-output cell-output-display">
+<div id="fig-vs-532-1" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-subfloat-fig figure">
+<div aria-describedby="fig-vs-532-1-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<a href="index_files/figure-html/fig-vs-532-output-2.png" class="lightbox" data-gallery="fig-vs-532" title="図&nbsp;1&nbsp;(a): 5:3:2 の相手との対戦．全試合の平均利得を50回の移動平均で表示．破線はパーを出し続けたときの +0.2"><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-11-17-epsilon-greedy-and-kiwoterau/index_files/figure-html/fig-vs-532-output-2.png" data-ref-parent="fig-vs-532" width="672" height="356" class="figure-img"></a>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-subfloat-caption quarto-subfloat-fig" id="fig-vs-532-1-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+(a) 5:3:2 の相手との対戦．全試合の平均利得を50回の移動平均で表示．破線はパーを出し続けたときの +0.2
+</figcaption>
+</figure>
+</div>
+</div>
+<div id="fig-vs-532-2" class="cell-output cell-output-display cell-output-markdown quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="2">
+<figure class="quarto-float quarto-subfloat-fig figure">
+<div aria-describedby="fig-vs-532-2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<table class="caption-top table table-sm table-striped small">
+<colgroup>
+<col style="width: 13%">
+<col style="width: 17%">
+<col style="width: 17%">
+<col style="width: 17%">
+<col style="width: 17%">
+<col style="width: 17%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>アルゴリズム</th>
+<th style="text-align: right;">平均利得</th>
+<th style="text-align: right;">最後の100回の平均利得</th>
+<th style="text-align: right;">最後の100回でパーを出した割合</th>
+<th style="text-align: right;">パーを一度も出さなかった試合</th>
+<th style="text-align: right;">チョキを出した回数</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>ε-greedy</td>
+<td style="text-align: right;">+0.150</td>
+<td style="text-align: right;">+0.161</td>
+<td style="text-align: right;">74.8%</td>
+<td style="text-align: right;">0.0%</td>
+<td style="text-align: right;">38.4</td>
+</tr>
+<tr class="even">
+<td>奇を衒った</td>
+<td style="text-align: right;">+0.138</td>
+<td style="text-align: right;">+0.147</td>
+<td style="text-align: right;">73.5%</td>
+<td style="text-align: right;">0.0%</td>
+<td style="text-align: right;">67.2</td>
+</tr>
+<tr class="odd">
+<td>Thompson</td>
+<td style="text-align: right;">+0.168</td>
+<td style="text-align: right;">+0.190</td>
+<td style="text-align: right;">88.7%</td>
+<td style="text-align: right;">0.0%</td>
+<td style="text-align: right;">20.8</td>
+</tr>
+<tr class="even">
+<td>Hedge</td>
+<td style="text-align: right;">+0.182</td>
+<td style="text-align: right;">+0.198</td>
+<td style="text-align: right;">97.8%</td>
+<td style="text-align: right;">0.0%</td>
+<td style="text-align: right;">9.7</td>
+</tr>
+</tbody>
+</table>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-subfloat-caption quarto-subfloat-fig" id="fig-vs-532-2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+(b)
+</figcaption>
+</figure>
+</div>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-vs-532-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+図&nbsp;1
+</figcaption>
+</figure>
+</div>
+</div>
+<p>チョキを出した回数は1試合あたりの平均です．</p>
+<ul>
+<li>Hedge と Thompson はパーに収束し，最善の <img src="https://latex.codecogs.com/png.latex?+0.2"> に近づく</li>
+<li>ε-greedy と奇を衒ったアルゴリズムはほぼ同じ成績で，最後の100回にパーを出す割合はどちらも7割台</li>
+<li>どのアルゴリズムも，パーを一度も出さない試合はない</li>
+</ul>
+<p>奇を衒ったアルゴリズムも，すべての手を試したうえでパーに落ち着いています． ε-greedy との違いはチョキを出した回数で，奇を衒ったアルゴリズムのほうが多くなっています． チョキはこの相手に対して最悪の手（<img src="https://latex.codecogs.com/png.latex?-0.3">）なので，貪欲部分がまず選ばず，<img src="https://latex.codecogs.com/png.latex?n(%5Ctext%7B%E3%83%81%E3%83%A7%E3%82%AD%7D)"> が最も小さくなります． そのため「自分らしくない手」として探索でくり返し選ばれ，その分だけ平均利得が ε-greedy をわずかに下回ります． 相手が変わらない場面では，<strong>自分らしくない手は，自分がこれまで避けてきた損な手でもある</strong> ということです．</p>
+<p><span class="mini-section">対戦2：4つのアルゴリズムの総当たり</span></p>
+<p>次に，4つのアルゴリズム同士を総当たりで戦わせます．相手も学習するので，最善の手は対戦中に変わります．</p>
+<div id="cell-fig-league" class="cell" data-execution_count="3">
+<details class="code-fold">
+<summary>コード</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1">M <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.zeros((<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>))</span>
+<span id="cb4-2">hands <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> {}</span>
+<span id="cb4-3"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> i <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">range</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>):</span>
+<span id="cb4-4">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> j <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">range</span>(i <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>):</span>
+<span id="cb4-5">        u, ha, hb <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> play(algos[names[i]](), algos[names[j]](), seed<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">300</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> i <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> j)</span>
+<span id="cb4-6">        M[i, j], M[j, i] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> u.mean(), <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span>u.mean()</span>
+<span id="cb4-7">        hands[(names[i], names[j])] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> (ha, hb)</span>
+<span id="cb4-8"></span>
+<span id="cb4-9"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">from</span> matplotlib.colors <span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> LinearSegmentedColormap</span>
+<span id="cb4-10"></span>
+<span id="cb4-11">cmap <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> LinearSegmentedColormap.from_list(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"rb"</span>, [<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#D31804"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#FFFFFF"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#428CE6"</span>])</span>
+<span id="cb4-12">Mt <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.c_[M, M.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>(axis<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)]</span>
+<span id="cb4-13">fig, ax <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> plt.subplots(figsize<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">8.5</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3.6</span>))</span>
+<span id="cb4-14">ax.imshow(Mt, cmap<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>cmap, vmin<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=-</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.45</span>, vmax<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.45</span>, aspect<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"auto"</span>)</span>
+<span id="cb4-15"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> (r, c), v <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> np.ndenumerate(Mt):</span>
+<span id="cb4-16">    txt <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"—"</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> (c <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">and</span> r <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> c) <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">else</span> <span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>v<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:+.3f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span></span>
+<span id="cb4-17">    ax.text(c, r, txt, ha<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"center"</span>, va<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"center"</span>, fontsize<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10</span>,</span>
+<span id="cb4-18">            color<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"white"</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">abs</span>(v) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.35</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">else</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#1A1A1A"</span>,</span>
+<span id="cb4-19">            fontweight<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"bold"</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> c <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">else</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"normal"</span>)</span>
+<span id="cb4-20">ax.set_xticks(<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">range</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>), [<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span>names, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"合計"</span>])</span>
+<span id="cb4-21">ax.set_yticks(<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">range</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>), names)</span>
+<span id="cb4-22">ax.axvline(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3.5</span>, color<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"white"</span>, lw<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>)</span>
+<span id="cb4-23">ax.tick_params(length<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>)</span>
+<span id="cb4-24"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> s <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> ax.spines.values():</span>
+<span id="cb4-25">    s.set_visible(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">False</span>)</span>
+<span id="cb4-26">plt.show()</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stderr">
+<pre><code>findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+/home/runner/.cache/pypoetry/virtualenvs/regmonkey-datascience-blog-dGv4Dvlr-py3.13/lib/python3.13/site-packages/IPython/core/pylabtools.py:170: UserWarning: Glyph 22855 (\N{CJK UNIFIED IDEOGRAPH-5947}) missing from font(s) DejaVu Sans.
+  fig.canvas.print_figure(bytes_io, **kw)
+/home/runner/.cache/pypoetry/virtualenvs/regmonkey-datascience-blog-dGv4Dvlr-py3.13/lib/python3.13/site-packages/IPython/core/pylabtools.py:170: UserWarning: Glyph 12434 (\N{HIRAGANA LETTER WO}) missing from font(s) DejaVu Sans.
+  fig.canvas.print_figure(bytes_io, **kw)
+/home/runner/.cache/pypoetry/virtualenvs/regmonkey-datascience-blog-dGv4Dvlr-py3.13/lib/python3.13/site-packages/IPython/core/pylabtools.py:170: UserWarning: Glyph 34898 (\N{CJK UNIFIED IDEOGRAPH-8852}) missing from font(s) DejaVu Sans.
+  fig.canvas.print_figure(bytes_io, **kw)
+/home/runner/.cache/pypoetry/virtualenvs/regmonkey-datascience-blog-dGv4Dvlr-py3.13/lib/python3.13/site-packages/IPython/core/pylabtools.py:170: UserWarning: Glyph 12387 (\N{HIRAGANA LETTER SMALL TU}) missing from font(s) DejaVu Sans.
+  fig.canvas.print_figure(bytes_io, **kw)
+/home/runner/.cache/pypoetry/virtualenvs/regmonkey-datascience-blog-dGv4Dvlr-py3.13/lib/python3.13/site-packages/IPython/core/pylabtools.py:170: UserWarning: Glyph 12383 (\N{HIRAGANA LETTER TA}) missing from font(s) DejaVu Sans.
+  fig.canvas.print_figure(bytes_io, **kw)
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+/home/runner/.cache/pypoetry/virtualenvs/regmonkey-datascience-blog-dGv4Dvlr-py3.13/lib/python3.13/site-packages/IPython/core/pylabtools.py:170: UserWarning: Glyph 21512 (\N{CJK UNIFIED IDEOGRAPH-5408}) missing from font(s) DejaVu Sans.
+  fig.canvas.print_figure(bytes_io, **kw)
+/home/runner/.cache/pypoetry/virtualenvs/regmonkey-datascience-blog-dGv4Dvlr-py3.13/lib/python3.13/site-packages/IPython/core/pylabtools.py:170: UserWarning: Glyph 35336 (\N{CJK UNIFIED IDEOGRAPH-8A08}) missing from font(s) DejaVu Sans.
+  fig.canvas.print_figure(bytes_io, **kw)
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.
+findfont: Font family 'Noto Sans CJK JP' not found.</code></pre>
+</div>
+<div class="cell-output cell-output-display">
+<div id="fig-league" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-league-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<a href="index_files/figure-html/fig-league-output-2.png" class="lightbox" data-gallery="quarto-lightbox-gallery-5" title="図&nbsp;2: 総当たりの結果．行のアルゴリズムから見た1回あたりの平均利得（全試合の平均）．右端は行の合計"><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-11-17-epsilon-greedy-and-kiwoterau/index_files/figure-html/fig-league-output-2.png" width="734" height="304" class="figure-img"></a>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-league-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+図&nbsp;2: 総当たりの結果．行のアルゴリズムから見た1回あたりの平均利得（全試合の平均）．右端は行の合計
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<div id="123a736c" class="cell" data-execution_count="4">
+<details class="code-fold">
+<summary>手の偏り（最後の200回で最も多く出した手の割合）</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1">hand_names <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> [<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"グー"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"チョキ"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"パー"</span>]</span>
+<span id="cb6-2"></span>
+<span id="cb6-3"></span>
+<span id="cb6-4"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> max_share(h):</span>
+<span id="cb6-5">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""試合ごとに，最後の200回で最も多く出した手の割合を求めて平均する"""</span></span>
+<span id="cb6-6">    share <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.stack([(h[:, <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">200</span>:] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> x).mean(axis<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>) <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> x <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">range</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>)], axis<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)</span>
+<span id="cb6-7">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> share.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">max</span>(axis<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>).mean()</span>
+<span id="cb6-8"></span>
+<span id="cb6-9"></span>
+<span id="cb6-10">rows <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> [<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"| アルゴリズム | 対 Thompson | 対 Hedge |"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"|---|---:|---:|"</span>]</span>
+<span id="cb6-11"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> k <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> [<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"ε-greedy"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"奇を衒った"</span>]:</span>
+<span id="cb6-12">    rows.append(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"| </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>k<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> | </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>max_share(hands[(k, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'Thompson'</span>)][<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>])<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.1%}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> | "</span></span>
+<span id="cb6-13">                <span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>max_share(hands[(k, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'Hedge'</span>)][<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>])<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.1%}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> |"</span>)</span>
+<span id="cb6-14">Markdown(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">\n</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>.join(rows))</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-display cell-output-markdown" data-execution_count="4">
+<table class="caption-top table table-sm table-striped small">
+<thead>
+<tr class="header">
+<th>アルゴリズム</th>
+<th style="text-align: right;">対 Thompson</th>
+<th style="text-align: right;">対 Hedge</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>ε-greedy</td>
+<td style="text-align: right;">73.0%</td>
+<td style="text-align: right;">76.8%</td>
+</tr>
+<tr class="even">
+<td>奇を衒った</td>
+<td style="text-align: right;">54.3%</td>
+<td style="text-align: right;">42.4%</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<ul>
+<li>合計の順位は Hedge，Thompson，奇を衒ったアルゴリズム，ε-greedy の順</li>
+<li>奇を衒ったアルゴリズムは ε-greedy に1回あたり約 <img src="https://latex.codecogs.com/png.latex?+0.06"> 勝ち越し，Thompson と Hedge ともほぼ五分</li>
+<li>ε-greedy は Thompson と Hedge に約 <img src="https://latex.codecogs.com/png.latex?-0.08">〜<img src="https://latex.codecogs.com/png.latex?-0.10"> 負け越す</li>
+<li>最も多く出した手の割合は，ε-greedy が7割台なのに対し，奇を衒ったアルゴリズムは4〜5割で，手の偏りが小さい</li>
+</ul>
+<p>ε-greedy は貪欲部分が同じ手を出し続けるので，手の分布が偏り，相手の手を数えている Hedge や自分の手ごとの成績を数えている Thompson に読まれます． 奇を衒ったアルゴリズムは，あまり出していない手を探索で出すので，それだけで手の偏りを打ち消す向きに働きます． さらに，相手が学習して状況が変わる場面では，最も出していない手は推定 <img src="https://latex.codecogs.com/png.latex?%5Chat%7BQ%7D"> が最も古い手でもあります． 相手が自分の得意な手に対策してきたとき，その古い推定を真っ先に確かめ直すので，乗り換えが早くなると考えられます．</p>
+<p><span class="mini-section">対戦3：memory ハッキング野郎</span></p>
+<p><a href="../../posts/2020-10-16-rock-paper-scissors-2/index.html#sec-hack">前回</a>の <code>hack.c</code> は，コンピュータと同じ <code>memory</code> を自分でも付け，次の手を予測してそれに勝つ手を出しました． ここでの4つのアルゴリズムも，内部状態（<img src="https://latex.codecogs.com/png.latex?%5Chat%7BQ%7D"> と試行回数，勝ち・あいこ・負けの回数，<img src="https://latex.codecogs.com/png.latex?%5Ctexttt%7Bscore%7D">）は両者が出した手だけで決まるので，相手はそれを正確に複製できます．</p>
+<p>そこで，次の相手を用意します．</p>
+<ul>
+<li><strong>memory は読めるが，サイコロの目は読めない</strong>．相手の内部状態から，相手が次に各手を出す確率 <img src="https://latex.codecogs.com/png.latex?%5Cpi_t(a)"> を計算する</li>
+<li>期待利得 <img src="https://latex.codecogs.com/png.latex?%5Csum_a%20%5Cpi_t(a)%5C,%20u(b,%20a)"> が最大の手 <img src="https://latex.codecogs.com/png.latex?b"> を出す</li>
+<li>相手が探索する回がいつ来るかは分からない．毎回，<img src="https://latex.codecogs.com/png.latex?%5Cpi_t"> に対して最善の手を1つ出すだけ</li>
+</ul>
+<p><img src="https://latex.codecogs.com/png.latex?%5Cpi_t"> は，ε-greedy なら <img src="https://latex.codecogs.com/png.latex?%5Chat%7BQ%7D"> 最大の手に <img src="https://latex.codecogs.com/png.latex?1-%5Cvarepsilon">，各手に <img src="https://latex.codecogs.com/png.latex?%5Cvarepsilon/3">，奇を衒ったアルゴリズムなら <img src="https://latex.codecogs.com/png.latex?%5Chat%7BQ%7D"> 最大の手に <img src="https://latex.codecogs.com/png.latex?1-%5Cvarepsilon">，<img src="https://latex.codecogs.com/png.latex?n(a)"> 最小の手に <img src="https://latex.codecogs.com/png.latex?%5Cvarepsilon"> です． Hedge は <img src="https://latex.codecogs.com/png.latex?%5Cexp(%5Ceta%20%5Ccdot%20%5Ctexttt%7Bscore%7D%5Ba%5D)"> を正規化したもので，Thompson は事後分布から32回引いたときに各手が選ばれる割合で近似します．</p>
+<div id="d7167154" class="cell" data-execution_count="5">
+<details class="code-fold">
+<summary>memory ハッキング野郎のコード</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1">M_SAMPLES <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">32</span>  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Thompson の π を近似するサンプル数</span></span>
+<span id="cb7-2">U <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> payoff(np.arange(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>)[:, <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">None</span>], np.arange(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>)[<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">None</span>, :])  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># U[b, a]：b を出して相手が a のときの利得</span></span>
+<span id="cb7-3"></span>
+<span id="cb7-4"></span>
+<span id="cb7-5"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> policy(alg):</span>
+<span id="cb7-6">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""相手の memory（内部状態）から，次に各手を出す確率 π を計算する"""</span></span>
+<span id="cb7-7">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">isinstance</span>(alg, EpsGreedy):</span>
+<span id="cb7-8">        is_max <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> alg.Q <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> alg.Q.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">max</span>(axis<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, keepdims<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">True</span>)</span>
+<span id="cb7-9">        pi <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> (<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> alg.eps) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> is_max <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> is_max.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>(axis<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, keepdims<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">True</span>)</span>
+<span id="cb7-10">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> alg.kiwo:</span>
+<span id="cb7-11">            is_min <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> alg.n <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> alg.n.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">min</span>(axis<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, keepdims<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">True</span>)</span>
+<span id="cb7-12">            pi <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+=</span> alg.eps <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> is_min <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> is_min.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>(axis<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, keepdims<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">True</span>)</span>
+<span id="cb7-13">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">else</span>:</span>
+<span id="cb7-14">            pi <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+=</span> alg.eps <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span></span>
+<span id="cb7-15">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> pi</span>
+<span id="cb7-16">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">isinstance</span>(alg, Thompson):</span>
+<span id="cb7-17">        g <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> alg.rng.gamma(np.broadcast_to(alg.cnt[:, <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">None</span>], (R, M_SAMPLES, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>)))</span>
+<span id="cb7-18">        p <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> g <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> g.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>(axis<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>, keepdims<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">True</span>)</span>
+<span id="cb7-19">        best <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.argmax(p[..., <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> p[..., <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>], axis<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>)</span>
+<span id="cb7-20">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> np.stack([(best <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> x).mean(axis<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>) <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> x <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">range</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>)], axis<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)</span>
+<span id="cb7-21">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">isinstance</span>(alg, Hedge):</span>
+<span id="cb7-22">        w <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.exp(alg.eta <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> (alg.S <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> alg.S.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">max</span>(axis<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, keepdims<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">True</span>)))</span>
+<span id="cb7-23">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> w <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> w.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>(axis<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, keepdims<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">True</span>)</span>
+<span id="cb7-24"></span>
+<span id="cb7-25"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">class</span> Hacker:</span>
+<span id="cb7-26">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__init__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, target):</span>
+<span id="cb7-27">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.target <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> target</span>
+<span id="cb7-28"></span>
+<span id="cb7-29">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> reset(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, rng):</span>
+<span id="cb7-30">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.rng <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> rng</span>
+<span id="cb7-31"></span>
+<span id="cb7-32">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> act(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>):</span>
+<span id="cb7-33">        ev <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> policy(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.target) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">@</span> U.T  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 手 b ごとの期待利得</span></span>
+<span id="cb7-34">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> np.argmax(ev <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1e-9</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.rng.random((R, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>)), axis<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)</span>
+<span id="cb7-35"></span>
+<span id="cb7-36">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> update(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, a, h):</span>
+<span id="cb7-37">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">pass</span></span>
+<span id="cb7-38"></span>
+<span id="cb7-39"></span>
+<span id="cb7-40"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> play_hack(A, seed):</span>
+<span id="cb7-41">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""play と同じ手順で対戦し，A が探索した回・A の貪欲な手・両者の手も記録する"""</span></span>
+<span id="cb7-42">    rng <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.random.default_rng(seed)</span>
+<span id="cb7-43">    B <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Hacker(A)</span>
+<span id="cb7-44">    A.reset(rng)</span>
+<span id="cb7-45">    B.reset(rng)</span>
+<span id="cb7-46">    u <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.zeros((R, T))</span>
+<span id="cb7-47">    explore <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.zeros((R, T), dtype<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">bool</span>)</span>
+<span id="cb7-48">    greedy <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.full((R, T), <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Q̂ 最大の手（同点の回は -1）</span></span>
+<span id="cb7-49">    ha <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.zeros((R, T), dtype<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">int</span>)</span>
+<span id="cb7-50">    hb <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.zeros((R, T), dtype<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">int</span>)</span>
+<span id="cb7-51">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> t <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">range</span>(T):</span>
+<span id="cb7-52">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">isinstance</span>(A, EpsGreedy):</span>
+<span id="cb7-53">            is_max <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> A.Q <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> A.Q.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">max</span>(axis<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, keepdims<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">True</span>)</span>
+<span id="cb7-54">            greedy[:, t] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.where(is_max.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>(axis<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, np.argmax(A.Q, axis<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>), <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)</span>
+<span id="cb7-55">        a, b <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> A.act(), B.act()</span>
+<span id="cb7-56">        u[:, t] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> payoff(a, b)</span>
+<span id="cb7-57">        ha[:, t], hb[:, t] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> a, b</span>
+<span id="cb7-58">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">isinstance</span>(A, EpsGreedy):</span>
+<span id="cb7-59">            explore[:, t] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> A.explore</span>
+<span id="cb7-60">        A.update(a, b)</span>
+<span id="cb7-61">        B.update(b, a)</span>
+<span id="cb7-62">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> u, explore, greedy, hb, ha</span>
+<span id="cb7-63"></span>
+<span id="cb7-64"></span>
+<span id="cb7-65">rows <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> [<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"| アルゴリズム | 平均利得 | 探索した回の平均利得 | 貪欲に選んだ回の平均利得 |"</span>,</span>
+<span id="cb7-66">        <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"|---|---:|---:|---:|"</span>]</span>
+<span id="cb7-67">hack_results <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> {}</span>
+<span id="cb7-68"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> i, k <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">enumerate</span>(names):</span>
+<span id="cb7-69">    u, ex, g, hb, ha <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> play_hack(algos[k](), seed<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1000</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> i)</span>
+<span id="cb7-70">    hack_results[k] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> (u, ex, g, hb, ha)</span>
+<span id="cb7-71">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> ex.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">any</span>():</span>
+<span id="cb7-72">        rows.append(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"| </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>k<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> | </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>u<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>mean()<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:+.3f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> | </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>u[ex]<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>mean()<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:+.3f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> | </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>u[<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span>ex]<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>mean()<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:+.3f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> |"</span>)</span>
+<span id="cb7-73">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">else</span>:</span>
+<span id="cb7-74">        rows.append(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"| </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>k<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> | </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>u<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>mean()<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:+.3f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> | — | — |"</span>)</span>
+<span id="cb7-75">Markdown(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">\n</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>.join(rows))</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-display cell-output-markdown" data-execution_count="5">
+<table class="caption-top table table-sm table-striped small">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 26%">
+<col style="width: 26%">
+<col style="width: 26%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>アルゴリズム</th>
+<th style="text-align: right;">平均利得</th>
+<th style="text-align: right;">探索した回の平均利得</th>
+<th style="text-align: right;">貪欲に選んだ回の平均利得</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>ε-greedy</td>
+<td style="text-align: right;">-0.855</td>
+<td style="text-align: right;">+0.002</td>
+<td style="text-align: right;">-0.950</td>
+</tr>
+<tr class="even">
+<td>奇を衒った</td>
+<td style="text-align: right;">-0.829</td>
+<td style="text-align: right;">+0.002</td>
+<td style="text-align: right;">-0.922</td>
+</tr>
+<tr class="odd">
+<td>Thompson</td>
+<td style="text-align: right;">-0.036</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">—</td>
+</tr>
+<tr class="even">
+<td>Hedge</td>
+<td style="text-align: right;">-0.033</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">—</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<ul>
+<li>ε-greedy と奇を衒ったアルゴリズムは，1回あたり約 <img src="https://latex.codecogs.com/png.latex?-0.86"> と <img src="https://latex.codecogs.com/png.latex?-0.83"> で，どちらもほぼ一方的に負ける．<img src="https://latex.codecogs.com/png.latex?%5Chat%7BQ%7D"> 最大の手は memory から決まるので，貪欲に選んだ回はほぼ確実に読まれる</li>
+<li>探索した回は，どちらもほぼ五分（約 <img src="https://latex.codecogs.com/png.latex?0">）</li>
+<li>Thompson と Hedge は約 <img src="https://latex.codecogs.com/png.latex?-0.03"> で，memory を読まれてもほとんど負けない</li>
+</ul>
+<p>奇を衒ったアルゴリズムの探索先 <img src="https://latex.codecogs.com/png.latex?%5Coperatorname*%7Barg%5C,min%7D_a%20n(a)"> は memory から正確に分かるので，ハッカーは探索した回の手も読めているはずです． それでも探索した回が五分になるのは，探索の回がいつ来るか分からないからです． ハッカーは <img src="https://latex.codecogs.com/png.latex?%5Cpi_t"> に対して最善の手を出すので，確率 <img src="https://latex.codecogs.com/png.latex?1-%5Cvarepsilon"> の貪欲な手 <img src="https://latex.codecogs.com/png.latex?g"> に勝つ手を出します．</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>対戦のまとめ
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>「自分らしくない手」を選ぶ奇を衒ったアルゴリズムは，結果的に試行回数の少ない手を優先する探索になり，ε-greedy と同等以上の成績だった（5:3:2 の相手ではほぼ同じ，総当たりでは ε-greedy に勝ち越し，memory を読まれたときもほぼ同じ）</li>
+<li><strong>選び方</strong>：一様ランダムとは違うが，「最も試していない手」は「最も推定が不確かな手」でもあるので，情報収集として理にかなった選び方と一致する．相手が変わらない場面では，避けてきた損な手を試し直す分だけわずかに損をする</li>
+<li><strong>動機</strong>：見栄と情報収集の違いは，行動には表れない．同じ <img src="https://latex.codecogs.com/png.latex?%5Coperatorname*%7Barg%5C,min%7D_a%20n(a)"> は，目立ちたい人にも，知らない手を試したい人にも同じに見える</li>
+<li>なお，<img src="https://latex.codecogs.com/png.latex?%5Cvarepsilon"> と <img src="https://latex.codecogs.com/png.latex?%5Ceta"> は固定，<img src="https://latex.codecogs.com/png.latex?%5Chat%7BQ%7D"> は相手が変わらないことを前提にした標本平均なので，ε-greedy と奇を衒ったアルゴリズムは学習する相手に対してもともと不利な設定である</li>
+</ul>
+</div>
+</div>
+
+
+</section>
+
+ ]]></description>
+  <category>アルゴリズム</category>
+  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-11-17-epsilon-greedy-and-kiwoterau/</guid>
+  <pubDate>Tue, 17 Nov 2026 00:00:00 GMT</pubDate>
+</item>
 <item>
   <title>歯車とパリティ</title>
   <dc:creator>Ryo Nakagami</dc:creator>
@@ -4976,1210 +7624,6 @@ font-style: inherit;">|</span></span>
   <category>マネジメント</category>
   <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-21-raci/</guid>
   <pubDate>Wed, 21 Oct 2026 00:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>setuptools vs uv_build — build backend 比較まとめ</title>
-  <dc:creator>Ryo Nakagami</dc:creator>
-  <link>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-17-python-backend-build/</link>
-  <description><![CDATA[ 
-
-
-
-
-
-
-<section id="前提build-backend-とは" class="level2">
-<h2 class="anchored" data-anchor-id="前提build-backend-とは">1. 前提：build backend とは</h2>
-<div id="def-" class="custom_problem blog-custom-border theorem definition">
-<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title">build backend</span></p>
-<ul>
-<li>build backend は <strong>ソースツリー（ディレクトリ）を sdist / wheel に変換する役</strong></li>
-<li><code>pip</code> / <code>uv build</code> / <code>python -m build</code> などの <strong>フロントエンド</strong>が，<code>pyproject.toml</code> の <code>[build-system]</code> を読んで backend を呼び出す（<a href="https://peps.python.org/pep-0517/">PEP 517</a>）</li>
-<li>uv はどの PEP 517 backend でも使えるが，それとは別にネイティブ backend <code>uv_build</code> を持っている</li>
-</ul>
-</div>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-17-python-backend-build/figures/fig0_build_backend_mechanism.svg" class="img-fluid figure-img"></p>
-<figcaption>build backend の機序</figcaption>
-</figure>
-</div>
-<p><span class="mini-section">生成物: sdist と wheel</span></p>
-<p><code>test-package</code> というプロジェクトで <code>uv build</code> を実行すると，<code>dist/</code> に2つのファイルができます．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb1-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">%</span> uv build</span>
-<span id="cb1-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">Building</span> source distribution...</span>
-<span id="cb1-3"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">Building</span> wheel from source distribution...</span>
-<span id="cb1-4"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">Successfully</span> built dist/test_package-0.1.0.tar.gz</span>
-<span id="cb1-5"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">Successfully</span> built dist/test_package-0.1.0-py3-none-any.whl</span></code></pre></div></div>
-<p>ファイル名ではパッケージ名が正規化され，<code>-</code> が <code>_</code> に変わります（<code>test-package</code> → <code>test_package</code>）．</p>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th></th>
-<th>sdist（<code>.tar.gz</code>）</th>
-<th>wheel（<code>.whl</code>）</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>正式名</td>
-<td>source distribution</td>
-<td>built distribution（<a href="https://peps.python.org/pep-0427/">PEP 427</a>）</td>
-</tr>
-<tr class="even">
-<td>中身</td>
-<td>ソースコード，<code>pyproject.toml</code>，<code>PKG-INFO</code>，README / LICENSE など，<strong>ビルド前の材料</strong></td>
-<td><code>site-packages</code> にそのまま置けるファイルと <code>.dist-info/</code>（メタデータ）．<strong>ビルド済みの完成品</strong></td>
-</tr>
-<tr class="odd">
-<td>形式</td>
-<td>tar + gzip</td>
-<td>zip（拡張子が <code>.whl</code>）</td>
-</tr>
-<tr class="even">
-<td>インストール時の動作</td>
-<td>利用者の環境で <strong>build backend を動かして wheel を作り</strong>，それをインストールする</td>
-<td>展開してコピーするだけ．<strong>ビルドは走らない</strong></td>
-</tr>
-<tr class="odd">
-<td>環境依存</td>
-<td>なし．どの環境でもビルドを試せる</td>
-<td>ファイル名のタグで対応環境が決まる</td>
-</tr>
-</tbody>
-</table>
-<p>wheel のファイル名は <code>{名前}-{バージョン}-{Python タグ}-{ABI タグ}-{プラットフォームタグ}.whl</code> という形です．<code>py3-none-any</code> は「Python 3 ならどれでも，C 拡張の ABI に依存せず，どの OS / CPU でも動く」，つまり <strong>純 Python の wheel</strong> を表します．C 拡張を含む場合は <code>cp312-cp312-manylinux_2_17_x86_64</code> のように，環境ごとに別の wheel が必要です．</p>
-<p><strong>なぜ2種類あるのか</strong></p>
-<ul>
-<li><strong>wheel はインストールを速く，安全にするため．</strong> 利用者の環境で backend やコンパイラを動かさずに済み，<code>setup.py</code> のような任意コードも実行されません．<code>pip</code> / <code>uv</code> は対応する wheel があればそちらを優先します</li>
-<li><strong>sdist は wheel がない環境の受け皿と，ソースの原本を残すため．</strong> 対応する wheel がない OS / Python では，installer が sdist から wheel をビルドします．</li>
-</ul>
-<p><code>uv build</code> のログにある「Building wheel from source distribution」は，ソースツリーから直接ではなく，<strong>一度作った sdist を展開してから wheel をビルドしている</strong>ことを示しています．こうすると sdist に必要なファイルが欠けていた場合にこの時点でビルドが失敗するので，「sdist からは wheel が作れない」という壊れた配布物を事前に防げます</p>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>パッケージを配布する場合の選択肢
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 25%">
-<col style="width: 35%">
-<col style="width: 40%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>配り方</th>
-<th>コマンド例</th>
-<th>備考</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>PyPI / 社内 index に公開</td>
-<td><code>uv publish</code>（既定で <code>dist/*</code> をアップロード）</td>
-<td>sdist と wheel を <strong>両方</strong> 上げるのが慣例．index 側は環境に合うものを選ばせる</td>
-</tr>
-<tr class="even">
-<td>ファイルを直接渡す</td>
-<td><code>uv pip install ./dist/test_package-0.1.0-py3-none-any.whl</code></td>
-<td>GitHub Releases に添付したり，共有ストレージに置いたりする．純 Python なら wheel 1つで全環境をカバーできる</td>
-</tr>
-<tr class="odd">
-<td>sdist から入れる</td>
-<td><code>uv pip install ./dist/test_package-0.1.0.tar.gz</code></td>
-<td>利用者側でビルドが走るので，build backend の取得が必要</td>
-</tr>
-</tbody>
-</table>
-</div>
-<ul>
-<li>純 Python のパッケージなら，<strong>wheel（<code>py3-none-any</code>）1つ + sdist 1つ</strong> をセットで配れば十分です．</li>
-</ul>
-</div>
-</div>
-</section>
-<section id="build-backend-それぞれの動作" class="level2">
-<h2 class="anchored" data-anchor-id="build-backend-それぞれの動作">2. build backend それぞれの動作</h2>
-<p>PEP 517 に従っていれば誰でも backend を作れるので，選択肢は複数あります．代表的なものは次のとおりです．</p>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 30%">
-<col style="width: 30%">
-<col style="width: 40%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>backend</th>
-<th><code>build-backend</code></th>
-<th>特徴</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>setuptools</td>
-<td><code>setuptools.build_meta</code></td>
-<td>最古参で，事実上の標準．C 拡張・動的メタデータ・<code>setup.py</code> との互換まで何でもこなす</td>
-</tr>
-<tr class="even">
-<td>hatchling</td>
-<td><code>hatchling.build</code></td>
-<td>Hatch の backend．設定が素直で，プラグイン（hatch-vcs など）で拡張できる</td>
-</tr>
-<tr class="odd">
-<td>flit-core</td>
-<td><code>flit_core.buildapi</code></td>
-<td>純 Python 専用の最小構成．依存がほぼ無く軽い</td>
-</tr>
-<tr class="even">
-<td>pdm-backend</td>
-<td><code>pdm.backend</code></td>
-<td>PDM の backend．ビルドスクリプトも書ける</td>
-</tr>
-<tr class="odd">
-<td>poetry-core</td>
-<td><code>poetry.core.masonry.api</code></td>
-<td>Poetry の backend．<code>[tool.poetry]</code> の設定も読む</td>
-</tr>
-<tr class="even">
-<td>uv_build</td>
-<td><code>uv_build</code></td>
-<td>uv ネイティブ．純 Python 専用で，設定ゼロかつ高速</td>
-</tr>
-<tr class="odd">
-<td>scikit-build-core / meson-python / maturin</td>
-<td><code>scikit_build_core.build</code> など</td>
-<td>C / C++（CMake・Meson）や Rust（maturin）の拡張モジュールをビルドする専用 backend</td>
-</tr>
-</tbody>
-</table>
-</div>
-<p>ざっくり使い方を分けると，</p>
-<ul>
-<li><strong>純 Python なら uv_build / hatchling / flit-core</strong></li>
-<li><strong>コンパイルが必要なら setuptools か言語別の専用 backend</strong></li>
-</ul>
-<p>以下では，汎用 backend の代表として setuptools を，uv 環境での既定として uv_build を取り上げます．</p>
-<section id="setuptools" class="level3">
-<h3 class="anchored" data-anchor-id="setuptools">2-1. setuptools</h3>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>REMARKS
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li><strong>柔軟で何でもできる代わりに，設定経路が多い</strong>（pyproject / setup.cfg / setup.py / MANIFEST.in / プラグイン）</li>
-</ul>
-</div>
-</div>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-17-python-backend-build/figures/fig1_setuptools_flow.svg" class="img-fluid figure-img"></p>
-<figcaption>setuptools の動作</figcaption>
-</figure>
-</div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode toml code-with-copy"><code class="sourceCode toml"><span id="cb2-1"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">[build-system]</span></span>
-<span id="cb2-2"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">requires</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">[</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"setuptools"</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">,</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"setuptools-scm"</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">]</span>   <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># プラグインもここに並べる</span></span>
-<span id="cb2-3"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">build-backend</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"setuptools.build_meta"</span></span>
-<span id="cb2-4"></span>
-<span id="cb2-5"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">[project]</span></span>
-<span id="cb2-6"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">name</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"my_package"</span></span>
-<span id="cb2-7"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">dynamic</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">[</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"version"</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">]</span>                          <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># version をビルド時に決める</span></span>
-<span id="cb2-8"></span>
-<span id="cb2-9"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">[tool.setuptools.packages.find]</span>                <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># 自動探索で足りないときだけ</span></span>
-<span id="cb2-10"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">where</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">[</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"src"</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">]</span></span>
-<span id="cb2-11"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">exclude</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">[</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"my_package.tests*"</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">]</span></span></code></pre></div></div>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 25%">
-<col style="width: 75%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>ステップ</th>
-<th>中身</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>① metadata</td>
-<td><code>[project]</code> を読む．<code>dynamic</code> に挙げた項目は <code>tool.setuptools.dynamic</code>（<code>attr</code> / <code>file</code>）やプラグイン（setuptools-scm が git から version を算出）で埋める</td>
-</tr>
-<tr class="even">
-<td>② discovery</td>
-<td><code>packages</code> / <code>py-modules</code> 未指定なら <strong>自動探索</strong>（src-layout / flat-layout を判定）．合わなければ <code>find</code> ディレクティブや明示リスト</td>
-</tr>
-<tr class="odd">
-<td>③ file selection</td>
-<td><code>include-package-data</code> は pyproject 利用時 <strong>既定 true</strong>．ただし拾うのは <strong>MANIFEST.in か setuptools-scm（git 管理下）で sdist に載ったファイルだけ</strong>．明示するなら <code>package-data</code> / <code>exclude-package-data</code></td>
-</tr>
-<tr class="even">
-<td>④ extension</td>
-<td><code>setup.py</code> の <code>Extension</code> や（実験的な）<code>ext-modules</code> で C / C++ / Cython をコンパイル → プラットフォーム依存 wheel</td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-<section id="uv_build" class="level3">
-<h3 class="anchored" data-anchor-id="uv_build">2-2. uv_build</h3>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>ポイント
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>：<strong>設定ゼロ・高速・検証付き</strong>，ただし <strong>純 Python 専用</strong></li>
-<li>ビルドスクリプトや柔軟なレイアウトが要るなら hatchling の検討推奨</li>
-</ul>
-</div>
-</div>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-17-python-backend-build/figures/fig2_uv_build_flow.svg" class="img-fluid figure-img"></p>
-<figcaption>uv_build の動作</figcaption>
-</figure>
-</div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode toml code-with-copy"><code class="sourceCode toml"><span id="cb3-1"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">[build-system]</span></span>
-<span id="cb3-2"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">requires</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">[</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"uv_build&gt;=0.13.4,&lt;0.14"</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">]</span>   <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># 上限付きが公式推奨</span></span>
-<span id="cb3-3"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">build-backend</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"uv_build"</span></span>
-<span id="cb3-4"></span>
-<span id="cb3-5"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># 既定 (src/&lt;正規化名&gt;/__init__.py) から外れるときだけ</span></span>
-<span id="cb3-6"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">[tool.uv.build-backend]</span></span>
-<span id="cb3-7"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">module-name</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"FOO"</span></span>
-<span id="cb3-8"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">module-root</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">""</span></span></code></pre></div></div>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 25%">
-<col style="width: 75%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>ステップ</th>
-<th>中身</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>フロントエンド</td>
-<td><code>uv build</code> は <strong>uv 本体に同梱の backend</strong>を使う（<code>requires</code> と互換な場合）．非互換なら，また pip / <code>python -m build</code> からは <strong>常に <code>uv_build</code> パッケージ</strong>を取得して使う</td>
-</tr>
-<tr class="even">
-<td>① validate</td>
-<td>メタデータとプロジェクト構造を検証し，よくあるミスをビルド前に弾く</td>
-</tr>
-<tr class="odd">
-<td>② module</td>
-<td>既定は <code>src/&lt;正規化名&gt;/__init__.py</code> 1つ．名前は小文字化＋<code>.</code>/<code>-</code>→<code>_</code>（<code>Foo-Bar</code>→<code>foo_bar</code>）．<code>module-name</code> / <code>module-root</code> で変更，<code>foo.bar</code> 形式で namespace，<code>-stubs</code> で型スタブ</td>
-</tr>
-<tr class="even">
-<td>③ include / exclude</td>
-<td>追加 → 除外の順で適用，<strong>除外が常に勝つ</strong>．既定で <code>__pycache__</code> / <code>*.pyc</code> / <code>*.pyo</code> を除外．include は root 基準（anchored），exclude は任意階層にマッチ（<code>/dist</code> で root 固定）</td>
-</tr>
-<tr class="odd">
-<td>④ assemble</td>
-<td>sdist：pyproject.toml を TOML 1.0 で書き直して同梱（原本は <code>.orig</code>）＋ readme / license / <code>data</code> / <code>source-include</code>．wheel：module・license（→<code>.dist-info</code>）・<code>data</code>（→<code>.data</code>）．wheel 専用の include は無く，トップレベルモジュールは1つ</td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-</section>
-<section id="生成物一覧" class="level2">
-<h2 class="anchored" data-anchor-id="生成物一覧">3. 生成物一覧</h2>
-<p>同じプロジェクトを両 backend でビルドし，<strong>何がどこに生成されるか</strong>を実物で確認してみます．</p>
-<p>検証用プロジェクト（<code>demo-pkg</code>）：</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb4-1"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">demo-pkg/</span></span>
-<span id="cb4-2"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">├── pyproject.toml          # </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">[project]</span><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;"> 共通，</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">[build-system]</span><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;"> だけ差し替え</span></span>
-<span id="cb4-3"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">├── README.md               # readme</span></span>
-<span id="cb4-4"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">├── LICENSE                 # license-files </span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;"> ["LICENSE"]（PEP 639）</span></span>
-<span id="cb4-5"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">├── src/</span></span>
-<span id="cb4-6"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">│   └── demo_pkg/</span></span>
-<span id="cb4-7"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">│       ├── __init__.py     # </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">[project.scripts]</span><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;"> demo </span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;"> "demo_pkg:main"</span></span>
-<span id="cb4-8"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">│       ├── data/</span></span>
-<span id="cb4-9"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">│       │   └── sample.csv  # パッケージ内データ</span></span>
-<span id="cb4-10"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">│       └── __pycache__/</span></span>
-<span id="cb4-11"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">│           └── x.pyc       # キャッシュ</span></span>
-<span id="cb4-12"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">├── tests/</span></span>
-<span id="cb4-13"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">│   └── test_x.py</span></span>
-<span id="cb4-14"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">├── notebooks/</span></span>
-<span id="cb4-15"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">│   └── eda.ipynb</span></span>
-<span id="cb4-16"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">└── data/</span></span>
-<span id="cb4-17"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">    └── raw.csv             # パッケージ外の生データ</span></span></code></pre></div></div>
-<ul>
-<li>setuptools は <strong>84.0.0</strong>（<code>setuptools.build_meta</code>．MANIFEST.in・setuptools-scm なし）</li>
-<li>uv_build は <strong>0.13.4</strong>（uv 0.13.4 同梱の backend による <code>uv build</code> と，PyPI の <code>uv_build</code> パッケージを使う <code>uv build --force-pep517</code> の両方で確認．結果は同じ）</li>
-</ul>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-17-python-backend-build/figures/fig5_generated_artifacts.svg" class="img-fluid figure-img" style="width:100.0%"></p>
-<figcaption>生成されるもの一覧</figcaption>
-</figure>
-</div>
-<section id="ソースツリーに生成されるもの" class="level3">
-<h3 class="anchored" data-anchor-id="ソースツリーに生成されるもの">3-1. ソースツリーに生成されるもの</h3>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 33%">
-<col style="width: 33%">
-<col style="width: 33%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>場所</th>
-<th>setuptools</th>
-<th>uv_build</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>dist/*.tar.gz</code> / <code>dist/*.whl</code></td>
-<td>✅</td>
-<td>✅</td>
-</tr>
-<tr class="even">
-<td><code>src/&lt;pkg&gt;.egg-info/</code><br>（<code>PKG-INFO</code> <code>SOURCES.txt</code> <code>entry_points.txt</code> <code>top_level.txt</code> <code>dependency_links.txt</code>）</td>
-<td>✅ <strong>ツリー内に残る</strong></td>
-<td>—</td>
-</tr>
-<tr class="odd">
-<td><code>build/lib/</code>, <code>build/bdist.&lt;platform&gt;/</code></td>
-<td>✅ ツリーから直接 wheel を作ったとき（<code>uv build --wheel</code>，<code>pip wheel .</code> など）</td>
-<td>—</td>
-</tr>
-<tr class="even">
-<td><code>dist/.gitignore</code>（中身は <code>*</code>）</td>
-<td><code>uv build</code> 経由なら作られる（フロントエンド側の挙動）</td>
-<td>同左</td>
-</tr>
-</tbody>
-</table>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>REMARKS
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<ul>
-<li>setuptools では <code>.gitignore</code> に <code>build/</code> と <code>*.egg-info/</code> が必須</li>
-</ul>
-</div>
-</div>
-</section>
-<section id="sdist.tar.gzの中身" class="level3">
-<h3 class="anchored" data-anchor-id="sdist.tar.gzの中身">3-2. sdist（<code>.tar.gz</code>）の中身</h3>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 33%">
-<col style="width: 33%">
-<col style="width: 33%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>ファイル</th>
-<th>setuptools</th>
-<th>uv_build</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>PKG-INFO</code>（Metadata-Version 2.4）</td>
-<td>✅</td>
-<td>✅</td>
-</tr>
-<tr class="even">
-<td><code>pyproject.toml</code></td>
-<td>✅ そのまま</td>
-<td>✅ TOML 1.0 で再出力</td>
-</tr>
-<tr class="odd">
-<td><code>pyproject.toml.orig</code></td>
-<td>—</td>
-<td>✅ 原本をそのまま同梱</td>
-</tr>
-<tr class="even">
-<td><code>README.md</code> / <code>LICENSE</code></td>
-<td>✅</td>
-<td>✅</td>
-</tr>
-<tr class="odd">
-<td><code>src/demo_pkg/__init__.py</code></td>
-<td>✅</td>
-<td>✅</td>
-</tr>
-<tr class="even">
-<td><code>src/demo_pkg/data/sample.csv</code></td>
-<td>❌ <strong>落ちる</strong></td>
-<td>✅ module 配下なので入る</td>
-</tr>
-<tr class="odd">
-<td><code>setup.cfg</code>（<code>[egg_info] tag_build / tag_date</code>）</td>
-<td>✅ 自動生成</td>
-<td>—</td>
-</tr>
-<tr class="even">
-<td><code>src/demo_pkg.egg-info/*</code></td>
-<td>✅</td>
-<td>—</td>
-</tr>
-<tr class="odd">
-<td><code>tests/test_x.py</code></td>
-<td>✅ 既定で <code>tests/test*.py</code> を同梱</td>
-<td>—</td>
-</tr>
-<tr class="even">
-<td><code>notebooks/</code> / <code>data/</code> / <code>__pycache__</code></td>
-<td>—</td>
-<td>—</td>
-</tr>
-</tbody>
-</table>
-<p><span class="mini-section">なぜ <code>tests</code> が同梱されるのか？</span></p>
-<ul>
-<li>sdist は開発やビルドに使う材料一式という位置づけ</li>
-<li>実行時には不要なテスト・ドキュメント・サンプルなども入れてよいとされている（<a href="https://setuptools.pypa.io/en/latest/userguide/miscellaneous.html#id3">setuptools docs</a>）</li>
-</ul>
-<p>上記の理由から， setuptools は既定で <code>tests/test*.py</code> を sdist に入れます．</p>
-</section>
-<section id="wheel.whlの中身" class="level3">
-<h3 class="anchored" data-anchor-id="wheel.whlの中身">3-3. wheel（<code>.whl</code>）の中身</h3>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 33%">
-<col style="width: 33%">
-<col style="width: 33%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>ファイル</th>
-<th>setuptools</th>
-<th>uv_build</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>demo_pkg/__init__.py</code></td>
-<td>✅</td>
-<td>✅</td>
-</tr>
-<tr class="even">
-<td><code>demo_pkg/data/sample.csv</code></td>
-<td>❌ <strong>なし</strong>（sdist に載っていないため）</td>
-<td>✅</td>
-</tr>
-<tr class="odd">
-<td><code>*.dist-info/METADATA</code></td>
-<td>✅（<code>Dynamic: license-file</code> 行が付く）</td>
-<td>✅</td>
-</tr>
-<tr class="even">
-<td><code>*.dist-info/WHEEL</code></td>
-<td>✅ <code>Generator: setuptools (84.0.0)</code></td>
-<td>✅ <code>Generator: uv 0.13.4</code></td>
-</tr>
-<tr class="odd">
-<td><code>*.dist-info/RECORD</code></td>
-<td>✅</td>
-<td>✅</td>
-</tr>
-<tr class="even">
-<td><code>*.dist-info/entry_points.txt</code></td>
-<td>✅ <code>[console_scripts] demo = demo_pkg:main</code></td>
-<td>✅ 同内容</td>
-</tr>
-<tr class="odd">
-<td><code>*.dist-info/licenses/LICENSE</code></td>
-<td>✅（PEP 639 形式）</td>
-<td>✅</td>
-</tr>
-<tr class="even">
-<td><code>*.dist-info/top_level.txt</code></td>
-<td>✅</td>
-<td>—</td>
-</tr>
-<tr class="odd">
-<td><code>&lt;name&gt;-&lt;ver&gt;.data/…</code></td>
-<td><code>data-files</code> 指定時のみ</td>
-<td><code>tool.uv.build-backend.data</code> 指定時のみ</td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="editable-installuv-pip-install--e-.で生成されるもの" class="level3">
-<h3 class="anchored" data-anchor-id="editable-installuv-pip-install--e-.で生成されるもの">3-4. editable install（<code>uv pip install -e .</code>）で生成されるもの</h3>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 33%">
-<col style="width: 33%">
-<col style="width: 33%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>場所</th>
-<th>setuptools</th>
-<th>uv_build</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>site-packages の <code>.pth</code></td>
-<td><code>__editable__.demo_pkg-0.1.0.pth</code>（<code>src/</code> を指す）</td>
-<td><code>demo_pkg.pth</code>（<code>src/</code> を指す）</td>
-</tr>
-<tr class="even">
-<td>site-packages の <code>*.dist-info/</code></td>
-<td>✅</td>
-<td>✅</td>
-</tr>
-<tr class="odd">
-<td>ソースツリーの残骸</td>
-<td>なし（84.0.0 は一時ディレクトリで egg_info を処理）</td>
-<td>なし</td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="setuptools-のデータ漏れを防ぐには" class="level3">
-<h3 class="anchored" data-anchor-id="setuptools-のデータ漏れを防ぐには">3-5. setuptools のデータ漏れを防ぐには</h3>
-<p><span class="mini-section">方法1：MANIFEST.in に追記する</span></p>
-<p>1行足せば，<code>sample.csv</code> が sdist と wheel の両方に入ります．</p>
-<pre class="text"><code># MANIFEST.in
-recursive-include src/demo_pkg/data *.csv</code></pre>
-<p><span class="mini-section">方法2：<code>package-data</code> で明示する</span></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode toml code-with-copy"><code class="sourceCode toml"><span id="cb6-1"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">[tool.setuptools.package-data]</span></span>
-<span id="cb6-2"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">demo_pkg</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">[</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"data/*.csv"</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">]</span></span></code></pre></div></div>
-<p><span class="mini-section">方法3：setuptools-scm を使う</span></p>
-<p><code>requires</code> に入れると，git 管理下のファイルを自動で拾わせることができます．</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode toml code-with-copy"><code class="sourceCode toml"><span id="cb7-1"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">[build-system]</span></span>
-<span id="cb7-2"><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">requires</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">[</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"setuptools"</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">,</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"setuptools-scm"</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">]</span></span></code></pre></div></div>
-<p><strong>どの方法でも，ビルド後に <code>unzip -l dist/*.whl</code> で確認するのが確実</strong>です．</p>
-</section>
-</section>
-<section id="パッケージ化にあたっての注意点と選択観点" class="level2">
-<h2 class="anchored" data-anchor-id="パッケージ化にあたっての注意点と選択観点">4. パッケージ化にあたっての注意点と選択観点</h2>
-<div class="no-border-top-table">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 30%">
-<col style="width: 70%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>注意点</th>
-<th>具体的に</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><strong>そもそもパッケージ化が要るか</strong></td>
-<td>分析ノートブック・単発スクリプトだけなら build backend 不要（<code>uv run</code> + lockfile で十分）．社内で <code>import</code> して使い回す段階になったら backend を入れる</td>
-</tr>
-<tr class="even">
-<td><strong>import 名と配布名のズレ</strong></td>
-<td><code>my-analysis</code> → import 名は <code>my_analysis</code>．uv_build はこの正規化名で <code>src/</code> 配下を探すので，ディレクトリ名を合わせる</td>
-</tr>
-<tr class="odd">
-<td><strong>flat layout の罠</strong></td>
-<td>ノートブックと同階層にパッケージを置く flat layout は，uv_build では <code>module-root = ""</code> が必要．setuptools は自動探索で拾えるが，<code>notebooks/</code> や <code>data/</code> まで誤検出しやすい → どちらでも <strong>src layout 推奨</strong></td>
-</tr>
-<tr class="even">
-<td><strong>データ・モデル同梱</strong></td>
-<td>uv_build は <code>src/&lt;pkg&gt;/</code> 内の CSV / JSON をそのまま同梱する．<strong>setuptools は MANIFEST.in・<code>package-data</code>・setuptools-scm のどれかがないと落ちる</strong>（§3-2・§3-3 の実測，対策は §3-5）．大きなモデル重みや生データは wheel に入れない（<code>source-exclude</code> / <code>wheel-exclude</code>，setuptools なら <code>exclude-package-data</code>）</td>
-</tr>
-<tr class="odd">
-<td><strong>ノートブックの紛れ込み</strong></td>
-<td>sdist に <code>.ipynb</code> / 出力データが入っていないか <code>tar tzf dist/*.tar.gz</code> で確認</td>
-</tr>
-<tr class="even">
-<td><strong>Cython・C 拡張</strong></td>
-<td>自作の Cython / pybind11 を含むなら uv_build は不可 → setuptools（or scikit-build-core）．numba のような JIT は純 Python 扱いで問題なし</td>
-</tr>
-</tbody>
-</table>
-</div>
-<p><span class="mini-section">意思決定フロー</span></p>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-17-python-backend-build/figures/fig4_selection_flow.svg" class="img-fluid figure-img"></p>
-<figcaption>意思決定フロー</figcaption>
-</figure>
-</div>
-<ul>
-<li>Q1〜Q3 のどれかが Yes → setuptools 系（or 目的特化の backend）</li>
-<li>全部 No で Q4 が Yes → <strong>uv_build</strong></li>
-<li>Q4 が No（複数トップモジュール・特殊配置・build hook が欲しい）→ hatchling</li>
-</ul>
-</section>
-<section id="appendix-用語集" class="level2">
-<h2 class="anchored" data-anchor-id="appendix-用語集">Appendix: 用語集</h2>
-<div class="glossary-container">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb8-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">glossary</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span></span>
-<span id="cb8-2"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> sdist (source distribution)</span></span>
-<span id="cb8-3"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb8-4">      ソースコードと `pyproject.toml`・`PKG-INFO` などのメタデータをまとめた配布物（`.tar.gz`）．</span>
-<span id="cb8-5">      インストール時に backend を呼んで wheel をビルドしてから入れるため，ビルド環境が必要になる．</span>
-<span id="cb8-6"></span>
-<span id="cb8-7"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> wheel</span></span>
-<span id="cb8-8"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb8-9">      ビルド済みの配布物（`.whl`，中身は zip）．展開して site-packages に置くだけでインストールでき，ビルド処理は走らない．</span>
-<span id="cb8-10">      ファイル名のタグ（例: `py3-none-any`，`cp313-cp313-linux_x86_64`）で対応する Python・ABI・プラットフォームを表す．</span>
-<span id="cb8-11"></span>
-<span id="cb8-12"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> ビルドフロントエンド (build frontend)</span></span>
-<span id="cb8-13"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb8-14">      `pyproject.toml` の `[build-system]` を読み，`requires` を入れた環境で build backend を呼び出すツール（PEP 517）．</span>
-<span id="cb8-15">      `pip`，`uv build`，`python -m build` などが該当する．実際に sdist / wheel を作るのは backend 側．</span>
-<span id="cb8-16"></span>
-<span id="cb8-17"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> hatchling</span></span>
-<span id="cb8-18"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb8-19">      Hatch プロジェクトの build backend．純 Python 向けで，ビルドフックや柔軟なファイル選択・レイアウト指定に対応する．</span>
-<span id="cb8-20">      uv_build で表現できない構成のとき，uv の公式ドキュメントが代替として勧めている．</span>
-<span id="cb8-21"></span>
-<span id="cb8-22"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> setuptools-scm</span></span>
-<span id="cb8-23"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb8-24">      git などの VCS の情報（tag・コミット）から version を算出する setuptools のプラグイン．</span>
-<span id="cb8-25">      `[build-system] requires` に入れて `dynamic = ["version"]` と組み合わせる．git 管理下のファイルを sdist に自動で含める機能も持つ．</span>
-<span id="cb8-26"></span>
-<span id="cb8-27"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> setup.py</span></span>
-<span id="cb8-28"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb8-29">      setuptools の従来の設定ファイル．Python スクリプトとして `setup()` を呼び，メタデータやパッケージ構成を定義する．</span>
-<span id="cb8-30">      現在はメタデータを `pyproject.toml` に書くのが推奨で，C 拡張（`Extension`）などコードでしか書けない設定に使う．</span>
-<span id="cb8-31"></span>
-<span id="cb8-32"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> setup.cfg</span></span>
-<span id="cb8-33"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb8-34">      setuptools の宣言的な設定ファイル（INI 形式）．`[metadata]`・`[options]` セクションに，`setup.py` に書いていた内容をコードなしで記述できる．</span>
-<span id="cb8-35">      `pyproject.toml` の `[project]` が使えるようになってからは，新規プロジェクトで使う必要はない．</span>
-<span id="cb8-36">      setuptools でビルドした sdist には，`[egg_info]`（`tag_build` / `tag_date`）だけを書いた `setup.cfg` が自動生成されて同梱される）．</span>
-<span id="cb8-37"></span>
-<span id="cb8-38"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> MANIFEST.in</span></span>
-<span id="cb8-39"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb8-40">      setuptools で sdist に含めるファイルを指定するテンプレートファイル（例: `recursive-include src/demo_pkg/data *.csv`）．</span>
-<span id="cb8-41">      `include-package-data = true` の下では，ここで sdist に載せたパッケージ内ファイルが wheel にも入る．</span>
-<span id="cb8-42"></span>
-<span id="cb8-43"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> C 拡張 (C extension module)</span></span>
-<span id="cb8-44"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb8-45">      C / C++（Cython・Rust なども同様）で書かれ，ビルド時に共有ライブラリ（`.so` / `.pyd`）へコンパイルされる Python モジュール．</span>
-<span id="cb8-46">      コンパイラが必要で，生成物が OS・CPU・Python バージョンに依存するため，wheel は環境ごとに別ファイル（例: `cp313-cp313-manylinux_2_17_x86_64`）になる．</span>
-<span id="cb8-47">      numpy などの高速化に使われる．uv_build は対応しておらず，setuptools や scikit-build-core・maturin などの backend を使う．</span>
-<span id="cb8-48"></span>
-<span id="cb8-49"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> 動的メタデータ (dynamic metadata)</span></span>
-<span id="cb8-50"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb8-51">      `pyproject.toml` の `[project]` に直接書かず，ビルド時に backend が値を決めるメタデータ．`dynamic = ["version"]` のように項目名を列挙して宣言する．</span>
-<span id="cb8-52">      例: setuptools-scm で git tag から version を算出する，`tool.setuptools.dynamic` で `__init__.py` の `__version__` を読む．</span>
-<span id="cb8-53">      静的に書いた項目と違い，ビルドするまで値が確定しない．</span>
-<span id="cb8-54"></span>
-<span id="cb8-55"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> 型スタブ (type stub)</span></span>
-<span id="cb8-56"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb8-57">      関数・クラスの型情報だけを書いたファイル（拡張子 `.pyi`）．実装は持たず，mypy・pyright などの型チェッカーや IDE の補完が読む．</span>
-<span id="cb8-58">      型注釈のないライブラリや C 拡張に型を付けるために使い，`&lt;パッケージ名&gt;-stubs` という名前の別パッケージとして配布できる（PEP 561，例: `pandas-stubs`）．</span>
-<span id="cb8-59">      uv_build では `module-name` を `foo-stubs` の形にすると，型スタブパッケージとしてビルドできる．</span>
-<span id="cb8-60"></span>
-<span id="cb8-61"><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">  </span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">-</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> </span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">def</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">:</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;"> PEP 639 (license-files)</span></span>
-<span id="cb8-62"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">    description</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">: </span><span class="ch" style="color: #20794D;
-background-color: null;
-font-style: inherit;">|</span></span>
-<span id="cb8-63">      パッケージのライセンス情報の書き方を定めた PEP．`[project]` に `license = "MIT"` のような SPDX 式と，`license-files = ["LICENSE"]` のような同梱ファイルの glob パターンを書く．</span>
-<span id="cb8-64">      メタデータには `License-Expression` / `License-File` 項目（Metadata-Version 2.4）として記録され，wheel ではライセンスファイルが `*.dist-info/licenses/` に入る．</span>
-<span id="cb8-65">      従来の `license = {file = "LICENSE"}` / `license = {text = "..."}` や `License ::` classifier は非推奨になった．</span></code></pre></div></div>
-</div>
-</section>
-<section id="references" class="level2">
-<h2 class="anchored" data-anchor-id="references">References</h2>
-<ul>
-<li><a href="https://docs.astral.sh/uv/concepts/build-backend/">uv docs — Build backend</a></li>
-<li><a href="https://setuptools.pypa.io/en/latest/userguide/pyproject_config.html">setuptools — Configuring setuptools using pyproject.toml</a>（2026-10-21 時点，setuptools docs は 84.2.1）</li>
-</ul>
-
-
-</section>
-
- ]]></description>
-  <category>python</category>
-  <category>uv</category>
-  <guid>https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-10-17-python-backend-build/</guid>
-  <pubDate>Sat, 17 Oct 2026 00:00:00 GMT</pubDate>
 </item>
 </channel>
 </rss>
