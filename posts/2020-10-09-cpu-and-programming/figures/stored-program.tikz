@@ -1,0 +1,76 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    head/.style={font=\bfseries, text=navy},
+    file/.style={draw=navy, fill=white, rounded corners=2pt, align=center,
+                 minimum width=2.6cm, minimum height=0.6cm, font=\footnotesize},
+    addr/.style={draw=navy, fill=white, minimum width=1.1cm, minimum height=0.6cm,
+                 font=\footnotesize\ttfamily, text=darkgray},
+    cell/.style={draw=navy, minimum width=3.0cm, minimum height=0.6cm, font=\footnotesize},
+    unit/.style={draw=navy, fill=aliceblue, rounded corners=3pt, align=center,
+                 minimum width=3.0cm, minimum height=0.7cm, font=\footnotesize},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt, align=center},
+    wire/.style={->, draw=navy},
+  ]
+  % ================= ストレージ =================
+  \node[cylinder, shape border rotate=90, draw=navy, fill=aliceblue,
+        minimum height=2.4cm, minimum width=3.4cm] (disk) at (0,-0.3) {};
+  \node[file, fill=paleskyblue] (pa) at (0,0.45) {プログラムA};
+  \node[file] (pb) at (0,-0.3) {プログラムB};
+  \node[file] (pd) at (0,-1.05) {データファイル};
+
+  % ================= メインメモリ =================
+  \foreach \i/\a/\t/\c in {
+      1/0100/命令/aliceblue,
+      2/0101/命令/paleskyblue,
+      3/0102/命令/aliceblue,
+      4/0103/データ/white,
+      5/0104/データ/white} {
+    \node[cell, fill=\c] (m\i) at (7.0,{1.5-0.6*\i}) {\t};
+    \node[addr, anchor=east] (a\i) at (m\i.west) {\a};
+  }
+
+  % ================= CPU =================
+  \node[unit, fill=paleskyblue] (pc) at (13.0,0.55)
+    {プログラムカウンタ：\texttt{0101}};
+  \node[unit] (cu) at (13.0,-0.35) {制御装置};
+  \node[unit] (alu) at (13.0,-1.25) {演算装置・レジスタ};
+  \node[draw=navy, rounded corners=4pt, inner sep=7pt,
+        fit=(pc)(cu)(alu)] (cpu) {};
+
+  % ---- 見出し（高さを揃える）----
+  \coordinate (memc) at ($(a1.west)!0.5!(m1.east)$);
+  \coordinate (htop) at (0,2.35);
+  \node[head] at (disk |- htop) {ストレージ（SSD・HDD）};
+  \node[head] at (memc |- htop) {メインメモリ};
+  \node[head] at (cpu |- htop) {CPU};
+
+  % ---- 矢印 ----
+  \draw[wire] (disk.east |- m3.west) -- (a3.west)
+    node[midway, above, sig] {起動時に命令と\\データをロード};
+  \draw[wire] (m2.east) -- (m2.east -| cpu.west)
+    node[midway, above, sig] {命令を1つずつ\\読み出す};
+  \coordinate (dmid) at ($(m4.east)!0.5!(m5.east)$);
+  \draw[<->, draw=navy] (dmid) -- (dmid -| cpu.west)
+    node[midway, below, sig] {データの\\読み書き};
+
+  % ---- 補足 ----
+  \coordinate (nb) at (0,-2.7);
+  \node[note, anchor=north] at (disk |- nb)
+    {電源を切っても消えない\\プログラムの保管場所};
+  \node[note, anchor=north] at (memc |- nb)
+    {命令とデータを\\同じメモリにアドレス付きで格納};
+  \node[note, anchor=north] at (cpu |- nb)
+    {プログラムカウンタが指す\\アドレスの命令を実行};
+\end{tikzpicture}
