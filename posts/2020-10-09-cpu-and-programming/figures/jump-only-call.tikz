@@ -1,0 +1,73 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    addr/.style={draw=navy, fill=white, minimum width=1.2cm, minimum height=0.8cm},
+    cell/.style={draw=navy, fill=aliceblue, minimum height=0.8cm,
+                 text width=4.6cm, align=left, inner xsep=8pt, anchor=west},
+    jcell/.style={cell, fill=paleskyblue},
+    ngcell/.style={cell, draw=crimsonred, fill=mistyrose, text=crimsonred},
+    head/.style={font=\footnotesize\bfseries, text=navy, anchor=south},
+    sig/.style={font=\footnotesize, text=darkgray, align=center, inner sep=2pt},
+    wire/.style={->, draw=navy},
+    ret/.style={->, draw=crimsonred, dashed},
+    dot/.style={circle, fill=navy, inner sep=1.4pt},
+  ]
+  \node[head] at (3.5,0.45) {呼び出し元 A（平均売上を表示）};
+  \node[head] at (3.5,-2.55) {呼び出し元 B（売上を標準化）};
+  \node[head] at (11.8,-0.55) {関数 mean};
+
+  % 呼び出し元 A
+  \foreach \a/\t/\s [count=\i from 0, evaluate=\i as \y using -0.8*\i] in {
+      0100/引数を準備せよ/cell,
+      0101/0200 番地へジャンプせよ/jcell,
+      0102/平均を表示せよ/cell} {
+    \node[addr] (aa\i) at (0.6,\y) {\a};
+    \node[\s] (ra\i) at (1.2,\y) {\t};
+  }
+
+  % 呼び出し元 B
+  \foreach \a/\t/\s [count=\i from 0, evaluate=\i as \y using -3.0-0.8*\i] in {
+      0150/引数を準備せよ/cell,
+      0151/0200 番地へジャンプせよ/jcell,
+      0152/平均を使って標準化せよ/cell} {
+    \node[addr] (ab\i) at (0.6,\y) {\a};
+    \node[\s] (rb\i) at (1.2,\y) {\t};
+  }
+
+  % 関数 mean
+  \foreach \a/\t/\s [count=\i from 0, evaluate=\i as \y using -1.0-0.8*\i] in {
+      0200/sum に 0 を格納せよ/cell,
+      0201/x の要素を sum に加算せよ/cell,
+      0202/sum ÷ n を計算せよ/cell,
+      0203/？？？？ 番地へジャンプせよ/ngcell} {
+    \node[addr] (am\i) at (8.9,\y) {\a};
+    \node[\s] (rm\i) at (9.5,\y) {\t};
+  }
+
+  % 呼び出し（どちらも同じ 0200 番地へ）
+  \draw[navy] (ra1.east) -- (7.3,-0.8) -- (7.3,-1.0);
+  \draw[navy] (rb1.east) -- (7.3,-3.8) -- (7.3,-1.0);
+  \draw[wire] (7.3,-1.0) -- (am0.west);
+  \node[dot] at (7.3,-1.0) {};
+
+  % 戻り（戻り先が1つに決まらない）
+  \draw[ret] (am3.west) -- (7.9,-3.4) -- (7.9,-1.6) -- (7.46,-1.6)
+    arc[start angle=0, end angle=180, radius=0.16] -- (ra2.east);
+  \draw[ret] (7.9,-3.4) |- (rb2.east);
+  \node[font=\bfseries, text=crimsonred] at (6.85,-1.3) {？};
+  \node[font=\bfseries, text=crimsonred] at (6.85,-4.3) {？};
+
+  % 補足
+  \node[sig, anchor=north] at (11.8,-4.0)
+    {A から呼ばれたら 0102，B から呼ばれたら 0152 に\\戻る必要があるが，ジャンプ命令に書ける\\戻り先は1つだけ};
+\end{tikzpicture}
