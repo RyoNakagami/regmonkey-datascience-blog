@@ -172,6 +172,7 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 <link rel="stylesheet" href="../../styles.css">
 <meta property="og:title" content="疎通確認: ping vs curl – regmonkey datascience blog">
 <meta property="og:description" content="日々の徒然勉強日記">
+<meta property="og:image" content="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-05-22-connection-check-ping-vs-curl/figures/layer-triage.svg">
 <meta property="og:site_name" content="regmonkey datascience blog">
 </head>
 
@@ -430,8 +431,6 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
       <h1 class="title">疎通確認: ping vs curl</h1>
                                 <div class="quarto-categories">
                 <div class="quarto-category">network</div>
-                <div class="quarto-category">curl</div>
-                <div class="quarto-category">ping</div>
               </div>
                   </div>
   </div>
@@ -474,7 +473,8 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
   <li><a href="#ネットワークの基礎-通信はレイヤーで分かれている" id="toc-ネットワークの基礎-通信はレイヤーで分かれている" class="nav-link active" data-scroll-target="#ネットワークの基礎-通信はレイヤーで分かれている">ネットワークの基礎: 通信はレイヤーで分かれている</a></li>
   <li><a href="#ping-と-curl-は確認するレイヤーが違う" id="toc-ping-と-curl-は確認するレイヤーが違う" class="nav-link" data-scroll-target="#ping-と-curl-は確認するレイヤーが違う">ping と curl は確認するレイヤーが違う</a></li>
   <li><a href="#切り分けの考え方" id="toc-切り分けの考え方" class="nav-link" data-scroll-target="#切り分けの考え方">切り分けの考え方</a></li>
-  <li><a href="#glossary" id="toc-glossary" class="nav-link" data-scroll-target="#glossary">Glossary</a></li>
+  <li><a href="#sec-http-status" id="toc-sec-http-status" class="nav-link" data-scroll-target="#sec-http-status">Appendix: 主な HTTP ステータスコード</a></li>
+  <li><a href="#用語集" id="toc-用語集" class="nav-link" data-scroll-target="#用語集">📘 用語集</a></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>問題を報告</a></li></ul></div></nav>
     </div>
@@ -513,6 +513,18 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 <td>HTTP / HTTPS / DNS / SSH</td>
 </tr>
 <tr class="even">
+<td>L6</td>
+<td>プレゼンテーション層</td>
+<td>データ表現の変換（文字コード・圧縮・暗号化）</td>
+<td>TLS / JPEG / UTF-8</td>
+</tr>
+<tr class="odd">
+<td>L5</td>
+<td>セッション層</td>
+<td>通信の開始・維持・終了の管理</td>
+<td>TLS セッション / RPC</td>
+</tr>
+<tr class="even">
 <td>L4</td>
 <td>トランスポート層</td>
 <td>ポート単位の通信・到達保証</td>
@@ -539,11 +551,35 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 </tbody>
 </table>
 </div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>L5・L6 はなぜ影が薄いのか
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>実際のインターネットで使われている <strong>TCP/IP モデル</strong> は 4 階層で，OSI の L5〜L7 をまとめて「アプリケーション層」として扱います． そのため L5・L6 の機能は独立したプロトコルとして現れることが少なく，HTTP や SSH などのアプリケーションプロトコルや TLS の中に吸収されています．</p>
+<ul>
+<li><strong>L6（プレゼンテーション層）</strong>: 文字コード（UTF-8）や画像形式（JPEG），暗号化といった「データをどう表現するか」を扱う層です．HTTPS の暗号化を担う TLS はここに分類されることが多いです．</li>
+<li><strong>L5（セッション層）</strong>: 通信の「開始・維持・終了」を管理する層です．TLS のハンドシェイクやセッション再開，RPC の呼び出し管理などが該当します．</li>
+</ul>
+<p>疎通確認の文脈では，「L4（TCP）は繋がるが TLS ハンドシェイクで失敗する」= 証明書や暗号スイートの問題，と切り分けられる点が実用上のポイントです．</p>
+</div>
+</div>
 <p>疎通確認のコマンドは「どのレイヤーまで到達できているか」を切り分けるための道具です．たとえば次のように，レイヤーごとに「届いているか」を確認していくと原因の位置が特定できます．</p>
 <ul>
 <li>L3 でホストに届かない → IP ルーティング / ファイアウォール / NW 障害</li>
 <li>L3 は届くが L7 が応答しない → サーバープロセスのダウン / ポート閉塞 / アプリエラー</li>
 </ul>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="figures/layer-triage.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+<figcaption>まず ping で L3（IP）の到達性を確認し，NG なら NW 側の問題と切り分ける．</figcaption>
+</figure>
+</div>
 </section>
 <section id="ping-と-curl-は確認するレイヤーが違う" class="level2">
 <h2 class="anchored" data-anchor-id="ping-と-curl-は確認するレイヤーが違う">ping と curl は確認するレイヤーが違う</h2>
@@ -578,6 +614,12 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 </tr>
 </tbody>
 </table>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="figures/ping-vs-curl-layer.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+<figcaption>ping は L3（IP/ICMP）までの到達性を，curl は L7（HTTP/HTTPS）の応答までを確認する．curl が通れば下位層もすべて通っている</figcaption>
+</figure>
+</div>
 <p><span class="mini-section"><code>ping</code>: L3 (IP) の到達性を確認する</span></p>
 <p><code>ping</code> は <strong>ICMP</strong> という L3 のプロトコルを使い，相手ホストに「Echo Request」を送って「Echo Reply」が返ってくるかを確認します．HTTP サーバーが動いているかどうかは一切関係なく，<strong>IP レベルでパケットが往復できるか</strong>だけを見ます．</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># ホストに IP レベルで届くか（4回だけ送信）</span></span>
@@ -599,7 +641,7 @@ round-trip min/avg/max = 11.2/11.4/11.5 ms</code></pre>
 <pre><code>HTTP/2 200
 content-type: text/html; charset=UTF-8
 ...</code></pre>
-<p>ステータスコード <code>200</code> が返れば L7 まで疎通しています．<code>000</code> の場合は接続そのものが 確立できていない (TCP / TLS / DNS のいずれかで失敗) ことを示します．</p>
+<p>ステータスコード <code>200</code> が返れば L7 まで疎通しています．<code>000</code> の場合は接続そのものが 確立できていない (TCP / TLS / DNS のいずれかで失敗) ことを示します（see <a href="#sec-http-status">Appendix: 主な HTTP ステータスコード</a>）．</p>
 <p><span class="mini-section">1 つの <code>curl</code> は複数レイヤーを通過している</span></p>
 <p><code>curl</code> は「L7 の確認」と書きましたが，実際には下位レイヤーを順番に積み上げてから HTTP 応答に到達します．<code>-w</code> でフェーズ別の所要時間を出力すると，どのレイヤーまで 進んだか・どこで時間がかかっているかが分かります．</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">curl</span> <span class="at">-o</span> /dev/null <span class="at">-s</span> <span class="at">-w</span> <span class="st">"</span></span>
@@ -680,6 +722,12 @@ content-type: text/html; charset=UTF-8
 </div>
 </div>
 <p>この内訳を見ると，<code>ping</code> (L3) では見えない上位レイヤーのどこで詰まっているかを 切り分けられます．たとえば <code>dns</code> だけ極端に遅ければ DNS の問題，<code>tls</code> で止まれば 証明書 / TLS ネゴシエーションの問題，<code>ttfb</code> が長ければサーバー側の処理が遅い， と判断できます．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="figures/curl-timing-triage.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+<figcaption><code>time_*</code> の差分でフェーズごとの所要時間を出し，下位フェーズから順に確認する．最初に遅いフェーズが原因のレイヤー</figcaption>
+</figure>
+</div>
 </section>
 <section id="切り分けの考え方" class="level2">
 <h2 class="anchored" data-anchor-id="切り分けの考え方">切り分けの考え方</h2>
@@ -689,11 +737,13 @@ content-type: text/html; charset=UTF-8
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-<span class="screen-reader-only">ノート</span>下位レイヤーから順に確認する
+<span class="screen-reader-only">ノート</span>RULE: 下位レイヤーから順に確認する
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p>「つながらない」ときは <strong>L3 → L4 → L7</strong> の順で確認すると原因が絞り込めます．</p>
+<ul>
+<li>「つながらない」ときは <strong>L3 → L4 → L7</strong> の順で確認して，原因が絞り込む</li>
+</ul>
 </div>
 </div>
 <table class="caption-top table">
@@ -729,62 +779,233 @@ content-type: text/html; charset=UTF-8
 </table>
 <p><span class="mini-section"><code>ping</code> が通らない＝障害，とは限らない</span></p>
 <p>セキュリティ上の理由で ICMP (ping) をブロックしているサーバーは珍しくありません． その場合 ping は失敗しますが，HTTP は正常に応答します．<strong>「ping が通らない」だけで サービス停止と判断しない</strong>ようにしましょう．L7 の確認には curl を使います．</p>
+<div id="exm-icmp-dos" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Exmaple 1</strong></span> <span class="def-title">ICMP を悪用した DoS 攻撃への対策</span></p>
+<p>ICMP をブロックする理由の一つが DoS 攻撃への対策です．ICMP は「届いたら応答を返す」という性質を持つため，攻撃に悪用されやすいプロトコルです．</p>
+<ul>
+<li><strong>Ping flood</strong>: 攻撃者が ICMP Echo Request を大量に送りつけます．標的は1件ずつ Echo Reply を返そうとするため，回線帯域や CPU が使い果たされ，正規の通信を処理できなくなります．</li>
+<li><strong>Smurf 攻撃</strong>: 攻撃者は <strong>送信元 IP を標的のアドレスに偽装</strong> した Echo Request を，踏み台ネットワークの <strong>ブロードキャストアドレス</strong> 宛てに送ります．ネットワーク内の N 台のホストが一斉に Echo Reply を返すため，攻撃者の1パケットが N 倍に <strong>増幅</strong> され，返信がすべて標的に集中します．</li>
+</ul>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="figures/icmp-dos.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+<figcaption>ICMP を悪用した DoS 攻撃．(a) Ping flood は Echo Request を大量に送りつける．(b) Smurf 攻撃は送信元を偽装したブロードキャストで応答を N 倍に増幅する．どちらも FW で ICMP を遮断・流量制限すれば標的に届かない</figcaption>
+</figure>
+</div>
+<p>対策は，標的側の FW で <strong>ICMP Echo を遮断する，または流量を制限する</strong> ことです．Smurf 攻撃に対しては，踏み台側のルーターで <strong>directed broadcast（外部からのブロードキャスト宛てパケットの転送）を無効化</strong> するのも有効です．現在のルーターでは既定で無効になっています．</p>
+<p>こうした理由から，外部公開サーバーやクラウドでは ICMP Echo を受け付けない設定が一般的です．その結果，サービスは正常に動いているのに <code>ping</code> だけが失敗する，という状況が生まれます．</p>
+</div>
+<hr>
 </section>
-<section id="glossary" class="level2">
-<h2 class="anchored" data-anchor-id="glossary">Glossary</h2>
+<section id="sec-http-status" class="level2">
+<h2 class="anchored" data-anchor-id="sec-http-status">Appendix: 主な HTTP ステータスコード</h2>
+<p><code>curl -w '%{http_code}'</code> で返ってくる 3 桁の番号は，先頭の数字でおおまかな意味が決まります． <strong><code>000</code> 以外の何かが返ってきた時点で，L7 までは疎通している</strong>（サーバーが HTTP で応答している）点に注意してください．</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 12%">
+<col style="width: 30%">
+<col style="width: 57%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>分類</th>
+<th>意味</th>
+<th>切り分けの目安</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>000</code></td>
+<td>HTTP 応答なし（curl 独自の値）</td>
+<td>DNS / TCP / TLS の段階で失敗．L7 に届いていない</td>
+</tr>
+<tr class="even">
+<td><code>1xx</code></td>
+<td>情報</td>
+<td>処理の継続中．疎通確認で見ることはほぼない</td>
+</tr>
+<tr class="odd">
+<td><code>2xx</code></td>
+<td>成功</td>
+<td>正常</td>
+</tr>
+<tr class="even">
+<td><code>3xx</code></td>
+<td>リダイレクト</td>
+<td>正常．<code>curl -L</code> で転送先までたどる</td>
+</tr>
+<tr class="odd">
+<td><code>4xx</code></td>
+<td>クライアント側エラー</td>
+<td>リクエスト（URL・認証・権限）を見直す</td>
+</tr>
+<tr class="even">
+<td><code>5xx</code></td>
+<td>サーバー側エラー</td>
+<td>アプリ・バックエンド・プロキシを調べる</td>
+</tr>
+</tbody>
+</table>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 12%">
+<col style="width: 26%">
+<col style="width: 62%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>コード</th>
+<th>名前</th>
+<th>よくある原因・意味</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>200</code></td>
+<td>OK</td>
+<td>正常に応答</td>
+</tr>
+<tr class="even">
+<td><code>201</code></td>
+<td>Created</td>
+<td>POST などでリソースが作成された</td>
+</tr>
+<tr class="odd">
+<td><code>204</code></td>
+<td>No Content</td>
+<td>成功したが本文なし（ヘルスチェックや DELETE で使われる）</td>
+</tr>
+<tr class="even">
+<td><code>301</code></td>
+<td>Moved Permanently</td>
+<td>恒久的な移転．http → https への転送でよく見る</td>
+</tr>
+<tr class="odd">
+<td><code>302</code></td>
+<td>Found</td>
+<td>一時的な転送．ログイン画面へのリダイレクトなど</td>
+</tr>
+<tr class="even">
+<td><code>304</code></td>
+<td>Not Modified</td>
+<td>キャッシュが有効なので本文を返さない</td>
+</tr>
+<tr class="odd">
+<td><code>400</code></td>
+<td>Bad Request</td>
+<td>リクエストの書式が不正（パラメータ・JSON の誤り）</td>
+</tr>
+<tr class="even">
+<td><code>401</code></td>
+<td>Unauthorized</td>
+<td>認証が必要，または認証情報が誤っている</td>
+</tr>
+<tr class="odd">
+<td><code>403</code></td>
+<td>Forbidden</td>
+<td>認証はできたが権限がない．IP 制限・WAF によるブロックもここ</td>
+</tr>
+<tr class="even">
+<td><code>404</code></td>
+<td>Not Found</td>
+<td>パスが存在しない．URL の誤りやルーティング設定の漏れ</td>
+</tr>
+<tr class="odd">
+<td><code>405</code></td>
+<td>Method Not Allowed</td>
+<td>そのパスで使えない HTTP メソッド（GET / POST の取り違え）</td>
+</tr>
+<tr class="even">
+<td><code>408</code></td>
+<td>Request Timeout</td>
+<td>クライアントからの送信が遅く，サーバーが待ちきれなかった</td>
+</tr>
+<tr class="odd">
+<td><code>429</code></td>
+<td>Too Many Requests</td>
+<td>レート制限に達した．時間を置いて再試行する</td>
+</tr>
+<tr class="even">
+<td><code>500</code></td>
+<td>Internal Server Error</td>
+<td>アプリ内部の例外．アプリのログを確認する</td>
+</tr>
+<tr class="odd">
+<td><code>502</code></td>
+<td>Bad Gateway</td>
+<td>プロキシ・LB の先のアプリが不正な応答を返した，または落ちている</td>
+</tr>
+<tr class="even">
+<td><code>503</code></td>
+<td>Service Unavailable</td>
+<td>過負荷・メンテナンス中．LB 配下に正常なサーバーがない場合も</td>
+</tr>
+<tr class="odd">
+<td><code>504</code></td>
+<td>Gateway Timeout</td>
+<td>プロキシ・LB の先のアプリが時間内に応答しなかった</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ヒント</span>502 / 503 / 504 は「手前までは届いている」
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><code>502</code> / <code>503</code> / <code>504</code> を返しているのは，多くの場合アプリ本体ではなく <strong>手前のリバースプロキシやロードバランサー</strong>（nginx・ALB など）です． つまり「プロキシまでは L7 で疎通しているが，その先のアプリとの間で問題が起きている」と切り分けられます．</p>
+</div>
+</div>
+</section>
+<section id="用語集" class="level2">
+<h2 class="anchored" data-anchor-id="用語集">📘 用語集</h2>
 <div class="glossary-container">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">glossary</span><span class="kw">:</span></span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> OSI参照モデル</span></span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>      ネットワーク通信の機能を 7 つの階層に分けて整理したモデル．</span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>      下位層 (物理・データリンク・ネットワーク) から上位層</span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>      (トランスポート・セッション・プレゼンテーション・アプリケーション)</span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>      まであり，各層が独立した役割を持つ．</span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> ICMP (Internet Control Message Protocol)</span></span>
-<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
-<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>      IP (L3) で動作する制御・エラー通知用のプロトコル．`ping` は ICMP の</span>
-<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>      Echo Request / Echo Reply を使ってホストの到達性を確認する．</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>      ネットワーク通信の機能を 7 つの階層に分けて整理したモデル．下位層 (物理・データリンク・ネットワーク) から上位層(トランスポート・セッション・プレゼンテーション・アプリケーション)まであり，各層が独立した役割を持つ．</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> ICMP (Internet Control Message Protocol)</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>      IP (L3) で動作する制御・エラー通知用のプロトコル．`ping` は ICMP のEcho Request / Echo Reply を使ってホストの到達性を確認する．</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> ping</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>      ICMP を使ってホストに到達できるか (L3) を確認するコマンド．往復時間 (RTT) やパケットロス率を測定できる．HTTP サーバーの稼働とは無関係．</span>
 <span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> ping</span></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> curl</span></span>
 <span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
-<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>      ICMP を使ってホストに到達できるか (L3) を確認するコマンド．</span>
-<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>      往復時間 (RTT) やパケットロス率を測定できる．HTTP サーバーの稼働とは無関係．</span>
-<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> curl</span></span>
-<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
-<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a>      HTTP/HTTPS をはじめとする各種プロトコルでリクエストを送る CLI ツール．</span>
-<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>      Web サービスがアプリケーションレベル (L7) で応答するかを確認できる．</span>
-<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> RTT (Round-Trip Time)</span></span>
-<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
-<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a>      パケットが送信先まで往復するのにかかる時間．`ping` の `time` 値として表示される．</span>
-<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> DNS解決 (Name Resolution)</span></span>
-<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
-<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a>      ドメイン名 (例 `example.com`) を IP アドレスに変換する処理．curl の</span>
-<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a>      `time_namelookup` で計測でき，ここが遅い・失敗する場合は DNS 側の問題．</span>
-<span id="cb6-32"><a href="#cb6-32" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-33"><a href="#cb6-33" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> TLSハンドシェイク</span></span>
-<span id="cb6-34"><a href="#cb6-34" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
-<span id="cb6-35"><a href="#cb6-35" aria-hidden="true" tabindex="-1"></a>      HTTPS 通信の冒頭で暗号化セッションを確立する手順 (証明書検証・鍵交換)．</span>
-<span id="cb6-36"><a href="#cb6-36" aria-hidden="true" tabindex="-1"></a>      curl では `time_appconnect` として計測される．OSI 上はセッション/プレゼンテーション層</span>
-<span id="cb6-37"><a href="#cb6-37" aria-hidden="true" tabindex="-1"></a>      (L5–L6) 相当．</span>
-<span id="cb6-38"><a href="#cb6-38" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-39"><a href="#cb6-39" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> TTFB (Time To First Byte)</span></span>
-<span id="cb6-40"><a href="#cb6-40" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
-<span id="cb6-41"><a href="#cb6-41" aria-hidden="true" tabindex="-1"></a>      リクエスト送信から最初の応答バイトを受信するまでの時間．curl の</span>
-<span id="cb6-42"><a href="#cb6-42" aria-hidden="true" tabindex="-1"></a>      `time_starttransfer` に対応し，サーバー側の処理時間 (L7) の目安になる．</span>
-<span id="cb6-43"><a href="#cb6-43" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-44"><a href="#cb6-44" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> TCP / UDP</span></span>
-<span id="cb6-45"><a href="#cb6-45" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
-<span id="cb6-46"><a href="#cb6-46" aria-hidden="true" tabindex="-1"></a>      トランスポート層 (L4) のプロトコル．TCP は到達保証・順序保証つきの接続型，</span>
-<span id="cb6-47"><a href="#cb6-47" aria-hidden="true" tabindex="-1"></a>      UDP は保証のない非接続型．HTTP は TCP の上で動く．</span>
-<span id="cb6-48"><a href="#cb6-48" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-49"><a href="#cb6-49" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> HTTPステータスコード</span></span>
-<span id="cb6-50"><a href="#cb6-50" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
-<span id="cb6-51"><a href="#cb6-51" aria-hidden="true" tabindex="-1"></a>      HTTP レスポンスの結果を表す 3 桁の番号．`200` は成功，`4xx` はクライアント側エラー，</span>
-<span id="cb6-52"><a href="#cb6-52" aria-hidden="true" tabindex="-1"></a>      `5xx` はサーバー側エラー．curl の `000` は HTTP 応答に到達する前に接続が失敗したことを示す．</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>      HTTP/HTTPS をはじめとする各種プロトコルでリクエストを送る CLI ツール．Web サービスがアプリケーションレベル (L7) で応答するかを確認できる．</span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> RTT (Round-Trip Time)</span></span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a>      パケットが送信先まで往復するのにかかる時間．`ping` の `time` 値として表示される．</span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> DNS解決 (Name Resolution)</span></span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>      ドメイン名 (例 `example.com`) を IP アドレスに変換する処理．curl の`time_namelookup` で計測でき，ここが遅い・失敗する場合は DNS 側の問題．</span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> TLSハンドシェイク</span></span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a>      HTTPS 通信の冒頭で暗号化セッションを確立する手順 (証明書検証・鍵交換)．curl では `time_appconnect` として計測される．OSI 上はセッション/プレゼンテーション層(L5–L6) 相当．</span>
+<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> TTFB (Time To First Byte)</span></span>
+<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb6-32"><a href="#cb6-32" aria-hidden="true" tabindex="-1"></a>      リクエスト送信から最初の応答バイトを受信するまでの時間．curl の`time_starttransfer` に対応し，サーバー側の処理時間 (L7) の目安になる．</span>
+<span id="cb6-33"><a href="#cb6-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-34"><a href="#cb6-34" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> TCP / UDP</span></span>
+<span id="cb6-35"><a href="#cb6-35" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb6-36"><a href="#cb6-36" aria-hidden="true" tabindex="-1"></a>      トランスポート層 (L4) のプロトコル．TCP は到達保証・順序保証つきの接続型，UDP は保証のない非接続型．HTTP は TCP の上で動く．</span>
+<span id="cb6-37"><a href="#cb6-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-38"><a href="#cb6-38" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> HTTPステータスコード</span></span>
+<span id="cb6-39"><a href="#cb6-39" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb6-40"><a href="#cb6-40" aria-hidden="true" tabindex="-1"></a>      HTTP レスポンスの結果を表す 3 桁の番号．`200` は成功，`4xx` はクライアント側エラー，`5xx` はサーバー側エラー．curl の `000` は HTTP 応答に到達する前に接続が失敗したことを示す．</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 
 

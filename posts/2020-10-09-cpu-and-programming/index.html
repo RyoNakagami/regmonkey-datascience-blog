@@ -171,6 +171,35 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 <link rel="stylesheet" href="../../js/regmonkey_glossary_generator/regmonkey_glossary_generator.css">
 <script type="text/javascript" src="../../js/regmonkey_glossary_generator/regmonkey_glossary_generator.js"></script>
 
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
 
 <link rel="stylesheet" href="../../styles.css">
 <meta property="og:title" content="[再掲載] プログラムが動く環境とは (2) – regmonkey datascience blog">
@@ -490,6 +519,7 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
   <li><a href="#ブレークポイント" id="toc-ブレークポイント" class="nav-link" data-scroll-target="#ブレークポイント">ブレークポイント</a></li>
   </ul></li>
   <li><a href="#appendix-mean-関数の引数-const-double-x" id="toc-appendix-mean-関数の引数-const-double-x" class="nav-link" data-scroll-target="#appendix-mean-関数の引数-const-double-x">Appendix: <code>mean</code> 関数の引数 <code>const double *x</code></a></li>
+  <li><a href="#sec-stored-program" id="toc-sec-stored-program" class="nav-link" data-scroll-target="#sec-stored-program">Appendix: ストアドプログラム方式</a></li>
   <li><a href="#用語集" id="toc-用語集" class="nav-link" data-scroll-target="#用語集">📘 用語集</a></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>問題を報告</a></li></ul></div></nav>
@@ -530,6 +560,8 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 <li>物理的には，電気信号のON/OFFを切り替えるスイッチである<strong>トランジスタ</strong>が大量に集積された半導体チップ（集積回路）として作られている</li>
 </ul>
 </div>
+<p>現在のコンピュータは<strong>ストアドプログラム方式</strong>で動いています． プログラムの命令はデータと同じメインメモリに置かれ，CPUはそこから命令を1つずつ読み出して実行します． そのため，CPUの配線を変えなくても，メモリに読み込むプログラムを替えるだけで別の処理を実行できます（see <a href="#sec-stored-program">Appendix: ストアドプログラム方式</a>）．</p>
+<p>この方式では，CPUが実行できるのはメインメモリ上にあるマシン語の命令だけです． そこで，人間が書いたプログラムは「コンパイルしてマシン語にする → メインメモリにロードする → CPUが実行する」という流れを経て実行されます．</p>
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
 <div class="quarto-figure quarto-figure-center">
@@ -1056,31 +1088,183 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 <p>ポインタ <code>x</code> が持っているのは先頭アドレスだけで，配列に何個の要素があるかという情報は含まれていません． そのため，<code>mean</code> 関数は要素数 <code>n</code> を別の引数として受け取り，<code>i &lt; n</code> の間だけループします． <code>n</code> に実際の要素数より大きい値を渡すと，配列の外のメモリを読んでしまい，でたらめな結果になったりプログラムが異常終了したりします．</p>
 <p>NumPyの配列（<code>ndarray</code>）は，データの先頭アドレスに加えて，形状（<code>shape</code>）や要素の型（<code>dtype</code>）といった情報を一緒に持っています． そのため，<code>np.mean(x)</code> のように配列を渡すだけで，要素数を指定しなくても平均を計算できます．</p>
 </section>
+<section id="sec-stored-program" class="level2">
+<h2 class="anchored" data-anchor-id="sec-stored-program">Appendix: ストアドプログラム方式</h2>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>Key Points
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>ストアドプログラム方式では，プログラムの<strong>命令</strong>を<strong>データ</strong>と同じメインメモリにアドレス付きで格納し，CPUがそこから命令を1つずつ読み出して実行する</li>
+<li>プログラムはふだんストレージ（SSD・HDD）に保管されており，起動時にメインメモリへロードされてはじめてCPUが実行できる</li>
+<li>メモリ上では命令もデータも同じ0と1の並びであり，どこを命令として読むかを決めるのはプログラムカウンタ</li>
+<li>メモリの内容を替えるだけで別のプログラムを実行できる．これが「汎用」コンピュータを可能にしている</li>
+<li>一方で，命令もデータも同じ経路でメモリから運ぶため，CPUがメモリを待つ<strong>フォン・ノイマン・ボトルネック</strong>が生じる</li>
+</ul>
+</div>
+</div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/stored-program.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-11" title="ストアドプログラム方式：ストレージ・メインメモリ・CPUの関係"><img src="figures/stored-program.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="ストアドプログラム方式：ストレージ・メインメモリ・CPUの関係"></a></p>
+</figure>
+</div>
+<figcaption>ストアドプログラム方式：ストレージ・メインメモリ・CPUの関係</figcaption>
+</figure>
+</div>
+<p><span class="mini-section">ストレージ・メインメモリ・CPUの役割分担</span></p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 75%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>装置</th>
+<th>ストアドプログラム方式での役割</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>ストレージ（SSD・HDD）</td>
+<td>実行可能ファイルやデータファイルを保管する．電源を切っても内容は消えないが，CPUはここにある命令を直接実行できない</td>
+</tr>
+<tr class="even">
+<td>メインメモリ</td>
+<td>実行中のプログラムの命令とデータを，同じアドレス空間に並べて格納する．CPUはアドレスを指定して読み書きする</td>
+</tr>
+<tr class="odd">
+<td>CPU</td>
+<td>プログラムカウンタが指すアドレスから命令を読み出し，解釈・実行する．演算に必要なデータもメインメモリとやり取りする</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>プログラムを起動すると，OSがストレージにある実行可能ファイルの命令とデータをメインメモリにロードし，プログラムカウンタに最初の命令のアドレスをセットします． あとはCPUが「プログラムカウンタが指す命令を読み出す → 解釈・実行する → プログラムカウンタを進める」というサイクルを繰り返すだけです． ストレージからメモリへ一度ロードするのは，CPUがアドレスを指定して高速に読み書きできるのがメインメモリだからです．</p>
+<p><span class="mini-section">命令とデータは区別されずに並んでいる</span></p>
+<p>メインメモリには「ここは命令」「ここはデータ」という印は付いていません． どちらも同じ0と1の並びであり，プログラムカウンタが指したアドレスの内容が命令として解釈され，命令のオペランドで指定されたアドレスの内容がデータとして扱われます． そのため，プログラムカウンタが誤ってデータ領域を指すと，CPUはデータを命令として解釈してしまい，プログラムは異常終了します．</p>
+<p><span class="mini-section">フォン・ノイマン・ボトルネック</span></p>
+<p>ストアドプログラム方式には弱点もあります． 上の図のとおり，CPUは命令もデータもメインメモリから読み出すため，両者はCPUとメモリをつなぐ同じ経路（バス）を通ります． CPUの処理速度はメモリの読み書きの速度よりはるかに速く向上してきたため，CPUが計算そのものではなく，命令やデータがメモリから届くのを待つ時間が長くなります． この，CPUとメモリの間のデータ転送が全体の性能を制限する現象を<strong>フォン・ノイマン・ボトルネック</strong>と呼びます．</p>
+<p>現在のCPUは，このボトルネックを次のような仕組みで緩和しています．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 75%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>仕組み</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>キャッシュメモリ</td>
+<td>CPUの内部（またはすぐ近く）に置かれた小容量・高速なメモリ．最近使った命令やデータの写しを置いておき，メインメモリへのアクセス回数を減らす</td>
+</tr>
+<tr class="even">
+<td>命令とデータのキャッシュの分離</td>
+<td>CPUに最も近いL1キャッシュを命令用とデータ用に分け，命令の読み出しとデータの読み書きを同時に行えるようにする</td>
+</tr>
+<tr class="odd">
+<td>プリフェッチ</td>
+<td>次に使いそうな命令やデータを，実際に必要になる前にメモリから読み込んでおく</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>データ転送速度とフォン・ノイマン・ボトルネック
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>PCのスペック表にある「DDR5-4800 デュアルチャネル」のような表記から，メインメモリとCPUの間で1秒間に運べるデータ量（<strong>メモリ帯域幅</strong>）の上限を計算できます．</p>
+<p><span class="math display">\[
+\text{メモリ帯域幅（B/s）} = \text{転送レート（回/秒）} \times \text{1回に運ぶバイト数} \times \text{チャネル数}
+\]</span></p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 40%">
+<col style="width: 40%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>表記</th>
+<th>意味</th>
+<th>DDR5-4800 デュアルチャネルの場合</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>DDR5</td>
+<td>メモリ規格の世代．DDR（Double Data Rate）はクロック信号の立ち上がりと立ち下がりの両方でデータを送る方式</td>
+<td>第5世代</td>
+</tr>
+<tr class="even">
+<td>4800</td>
+<td>1秒間のデータ転送回数（MT/s，Mega Transfers per second）．クロック周波数ではなく転送回数を表す</td>
+<td>毎秒48億回（クロックは2400 MHz）</td>
+</tr>
+<tr class="odd">
+<td>1回に運ぶバイト数</td>
+<td>メモリ1チャネルのデータ幅は64ビット</td>
+<td>8バイト</td>
+</tr>
+<tr class="even">
+<td>チャネル数</td>
+<td>CPUのメモリコントローラとメモリをつなぐ独立した経路の数．経路が増えるほど同時に運べる量が増える</td>
+<td>2（デュアルチャネル）</td>
+</tr>
+</tbody>
+</table>
+<p>DDR5-4800の場合，1チャネルあたり 4800 × 10<sup>6</sup> × 8 B = 38.4 GB/s，デュアルチャネルならその2倍の 76.8 GB/s が理論上の上限になります． メモリモジュールが「PC5-38400」とも表記されるのは，この1チャネルあたりの帯域幅（MB/s）を表しているからです．</p>
+<ul>
+<li>一般的なデスクトップ・ノートPCのCPUは2チャネル，サーバ向けCPUは8〜12チャネルを持つ</li>
+<li>チャネルの数だけメモリモジュールを正しいスロットに挿さないと，その性能は出ない．たとえばメモリを1枚だけ挿すとシングルチャネルになり，帯域幅は半分になる</li>
+<li>Linuxでは <code>sudo dmidecode -t memory</code> の <code>Speed</code>（例：<code>4800 MT/s</code>）で転送レートを確認できる</li>
+</ul>
+<p>76.8 GB/s はfloat64（8バイト）の値に換算すると毎秒約96億個です． 一方，複数コアのCPUがSIMD命令で加算すれば毎秒数百億回以上の計算ができるため，大きな配列の合計のような単純な計算では，CPUは計算よりもデータがメモリから届くのを待つ時間のほうが長くなります． これがフォン・ノイマン・ボトルネックの具体的な姿です．</p>
+</div>
+</div>
+</section>
 <section id="用語集" class="level2">
 <h2 class="anchored" data-anchor-id="用語集">📘 用語集</h2>
 <div class="glossary-container">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">glossary</span><span class="kw">:</span></span>
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> アセンブル</span></span>
 <span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
-<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>      アセンブリ言語で書かれたプログラムを，マシン語に変換すること．変換を行うプログラムをアセンブラと呼ぶ．</span>
-<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>      アセンブリ言語の命令はマシン語の命令とほぼ1対1に対応しているため，変換は機械的に行える．</span>
-<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> 逆アセンブル</span></span>
-<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
-<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>      マシン語のプログラムを，対応するアセンブリ言語の表記に戻すこと．変換を行うプログラムを逆アセンブラ（ディスアセンブラ）と呼ぶ．</span>
-<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>      `objdump -d` などで実行可能ファイルやオブジェクトファイルの中身を確認するときに使う．</span>
-<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>      変数名やコメントはマシン語に残らないため，逆アセンブルしても元のソースコードは復元できない．</span>
-<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> オペコード (opcode)</span></span>
-<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
-<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>      命令のうち「何をするか」を表す部分．転送・加算・比較・分岐など，CPUに実行させる操作の種類を指定する．</span>
-<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>      アセンブリ言語では `mov`（転送）や `add`（加算）などのニーモニックで書く．</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>      アセンブリ言語で書かれたプログラムを，マシン語に変換すること．変換を行うプログラムをアセンブラと呼ぶ．アセンブリ言語の命令はマシン語の命令とほぼ1対1に対応しているため，変換は機械的に行える．</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> 逆アセンブル</span></span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>      マシン語のプログラムを，対応するアセンブリ言語の表記に戻すこと．変換を行うプログラムを逆アセンブラ（ディスアセンブラ）と呼ぶ．`objdump -d` などで実行可能ファイルやオブジェクトファイルの中身を確認するときに使う．変数名やコメントはマシン語に残らないため，逆アセンブルしても元のソースコードは復元できない．</span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> オペコード (opcode)</span></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>      命令のうち「何をするか」を表す部分．転送・加算・比較・分岐など，CPUに実行させる操作の種類を指定する．アセンブリ言語では `mov`（転送）や `add`（加算）などのニーモニックで書く．</span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> オペランド (operand)</span></span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>      命令のうち「何に対して行うか」を表す部分．操作の対象となるレジスタ，メモリのアドレス，数値（即値）などを指定する．たとえば `add eax, dword [rbp-8]` では，`eax` と `dword [rbp-8]` がオペランドである．命令によってオペランドの個数は異なり，オペランドを持たない命令もある．</span>
 <span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> オペランド (operand)</span></span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> ストアドプログラム方式 (stored-program)</span></span>
 <span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
-<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a>      命令のうち「何に対して行うか」を表す部分．操作の対象となるレジスタ，メモリのアドレス，数値（即値）などを指定する．</span>
-<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a>      たとえば `add eax, dword [rbp-8]` では，`eax` と `dword [rbp-8]` がオペランドである．</span>
-<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a>      命令によってオペランドの個数は異なり，オペランドを持たない命令もある．</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a>      プログラムの命令を，データと同じメインメモリにアドレス付きで格納しておき，CPUがそこから命令を1つずつ読み出して実行する方式．ノイマン型コンピュータとも呼ばれ，現在のほとんどのコンピュータがこの方式で動いている．配線を組み替えなくても，メモリの内容を書き換えるだけで別のプログラムを実行できる．</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 
 
