@@ -1,0 +1,66 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.6cm, minimum width=4.2cm, inner sep=6pt},
+    accent/.style={block, fill=paleskyblue},
+    ng/.style={block, draw=crimsonred, fill=mistyrose, align=left, minimum height=1.6cm},
+    step/.style={font=\footnotesize\bfseries, text=azureblue},
+    sig/.style={font=\footnotesize\bfseries, inner sep=3pt},
+    note/.style={font=\footnotesize, text=darkgray, align=left},
+    wire/.style={->, draw=navy},
+    ngwire/.style={->, draw=crimsonred},
+  ]
+  % 主経路：下位フェーズから順に，差分で取り出した所要時間を確認する
+  \node[block] (dns) {\textbf{名前解決は速いか}\\[3pt]
+    {\footnotesize\texttt{time\_namelookup}}};
+  \node[block, right=1.6cm of dns] (tcp) {\textbf{TCP 接続は速いか}\\[3pt]
+    {\footnotesize\texttt{time\_connect}}\\
+    {\footnotesize − \texttt{time\_namelookup}}};
+  \node[block, right=1.6cm of tcp] (tls) {\textbf{TLS は完了するか}\\[3pt]
+    {\footnotesize\texttt{time\_appconnect}}\\
+    {\footnotesize − \texttt{time\_connect}}};
+  \node[block, right=1.6cm of tls] (ttfb) {\textbf{サーバー応答は速いか}\\[3pt]
+    {\footnotesize\texttt{time\_starttransfer}}\\
+    {\footnotesize − \texttt{time\_appconnect}}};
+  \node[accent, right=1.6cm of ttfb, minimum width=2.4cm] (ok) {\textbf{正常}};
+
+  \node[step, above=2mm of dns]  {Step 1：DNS（dns）};
+  \node[step, above=2mm of tcp]  {Step 2：L4 TCP（tcp − dns）};
+  \node[step, above=2mm of tls]  {Step 3：L5–L6 TLS（tls − tcp）};
+  \node[step, above=2mm of ttfb] {Step 4：L7 HTTP（ttfb − tls）};
+
+  % NG 分岐：遅いフェーズ = 原因のレイヤー
+  \node[ng, below=1.4cm of dns] (ngdns) {\textbf{\textcolor{crimsonred}{DNS の問題}}\\[3pt]
+    ・DNS サーバーの遅延・障害\\ ・リゾルバ設定の誤り};
+  \node[ng, below=1.4cm of tcp] (ngtcp) {\textbf{\textcolor{crimsonred}{NW / FW の問題}}\\[3pt]
+    ・経路の遅延・パケットロス\\ ・FW・ポートでの遮断};
+  \node[ng, below=1.4cm of tls] (ngtls) {\textbf{\textcolor{crimsonred}{証明書 / TLS の問題}}\\[3pt]
+    ・証明書の期限切れ・不一致\\ ・TLS バージョン・暗号の不一致};
+  \node[ng, below=1.4cm of ttfb] (ngttfb) {\textbf{\textcolor{crimsonred}{サーバー処理の問題}}\\[3pt]
+    ・アプリ・DB の処理遅延\\ ・高負荷・リソース不足};
+
+  \draw[wire] (dns) -- node[sig, above, text=navy] {OK} (tcp);
+  \draw[wire] (tcp) -- node[sig, above, text=navy] {OK} (tls);
+  \draw[wire] (tls) -- node[sig, above, text=navy] {OK} (ttfb);
+  \draw[wire] (ttfb) -- node[sig, above, text=navy] {OK} (ok);
+  \draw[ngwire] (dns) -- node[sig, right, text=crimsonred] {遅い} (ngdns);
+  \draw[ngwire] (tcp) -- node[sig, right, text=crimsonred] {遅い} (ngtcp);
+  \draw[ngwire] (tls) -- node[sig, right, text=crimsonred] {遅い / 失敗} (ngtls);
+  \draw[ngwire] (ttfb) -- node[sig, right, text=crimsonred] {遅い} (ngttfb);
+
+  % 補足（枠なし）
+  \node[note, below=4mm of ngdns.south west, anchor=north west]
+    {※ 各 \texttt{time\_*} は開始からの累積値．差分を取ってフェーズごとの所要時間にする．
+     HTTP（TLS なし）では \texttt{time\_appconnect} = 0 なので Step 3 は飛ばす};
+\end{tikzpicture}

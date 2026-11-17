@@ -1,0 +1,70 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    >={Latex[length=2.4mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.0cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    ng/.style={block, draw=crimsonred, fill=mistyrose},
+    host/.style={block, minimum width=1.9cm, minimum height=0.7cm},
+    fw/.style={accent, minimum width=0.9cm, minimum height=1.6cm},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=8pt},
+    zlabel/.style={anchor=south, font=\footnotesize\bfseries, text=navy},
+    title/.style={font=\bfseries, text=navy, anchor=west},
+    sig/.style={font=\footnotesize, inner sep=2pt},
+    note/.style={font=\footnotesize, text=darkgray, align=center, inner sep=2pt},
+    fix/.style={font=\footnotesize, text=azureblue, align=center, inner sep=2pt},
+    atk/.style={->, draw=crimsonred},
+    wire/.style={->, draw=navy},
+  ]
+  % ================= (a) Ping flood =================
+  \node[title] at (-1.1, 1.3) {(a) Ping flood：Echo Request を大量に送り，帯域・CPU を枯渇させる};
+  \node[ng, minimum width=2.2cm] (a-atk) at (0, 0) {攻撃者};
+  \node[fw] (a-fw) at (11.4, 0) {FW};
+  \node[block, minimum width=2.2cm] (a-vic) at (13.8, 0) {標的サーバー};
+  \foreach \dy in {0.3, 0, -0.3} {
+    \draw[atk] ([yshift=\dy cm]a-atk.east) -- ([yshift=\dy cm]a-fw.west);
+  }
+  \node[sig, text=crimsonred, above] at ($(a-atk.east)!0.5!(a-fw.west)+(0,0.35)$)
+    {ICMP Echo Request を大量送信};
+  \node[fix, below=2mm of a-fw] {対策：ICMP を遮断\\または流量制限};
+  \draw[draw=lightgray, ->] (a-fw) -- (a-vic);
+
+  % ================= (b) Smurf 攻撃 =================
+  \def\yb{-4.6}
+  \node[title] at (-1.1, -2.2) {(b) Smurf 攻撃：ブロードキャストで応答を増幅し，標的に集中させる};
+  \node[ng, minimum width=2.2cm] (b-atk) at (0, \yb) {攻撃者};
+  \node[block] (rt) at (6.0, \yb) {ルーター};
+  \node[host] (h1) at (8.8, \yb+1.0) {ホスト};
+  \node[host] (h2) at (8.8, \yb)     {ホスト};
+  \node[host] (h3) at (8.8, \yb-1.0) {ホスト};
+  \node[fw] (b-fw) at (11.4, \yb) {FW};
+  \node[block, minimum width=2.2cm] (b-vic) at (13.8, \yb) {標的サーバー};
+
+  \begin{scope}[on background layer]
+    \node[zone, fit=(rt)(h1)(h3)] (amp) {};
+  \end{scope}
+  \node[zlabel] at (amp.north) {踏み台ネットワーク（ホスト ×N）};
+
+  \draw[atk] (b-atk) -- (rt)
+    node[sig, midway, above, text=crimsonred] {Echo Request ×1}
+    node[note, midway, below] {送信元 IP を標的に偽装\\宛先＝ブロードキャスト};
+  \foreach \h in {h1, h2, h3} {
+    \draw[wire] (rt.east) -- (\h.west);
+    \draw[atk] (\h.east) -- (b-fw.west);
+  }
+  \node[sig, text=crimsonred, anchor=south] at ([yshift=2mm]b-fw.north)
+    {Echo Reply ×N};
+  \node[fix, anchor=north] at ($(rt |- amp.south)+(0,-0.15)$) {対策：directed broadcast を無効化};
+  \node[fix, below=2mm of b-fw] {対策：ICMP を遮断\\または流量制限};
+  \draw[draw=lightgray, ->] (b-fw) -- (b-vic);
+\end{tikzpicture}

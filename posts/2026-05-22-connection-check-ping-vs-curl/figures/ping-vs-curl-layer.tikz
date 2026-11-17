@@ -1,0 +1,62 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    layer/.style={draw=navy, fill=aliceblue, rounded corners=3pt, align=center,
+                  minimum width=3.4cm, minimum height=0.9cm, inner sep=3pt},
+    hit/.style={layer, fill=paleskyblue},
+    tag/.style={font=\footnotesize\bfseries, text=azureblue, anchor=east},
+    head/.style={font=\bfseries, text=navy},
+    sig/.style={font=\footnotesize, inner sep=2pt},
+    note/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    wire/.style={<->, draw=navy},
+    brace/.style={draw=navy, decorate, decoration={brace, amplitude=6pt}},
+  ]
+  % ---- 層の定義：y 位置 / 名前 / 表示 ----
+  \def\rowh{1.25}
+  % クライアント（x=0）とサーバー（x=9.5）
+  \foreach \side/\x in {c/0, s/9.5} {
+    \node[hit]   (\side7)  at (\x, 0)          {HTTP / HTTPS};
+    \node[layer] (\side56) at (\x, -1*\rowh)   {TLS};
+    \node[layer] (\side4)  at (\x, -2*\rowh)   {TCP};
+    \node[hit]   (\side3)  at (\x, -3*\rowh)   {IP / ICMP};
+    \node[layer] (\side21) at (\x, -4*\rowh)   {Ethernet / Wi-Fi};
+  }
+
+  % 層番号タグ（クライアント左）
+  \foreach \n/\t in {c7/L7, c56/L5–6, c4/L4, c3/L3, c21/L1–2} {
+    \node[tag] at ([xshift=-2mm]\n.west) {\t};
+  }
+
+  \node[head, above=3mm of c7] {クライアント};
+  \node[head, above=3mm of s7] {サーバー};
+
+  % ---- 論理的なやり取り（同じ層どうし）----
+  \draw[wire] (c7.east) -- (s7.west)
+    node[sig, midway, above] {\texttt{curl}：HTTP リクエスト / レスポンス}
+    node[note, midway, below] {Web サーバープロセスが応答};
+  \draw[wire] (c3.east) -- (s3.west)
+    node[sig, midway, above] {\texttt{ping}：ICMP Echo Request / Reply}
+    node[note, midway, below] {OS（カーネル）が応答};
+
+  % ---- 物理的な経路 ----
+  \draw[darkgray] (c21.east) -- (s21.west)
+    node[note, midway, above] {実際の経路（ルーター・FW を経由）};
+
+  % ---- 確認範囲のブレース（サーバー右）----
+  \draw[brace] ([xshift=3mm]s3.north east) -- ([xshift=3mm]s21.south east)
+    node[midway, right=8pt, align=left, font=\footnotesize]
+      {\textcolor{azureblue}{\textbf{ping}}\\の確認範囲\\L1–L3};
+  \draw[brace] ([xshift=24mm]s7.north east) -- ([xshift=24mm]s21.south east)
+    node[midway, right=8pt, align=left, font=\footnotesize]
+      {\textcolor{azureblue}{\textbf{curl}}\\の確認範囲\\L1–L7};
+\end{tikzpicture}
