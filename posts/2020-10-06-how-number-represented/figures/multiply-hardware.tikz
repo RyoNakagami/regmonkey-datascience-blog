@@ -1,0 +1,52 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    >={Latex[length=2.4mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    wire/.style={->, draw=navy},
+    ctrl/.style={->, draw=darkgray, densely dashed},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    width/.style={font=\footnotesize\bfseries, text=azureblue},
+  ]
+  % データ経路
+  \node[block, minimum width=4.6cm] (mcand) at (0,3.4) {被乗数レジスタ};
+  \node[block, minimum width=2.6cm] (alu)   at (0,1.4) {加算器（ALU）};
+  \node[block, minimum width=4.6cm] (prod)  at (0,-0.6) {積レジスタ};
+  % 制御
+  \node[block, minimum width=2.6cm] (mplier) at (6.2,3.4) {乗数レジスタ};
+  \node[accent, minimum width=2.6cm] (ctrl)  at (6.2,-0.6) {制御回路};
+
+  % ビット幅と動作
+  \node[width, anchor=south east] at (mcand.north east) {$2n$ ビット};
+  \node[width, anchor=south east] at (alu.north east) {$2n$ ビット};
+  \node[width, anchor=north east] at (prod.south east) {$2n$ ビット};
+  \node[width, anchor=south east] at (mplier.north east) {$n$ ビット};
+
+  % 被乗数 → ALU，積 → ALU（フィードバック），ALU → 積
+  \draw[wire] ([xshift=-0.6cm]mcand.south) -- ([xshift=-0.6cm]mcand.south |- alu.north);
+  \draw[wire] ([xshift=0.6cm]alu.south) -- ([xshift=0.6cm]alu.south |- prod.north);
+  \draw[wire, rounded corners=4pt] (prod.west) -- ++(-0.6,0) |- (alu.west);
+  \node[sig, anchor=east] at ([xshift=-0.65cm]prod.west |- 0,0.4) {途中の積};
+
+  % 乗数の最下位ビット → 制御
+  \draw[wire] (mplier.south) -- node[sig, left, align=right] {乗数の\\最下位ビット} (ctrl.north);
+
+  % 制御信号（破線）
+  \draw[ctrl] (ctrl.west) -- node[sig, below] {書き込み} (prod.east);
+  \draw[ctrl, rounded corners=4pt] ([yshift=0.25cm]ctrl.east) -- ++(0.9,0) |- (mplier.east);
+  \node[sig, anchor=west] at ([xshift=0.95cm]ctrl.east |- 0,1.4) {右シフト};
+  \draw[ctrl, rounded corners=4pt] ([yshift=-0.25cm]ctrl.east) -- ++(2.4,0) |- ([yshift=0.75cm]mcand.north)
+    -- (mcand.north);
+  \node[sig, anchor=south west] at ([xshift=0.1cm,yshift=0.75cm]mcand.north) {左シフト};
+\end{tikzpicture}

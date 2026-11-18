@@ -1,0 +1,57 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    >={Latex[length=2.4mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    half/.style={draw=navy, fill=aliceblue, align=center,
+                 minimum height=1.1cm, minimum width=2.8cm, inner sep=5pt},
+    unused/.style={draw=lightgray, dashed, fill=white, rounded corners=3pt,
+                   align=center, minimum height=1.1cm, inner sep=5pt, text=darkgray},
+    wire/.style={->, draw=navy},
+    ctrl/.style={->, draw=darkgray, densely dashed},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    width/.style={font=\footnotesize\bfseries, text=azureblue},
+  ]
+  % データ経路（n ビット）
+  \node[block, minimum width=2.8cm] (mcand) at (0,3.4) {被乗数レジスタ};
+  \node[block, minimum width=2.8cm] (alu)   at (0,1.4) {加算器（ALU）};
+  % 積レジスタ（2n ビット）：左半分が積の上位，右半分に最初は乗数を入れる
+  \node[half] (phi) at (0,-0.6) {積の上位半分};
+  \node[half, anchor=west] (plo) at (phi.east) {乗数\\（最初に入れる）};
+  % 制御
+  \node[accent, minimum width=2.6cm] (ctrl) at (7.8,-0.6) {制御回路};
+  \node[unused, minimum width=2.6cm] (mplier) at (7.8,3.4) {乗数レジスタ\\（不要）};
+
+  % ビット幅
+  \node[width, anchor=south east] at (mcand.north east) {$n$ ビット};
+  \node[width, anchor=south east] at (alu.north east) {$n$ ビット};
+  \node[width, anchor=north east] at (plo.south east) {$2n$ ビット};
+
+  % 被乗数 → ALU，積の上位 → ALU（フィードバック），ALU → 積の上位
+  \draw[wire] (mcand) -- (alu);
+  \draw[wire] (alu) -- (phi);
+  \draw[wire, rounded corners=4pt] (phi.west) -- ++(-0.6,0) |- (alu.west);
+  \node[sig, anchor=east] at ([xshift=-0.65cm]phi.west |- 0,0.4) {途中の積};
+
+  % 積レジスタの最下位ビット（＝乗数の現在の桁）→ 制御
+  \draw[wire] (plo.east) -- node[sig, above, align=center] {最下位ビット\\（乗数の桁）} (ctrl.west);
+
+  % 制御信号（破線）
+  \draw[ctrl, rounded corners=4pt] (ctrl.north) -- ++(0,1.1) -| node[sig, above, pos=0.25] {書き込み・右シフト} (plo.north);
+
+  % 右シフトの補足
+  \draw[->, draw=darkgray] ([yshift=-0.75cm]phi.south west) -- ([yshift=-0.75cm]plo.south east);
+  \node[note, anchor=north] at ([yshift=-0.9cm]phi.south east) {積レジスタ全体を毎回右へ1ビットずらす．\\乗数の桁が出ていった分だけ，積の下位が右半分に入る};
+\end{tikzpicture}

@@ -1,0 +1,54 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    >={Latex[length=2.4mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    wire/.style={->, draw=navy},
+    ctrl/.style={->, draw=darkgray, densely dashed},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    width/.style={font=\footnotesize\bfseries, text=azureblue},
+  ]
+  % データ経路
+  \node[block, minimum width=4.6cm] (div) at (0,3.4) {除数レジスタ};
+  \node[block, minimum width=2.6cm] (alu) at (0,1.4) {加減算器（ALU）};
+  \node[block, minimum width=4.6cm] (rem) at (0,-0.6) {剰余レジスタ};
+  % 制御
+  \node[block, minimum width=2.6cm] (quo)  at (6.6,3.4) {商レジスタ};
+  \node[accent, minimum width=2.6cm] (ctrl) at (6.6,-0.6) {制御回路};
+
+  % ビット幅
+  \node[width, anchor=south east] at (div.north east) {$2n$ ビット};
+  \node[width, anchor=south east] at (alu.north east) {$2n$ ビット};
+  \node[width, anchor=north east] at (rem.south east) {$2n$ ビット};
+  \node[width, anchor=south east] at (quo.north east) {$n$ ビット};
+
+  % 除数 → ALU，剰余 → ALU（フィードバック），ALU → 剰余
+  \draw[wire] ([xshift=-0.6cm]div.south) -- ([xshift=-0.6cm]div.south |- alu.north);
+  \draw[wire] ([xshift=0.6cm]alu.south) -- ([xshift=0.6cm]alu.south |- rem.north);
+  \draw[wire, rounded corners=4pt] (rem.west) -- ++(-0.6,0) |- (alu.west);
+  \node[sig, anchor=east] at ([xshift=-0.65cm]rem.west |- 0,0.4) {途中の剰余};
+
+  % 剰余の符号 → 制御，制御 → 剰余（書き込み）
+  \draw[wire] ([yshift=0.25cm]rem.east) -- node[sig, above] {剰余の符号ビット}
+    ([yshift=0.25cm]ctrl.west);
+  \draw[ctrl] ([yshift=-0.25cm]ctrl.west) -- node[sig, below] {書き込み}
+    ([yshift=-0.25cm]rem.east);
+
+  % 制御 → 商（左シフトと最下位ビットの設定），制御 → 除数（右シフト）
+  \draw[ctrl] (ctrl.north) -- node[sig, left, align=right] {左シフトして\\最下位ビットに\\0 か 1 を入れる}
+    (quo.south);
+  \draw[ctrl, rounded corners=4pt] (ctrl.east) -- ++(1.0,0) |- ([yshift=0.75cm]div.north)
+    -- (div.north);
+  \node[sig, anchor=south west] at ([xshift=0.1cm,yshift=0.75cm]div.north) {右シフト};
+\end{tikzpicture}

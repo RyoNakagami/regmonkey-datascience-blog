@@ -1,0 +1,69 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    >={Latex[length=2.0mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    bit/.style={draw=navy, fill=aliceblue, minimum size=0.5cm, inner sep=0pt,
+                font=\small},
+    one/.style={bit, fill=paleskyblue},
+    gone/.style={draw=lightgray, fill=white, minimum size=0.5cm, inner sep=0pt,
+                 font=\small, text=darkgray, dashed},
+    ngbit/.style={bit, draw=crimsonred, fill=mistyrose},
+    step/.style={font=\footnotesize\bfseries, text=azureblue, anchor=east},
+    lab/.style={font=\footnotesize, text=fontblack, anchor=east, align=right},
+    val/.style={font=\normalsize\bfseries, text=navy, anchor=west},
+    op/.style={font=\footnotesize, text=darkgray, anchor=west},
+    reg/.style={font=\footnotesize\bfseries, text=navy},
+  ]
+  \def\w{0.5}
+  % 16ビットの各行：x = 0..15（左が最上位），上位バイト h と下位バイト l の間に隙間
+  \newcommand{\row}[4]{%
+    \foreach \v [count=\j from 0] in {#2} {
+      \pgfmathsetmacro{\x}{\j*\w + (\j>7 ? 0.25 : 0)}
+      \ifnum\v=1
+        \node[one] at (\x,#1) {1};
+      \else
+        \node[bit] at (\x,#1) {0};
+      \fi
+    }
+    \node[lab] at (-0.5,#1) {#3};
+    \node[val] at (8.45,#1) {#4};
+  }
+
+  % レジスタ名
+  \node[reg] at (3.5*\w,0.65) {上位バイト};
+  \node[reg] at (11.5*\w+0.25,0.65) {下位バイト};
+
+  \row{0}{0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0}{攻撃力の実数値}{128}
+  \row{-1.4}{0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0}{はらだいこ（$\times 4$）}{512}
+  \row{-2.8}{0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0}{ふといほね（$\times 2$）}{1024}
+  \row{-4.2}{0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0}{$\div 4$（2ビット右シフト）}{256}
+
+  % 最後の行：上位バイトは捨てられ，下位バイトだけが残る
+  \foreach \j in {0,...,7} {
+    \node[gone] at (\j*\w,-5.6) {};
+  }
+  \foreach \j in {8,...,15} {
+    \pgfmathsetmacro{\x}{\j*\w + 0.25}
+    \node[ngbit] at (\x,-5.6) {0};
+  }
+  \node[lab] at (-0.5,-5.6) {下位8ビットだけ\\を使う};
+  \node[val, text=crimsonred] at (8.45,-5.6) {0};
+
+  % 行間の操作
+  \foreach \y/\t in {0/{4倍．999 以下なので上限に掛からない},
+                     -1.4/{2倍．ここでは上限 999 の処理がない},
+                     -2.8/{どちらかが 256 以上なので 4 で割る},
+                     -4.2/{上位バイトを捨てる}} {
+    \draw[->, draw=darkgray] (3.75,\y-0.32) -- (3.75,\y-1.08);
+    \node[op] at (8.45,\y-0.7) {\t};
+  }
+\end{tikzpicture}

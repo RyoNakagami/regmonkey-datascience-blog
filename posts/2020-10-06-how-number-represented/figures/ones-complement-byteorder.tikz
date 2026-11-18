@@ -1,0 +1,79 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    >={Latex[length=1.8mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    byte/.style={draw=navy, fill=aliceblue, minimum width=0.9cm, minimum height=0.55cm,
+                 inner sep=0pt, font=\small},
+    res/.style={byte, fill=paleskyblue},
+    drop/.style={draw=darkgray, fill=white, dashed, minimum size=0.55cm, inner sep=0pt,
+                 font=\small, text=darkgray},
+    eac/.style={draw=azureblue, fill=white, minimum size=0.55cm, inner sep=0pt,
+                font=\small\bfseries, text=azureblue, line width=1.1pt},
+    carry/.style={font=\scriptsize, text=azureblue},
+    title/.style={font=\small\bfseries, text=navy},
+    lab/.style={font=\footnotesize, text=darkgray, anchor=west},
+    op/.style={font=\normalsize, text=navy},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+  ]
+  % 受信したバイト列
+  \node[font=\small] at (3.6,1.8) {受信したバイト列：
+    \texttt{F0}\ \texttt{81}\ \texttt{20}\ \texttt{90}\quad を16ビットずつ足す};
+
+  % 列の x 座標：上位バイト 0，下位バイト 0.9．桁上げのセルは -0.75
+  % ---- (a) 先頭のバイトを上位として読む ----
+  \node[title] at (0.45,1.05) {(a) 先頭のバイトを上位に読む};
+  \node[carry] at (0,0.5) {1};
+  \node[byte] at (0,0)      {\texttt{F0}}; \node[byte] at (0.9,0)     {\texttt{81}};
+  \node[byte] at (0,-0.65)  {\texttt{20}}; \node[byte] at (0.9,-0.65) {\texttt{90}};
+  \node[op] at (-0.75,-0.65) {$+$};
+  \draw[navy] (-1.05,-1.0) -- (1.45,-1.0);
+  \node[drop] (ca) at (-0.75,-1.4) {1};
+  \node[byte] at (0,-1.4)   {\texttt{11}}; \node[byte] at (0.9,-1.4)  {\texttt{11}};
+  \node[eac] (oa) at (0.9,-2.05) {1};
+  \draw[->, draw=azureblue, line width=0.9pt] (ca.south) |- (oa.west);
+  \draw[navy] (-1.05,-2.45) -- (1.45,-2.45);
+  \node[res] (ha) at (0,-2.85)  {\texttt{11}}; \node[res] (la) at (0.9,-2.85) {\texttt{12}};
+  \node[lab] at (1.55,0)     {\texttt{F081}};
+  \node[lab] at (1.55,-0.65) {\texttt{2090}};
+  \node[lab] at (1.55,-2.05) {循環桁上げ};
+
+  % ---- (b) 先頭のバイトを下位として読む ----
+  \begin{scope}[xshift=6.2cm]
+  \node[title] at (0.45,1.05) {(b) 先頭のバイトを下位に読む};
+  \node[carry] at (0,0.5) {1};
+  \node[byte] at (0,0)      {\texttt{81}}; \node[byte] at (0.9,0)     {\texttt{F0}};
+  \node[byte] at (0,-0.65)  {\texttt{90}}; \node[byte] at (0.9,-0.65) {\texttt{20}};
+  \node[op] at (-0.75,-0.65) {$+$};
+  \draw[navy] (-1.05,-1.0) -- (1.45,-1.0);
+  \node[drop] (cb) at (-0.75,-1.4) {1};
+  \node[byte] at (0,-1.4)   {\texttt{12}}; \node[byte] at (0.9,-1.4)  {\texttt{10}};
+  \node[eac] (ob) at (0.9,-2.05) {1};
+  \draw[->, draw=azureblue, line width=0.9pt] (cb.south) |- (ob.west);
+  \draw[navy] (-1.05,-2.45) -- (1.45,-2.45);
+  \node[res] (hb) at (0,-2.85)  {\texttt{12}}; \node[res] (lb) at (0.9,-2.85) {\texttt{11}};
+  \node[lab] at (1.55,0)     {\texttt{81F0}};
+  \node[lab] at (1.55,-0.65) {\texttt{9020}};
+  \node[lab] at (1.55,-2.05) {循環桁上げ};
+  \end{scope}
+
+  % 2つの結果はバイトを入れ替えた関係
+  \draw[<->, draw=azureblue, line width=0.9pt, rounded corners=4pt]
+    (ha.south) -- ++(0,-0.6) -| (lb.south);
+  \draw[<->, draw=azureblue, line width=0.9pt, rounded corners=4pt]
+    (la.south) -- ++(0,-0.3) -| (hb.south);
+  \node[font=\footnotesize\bfseries, text=azureblue, fill=white, inner sep=2pt]
+    at (3.55,-3.75) {バイトを入れ替えただけ};
+
+  \node[note] at (3.6,-4.5)
+    {下位バイトの桁上げは上位バイトへ，上位バイトの桁上げは循環桁上げで下位バイトへ回る．\\
+     桁上げが2つのバイトの間を輪のように回るので，読む順を変えても結果はバイトが入れ替わるだけ};
+\end{tikzpicture}

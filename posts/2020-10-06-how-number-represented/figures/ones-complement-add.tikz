@@ -1,0 +1,73 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    >={Latex[length=1.8mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    bit/.style={draw=navy, fill=aliceblue, minimum size=0.5cm, inner sep=0pt, font=\small},
+    res/.style={bit, fill=paleskyblue},
+    ngbit/.style={bit, draw=crimsonred, fill=mistyrose},
+    drop/.style={draw=darkgray, fill=white, minimum size=0.5cm, inner sep=0pt,
+                 font=\small, text=darkgray, dashed},
+    eac/.style={draw=azureblue, fill=white, minimum size=0.5cm, inner sep=0pt,
+                font=\small\bfseries, text=azureblue, line width=1.1pt},
+    carry/.style={font=\scriptsize, text=azureblue},
+    title/.style={font=\small\bfseries, text=navy, anchor=west},
+    val/.style={font=\normalsize, anchor=west},
+    op/.style={font=\normalsize, text=navy},
+    note/.style={font=\footnotesize, text=darkgray, anchor=north west, align=left},
+  ]
+  % 4ビット1行：#1=y座標, #2=ビット列, #3=スタイル
+  \newcommand{\row}[3]{%
+    \foreach \v [count=\j from 0] in {#2} {
+      \node[#3] at (\j*0.5,#1) {\v};
+    }
+  }
+  % 1111 + 0001 の共通部分（繰り上がり・被加数・加数・横線）
+  \newcommand{\common}{%
+    \foreach \j in {0,...,3} {
+      \node[carry] at (\j*0.5-0.5,0.55) {1};
+    }
+    \node[carry, anchor=east] at (-0.8,0.55) {繰り上がり};
+    \row{0}{1,1,1,1}{bit}
+    \row{-0.65}{0,0,0,1}{bit}
+    \node[op] at (-1.0,-0.65) {$+$};
+    \draw[navy] (-1.2,-1.05) -- (1.8,-1.05);
+    \node[val] at (2.0,0) {$-0$};
+    \node[val] at (2.0,-0.65) {$1$};
+  }
+
+  % ---- (a) 2の補数と同じく桁上げを捨てる ----
+  \node[title] at (-2.2,1.35) {(a) 桁上げを捨てる（2の補数と同じ加算）};
+  \common
+  \node[drop] at (-0.5,-1.45) {1};
+  \row{-1.45}{0,0,0,0}{ngbit}
+  \node[val, text=crimsonred] at (2.0,-1.45) {$+0$};
+  \node[note] at (-2.2,-1.95)
+    {5ビット目（破線）を捨てると \texttt{0000}（$+0$）になる．\\
+     $-0 + 1$ の正しい結果は $1$ なので，$1$ だけ小さい};
+
+  % ---- (b) 循環桁上げ ----
+  \begin{scope}[xshift=8.4cm]
+  \node[title] at (-2.2,1.35) {(b) 循環桁上げ（end-around carry）};
+  \common
+  \node[eac] (c) at (-0.5,-1.45) {1};
+  \row{-1.45}{0,0,0,0}{bit}
+  \node[eac] (one) at (1.5,-2.15) {1};
+  \draw[->, draw=azureblue, line width=0.9pt] (c.south) |- (one.west);
+  \draw[navy] (-1.2,-2.55) -- (1.8,-2.55);
+  \row{-2.95}{0,0,0,1}{res}
+  \node[val] at (2.0,-2.95) {$1$};
+  \node[note] at (2.0,-1.95) {← 桁上げを最下位\\\phantom{← }ビットに足す};
+  \node[note] at (-2.2,-3.45)
+    {捨てずに最下位ビットへ戻すと \texttt{0001}（$1$）になり，\\
+     正しい結果が得られる};
+  \end{scope}
+\end{tikzpicture}

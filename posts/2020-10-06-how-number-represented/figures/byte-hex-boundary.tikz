@@ -1,0 +1,64 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    >={Latex[length=2mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    bit/.style={draw=navy, rounded corners=2pt, minimum size=0.6cm, inner sep=0pt,
+                font=\bfseries},
+    one/.style={bit, fill=paleskyblue},
+    zero/.style={bit, fill=white},
+    hex/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                minimum size=0.95cm, inner sep=0pt, font=\Large\bfseries},
+    ng/.style={draw=crimsonred, fill=mistyrose, rounded corners=3pt,
+               minimum height=0.95cm, inner sep=0pt, font=\Large\bfseries},
+    byte/.style={draw=paleskyblue, fill=none, rounded corners=6pt, inner sep=7pt},
+    zlabel/.style={anchor=south, font=\small\bfseries, text=navy},
+    note/.style={font=\footnotesize, text=darkgray},
+    rowlabel/.style={font=\footnotesize\bfseries, text=navy, anchor=east},
+    wire/.style={->, draw=navy},
+  ]
+  % 16ビット（2バイト）：0101 1110 | 1101 0100
+  \foreach \v [count=\i from 0] in {0,1,0,1,1,1,1,0,1,1,0,1,0,1,0,0} {
+    \pgfmathtruncatemacro{\n}{floor(\i/4)}
+    \pgfmathtruncatemacro{\b}{floor(\i/8)}
+    \pgfmathsetmacro{\x}{\i*0.7 + \n*0.25 + \b*0.9}
+    \ifnum\v=1
+      \node[one] (b\i) at (\x,2.6) {1};
+    \else
+      \node[zero] (b\i) at (\x,2.6) {0};
+    \fi
+  }
+
+  % 4ビットごとに16進数の1桁
+  \foreach \h [count=\n from 0] in {5,E,D,4} {
+    \pgfmathtruncatemacro{\lo}{4*\n}
+    \pgfmathtruncatemacro{\hi}{4*\n+3}
+    \node[hex] (h\n) at ($(b\lo)!0.5!(b\hi) + (0,-1.6)$) {\h};
+    \draw[wire] ($(b\lo.south)!0.5!(b\hi.south)$) -- (h\n.north);
+  }
+
+  % バイトの枠：16進数2桁 ＝ 1バイト
+  \node[byte, fit=(b0)(b7)(h0)(h1)] (B0) {};
+  \node[byte, fit=(b8)(b15)(h2)(h3)] (B1) {};
+  \node[zlabel] at (B0.north) {1バイト目 ＝ 5E};
+  \node[zlabel] at (B1.north) {2バイト目 ＝ D4};
+
+  % 行ラベル
+  \node[rowlabel] at ($(B0.west |- b0) + (-0.15,0)$) {2進数};
+  \node[rowlabel] at ($(B0.west |- h0) + (-0.15,0)$) {16進数};
+  \node[rowlabel] at ($(B0.west |- h0) + (-0.15,-1.75)$) {10進数};
+
+  % 10進数：バイトの境目が見えない
+  \node[ng, fit=(B0.west |- 0,-0.65)(B1.east |- 0,-0.65), inner sep=0pt,
+        minimum height=0.95cm] (dec) {};
+  \node[font=\Large\bfseries, text=crimsonred] at (dec) {24276};
+  \node[note, anchor=north] at (dec.south) {10進数では，どこまでが1バイト目かが表記から読み取れない};
+\end{tikzpicture}

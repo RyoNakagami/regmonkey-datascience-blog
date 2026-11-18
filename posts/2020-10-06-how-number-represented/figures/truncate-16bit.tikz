@@ -1,0 +1,100 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    >={Latex[length=1.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    bit/.style={draw=navy, fill=aliceblue, minimum size=0.5cm, inner sep=0pt,
+                font=\small},
+    fillin/.style={bit, fill=paleskyblue},
+    cross/.style={bit, draw=azureblue, line width=1.3pt},
+    drop/.style={draw=lightgray, fill=white, minimum size=0.5cm, inner sep=0pt,
+                 font=\small, text=darkgray, dashed},
+    ngbit/.style={bit, draw=crimsonred, fill=mistyrose},
+    mv/.style={->, draw=lightgray, line width=0.5pt},
+    mvx/.style={->, draw=azureblue, line width=0.9pt},
+    lab/.style={font=\footnotesize, anchor=east, align=right},
+    val/.style={font=\normalsize\bfseries, text=navy, anchor=west},
+    op/.style={font=\footnotesize, text=darkgray, anchor=west},
+    reg/.style={font=\footnotesize\bfseries, text=navy},
+    note/.style={font=\footnotesize, text=azureblue, anchor=west},
+  ]
+  \def\w{0.5}
+  \def\gap{0.3}
+
+  % バイト名
+  \node[reg] at (3.5*\w,0.65) {上位バイト};
+  \node[reg] at (11.5*\w+\gap,0.65) {下位バイト};
+
+  % (1) 1998 = 0000 0111 1100 1110
+  \foreach \v [count=\j from 0] in {0,0,0,0,0,1,1,1,1,1,0,0,1,1,1,0} {
+    \pgfmathsetmacro{\x}{\j*\w + (\j>7 ? \gap : 0)}
+    \ifnum\j>13
+      \node[drop] (a\j) at (\x,0) {\v};
+    \else
+      \node[bit] (a\j) at (\x,0) {\v};
+    \fi
+  }
+  \node[lab] at (-0.45,0) {ふといほね後の\\攻撃力};
+  \node[val] at (8.7,0) {1998};
+
+  % (2) ÷4 = 0000 0001 1111 0011
+  \foreach \v [count=\j from 0] in {0,0,0,0,0,0,0,1,1,1,1,1,0,0,1,1} {
+    \pgfmathsetmacro{\x}{\j*\w + (\j>7 ? \gap : 0)}
+    \ifnum\j<2
+      \node[fillin] (b\j) at (\x,-1.6) {\v};
+    \else
+      \ifnum\j>9
+        \node[bit] (b\j) at (\x,-1.6) {\v};
+      \else
+        \ifnum\j>7
+          \node[cross] (b\j) at (\x,-1.6) {\v};
+        \else
+          \node[bit] (b\j) at (\x,-1.6) {\v};
+        \fi
+      \fi
+    \fi
+  }
+  \node[lab] at (-0.45,-1.6) {$\div 4$};
+  \node[val] at (8.7,-1.6) {499};
+
+  % 2ビット右へ移る矢印（上位→下位へまたぐ2本を強調）
+  \foreach \j in {0,...,13} {
+    \pgfmathtruncatemacro{\t}{\j+2}
+    \ifnum\j=6
+      \draw[mvx] (a\j.south) -- (b\t.north);
+    \else
+      \ifnum\j=7
+        \draw[mvx] (a\j.south) -- (b\t.north);
+      \else
+        \draw[mv] (a\j.south) -- (b\t.north);
+      \fi
+    \fi
+  }
+  \node[op] at (8.7,-0.8) {全体を2ビット右へずらす};
+
+  % (3) 下位バイトだけを使う = 1111 0011
+  \foreach \j in {0,...,7} {
+    \node[drop] at (\j*\w,-3.2) {};
+  }
+  \foreach \v [count=\j from 8] in {1,1,1,1,0,0,1,1} {
+    \pgfmathsetmacro{\x}{\j*\w + \gap}
+    \node[ngbit] at (\x,-3.2) {\v};
+  }
+  \node[lab] at (-0.45,-3.2) {実際に使う\\攻撃力};
+  \node[val, text=crimsonred] at (8.7,-3.2) {243};
+  \draw[->, draw=darkgray] (11.5*\w+\gap,-1.92) -- (11.5*\w+\gap,-2.88);
+  \node[op] at (8.7,-2.4) {上位バイトを捨てる};
+
+  % 補足
+  \node[note] at (-2.0,-4.3)
+    {青枠：上位バイトから下位バイトへ移ったビット\quad
+     {\color{darkgray}$499 = 1 \times 256 + 243$ なので，mod 256 で 243 に折り返す}};
+\end{tikzpicture}
