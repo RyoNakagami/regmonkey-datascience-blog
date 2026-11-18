@@ -1,0 +1,1943 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="ja" xml:lang="ja"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.11.9">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Ryo Nakagami">
+<meta name="dcterms.date" content="2020-10-20">
+
+<title>[再掲載] コンピューターは数値をどう表現しているのか (2) – regmonkey datascience blog</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<link href="../../img/favicon.ico" rel="icon">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/scrollable-regions/scrollable-regions.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-5de16f5e46225c21e2daa90d340bf64f.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark-3218d7d29a29f08bc4fdf3802c3e3ca5.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-5de16f5e46225c21e2daa90d340bf64f.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-af18259a854216f0522d5e7742dba421.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark-165ea26c02c9279d901e121765156747.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../site_libs/bootstrap/bootstrap-af18259a854216f0522d5e7742dba421.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script src="../../site_libs/quarto-contrib/pseudocode-2.4.1/pseudocode.min.js"></script>
+<link href="../../site_libs/quarto-contrib/pseudocode-2.4.1/pseudocode.min.css" rel="stylesheet">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "一致なし",
+    "search-matching-documents-text": "一致した文書",
+    "search-copy-link-title": "検索へのリンクをコピー",
+    "search-hide-matches-text": "追加の検索結果を非表示",
+    "search-more-match-text": "追加の検索結果",
+    "search-more-matches-text": "追加の検索結果",
+    "search-clear-button-title": "消去",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "取消",
+    "search-submit-button-title": "検索",
+    "search-label": "サーチ"
+  }
+}</script>
+<script async="" src="https://www.googletagmanager.com/gtag/js?id=G-EX9H7GRLTH"></script>
+
+<script type="text/javascript">
+
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
+</script>
+<style>
+
+      .quarto-title-block .quarto-title-banner h1,
+      .quarto-title-block .quarto-title-banner h2,
+      .quarto-title-block .quarto-title-banner h3,
+      .quarto-title-block .quarto-title-banner h4,
+      .quarto-title-block .quarto-title-banner h5,
+      .quarto-title-block .quarto-title-banner h6
+      {
+        color: #ffffff;
+      }
+
+      .quarto-title-block .quarto-title-banner {
+        color: #ffffff;
+      }
+</style>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-M27Z2BWG');</script>
+    <!-- End Google Tag Manager -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&amp;display=swap" rel="stylesheet">
+<script>
+    MathJax = {
+        tex: {
+            inlineMath: [['$','$'], ['\\(','\\)']],
+            displayMath: [['$$','$$'], ['\\[','\\]']],
+            processEscapes: true,
+            processEnvironments: true,
+            tags: 'all',
+        }
+    }
+</script>
+<!-- MathJax 本体は _quarto.yml の html-math-method.url で読み込む -->
+<link rel="stylesheet" href="../../js/regmonkey_glossary_generator/regmonkey_glossary_generator.css">
+<script type="text/javascript" src="../../js/regmonkey_glossary_generator/regmonkey_glossary_generator.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../../styles.css">
+<meta property="og:title" content="[再掲載] コンピューターは数値をどう表現しているのか (2) – regmonkey datascience blog">
+<meta property="og:description" content="日々の徒然勉強日記">
+<meta property="og:site_name" content="regmonkey datascience blog">
+</head>
+
+<body class="nav-fixed quarto-light"><a id="quarto-skip-link" class="visually-hidden-focusable" href="#quarto-document-content">メインコンテンツにスキップ</a><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          toggle.setAttribute("aria-checked", alternate ? "true" : "false");
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+    }
+    // Hack to workaround the fact that safari doesn't
+    // properly recolor the scrollbar when toggling (#1455).
+    // Not run on load: stylesheets are set before first paint there, and
+    // scrolling would undo the scroll to a URL fragment (#14973).
+    // The one pixel nudge keeps the reader where they were.
+    const refreshSafariScrollbar = () => {
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        const scrollY = window.scrollY;
+        window.scrollTo(0, scrollY > 0 ? scrollY - 1 : 1);
+        setTimeout(() => {
+          window.scrollTo(0, scrollY);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      refreshSafariScrollbar();
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top quarto-banner">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark" aria-label="ウェブサイト">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">Home</span>
+    </a>
+  </div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="ナビゲーションを切り替える" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-bi-book" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+      <i class="bi bi-book" role="img">
+</i> 
+ <span class="menu-text"></span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-bi-book">    
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/statistics-for-regression-monkey/">
+ <span class="dropdown-text">Statistics Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/python-statisticalpackage-techniques/">
+ <span class="dropdown-text">Python package building Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/regmonkey_datavisualization/">
+ <span class="dropdown-text">Data Visualization Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/regmonkey-presentation/">
+ <span class="dropdown-text">Presentation Blog</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../link_list/link_table.html"> 
+<span class="menu-text">便利リンク集</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../dictionary/dict.html"> 
+<span class="menu-text">備忘録</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../FAQ/faq.html"> 
+<span class="menu-text">FAQ</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../about.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/RyoNakagami/regmonkey-datascience-blog"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="../../index.xml"> <i class="bi bi-rss" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <button type="button" role="switch" aria-checked="false" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="ダークモードの切り替え" aria-label="ダークモードの切り替え"><i class="bi"></i></button>
+</div>
+            <div id="quarto-search" class="" title="サーチ"></div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">[再掲載] コンピューターは数値をどう表現しているのか (2)</h1>
+                                <div class="quarto-categories">
+                <div class="quarto-category">computer</div>
+                <div class="quarto-category">技術</div>
+                <div class="quarto-category">数値計算</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      <div>
+      <div class="quarto-title-meta-heading">作者</div>
+      <div class="quarto-title-meta-contents">
+               <p>Ryo Nakagami </p>
+            </div>
+    </div>
+      
+      <div>
+      <div class="quarto-title-meta-heading">公開</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">2020-10-20</p>
+      </div>
+    </div>
+    
+      <div>
+      <div class="quarto-title-meta-heading">更新日</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date-modified">2026-11-18</p>
+      </div>
+    </div>
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" aria-labelledby="toc-title" class="toc-active">
+    <h2 id="toc-title">目次</h2>
+   
+  <ul>
+  <li><a href="#基本問題" id="toc-基本問題" class="nav-link active" data-scroll-target="#基本問題">基本問題</a></li>
+  <li><a href="#符号なし整数の減算" id="toc-符号なし整数の減算" class="nav-link" data-scroll-target="#符号なし整数の減算">符号なし整数の減算</a></li>
+  <li><a href="#符号付き整数の減算" id="toc-符号付き整数の減算" class="nav-link" data-scroll-target="#符号付き整数の減算">符号付き整数の減算</a>
+  <ul class="collapse">
+  <li><a href="#の補数による減算" id="toc-の補数による減算" class="nav-link" data-scroll-target="#の補数による減算">2の補数による減算</a></li>
+  <li><a href="#の補数による減算-1" id="toc-の補数による減算-1" class="nav-link" data-scroll-target="#の補数による減算-1">1の補数による減算</a></li>
+  </ul></li>
+  <li><a href="#オーバーフローとアンダーフロー" id="toc-オーバーフローとアンダーフロー" class="nav-link" data-scroll-target="#オーバーフローとアンダーフロー">オーバーフローとアンダーフロー</a></li>
+  <li><a href="#論理演算" id="toc-論理演算" class="nav-link" data-scroll-target="#論理演算">論理演算</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>問題を報告</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content" tabindex="-1">
+
+
+
+
+
+
+<p><a href="../../posts/2020-10-06-how-number-represented/index.html">コンピューターは数値をどう表現しているのか (1)</a> でコンピューターにおける算術演算を解説したので，本記事では関連した練習問題を取り扱います</p>
+<section id="基本問題" class="level2">
+<h2 class="anchored" data-anchor-id="基本問題">基本問題</h2>
+<div id="exr-" class="custom_problem blog-custom-border theorem exercise">
+<p><span class="theorem-title"><strong>Problem 1</strong></span> <br></p>
+<p><span class="math inline">\(a\)</span> を正の整数とし， <span class="math inline">\(b = a^2\)</span> とする． <span class="math inline">\(a\)</span> の２進数で表したとき，<span class="math inline">\(n\)</span> bitであるとすると，このときの <span class="math inline">\(b\)</span> は何 bitか？</p>
+</div>
+<div class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-1-contents" aria-controls="callout-1" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>Solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-1" class="callout-1-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><span class="mini-section"><span class="math inline">\(a\)</span> の範囲を不等式で表す</span></p>
+<p><span class="math inline">\(a\)</span> が２進数で <span class="math inline">\(n\)</span> bit であることより</p>
+<p><span class="math display">\[
+2^{n-1} \le a &lt; 2^{n} \Rightarrow n - 1 \le \log_2 a &lt; n
+\]</span></p>
+<p><span class="mini-section">両辺を２乗する</span></p>
+<p>各辺はすべて正なので</p>
+<p><span class="math display">\[
+2^{2n-2} \le b = a^2 &lt; 2^{2n}\Rightarrow 2(n - 1) \le \log_2 b &lt; 2n
+\]</span></p>
+<p>少なくとも <span class="math inline">\(2n-1\)</span> bit，多くとも <span class="math inline">\(2n\)</span> bit で表せます．</p>
+<p><span class="mini-section">補足</span></p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 10%">
+<col style="width: 20%">
+<col style="width: 10%">
+<col style="width: 15%">
+<col style="width: 25%">
+<col style="width: 20%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: center;"><span class="math inline">\(a\)</span></th>
+<th style="text-align: center;"><span class="math inline">\(a\)</span> の２進数</th>
+<th style="text-align: center;"><span class="math inline">\(n\)</span></th>
+<th style="text-align: center;"><span class="math inline">\(b = a^2\)</span></th>
+<th style="text-align: center;"><span class="math inline">\(b\)</span> の２進数</th>
+<th style="text-align: center;"><span class="math inline">\(b\)</span> のbit数</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;">4</td>
+<td style="text-align: center;"><code>100</code></td>
+<td style="text-align: center;">3</td>
+<td style="text-align: center;">16</td>
+<td style="text-align: center;"><code>10000</code></td>
+<td style="text-align: center;">5 <span class="math inline">\((= 2n-1)\)</span></td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">7</td>
+<td style="text-align: center;"><code>111</code></td>
+<td style="text-align: center;">3</td>
+<td style="text-align: center;">49</td>
+<td style="text-align: center;"><code>110001</code></td>
+<td style="text-align: center;">6 <span class="math inline">\((= 2n)\)</span></td>
+</tr>
+</tbody>
+</table>
+<p>より正確には，<span class="math inline">\(a &lt; \sqrt{2} \cdot 2^{n-1}\)</span> のとき <span class="math inline">\(2n-1\)</span> bit，<span class="math inline">\(a \ge \sqrt{2} \cdot 2^{n-1}\)</span> のとき <span class="math inline">\(2n\)</span> bit になります．</p>
+</div>
+</div>
+</div>
+</section>
+<section id="符号なし整数の減算" class="level2">
+<h2 class="anchored" data-anchor-id="符号なし整数の減算">符号なし整数の減算</h2>
+<div id="exr-" class="custom_problem blog-custom-border theorem exercise">
+<p><span class="theorem-title"><strong>Problem 2</strong></span> <br></p>
+<p>符号なし整数として <span class="math inline">\(5\text{ED}4_{(16)} - 07\text{A}4_{(16)}\)</span> を計算し，答えを16進数・２進数・10進数で示せ．</p>
+</div>
+<div class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-2-contents" aria-controls="callout-2" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>Solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-2" class="callout-2-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><span class="mini-section">16進のまま引く</span></p>
+<p>各桁を下から順に，16進のまま引きます．この問題では借りは発生しません．</p>
+<pre class="text"><code>  5 E D 4
+− 0 7 A 4
+---------
+  5 7 3 0</code></pre>
+<ul>
+<li><span class="math inline">\(16^0\)</span> の位：<span class="math inline">\(4 - 4 = 0\)</span></li>
+<li><span class="math inline">\(16^1\)</span> の位：<span class="math inline">\(\text{D}(13) - \text{A}(10) = 3\)</span></li>
+<li><span class="math inline">\(16^2\)</span> の位：<span class="math inline">\(\text{E}(14) - 7 = 7\)</span></li>
+<li><span class="math inline">\(16^3\)</span> の位：<span class="math inline">\(5 - 0 = 5\)</span></li>
+</ul>
+<p><span class="mini-section">答え</span></p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 75%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: center;">表記</th>
+<th style="text-align: left;">値</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;">16進数</td>
+<td style="text-align: left;"><span class="math inline">\(5730_{(16)}\)</span></td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">２進数</td>
+<td style="text-align: left;"><code>0101 0111 0011 0000</code></td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">10進数</td>
+<td style="text-align: left;"><span class="math inline">\(22320\)</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="exr-" class="custom_problem blog-custom-border theorem exercise">
+<p><span class="theorem-title"><strong>Problem 3</strong></span> <br></p>
+<p>符号なし整数として <span class="math inline">\(4365_{(8)} - 3412_{(8)}\)</span> を計算し，答えを8進数・２進数・10進数で示せ．</p>
+</div>
+<div class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-3-contents" aria-controls="callout-3" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>Solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-3" class="callout-3-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><span class="mini-section">8進のまま引く</span></p>
+<p>各桁を下から順に，8進のまま引きます．この問題では借りが1回発生します．</p>
+<pre class="text"><code>  4 3 6 5
+− 3 4 1 2
+---------
+  0 7 5 3</code></pre>
+<ul>
+<li><span class="math inline">\(8^0\)</span> の位：<span class="math inline">\(5 - 2 = 3\)</span></li>
+<li><span class="math inline">\(8^1\)</span> の位：<span class="math inline">\(6 - 1 = 5\)</span></li>
+<li><span class="math inline">\(8^2\)</span> の位：<span class="math inline">\(3 - 4\)</span> は引けないので，上の位から1借りて <span class="math inline">\(3 + 8 = 11\)</span>，<span class="math inline">\(11 - 4 = 7\)</span></li>
+<li><span class="math inline">\(8^3\)</span> の位：借りられて <span class="math inline">\(4 \to 3\)</span> になっているので，<span class="math inline">\(3 - 3 = 0\)</span></li>
+</ul>
+<p><span class="mini-section">答え</span></p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 75%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: center;">表記</th>
+<th style="text-align: left;">値</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;">8進数</td>
+<td style="text-align: left;"><span class="math inline">\(753_{(8)}\)</span></td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">２進数</td>
+<td style="text-align: left;"><code>111 101 011</code>（8進の各桁を3ビットに直す．<span class="math inline">\(7 = 111\)</span>，<span class="math inline">\(5 = 101\)</span>，<span class="math inline">\(3 = 011\)</span>）</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">10進数</td>
+<td style="text-align: left;"><span class="math inline">\(491\)</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</section>
+<section id="符号付き整数の減算" class="level2">
+<h2 class="anchored" data-anchor-id="符号付き整数の減算">符号付き整数の減算</h2>
+<p>符号付き整数の減算 <span class="math inline">\(A - B\)</span> は，<span class="math inline">\(A + (-B)\)</span> に置き換えて加算で計算します．<span class="math inline">\(-B\)</span> の作り方と，最上位からあふれた桁上げの扱いが方式によって異なります．</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th style="text-align: center;">方式</th>
+<th style="text-align: left;"><span class="math inline">\(-B\)</span> の作り方</th>
+<th style="text-align: left;">最上位からの桁上げ</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;">2の補数</td>
+<td style="text-align: left;">全ビットを反転して <span class="math inline">\(+1\)</span></td>
+<td style="text-align: left;">捨てる</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">1の補数</td>
+<td style="text-align: left;">全ビットを反転するだけ</td>
+<td style="text-align: left;">最下位に足し戻す（循環桁上げ）</td>
+</tr>
+</tbody>
+</table>
+<section id="の補数による減算" class="level3">
+<h3 class="anchored" data-anchor-id="の補数による減算">2の補数による減算</h3>
+<div id="exr-" class="custom_problem blog-custom-border theorem exercise">
+<p><span class="theorem-title"><strong>Problem 4</strong></span> <br></p>
+<p>16ビットの2の補数表現で <span class="math inline">\(5\text{ED}4_{(16)} - 07\text{A}4_{(16)}\)</span> を計算せよ．計算の過程を２進数で示し，答えを16進数・10進数でも示せ．</p>
+</div>
+<div class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-4-contents" aria-controls="callout-4" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>Solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-4" class="callout-4-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><span class="mini-section">2進数に直す</span></p>
+<pre class="text"><code>A = 5ED4 = 0101 1110 1101 0100   (+24276)
+B = 07A4 = 0000 0111 1010 0100   (+1956)</code></pre>
+<p><span class="mini-section"><span class="math inline">\(-B\)</span> を作る</span></p>
+<pre class="text"><code>B         = 0000 0111 1010 0100   (07A4)
+反転      = 1111 1000 0101 1011   (F85B)
++1        = 1111 1000 0101 1100   (F85C)  ← −1956</code></pre>
+<p><span class="mini-section"><span class="math inline">\(A + (-B)\)</span> を計算する</span></p>
+<pre class="text"><code>    0101 1110 1101 0100   (5ED4)
++   1111 1000 0101 1100   (F85C)
+-----------------------
+  1 0101 0111 0011 0000   (1 5730)
+  ↑ 桁上げは捨てる</code></pre>
+<p>16進の桁ごとに見ると，次のとおりです．</p>
+<ul>
+<li><span class="math inline">\(4 + \text{C} = 16 \to 0\)</span>，桁上げ1</li>
+<li><span class="math inline">\(\text{D} + 5 + 1 = 19 \to 3\)</span>，桁上げ1</li>
+<li><span class="math inline">\(\text{E} + 8 + 1 = 23 \to 7\)</span>，桁上げ1</li>
+<li><span class="math inline">\(5 + \text{F} + 1 = 21 \to 5\)</span>，桁上げ1（捨てる）</li>
+</ul>
+<p><span class="mini-section">答え</span></p>
+<p><code>0101 0111 0011 0000</code> <span class="math inline">\(= 5730_{(16)} = +22320\)</span> です．</p>
+</div>
+</div>
+</div>
+<div id="exr-" class="custom_problem blog-custom-border theorem exercise">
+<p><span class="theorem-title"><strong>Problem 5</strong></span> <br></p>
+<p>16ビットの2の補数表現で <span class="math inline">\(4365_{(8)} - 3412_{(8)}\)</span> を計算せよ．計算の過程を２進数で示し，答えを8進数・10進数でも示せ．</p>
+</div>
+<div class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-5-contents" aria-controls="callout-5" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>Solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-5" class="callout-5-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><span class="mini-section">2進数に直し，16ビットで表す</span></p>
+<p>8進の1桁は2進の3ビットに対応します．</p>
+<pre class="text"><code>4365(oct) = 100 011 110 101  → 0000 1000 1111 0101   (08F5, +2293)
+3412(oct) = 011 100 001 010  → 0000 0111 0000 1010   (070A, +1802)</code></pre>
+<p><span class="mini-section"><span class="math inline">\(-B\)</span> を作る</span></p>
+<pre class="text"><code>B         = 0000 0111 0000 1010   (070A)
+反転      = 1111 1000 1111 0101   (F8F5)
++1        = 1111 1000 1111 0110   (F8F6)  ← −1802</code></pre>
+<p><span class="mini-section"><span class="math inline">\(A + (-B)\)</span> を計算する</span></p>
+<pre class="text"><code>    0000 1000 1111 0101   (08F5)
++   1111 1000 1111 0110   (F8F6)
+-----------------------
+  1 0000 0001 1110 1011   (1 01EB)
+  ↑ 桁上げは捨てる</code></pre>
+<ul>
+<li><span class="math inline">\(5 + 6 = 11 \to \text{B}\)</span>，桁上げ0</li>
+<li><span class="math inline">\(\text{F} + \text{F} = 30 \to \text{E}\)</span>，桁上げ1</li>
+<li><span class="math inline">\(8 + 8 + 1 = 17 \to 1\)</span>，桁上げ1</li>
+<li><span class="math inline">\(0 + \text{F} + 1 = 16 \to 0\)</span>，桁上げ1（捨てる）</li>
+</ul>
+<p><span class="mini-section">答え</span></p>
+<p><code>0000 0001 1110 1011</code> です．下から3ビットずつ区切ると <code>111 101 011</code> なので，<span class="math inline">\(753_{(8)} = +491\)</span> です．</p>
+</div>
+</div>
+</div>
+</section>
+<section id="の補数による減算-1" class="level3">
+<h3 class="anchored" data-anchor-id="の補数による減算-1">1の補数による減算</h3>
+<div id="exr-" class="custom_problem blog-custom-border theorem exercise">
+<p><span class="theorem-title"><strong>Problem 6</strong></span> <br></p>
+<p>16ビットの1の補数表現で <span class="math inline">\(5\text{ED}4_{(16)} - 07\text{A}4_{(16)}\)</span> を計算せよ．計算の過程を２進数で示し，答えを16進数・10進数でも示せ．</p>
+</div>
+<div class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-6-contents" aria-controls="callout-6" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>Solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-6" class="callout-6-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><span class="mini-section"><span class="math inline">\(-B\)</span> を作る</span></p>
+<p>全ビットの反転だけで作ります．</p>
+<pre class="text"><code>B         = 0000 0111 1010 0100   (07A4)
+反転      = 1111 1000 0101 1011   (F85B)  ← −1956</code></pre>
+<p><span class="mini-section"><span class="math inline">\(A + (-B)\)</span> を計算する</span></p>
+<pre class="text"><code>    0101 1110 1101 0100   (5ED4)
++   1111 1000 0101 1011   (F85B)
+-----------------------
+  1 0101 0111 0010 1111   (1 572F)</code></pre>
+<ul>
+<li><span class="math inline">\(4 + \text{B} = 15 \to \text{F}\)</span>，桁上げ0</li>
+<li><span class="math inline">\(\text{D} + 5 = 18 \to 2\)</span>，桁上げ1</li>
+<li><span class="math inline">\(\text{E} + 8 + 1 = 23 \to 7\)</span>，桁上げ1</li>
+<li><span class="math inline">\(5 + \text{F} + 1 = 21 \to 5\)</span>，桁上げ1</li>
+</ul>
+<p><span class="mini-section">循環桁上げ</span></p>
+<p>最上位からの桁上げ1を，最下位に足し戻します．</p>
+<pre class="text"><code>    0101 0111 0010 1111   (572F)
++                     1
+-----------------------
+    0101 0111 0011 0000   (5730)</code></pre>
+<p><span class="mini-section">答え</span></p>
+<p>2の補数と同じく，<code>0101 0111 0011 0000</code> <span class="math inline">\(= 5730_{(16)} = +22320\)</span> です．</p>
+</div>
+</div>
+</div>
+<div id="exr-" class="custom_problem blog-custom-border theorem exercise">
+<p><span class="theorem-title"><strong>Problem 7</strong></span> <br></p>
+<p>16ビットの1の補数表現で <span class="math inline">\(4365_{(8)} - 3412_{(8)}\)</span> を計算せよ．計算の過程を２進数で示し，答えを8進数・10進数でも示せ．</p>
+</div>
+<div class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-7-contents" aria-controls="callout-7" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>Solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-7" class="callout-7-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><span class="mini-section">2進数に直し，16ビットで表す</span></p>
+<pre class="text"><code>4365(oct) = 100 011 110 101  → 0000 1000 1111 0101   (08F5, +2293)
+3412(oct) = 011 100 001 010  → 0000 0111 0000 1010   (070A, +1802)</code></pre>
+<p><span class="mini-section"><span class="math inline">\(-B\)</span> を作る</span></p>
+<p>全ビットの反転だけで作ります．</p>
+<pre class="text"><code>B         = 0000 0111 0000 1010   (070A)
+反転      = 1111 1000 1111 0101   (F8F5)  ← −1802</code></pre>
+<p><span class="mini-section"><span class="math inline">\(A + (-B)\)</span> を計算する</span></p>
+<pre class="text"><code>    0000 1000 1111 0101   (08F5)
++   1111 1000 1111 0101   (F8F5)
+-----------------------
+  1 0000 0001 1110 1010   (1 01EA)</code></pre>
+<p><span class="mini-section">循環桁上げ</span></p>
+<p>最上位からの桁上げ1を，最下位に足し戻します．</p>
+<pre class="text"><code>    0000 0001 1110 1010   (01EA)
++                     1
+-----------------------
+    0000 0001 1110 1011   (01EB)</code></pre>
+<p><span class="mini-section">答え</span></p>
+<p>2の補数と同じく，<code>0000 0001 1110 1011</code> <span class="math inline">\(= 753_{(8)} = +491\)</span> です．</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="オーバーフローとアンダーフロー" class="level2">
+<h2 class="anchored" data-anchor-id="オーバーフローとアンダーフロー">オーバーフローとアンダーフロー</h2>
+<p>ここまでの問題では，結果が表せる範囲に収まっていました．この節では，ビット幅を小さくしたときに結果が範囲からはみ出すかどうかを調べます．</p>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title">整数演算のオーバーフローとアンダーフロー</span></p>
+<ul>
+<li>演算の正しい結果が，<span class="math inline">\(n\)</span> ビットで表せる範囲の上限を超えることを <strong>オーバーフロー</strong> という</li>
+<li>演算の正しい結果が，<span class="math inline">\(n\)</span> ビットで表せる範囲の下限を下回ることを，整数の文脈では <strong>アンダーフロー</strong>（負のオーバーフロー）と呼ぶことがある</li>
+<li>表せる範囲は，符号なし整数なら <span class="math inline">\(0\)</span> 〜 <span class="math inline">\(2^n - 1\)</span>，2の補数表現なら <span class="math inline">\(-2^{n-1}\)</span> 〜 <span class="math inline">\(2^{n-1} - 1\)</span>，1の補数表現なら <span class="math inline">\(-(2^{n-1} - 1)\)</span> 〜 <span class="math inline">\(2^{n-1} - 1\)</span> とする</li>
+</ul>
+</div>
+<p><span class="mini-section">加算器での検出方法</span></p>
+<p>減算 <span class="math inline">\(A - B\)</span> を <span class="math inline">\(A + (\bar{B} + 1)\)</span> として加算器で計算するとき，はみ出しは次のように検出できます．</p>
+<ul>
+<li><strong>符号なし</strong>：最上位から桁上げが出ないとき，借りが生じている．つまり <span class="math inline">\(A &lt; B\)</span> で，結果は下限 <span class="math inline">\(0\)</span> を下回る（アンダーフロー）</li>
+<li><strong>符号付き</strong>：「正 − 負 = 負」または「負 − 正 = 正」と符号が変わったとき，範囲をはみ出している．回路の上では，符号ビットへの桁上げ入力と，符号ビットからの桁上げ出力が一致しないことで検出する</li>
+</ul>
+<div id="exr-" class="custom_problem blog-custom-border theorem exercise">
+<p><span class="theorem-title"><strong>Problem 8</strong></span> <br></p>
+<p>12ビットの符号なし整数として <span class="math inline">\(4365_{(8)} - 3412_{(8)}\)</span> を計算せよ．計算の過程を２進数でも示し，オーバーフロー・アンダーフローが発生するかを理由とともに答えよ．</p>
+</div>
+<div class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-8-contents" aria-controls="callout-8" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>Solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-8" class="callout-8-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><span class="mini-section">2進数に直す</span></p>
+<p>8進数の4桁は，ちょうど12ビットに対応します．</p>
+<pre class="text"><code>A = 4365(oct) = 100 011 110 101   (2293)
+B = 3412(oct) = 011 100 001 010   (1802)</code></pre>
+<p><span class="mini-section"><span class="math inline">\(\bar{B} + 1\)</span> を作る</span></p>
+<pre class="text"><code>B         = 011 100 001 010   (3412)
+反転      = 100 011 110 101   (4365)
++1        = 100 011 110 110   (4366)</code></pre>
+<p><span class="mini-section"><span class="math inline">\(A + (\bar{B} + 1)\)</span> を計算する</span></p>
+<pre class="text"><code>    100 011 110 101   (4365)
++   100 011 110 110   (4366)
+-------------------
+  1 000 111 101 011   (1 0753)
+  ↑ 12ビットからあふれた桁上げ</code></pre>
+<p>8進の桁ごとに見ると，次のとおりです．</p>
+<ul>
+<li><span class="math inline">\(5 + 6 = 11 \to 3\)</span>，桁上げ1</li>
+<li><span class="math inline">\(6 + 6 + 1 = 13 \to 5\)</span>，桁上げ1</li>
+<li><span class="math inline">\(3 + 3 + 1 = 7 \to 7\)</span>，桁上げ0</li>
+<li><span class="math inline">\(4 + 4 = 8 \to 0\)</span>，桁上げ1</li>
+</ul>
+<p><span class="mini-section">答え</span></p>
+<p>結果は <code>000 111 101 011</code> <span class="math inline">\(= 0753_{(8)} = 491\)</span> です．</p>
+<p><span class="mini-section">判定：発生しない</span></p>
+<ul>
+<li><span class="math inline">\(A = 2293\)</span>，<span class="math inline">\(B = 1802\)</span> はどちらも <span class="math inline">\(0\)</span> 〜 <span class="math inline">\(4095\)</span> の範囲に収まる</li>
+<li>正しい差 <span class="math inline">\(2293 - 1802 = 491\)</span> も <span class="math inline">\(0\)</span> 〜 <span class="math inline">\(4095\)</span> の範囲に収まる</li>
+<li>加算器では最上位から桁上げが出ている．これは借りが生じていない（<span class="math inline">\(A \geq B\)</span>）ことを意味する</li>
+</ul>
+<p>したがって，オーバーフローもアンダーフローも発生しません．</p>
+</div>
+</div>
+</div>
+<div id="exr-" class="custom_problem blog-custom-border theorem exercise">
+<p><span class="theorem-title"><strong>Problem 9</strong></span> <br></p>
+<p><span class="math inline">\(4365_{(8)}\)</span> と <span class="math inline">\(3412_{(8)}\)</span> を，12ビットの符号付き整数とみなす．このとき，</p>
+<div class="paren-list">
+<ol type="1">
+<li>2の補数表現で <span class="math inline">\(4365_{(8)} - 3412_{(8)}\)</span> を計算し，オーバーフロー・アンダーフローが発生するかを理由とともに答えよ</li>
+<li>1の補数表現で <span class="math inline">\(4365_{(8)} - 3412_{(8)}\)</span> を計算し，オーバーフロー・アンダーフローが発生するかを理由とともに答えよ</li>
+</ol>
+</div>
+</div>
+<div class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-9-contents" aria-controls="callout-9" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>Solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-9" class="callout-9-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><span class="mini-section">符号付きとして読んだ値</span></p>
+<p><span class="math inline">\(4365_{(8)}\)</span> = <code>100 011 110 101</code> は最上位ビットが1なので，符号付きでは負の数になります．</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th style="text-align: center;">8進数</th>
+<th style="text-align: center;">ビット列</th>
+<th style="text-align: center;">符号なし</th>
+<th style="text-align: center;">2の補数</th>
+<th style="text-align: center;">1の補数</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;"><span class="math inline">\(4365_{(8)}\)</span></td>
+<td style="text-align: center;"><code>100 011 110 101</code></td>
+<td style="text-align: center;"><span class="math inline">\(2293\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(-1803\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(-1802\)</span></td>
+</tr>
+<tr class="even">
+<td style="text-align: center;"><span class="math inline">\(3412_{(8)}\)</span></td>
+<td style="text-align: center;"><code>011 100 001 010</code></td>
+<td style="text-align: center;"><span class="math inline">\(1802\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(1802\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(1802\)</span></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>2の補数：最上位ビットの重みが <span class="math inline">\(-2^{11}\)</span> になるので，<span class="math inline">\(2293 - 4096 = -1803\)</span></li>
+<li>1の補数：全ビットを反転した <code>011 100 001 010</code> <span class="math inline">\(= 1802\)</span> の負の数なので，<span class="math inline">\(-1802\)</span>．<span class="math inline">\(4365\)</span> と <span class="math inline">\(3412\)</span> は桁ごとに足すとすべて7になる（<span class="math inline">\(7777_{(8)}\)</span>）ので，互いの1の補数になっている</li>
+</ul>
+<p><span class="mini-section">(1) 2の補数表現</span></p>
+<p>計算は前問と同じで，<span class="math inline">\(-B = \bar{B} + 1\)</span> = <code>100 011 110 110</code> を足します．</p>
+<pre class="text"><code>    100 011 110 101   (4365)  ← −1803
++   100 011 110 110   (4366)  ← −1802
+-------------------
+  1 000 111 101 011   (1 0753)
+  ↑ 桁上げは捨てる</code></pre>
+<p>結果のビット列は <code>000 111 101 011</code> で，2の補数として読むと <span class="math inline">\(+491\)</span> です．</p>
+<ul>
+<li>正しい差 <span class="math inline">\((-1803) - 1802 = -3605\)</span> は，下限 <span class="math inline">\(-2048\)</span> を下回る</li>
+<li>「負 − 正 = 正」と符号が変わっている</li>
+<li>下位11ビットの和 <span class="math inline">\(245 + 246 = 491 &lt; 2048\)</span> なので，符号ビットへの桁上げ入力は0．一方，符号ビットは <span class="math inline">\(1 + 1\)</span> で桁上げ出力が1．入力と出力が一致しない</li>
+</ul>
+<p>したがって，<strong>アンダーフロー（負のオーバーフロー）が発生します</strong>．加算器が返す <span class="math inline">\(+491\)</span> は正しい差ではありません．</p>
+<p><span class="mini-section">(2) 1の補数表現</span></p>
+<p><span class="math inline">\(-B\)</span> は全ビットの反転だけで作るので，<code>100 011 110 101</code>（<span class="math inline">\(4365_{(8)}\)</span> そのもの）です．</p>
+<pre class="text"><code>    100 011 110 101   (4365)  ← −1802
++   100 011 110 101   (4365)  ← −1802
+-------------------
+  1 000 111 101 010   (1 0752)</code></pre>
+<ul>
+<li><span class="math inline">\(5 + 5 = 10 \to 2\)</span>，桁上げ1</li>
+<li><span class="math inline">\(6 + 6 + 1 = 13 \to 5\)</span>，桁上げ1</li>
+<li><span class="math inline">\(3 + 3 + 1 = 7 \to 7\)</span>，桁上げ0</li>
+<li><span class="math inline">\(4 + 4 = 8 \to 0\)</span>，桁上げ1</li>
+</ul>
+<p>最上位からの桁上げ1を，最下位に足し戻します．</p>
+<pre class="text"><code>    000 111 101 010   (0752)
++                 1
+-------------------
+    000 111 101 011   (0753)</code></pre>
+<p>結果は <span class="math inline">\(+491\)</span> です．</p>
+<ul>
+<li>正しい差 <span class="math inline">\((-1802) - 1802 = -3604\)</span> は，下限 <span class="math inline">\(-2047\)</span> を下回る</li>
+<li>「負 − 正 = 正」と符号が変わっている</li>
+</ul>
+<p>したがって，こちらも <strong>アンダーフロー（負のオーバーフロー）が発生します</strong>．</p>
+<p><span class="mini-section">符号なしとの比較</span></p>
+<p>加算器が出力するビット列 <code>000 111 101 011</code> は，符号なしでも2の補数でも同じです．符号なしとして読めば正しい差 <span class="math inline">\(491\)</span> ですが，符号付きとして読むと <span class="math inline">\(4365_{(8)}\)</span> が負の数になり，範囲をはみ出します．x86-64 の CPU が，符号なし用の CF と符号付き用の OF という2つのフラグを別々に立てるのはこのためです．</p>
+<p><span class="math inline">\(4365_{(8)}\)</span> を正の数 <span class="math inline">\(2293\)</span> として符号付きで計算したいなら，前節のように16ビットで表してから計算します．</p>
+</div>
+</div>
+</div>
+<div id="exr-" class="custom_problem blog-custom-border theorem exercise">
+<p><span class="theorem-title"><strong>Problem 10</strong></span> <br></p>
+<p>12ビットの2の補数 <span class="math inline">\(4365_{(8)}\)</span>，<span class="math inline">\(3412_{(8)}\)</span> が，16ビットに符号拡張した形式で格納されている．このとき <span class="math inline">\(4365_{(8)} - 3412_{(8)}\)</span> を計算せよ．計算の過程を２進数で示し，答えを10進数でも示せ．</p>
+</div>
+<div class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-10-contents" aria-controls="callout-10" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>Solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-10" class="callout-10-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><span class="mini-section">符号拡張とは</span></p>
+<p>符号拡張は，符号付き整数のビット数を増やすとき，増えた上位ビットを元の符号ビットと同じ値で埋める方法です．2の補数では，こうしても値が変わりません．</p>
+<ul>
+<li>符号ビットが0（正の数）なら，上位を0で埋める</li>
+<li>符号ビットが1（負の数）なら，上位を1で埋める</li>
+</ul>
+<p><span class="mini-section">2進数に直し，16ビットに符号拡張する</span></p>
+<pre class="text"><code>4365(oct) = 100 011 110 101  → 1111 1000 1111 0101   (F8F5, −1803)
+3412(oct) = 011 100 001 010  → 0000 0111 0000 1010   (070A, +1802)</code></pre>
+<p><span class="math inline">\(4365_{(8)}\)</span> は12ビットでの符号ビットが1なので，上位4ビットを1で埋めます．前節の16ビットの問題では上位を0で埋めて <span class="math inline">\(+2293\)</span> としましたが，ここでは12ビットでの値 <span class="math inline">\(-1803\)</span> をそのまま16ビットに移しています．</p>
+<p><span class="mini-section"><span class="math inline">\(-B\)</span> を作る</span></p>
+<pre class="text"><code>B         = 0000 0111 0000 1010   (070A)
+反転      = 1111 1000 1111 0101   (F8F5)
++1        = 1111 1000 1111 0110   (F8F6)  ← −1802</code></pre>
+<p><span class="mini-section"><span class="math inline">\(A + (-B)\)</span> を計算する</span></p>
+<pre class="text"><code>    1111 1000 1111 0101   (F8F5)
++   1111 1000 1111 0110   (F8F6)
+-----------------------
+  1 1111 0001 1110 1011   (1 F1EB)
+  ↑ 桁上げは捨てる</code></pre>
+<ul>
+<li><span class="math inline">\(5 + 6 = 11 \to \text{B}\)</span>，桁上げ0</li>
+<li><span class="math inline">\(\text{F} + \text{F} = 30 \to \text{E}\)</span>，桁上げ1</li>
+<li><span class="math inline">\(8 + 8 + 1 = 17 \to 1\)</span>，桁上げ1</li>
+<li><span class="math inline">\(\text{F} + \text{F} + 1 = 31 \to \text{F}\)</span>，桁上げ1</li>
+</ul>
+<p><span class="mini-section">10進数に直す</span></p>
+<p>結果 <code>1111 0001 1110 1011</code> は最上位ビットが1なので負の数です．反転して1を足すと絶対値が得られます．</p>
+<pre class="text"><code>反転      = 0000 1110 0001 0100   (0E14)
++1        = 0000 1110 0001 0101   (0E15 = 3605)</code></pre>
+<p>答えは <span class="math inline">\(-3605\)</span> です．検算すると <span class="math inline">\((-1803) - 1802 = -3605\)</span> で一致します．</p>
+<ul>
+<li>正しい差 <span class="math inline">\(-3605\)</span> は，16ビットの範囲 <span class="math inline">\(-32768\)</span> 〜 <span class="math inline">\(32767\)</span> に収まる</li>
+<li>下位15ビットの和 <span class="math inline">\(\text{78F5} + \text{78F6} = \text{F1EB} \geq \text{8000}\)</span> なので，符号ビットへの桁上げ入力は1．符号ビットは <span class="math inline">\(1 + 1 + 1\)</span> で桁上げ出力も1．入力と出力が一致する</li>
+</ul>
+<p>したがって，オーバーフローは発生しません．</p>
+<p><span class="mini-section">12ビットのままの計算との比較</span></p>
+<p>前問では，同じ <span class="math inline">\(4365_{(8)} - 3412_{(8)}\)</span> を12ビットのまま計算してアンダーフローが発生し，加算器は <span class="math inline">\(+491\)</span> を返しました．正しい差 <span class="math inline">\(-3605\)</span> が12ビットの下限 <span class="math inline">\(-2048\)</span> を下回るためです．16ビットに符号拡張しておけば，値を変えずに表せる範囲だけが広がるので，正しい差が得られます．</p>
+</div>
+</div>
+</div>
+<div id="exr-" class="custom_problem blog-custom-border theorem exercise">
+<p><span class="theorem-title"><strong>Problem 11</strong></span> <br></p>
+<p>10進数の <span class="math inline">\(185\)</span> と <span class="math inline">\(122\)</span> について，</p>
+<div class="paren-list">
+<ol type="1">
+<li>8ビットの符号なし整数として <span class="math inline">\(185 - 122\)</span> を計算し，オーバーフロー・アンダーフローが発生するかを理由とともに答えよ</li>
+<li>8ビットの符号付き整数（2の補数表現）として <span class="math inline">\(185 - 122\)</span> を計算し，オーバーフロー・アンダーフローが発生するかを理由とともに答えよ</li>
+</ol>
+</div>
+</div>
+<div class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-11-contents" aria-controls="callout-11" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>Solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-11" class="callout-11-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><span class="mini-section">2進数に直す</span></p>
+<pre class="text"><code>185 = 1011 1001   (128 + 32 + 16 + 8 + 1)
+122 = 0111 1010   (64 + 32 + 16 + 8 + 2)</code></pre>
+<p><span class="mini-section"><span class="math inline">\(\bar{B} + 1\)</span> を作る</span></p>
+<pre class="text"><code>B         = 0111 1010   (122)
+反転      = 1000 0101   (133)
++1        = 1000 0110   (134 = 256 − 122)</code></pre>
+<p><span class="mini-section"><span class="math inline">\(A + (\bar{B} + 1)\)</span> を計算する</span></p>
+<pre class="text"><code>    1011 1001   (185)
++   1000 0110   (134)
+-------------
+  1 0011 1111   (319 = 256 + 63)
+  ↑ 8ビットからあふれた桁上げ</code></pre>
+<p>桁上げを捨てると，結果のビット列は <code>0011 1111</code> <span class="math inline">\(= 63\)</span> です．このビット列は，符号なしでも符号付きでも同じです．</p>
+<p><span class="mini-section">符号なし整数の場合：発生しない</span></p>
+<ul>
+<li><span class="math inline">\(185\)</span>，<span class="math inline">\(122\)</span> はどちらも <span class="math inline">\(0\)</span> 〜 <span class="math inline">\(255\)</span> の範囲に収まる</li>
+<li>正しい差 <span class="math inline">\(185 - 122 = 63\)</span> も <span class="math inline">\(0\)</span> 〜 <span class="math inline">\(255\)</span> の範囲に収まる</li>
+<li>加算器では最上位から桁上げが出ている．これは借りが生じていない（<span class="math inline">\(A \geq B\)</span>）ことを意味する</li>
+</ul>
+<p>したがって，オーバーフローもアンダーフローも発生しません．結果 <span class="math inline">\(63\)</span> は正しい値です．</p>
+<p><span class="mini-section">符号付き整数（2の補数）の場合：アンダーフローが発生する</span></p>
+<p>8ビットの2の補数で表せるのは <span class="math inline">\(-128\)</span> 〜 <span class="math inline">\(127\)</span> です．<span class="math inline">\(185\)</span> は上限 <span class="math inline">\(127\)</span> を超えているので，そもそも8ビットの符号付き整数として表せません．</p>
+<p>ビット列 <code>1011 1001</code> を2の補数として読むと，<span class="math inline">\(-128 + 57 = -71\)</span> です．つまり加算器が実際に計算しているのは <span class="math inline">\((-71) - 122\)</span> です．</p>
+<ul>
+<li>正しい差 <span class="math inline">\((-71) - 122 = -193\)</span> は，下限 <span class="math inline">\(-128\)</span> を下回る</li>
+<li>「負 − 正 = 正（<span class="math inline">\(+63\)</span>）」と符号が変わっている</li>
+<li>下位7ビットの和 <span class="math inline">\(57 + 6 = 63 &lt; 128\)</span> なので，符号ビットへの桁上げ入力は0．一方，符号ビットは <span class="math inline">\(1 + 1\)</span> で桁上げ出力が1．入力と出力が一致しない</li>
+</ul>
+<p>したがって，<strong>アンダーフロー（負のオーバーフロー）が発生します</strong>．</p>
+</div>
+</div>
+</div>
+<div id="exr-" class="custom_problem blog-custom-border theorem exercise">
+<p><span class="theorem-title"><strong>Problem 12</strong></span> <br></p>
+<p>10進数の <span class="math inline">\(185\)</span> と <span class="math inline">\(122\)</span> について，</p>
+<div class="paren-list">
+<ol type="1">
+<li>8ビットの符号なし整数として <span class="math inline">\(185 + 122\)</span> を計算し，オーバーフロー・アンダーフローが発生するかを理由とともに答えよ</li>
+<li>8ビットの符号付き整数（2の補数表現）として <span class="math inline">\(185 + 122\)</span> を計算し，オーバーフロー・アンダーフローが発生するかを理由とともに答えよ</li>
+</ol>
+</div>
+</div>
+<div class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-12-contents" aria-controls="callout-12" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>Solution (1)
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-12" class="callout-12-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><span class="mini-section"><span class="math inline">\(A + B\)</span> を計算する</span></p>
+<p>2進数への変換は前問と同じです．足し算なので，<span class="math inline">\(B\)</span> をそのまま足します．</p>
+<pre class="text"><code>    1011 1001   (185)
++   0111 1010   (122)
+-------------
+  1 0011 0011   (307 = 256 + 51)
+  ↑ 8ビットからあふれた桁上げ</code></pre>
+<p>桁上げを捨てると，結果のビット列は <code>0011 0011</code> <span class="math inline">\(= 51\)</span> です．このビット列は，符号なしでも符号付きでも同じです．</p>
+<p><span class="mini-section">符号なし整数の場合：オーバーフローが発生する</span></p>
+<ul>
+<li><span class="math inline">\(185\)</span>，<span class="math inline">\(122\)</span> はどちらも <span class="math inline">\(0\)</span> 〜 <span class="math inline">\(255\)</span> の範囲に収まる</li>
+<li>正しい和 <span class="math inline">\(185 + 122 = 307\)</span> は，上限 <span class="math inline">\(255\)</span> を上回る</li>
+<li>加算器では最上位から桁上げが出ている．足し算での桁上げは，結果が8ビットに収まらないことを意味する</li>
+</ul>
+<p>したがって，<strong>オーバーフローが発生します</strong>．結果 <span class="math inline">\(51\)</span> は，正しい和 <span class="math inline">\(307\)</span> から <span class="math inline">\(2^8 = 256\)</span> を引いた値で，正しい値ではありません．</p>
+</div>
+</div>
+</div>
+<div class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-13-contents" aria-controls="callout-13" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>Solution (2)
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-13" class="callout-13-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><span class="mini-section"><span class="math inline">\(A + B\)</span> を計算する</span></p>
+<p>加算器が出力するビット列は (1) と同じ <code>0011 0011</code> で，最上位からの桁上げも1です．</p>
+<pre class="text"><code>    1011 1001   (185 → 符号付きでは −71)
++   0111 1010   (122)
+-------------
+  1 0011 0011   (51)
+  ↑ 桁上げは捨てる</code></pre>
+<p><span class="mini-section">符号付き整数（2の補数）の場合：発生しない</span></p>
+<p>前問と同じく，<span class="math inline">\(185\)</span> は上限 <span class="math inline">\(127\)</span> を超えているので，8ビットの符号付き整数としては表せません．ビット列 <code>1011 1001</code> を2の補数として読むと <span class="math inline">\(-71\)</span> なので，加算器が実際に計算しているのは <span class="math inline">\((-71) + 122\)</span> です．</p>
+<ul>
+<li>正しい和 <span class="math inline">\((-71) + 122 = 51\)</span> は，<span class="math inline">\(-128\)</span> 〜 <span class="math inline">\(127\)</span> の範囲に収まる</li>
+<li>「負 + 正」は符号が異なる数どうしの足し算なので，そもそもオーバーフローは起こりえない</li>
+<li>下位7ビットの和 <span class="math inline">\(57 + 122 = 179 \geq 128\)</span> なので，符号ビットへの桁上げ入力は1．符号ビットは <span class="math inline">\(1 + 0 + 1\)</span> で桁上げ出力も1．入力と出力が一致する</li>
+</ul>
+<p>したがって，オーバーフローもアンダーフローも発生しません．結果 <span class="math inline">\(51\)</span> は <span class="math inline">\((-71) + 122\)</span> の正しい値です．</p>
+</div>
+</div>
+</div>
+</section>
+<section id="論理演算" class="level2">
+<h2 class="anchored" data-anchor-id="論理演算">論理演算</h2>
+<div id="exr-" class="custom_problem blog-custom-border theorem exercise">
+<p><span class="theorem-title"><strong>Problem 13</strong></span> <br></p>
+<p><span class="math inline">\(m\)</span> を正の整数とする．次の2つが同値であることを示せ．</p>
+<div class="paren-list">
+<ol type="1">
+<li>すべての非負整数 <span class="math inline">\(x\)</span> に対して <span class="math inline">\(x \mathbin{\mathrm{AND}} (m-1) = x \bmod m\)</span></li>
+<li><span class="math inline">\(m\)</span> は 2 のべき乗である（ある整数 <span class="math inline">\(k \ge 0\)</span> で <span class="math inline">\(m = 2^k\)</span>）</li>
+</ol>
+</div>
+</div>
+<div class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-14-contents" aria-controls="callout-14" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>Proof
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-14" class="callout-14-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>非負整数 <span class="math inline">\(x\)</span> の2進展開を <span class="math inline">\(x = \sum_{i \ge 0} b_i 2^i\)</span>（<span class="math inline">\(b_i \in \{0,1\}\)</span>）と書きます．</p>
+<p><span class="mini-section">(2) ⇒ (1)</span></p>
+<p><span class="math inline">\(m = 2^k\)</span> とする．<span class="math inline">\(m - 1 = 2^k - 1 = \sum_{i=0}^{k-1} 2^i\)</span> なので，<span class="math inline">\(m-1\)</span> は下位 <span class="math inline">\(k\)</span> ビットがすべて 1，それより上がすべて 0．AND は桁ごとの論理積なので，</p>
+<p><span class="math display">\[
+r := x \mathbin{\mathrm{AND}} (m-1) = \sum_{i=0}^{k-1} b_i 2^i
+\]</span></p>
+<p>となります．この <span class="math inline">\(r\)</span> について次の2点が成り立つ．</p>
+<ul>
+<li>範囲：<span class="math inline">\(0 \le r \le \sum_{i=0}^{k-1} 2^i = 2^k - 1\)</span>，すなわち <span class="math inline">\(0 \le r &lt; m\)</span></li>
+<li>合同：<span class="math inline">\(x - r = \sum_{i \ge k} b_i 2^i = 2^k \sum_{i \ge k} b_i 2^{i-k}\)</span> なので，<span class="math inline">\(x - r\)</span> は <span class="math inline">\(m\)</span> の倍数</li>
+</ul>
+<p>除法の原理より，<span class="math inline">\(x = qm + r\)</span> かつ <span class="math inline">\(0 \le r &lt; m\)</span> を満たす <span class="math inline">\(r\)</span> は一意で， <span class="math inline">\(x \bmod m\)</span> ．よって <span class="math inline">\(x \mathbin{\mathrm{AND}} (m-1) = x \bmod m\)</span> ．</p>
+<p><span class="mini-section">(1) ⇒ (2)</span></p>
+<p>条件 (1) で <span class="math inline">\(x = m\)</span> とおくと，<span class="math inline">\(m \bmod m = 0\)</span> なので</p>
+<p><span class="math display">\[
+m \mathbin{\mathrm{AND}} (m-1) = 0 \quad\cdots (\ast)
+\]</span></p>
+<p>が必要．これが <span class="math inline">\(m\)</span> を 2 のべき乗に限定することを示します．</p>
+<p><span class="math inline">\(m \ge 1\)</span> なので，<span class="math inline">\(m\)</span> の2進展開で 1 が立っている最下位の位を <span class="math inline">\(2^j\)</span> の位とすると，ある整数 <span class="math inline">\(a \ge 0\)</span> を用いて</p>
+<p><span class="math display">\[
+m = a \cdot 2^{j+1} + 2^j
+\]</span></p>
+<p>と書ける．このとき</p>
+<p><span class="math display">\[
+m - 1 = a \cdot 2^{j+1} + (2^j - 1)
+\]</span></p>
+<p>両者を桁ごとに比べる．</p>
+<ul>
+<li><span class="math inline">\(2^{j+1}\)</span> の位以上：どちらも <span class="math inline">\(a\)</span> のビット列で一致するので，AND を取ると <span class="math inline">\(a\)</span> がそのまま残る</li>
+<li><span class="math inline">\(2^j\)</span> の位：<span class="math inline">\(m\)</span> は 1，<span class="math inline">\(m-1\)</span> は 0 なので，AND は 0</li>
+<li><span class="math inline">\(2^{j-1}\)</span> の位以下：<span class="math inline">\(m\)</span> はすべて 0 なので，AND は 0（<span class="math inline">\(j = 0\)</span> のときはこの範囲の位がない）</li>
+</ul>
+<p>したがって <span class="math inline">\(m \mathbin{\mathrm{AND}} (m-1) = a \cdot 2^{j+1}\)</span>．<span class="math inline">\((\ast)\)</span> よりこれが 0 なので <span class="math inline">\(a = 0\)</span>，すなわち <span class="math inline">\(m = 2^j\)</span>．<span class="math inline">\(\blacksquare\)</span></p>
+<p><span class="mini-section">系：2 のべき乗の判定法</span></p>
+<p><span class="math inline">\(m \ge 1\)</span> が 2 のべき乗であることと <span class="math inline">\(m \mathbin{\mathrm{AND}} (m-1) = 0\)</span> は同値．</p>
+<ul>
+<li>2 のべき乗 ⇒ <span class="math inline">\(m \mathbin{\mathrm{AND}} (m-1) = 0\)</span>：(2) ⇒ (1) で <span class="math inline">\(x = m\)</span> とおくと <span class="math inline">\(m \mathbin{\mathrm{AND}} (m-1) = m \bmod m = 0\)</span></li>
+<li><span class="math inline">\(m \mathbin{\mathrm{AND}} (m-1) = 0\)</span> ⇒ 2 のべき乗：(1) ⇒ (2) の後半の議論そのもの</li>
+</ul>
+<p>よって，2 のべき乗の判定式は</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb31"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>(m <span class="op">&amp;</span> (m <span class="op">-</span> <span class="dv">1</span>)) <span class="op">==</span> <span class="dv">0</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</div>
+</div>
+
+
+</section>
+
+</main> <!-- /main -->
+<script>
+    document.querySelectorAll('.custom_problem .theorem-title').forEach((title) => {
+        let modName = title.innerHTML;
+        modName = modName.replace("Exercise", "Problem");
+        modName = modName.replace("Proposition", "Property");
+        modName = modName.replace("Example", "<strong>&#9654;</strong>&nbsp; Example");
+        title.innerHTML = modName;
+    });
+
+    // Rule: 未使用の Corollary (#cor-, lang: ja では「系」) を Rule として表示する
+    document.querySelectorAll('.custom_rule .theorem-title').forEach((title) => {
+        title.innerHTML = title.innerHTML
+            .replace(/^<strong>(系|Corollary)/, "<strong>Rule")
+            .replace(/\s*\((.*)\)<\/strong>$/, ": $1</strong>");
+        // タイトルの後で改行し，本文を次の行から始める
+        title.style.display = "block";
+        title.style.paddingBottom = "0.5em";
+        title.style.fontSize = "1.1em";
+        // 本文がリスト等で始まると Quarto がタイトル後に &nbsp; を残し空行になるため除去する
+        while (title.nextSibling && title.nextSibling.nodeType === Node.TEXT_NODE
+               && title.nextSibling.textContent.trim() === "") {
+            title.nextSibling.remove();
+        }
+        if (!title.nextSibling) {
+            title.parentElement.style.marginBottom = "0";
+        }
+    });
+ </script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const toggle = window.document.createElement('button');
+      toggle.type = "button";
+      toggle.setAttribute("role", "switch");
+      toggle.setAttribute("aria-checked", "false");
+      toggle.classList.add('top-right');
+      toggle.classList.add('quarto-color-scheme-toggle');
+      toggle.setAttribute("aria-label", "ダークモードの切り替え");
+      toggle.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      toggle.appendChild(i);
+      // Put the toggle in a landmark of its own, so that landmark navigation
+      // can reach it.
+      //
+      // The container is always a fresh direct child of body, and the toggle is
+      // never moved into page furniture that the theme or the author controls.
+      // The toggle is positioned against the page, so any ancestor that
+      // establishes a containing block captures it: a positioned element or a
+      // grid for position: absolute, and transform, filter, will-change or
+      // contain for position: fixed. A direct child of body has none of these
+      // to inherit, and the shift when one appears is silent and visual.
+      //
+      // ARIA says a document should have at most one banner, and axe reports a
+      // duplicate whether or not the banners carry distinct labels. So use a
+      // header when the page has no banner yet, and a named region otherwise.
+      //
+      // A header is a banner wherever it sits, unless it is inside sectioning
+      // content, so this cannot just look at the children of body: a custom
+      // page layout wraps the title block header in a plain div. An explicit
+      // role="banner" always counts.
+      const sectioning = 'article, aside, main, nav, section, [role="article"], [role="complementary"], [role="main"], [role="navigation"], [role="region"]';
+      const hasBanner = Array.from(
+        window.document.querySelectorAll('header:not([role]), [role="banner"]')
+      ).some(function(el) {
+        return el.hasAttribute("role") || el.closest(sectioning) === null;
+      });
+      const container = window.document.createElement(hasBanner ? "div" : "header");
+      if (hasBanner) {
+        container.setAttribute("role", "region");
+        container.setAttribute("aria-label", "ダークモードの切り替え");
+      }
+      container.classList.add('quarto-color-scheme-toggle-container');
+      container.appendChild(toggle);
+      window.document.body.appendChild(container);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "コピーしました");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "コピーしました");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/ryonakagami\.github\.io\/regmonkey-datascience-blog");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+      window.quartoDecorateExternalLinks = function (root) {
+     var links = (root || window.document).querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+          if (!link.classList.contains('no-external-icon')) {
+          }
+        }
+      }
+      };
+      window.quartoDecorateExternalLinks(window.document);
+    // Esc closes the popup (WCAG 1.4.13) and focus leaving both trigger and
+    // popup closes it (WCAG 2.4.11); tippy handles neither for interactive popups.
+    const hideOnEscAndFocusOut = {
+      name: 'hideOnEscAndFocusOut',
+      defaultValue: true,
+      fn(instance) {
+        const dismiss = () => {
+          // A show scheduled by the trigger delay would otherwise reopen it
+          instance.clearDelayTimeouts();
+          instance.hide();
+        };
+        const onKeyDown = (event) => {
+          if (event.key !== 'Escape') {
+            return;
+          }
+          // Keep Esc from also reaching page handlers (e.g. reveal.js overview),
+          // except an open reveal.js slide menu, which Esc should close too.
+          // The menu handles keys only when its keyboard option is on.
+          const menuHandlesEsc = window.Reveal?.getPlugin?.('menu')?.isOpen() &&
+            window.Reveal.getConfig().menu?.keyboard !== false;
+          if (!menuHandlesEsc) {
+            event.stopPropagation();
+          }
+          if (instance.popper.contains(window.document.activeElement)) {
+            // Disabled while refocusing so the focus trigger does not reopen it
+            instance.disable();
+            instance.reference.focus();
+            instance.enable();
+          }
+          dismiss();
+        };
+        const onFocusOut = (event) => {
+          const target = event.relatedTarget;
+          if (target && !instance.reference.contains(target) &&
+              !instance.popper.contains(target)) {
+            dismiss();
+          }
+        };
+        // On the trigger too: a click trigger (code-annotations: select) has no
+        // blur handling. Attached for the instance's lifetime so leaving the
+        // trigger also cancels a show still pending on the trigger delay.
+        instance.reference.addEventListener('focusout', onFocusOut);
+        return {
+          onShow() {
+            window.document.addEventListener('keydown', onKeyDown, true);
+            instance.popper.addEventListener('focusout', onFocusOut);
+          },
+          onHide() {
+            window.document.removeEventListener('keydown', onKeyDown, true);
+            instance.popper.removeEventListener('focusout', onFocusOut);
+          },
+          onDestroy() {
+            instance.reference.removeEventListener('focusout', onFocusOut);
+          },
+        };
+      },
+    };
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+        plugins: [hideOnEscAndFocusOut],
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          // Each band is positioned against its own containing block, which is
+          // not the offsetParent of the lines, so place it from client rects.
+          const placeBand = (band, firstEl, lastEl, codeBlock) => {
+            const container = band.offsetParent;
+            if (container === null) {
+              return;
+            }
+            const containerRect = container.getBoundingClientRect();
+            // Reveal.js scales slides with a transform, so convert client
+            // pixels back to the CSS pixels of the container.
+            const scale = containerRect.height / container.offsetHeight || 1;
+            const firstRect = firstEl.getBoundingClientRect();
+            const lastRect = lastEl.getBoundingClientRect();
+            const top = (firstRect.top - containerRect.top) / scale - container.clientTop + container.scrollTop;
+            const height = (lastRect.bottom - firstRect.top) / scale;
+            band.style.top = top - 2 + "px";
+            band.style.height = height + 4 + "px";
+            if (codeBlock) {
+              // Without the copy button wrapper, the containing block is wider
+              // than the code block, so span the code block explicitly.
+              const blockRect = codeBlock.getBoundingClientRect();
+              band.style.left = (blockRect.left - containerRect.left) / scale - container.clientLeft + container.scrollLeft + "px";
+              band.style.width = blockRect.width / scale + "px";
+            }
+          };
+          if (lineIds.length > 0) {
+            const el = window.document.getElementById(lineIds[0]);
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const parent = el.parentElement.parentElement;
+            // cook up a div (if necessary) and position it
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            placeBand(div, el, lastEl, parent.closest("div.sourceCode") || parent);
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            placeBand(gutterDiv, el, lastEl);
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+  <script type="application/javascript">
+  window.quartoScrollableRegionsLabels = {"code":"スクロール可能なコード","output":"スクロール可能な出力"};
+  </script>
+<script src="https://utteranc.es/client.js" repo="RyoNakagami/regmonkey-datascience-blog" issue-term="title" theme="github-light" crossorigin="anonymous" async="">
+</script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+      &nbsp;
+    </div>   
+    <div class="nav-footer-center">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+ © Copyright RyoNak
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="../../LICENSE">
+<p>License</p>
+</a>
+  </li>  
+</ul>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>問題を報告</a></li></ul></div></div>
+    <div class="nav-footer-right">
+      &nbsp;
+    </div>
+  </div>
+</footer>
+    <script type="text/javascript">
+    (function(d) {
+      d.querySelectorAll(".pseudocode-container").forEach(function(el) {
+        let pseudocodeOptions = {
+          indentSize: el.dataset.indentSize || "1.2em",
+          commentDelimiter: el.dataset.commentDelimiter || "//",
+          lineNumber: el.dataset.lineNumber === "true" ? true : false,
+          lineNumberPunc: el.dataset.lineNumberPunc || ":",
+          noEnd: el.dataset.noEnd === "true" ? true : false,
+          titlePrefix: el.dataset.captionPrefix || "Algorithm"
+        };
+        pseudocode.renderElement(el.querySelector(".pseudocode"), pseudocodeOptions);
+      });
+    })(document);
+    (function(d) {
+      d.querySelectorAll(".pseudocode-container").forEach(function(el) {
+        let captionSpan = el.querySelector(".ps-root > .ps-algorithm > .ps-line > .ps-keyword")
+        if (captionSpan !== null) {
+          let captionPrefix = el.dataset.captionPrefix + " ";
+          let captionNumber = "";
+          if (el.dataset.pseudocodeNumber) {
+            captionNumber = el.dataset.pseudocodeNumber + " ";
+            if (el.dataset.chapterLevel) {
+              captionNumber = el.dataset.chapterLevel + "." + captionNumber;
+            }
+          }
+          captionSpan.innerHTML = captionPrefix + captionNumber;
+        }
+      });
+    })(document);
+    </script>
+  
+
+
+
+
+</body></html>
