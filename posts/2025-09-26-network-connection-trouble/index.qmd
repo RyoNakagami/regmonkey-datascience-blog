@@ -2,7 +2,7 @@
 title: "ネットワークトラブルの切り分け"
 author: "Ryo Nakagami"
 date: "2025-09-26"
-date-modified: "2025-09-29"
+date-modified: "2026-11-19"
 categories: [network]
 listing_category: general
 comments:
@@ -239,6 +239,8 @@ IPデータグラムの通信状況を確認するためのネットワーク層
 
 [ICMPヘッダ]{.mini-section}
 
+ICMPメッセージの先頭にはヘッダがあり，タイプとコードの組み合わせでメッセージの意味が決まります．
+
 ```{mermaid}
 block-beta
   columns 3
@@ -253,9 +255,11 @@ block-beta
 
 [主なタイプ一覧]{.mini-section}
 
+タイプは，疎通確認のための問い合わせと応答（Echo Request / Echo Reply）と，通信がうまくいかなかったことを知らせるエラー通知に大きく分かれます．
+
 :::: {.no-border-top-table}
 
-| ICMP Type | NICMPv6 Type| 種類                     |説明                |
+| ICMP Type | ICMPv6 Type | 種類                     |説明                |
 | --------- | ----------- | ------------------------|----------------- |
 | 0         |   129       | Echo Reply              | メッセージが無事に届きました     |
 | 3         |   1         | Destination Unreachable | 宛先に到達できませんでした           |
@@ -265,6 +269,10 @@ block-beta
 : {tbl-colwidths="[15,15,25,45]"}
 
 ::::
+
+[Echo Request と Echo Reply]{.mini-section}
+
+Type 8 と Type 0 は対になって使われます．送信元が Echo Request（Type 8）を送り，受け取った宛先ホストが Echo Reply（Type 0）を返します．`ping` コマンドはこのやりとりを使って，宛先まで通信できるかを確認しています．
 
 ```{mermaid}
 sequenceDiagram
@@ -282,6 +290,26 @@ sequenceDiagram
 
 ```
 
+[エラー通知のICMPメッセージ]{.mini-section}
+
+Echo Request が宛先に届かなかった場合，Echo Reply の代わりに，途中のルーターなどがエラー通知の ICMP メッセージを送信元へ返します．IPヘッダの送信元アドレスを見れば，どの機器がエラーを返したかがわかります．
+
+Linux（iputils）の `ping` は，受け取った ICMP メッセージを Type の番号ではなく種類名で表示します．
+
+:::: {.no-border-top-table}
+
+| ICMP Type | 返ってくる状況 | `ping` の出力例 |
+| --------- | -------------- | --------------- |
+| 0 Echo Reply | 宛先ホストが応答した | `64 bytes from 8.8.8.8: icmp_seq=1 ttl=117 time=5.12 ms`（応答時間の行として表示され，種類名は出ません） |
+| 3 Destination Unreachable | 宛先のネットワークやホストへ届けられない | `From 192.168.1.10 icmp_seq=1 Destination Host Unreachable`（Code によって `Net` / `Port` などに変わります） |
+| 5 Redirect | ルーターがより良い経路を知っている | `From 192.168.1.1: icmp_seq=1 Redirect Host(New nexthop: 192.168.1.254)` |
+| 11 Time Exceeded | 途中のルーターで TTL が 0 になった | `From 10.0.0.1 icmp_seq=1 Time to live exceeded` |
+: {tbl-colwidths="[20,25,55]"}
+
+::::
+
+Type 11 は `ping -t 1 8.8.8.8` のように TTL を 1 にすると簡単に再現できます．`traceroute` は TTL を 1 ずつ増やしながら送信し，各ルーターが返す Time Exceeded の送信元アドレスから経路を調べています．
+
 
 ## Appendix: PPPoE方式
 
@@ -290,29 +318,48 @@ IPv4ではPPPoE接続方式が使用されています．一方，IPv6ではPPPo
 ::: {#def- .custom_problem .blog-custom-border}
 [Point-to-Point Protocol(PPP)]{.def-title}
 
-- 2点間で1対1の通信を行ためのデータリンク層プロトコル
+- 2点間で1対1の通信を行うためのデータリンク層プロトコル
 - データをPPPフレームにカプセル化して伝送
 - 1対1の通信なのでMACアドレスは基本的には使わない
 
 :::
 
-::: {#fig-plot .center}
+PPPは，電話回線を通じてコンピュータをネットワークに接続するダイヤルアップ接続でよく使われてきたプロトコルです．ダイヤルアップ接続では，コンピュータがモデム経由でプロバイダ（ISP）のアクセスサーバに電話をかけ，コンピュータとアクセスサーバの2点間をPPPで接続します．
 
-```{mermaid}
-sequenceDiagram
-    participant A as Computer A
-    participant B as Computer B
+![ダイヤルアップ接続では，コンピュータとアクセスサーバの2点間をPPPで接続する](figures/ppp-dialup.svg){width="100%" fig-align="center"}
 
-    A ->> B: 通信をしたいときは，<br>通信要求を相手に送信
-    B ->> A: 接続する資格を持ったユーザーか確認<br>(ユーザー認証)
-    B ->> A: 通信条件について，相談
-    B ->> A: 通信を開始
+[LCPとNCP]{.mini-section}
 
-    %% 接続
-    Note over A,B: 接続が確立した状態
-```
+PPP通信には，リンク制御プロトコル（LCP）とネットワーク制御プロトコル（NCP）という2つのプロトコルが使われます．
 
-:::
+:::: {.no-border-top-table}
+
+| プロトコル | 役割 |
+| ---------- | ---- |
+| LCP（Link Control Protocol） | リンクの確立・切断，最大フレーム長や認証方式などの通信条件の交渉 |
+| NCP（Network Control Protocol） | 上位のネットワーク層プロトコルごとの設定．IPの場合はIPCPがIPアドレスの割当などを行う |
+: {tbl-colwidths="[35,65]"}
+
+::::
+
+[認証プロトコルと圧縮]{.mini-section}
+
+PPPには，ユーザー認証のための認証プロトコルや，データを圧縮して伝送するための仕組みも規定されています．どの認証方式や圧縮を使うかは，LCPやNCPの交渉で決まります．
+
+:::: {.no-border-top-table}
+
+| 機能 | 内容 |
+| ---- | ---- |
+| PAP（Password Authentication Protocol） | ユーザー名とパスワードをそのまま送って認証する．パスワードが平文で流れる |
+| CHAP（Challenge Handshake Authentication Protocol） | サーバーが送るランダムな値（チャレンジ）とパスワードから計算した値を返して認証する．パスワードそのものは流れない |
+| ヘッダ圧縮 | パケットのヘッダ領域を圧縮して伝送し，低速な回線でも効率よく通信する |
+: {tbl-colwidths="[35,65]"}
+
+::::
+
+接続は次の順に進みます．LCPでリンクを確立したあとにユーザー認証を行い，NCPでIPアドレスなどを設定してから通信を始めます．
+
+![PPPの接続手順．LCPでリンクを確立し，認証のあとNCPでIPアドレスなどを設定する](figures/ppp-sequence.svg){width="75%" fig-align="center"}
 
 [PPPフレーム]{.mini-section}
 
