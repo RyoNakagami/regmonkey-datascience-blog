@@ -177,6 +177,7 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
 <link rel="stylesheet" href="../../styles.css">
 <meta property="og:title" content="ネットワークトラブルの切り分け – regmonkey datascience blog">
 <meta property="og:description" content="日々の徒然勉強日記">
+<meta property="og:image" content="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2025-09-26-network-connection-trouble/figures/ppp-dialup.svg">
 <meta property="og:site_name" content="regmonkey datascience blog">
 </head>
 
@@ -459,7 +460,7 @@ gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
       <div>
       <div class="quarto-title-meta-heading">更新日</div>
       <div class="quarto-title-meta-contents">
-        <p class="date-modified">2025-09-29</p>
+        <p class="date-modified">2026-11-19</p>
       </div>
     </div>
       
@@ -856,6 +857,7 @@ flowchart LR
 </div>
 </div>
 <p><span class="mini-section">ICMPヘッダ</span></p>
+<p>ICMPメッセージの先頭にはヘッダがあり，タイプとコードの組み合わせでメッセージの意味が決まります．</p>
 <div class="cell" data-layout-align="default">
 <div class="cell-output-display">
 <div>
@@ -878,6 +880,7 @@ flowchart LR
 </div>
 </div>
 <p><span class="mini-section">主なタイプ一覧</span></p>
+<p>タイプは，疎通確認のための問い合わせと応答（Echo Request / Echo Reply）と，通信がうまくいかなかったことを知らせるエラー通知に大きく分かれます．</p>
 <div class="no-border-top-table">
 <table class="caption-top table">
 <colgroup>
@@ -889,7 +892,7 @@ flowchart LR
 <thead>
 <tr class="header">
 <th>ICMP Type</th>
-<th>NICMPv6 Type</th>
+<th>ICMPv6 Type</th>
 <th>種類</th>
 <th>説明</th>
 </tr>
@@ -928,6 +931,8 @@ flowchart LR
 </tbody>
 </table>
 </div>
+<p><span class="mini-section">Echo Request と Echo Reply</span></p>
+<p>Type 8 と Type 0 は対になって使われます．送信元が Echo Request（Type 8）を送り，受け取った宛先ホストが Echo Reply（Type 0）を返します．<code>ping</code> コマンドはこのやりとりを使って，宛先まで通信できるかを確認しています．</p>
 <div class="cell" data-layout-align="default">
 <div class="cell-output-display">
 <div>
@@ -953,6 +958,48 @@ flowchart LR
 </div>
 </div>
 </div>
+<p><span class="mini-section">エラー通知のICMPメッセージ</span></p>
+<p>Echo Request が宛先に届かなかった場合，Echo Reply の代わりに，途中のルーターなどがエラー通知の ICMP メッセージを送信元へ返します．IPヘッダの送信元アドレスを見れば，どの機器がエラーを返したかがわかります．</p>
+<p>Linux（iputils）の <code>ping</code> は，受け取った ICMP メッセージを Type の番号ではなく種類名で表示します．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 25%">
+<col style="width: 55%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>ICMP Type</th>
+<th>返ってくる状況</th>
+<th><code>ping</code> の出力例</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>0 Echo Reply</td>
+<td>宛先ホストが応答した</td>
+<td><code>64 bytes from 8.8.8.8: icmp_seq=1 ttl=117 time=5.12 ms</code>（応答時間の行として表示され，種類名は出ません）</td>
+</tr>
+<tr class="even">
+<td>3 Destination Unreachable</td>
+<td>宛先のネットワークやホストへ届けられない</td>
+<td><code>From 192.168.1.10 icmp_seq=1 Destination Host Unreachable</code>（Code によって <code>Net</code> / <code>Port</code> などに変わります）</td>
+</tr>
+<tr class="odd">
+<td>5 Redirect</td>
+<td>ルーターがより良い経路を知っている</td>
+<td><code>From 192.168.1.1: icmp_seq=1 Redirect Host(New nexthop: 192.168.1.254)</code></td>
+</tr>
+<tr class="even">
+<td>11 Time Exceeded</td>
+<td>途中のルーターで TTL が 0 になった</td>
+<td><code>From 10.0.0.1 icmp_seq=1 Time to live exceeded</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Type 11 は <code>ping -t 1 8.8.8.8</code> のように TTL を 1 にすると簡単に再現できます．<code>traceroute</code> は TTL を 1 ずつ増やしながら送信し，各ルーターが返す Time Exceeded の送信元アドレスから経路を調べています．</p>
 </section>
 <section id="appendix-pppoe方式" class="level2">
 <h2 class="anchored" data-anchor-id="appendix-pppoe方式">Appendix: PPPoE方式</h2>
@@ -960,41 +1007,79 @@ flowchart LR
 <div id="def-" class="custom_problem blog-custom-border theorem definition">
 <p><span class="theorem-title"><strong>Definition 2</strong></span> <span class="def-title">Point-to-Point Protocol(PPP)</span></p>
 <ul>
-<li>2点間で1対1の通信を行ためのデータリンク層プロトコル</li>
+<li>2点間で1対1の通信を行うためのデータリンク層プロトコル</li>
 <li>データをPPPフレームにカプセル化して伝送</li>
 <li>1対1の通信なのでMACアドレスは基本的には使わない</li>
 </ul>
 </div>
-<div id="fig-plot" class="center quarto-float quarto-figure quarto-figure-center anchored">
-<figure class="quarto-float quarto-float-fig figure">
-<div aria-describedby="fig-plot-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<div class="cell" data-layout-align="default">
-<div class="cell-output-display">
-<div>
-<p></p><figure class="figure"><p></p>
-<div>
-
-<pre class="mermaid mermaid-js">sequenceDiagram
-    participant A as Computer A
-    participant B as Computer B
-
-    A -&gt;&gt; B: 通信をしたいときは，&lt;br&gt;通信要求を相手に送信
-    B -&gt;&gt; A: 接続する資格を持ったユーザーか確認&lt;br&gt;(ユーザー認証)
-    B -&gt;&gt; A: 通信条件について，相談
-    B -&gt;&gt; A: 通信を開始
-
-    %% 接続
-    Note over A,B: 接続が確立した状態
-</pre>
+<p>PPPは，電話回線を通じてコンピュータをネットワークに接続するダイヤルアップ接続でよく使われてきたプロトコルです．ダイヤルアップ接続では，コンピュータがモデム経由でプロバイダ（ISP）のアクセスサーバに電話をかけ，コンピュータとアクセスサーバの2点間をPPPで接続します．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="figures/ppp-dialup.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+<figcaption>ダイヤルアップ接続では，コンピュータとアクセスサーバの2点間をPPPで接続する</figcaption>
+</figure>
 </div>
-<p></p></figure><p></p>
+<p><span class="mini-section">LCPとNCP</span></p>
+<p>PPP通信には，リンク制御プロトコル（LCP）とネットワーク制御プロトコル（NCP）という2つのプロトコルが使われます．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 35%">
+<col style="width: 65%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>プロトコル</th>
+<th>役割</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>LCP（Link Control Protocol）</td>
+<td>リンクの確立・切断，最大フレーム長や認証方式などの通信条件の交渉</td>
+</tr>
+<tr class="even">
+<td>NCP（Network Control Protocol）</td>
+<td>上位のネットワーク層プロトコルごとの設定．IPの場合はIPCPがIPアドレスの割当などを行う</td>
+</tr>
+</tbody>
+</table>
 </div>
+<p><span class="mini-section">認証プロトコルと圧縮</span></p>
+<p>PPPには，ユーザー認証のための認証プロトコルや，データを圧縮して伝送するための仕組みも規定されています．どの認証方式や圧縮を使うかは，LCPやNCPの交渉で決まります．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 35%">
+<col style="width: 65%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>機能</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>PAP（Password Authentication Protocol）</td>
+<td>ユーザー名とパスワードをそのまま送って認証する．パスワードが平文で流れる</td>
+</tr>
+<tr class="even">
+<td>CHAP（Challenge Handshake Authentication Protocol）</td>
+<td>サーバーが送るランダムな値（チャレンジ）とパスワードから計算した値を返して認証する．パスワードそのものは流れない</td>
+</tr>
+<tr class="odd">
+<td>ヘッダ圧縮</td>
+<td>パケットのヘッダ領域を圧縮して伝送し，低速な回線でも効率よく通信する</td>
+</tr>
+</tbody>
+</table>
 </div>
-</div>
-</div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-plot-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-図&nbsp;2
-</figcaption>
+<p>接続は次の順に進みます．LCPでリンクを確立したあとにユーザー認証を行い，NCPでIPアドレスなどを設定してから通信を始めます．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="figures/ppp-sequence.svg" class="img-fluid figure-img" style="width:75.0%"></p>
+<figcaption>PPPの接続手順．LCPでリンクを確立し，認証のあとNCPでIPアドレスなどを設定する</figcaption>
 </figure>
 </div>
 <p><span class="mini-section">PPPフレーム</span></p>
@@ -1133,7 +1218,7 @@ flowchart LR
 </div>
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-plot-ppp-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-図&nbsp;3
+図&nbsp;2
 </figcaption>
 </figure>
 </div>
