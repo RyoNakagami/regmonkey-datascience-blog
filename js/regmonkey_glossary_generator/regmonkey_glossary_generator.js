@@ -7,10 +7,32 @@ document.addEventListener("DOMContentLoaded", () => {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
-  // Escape first, then re-introduce <code> for inline backticks.
-  // Backticks survive escapeHtml unchanged, so the regex still matches.
-  const renderInline = (s) => escapeHtml(s)
-    .replace(/`([^`]+)`/g, "<code>$1</code>");
+  // Inline code (`...`) becomes <code>; math segments ($$...$$ / $...$ /
+  // \(...\) / \[...\]) are kept as TeX source for MathJax. Both are matched
+  // in one left-to-right pass, so `$x$` inside backticks stays code.
+  const TOKEN_RE = /(`[^`]+`|\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\)|(?<!\\)\$(?:\\\$|[^$\n])+?\$)/;
+
+  // split() with a capture group puts the matched tokens at odd indices.
+  // Everything is HTML-escaped; MathJax reads the TeX from text nodes.
+  const renderInline = (s) => s
+    .split(TOKEN_RE)
+    .map((part, i) => {
+      if (i % 2 === 0) return escapeHtml(part);
+      if (part.startsWith("`")) return `<code>${escapeHtml(part.slice(1, -1))}</code>`;
+      return escapeHtml(part);
+    })
+    .join("");
+
+  // MathJax (loaded with defer) may already have typeset the page before this
+  // handler runs, so typeset the generated glossary explicitly. If MathJax has
+  // not started yet, its initial page typeset will pick the glossary up.
+  const typesetGlossary = (el) => {
+    const mj = window.MathJax;
+    if (!mj || !mj.startup || !mj.startup.promise) return;
+    mj.startup.promise
+      .then(() => mj.typesetPromise([el]))
+      .catch(err => console.error("glossary: MathJax typeset failed", err));
+  };
 
   const indentOf = (line) => {
     const m = line.match(/^[ \t]*/);
@@ -96,6 +118,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     container.innerHTML = "";
     container.appendChild(dl);
+    typesetGlossary(container);
 
   });
 

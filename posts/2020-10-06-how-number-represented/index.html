@@ -1,0 +1,2556 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="ja" xml:lang="ja"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.11.9">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Ryo Nakagami">
+<meta name="dcterms.date" content="2020-10-06">
+
+<title>[再掲載] コンピューターは数値をどう表現しているのか (1) – regmonkey datascience blog</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<link href="../../img/favicon.ico" rel="icon">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/scrollable-regions/scrollable-regions.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-5de16f5e46225c21e2daa90d340bf64f.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark-3218d7d29a29f08bc4fdf3802c3e3ca5.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-5de16f5e46225c21e2daa90d340bf64f.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-af18259a854216f0522d5e7742dba421.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark-165ea26c02c9279d901e121765156747.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../site_libs/bootstrap/bootstrap-af18259a854216f0522d5e7742dba421.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script src="../../site_libs/quarto-contrib/pseudocode-2.4.1/pseudocode.min.js"></script>
+<link href="../../site_libs/quarto-contrib/pseudocode-2.4.1/pseudocode.min.css" rel="stylesheet">
+<script src="../../site_libs/quarto-contrib/glightbox/glightbox.min.js"></script>
+<link href="../../site_libs/quarto-contrib/glightbox/glightbox.min.css" rel="stylesheet">
+<link href="../../site_libs/quarto-contrib/glightbox/lightbox.css" rel="stylesheet">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "一致なし",
+    "search-matching-documents-text": "一致した文書",
+    "search-copy-link-title": "検索へのリンクをコピー",
+    "search-hide-matches-text": "追加の検索結果を非表示",
+    "search-more-match-text": "追加の検索結果",
+    "search-more-matches-text": "追加の検索結果",
+    "search-clear-button-title": "消去",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "取消",
+    "search-submit-button-title": "検索",
+    "search-label": "サーチ"
+  }
+}</script>
+<script async="" src="https://www.googletagmanager.com/gtag/js?id=G-EX9H7GRLTH"></script>
+
+<script type="text/javascript">
+
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
+</script>
+<style>
+
+      .quarto-title-block .quarto-title-banner h1,
+      .quarto-title-block .quarto-title-banner h2,
+      .quarto-title-block .quarto-title-banner h3,
+      .quarto-title-block .quarto-title-banner h4,
+      .quarto-title-block .quarto-title-banner h5,
+      .quarto-title-block .quarto-title-banner h6
+      {
+        color: #ffffff;
+      }
+
+      .quarto-title-block .quarto-title-banner {
+        color: #ffffff;
+      }
+</style>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-M27Z2BWG');</script>
+    <!-- End Google Tag Manager -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&amp;display=swap" rel="stylesheet">
+<script>
+    MathJax = {
+        tex: {
+            inlineMath: [['$','$'], ['\\(','\\)']],
+            displayMath: [['$$','$$'], ['\\[','\\]']],
+            processEscapes: true,
+            processEnvironments: true,
+            tags: 'all',
+        }
+    }
+</script>
+<!-- MathJax 本体は _quarto.yml の html-math-method.url で読み込む -->
+<link rel="stylesheet" href="../../js/regmonkey_glossary_generator/regmonkey_glossary_generator.css">
+<script type="text/javascript" src="../../js/regmonkey_glossary_generator/regmonkey_glossary_generator.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../../styles.css">
+<meta property="og:title" content="[再掲載] コンピューターは数値をどう表現しているのか (1) – regmonkey datascience blog">
+<meta property="og:description" content="日々の徒然勉強日記">
+<meta property="og:image" content="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2020-10-06-how-number-represented/figures/hex-to-binary.svg">
+<meta property="og:site_name" content="regmonkey datascience blog">
+<meta property="og:image:alt" content="16進数の1桁は２進数の4ビットにそのまま置き換えられる">
+</head>
+
+<body class="nav-fixed quarto-light"><a id="quarto-skip-link" class="visually-hidden-focusable" href="#quarto-document-content">メインコンテンツにスキップ</a><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          toggle.setAttribute("aria-checked", alternate ? "true" : "false");
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+    }
+    // Hack to workaround the fact that safari doesn't
+    // properly recolor the scrollbar when toggling (#1455).
+    // Not run on load: stylesheets are set before first paint there, and
+    // scrolling would undo the scroll to a URL fragment (#14973).
+    // The one pixel nudge keeps the reader where they were.
+    const refreshSafariScrollbar = () => {
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        const scrollY = window.scrollY;
+        window.scrollTo(0, scrollY > 0 ? scrollY - 1 : 1);
+        setTimeout(() => {
+          window.scrollTo(0, scrollY);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      refreshSafariScrollbar();
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top quarto-banner">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark" aria-label="ウェブサイト">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">Home</span>
+    </a>
+  </div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="ナビゲーションを切り替える" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-bi-book" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+      <i class="bi bi-book" role="img">
+</i> 
+ <span class="menu-text"></span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-bi-book">    
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/statistics-for-regression-monkey/">
+ <span class="dropdown-text">Statistics Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/python-statisticalpackage-techniques/">
+ <span class="dropdown-text">Python package building Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/regmonkey_datavisualization/">
+ <span class="dropdown-text">Data Visualization Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/regmonkey-presentation/">
+ <span class="dropdown-text">Presentation Blog</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../link_list/link_table.html"> 
+<span class="menu-text">便利リンク集</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../dictionary/dict.html"> 
+<span class="menu-text">備忘録</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../FAQ/faq.html"> 
+<span class="menu-text">FAQ</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../about.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/RyoNakagami/regmonkey-datascience-blog"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="../../index.xml"> <i class="bi bi-rss" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <button type="button" role="switch" aria-checked="false" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="ダークモードの切り替え" aria-label="ダークモードの切り替え"><i class="bi"></i></button>
+</div>
+            <div id="quarto-search" class="" title="サーチ"></div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">[再掲載] コンピューターは数値をどう表現しているのか (1)</h1>
+                                <div class="quarto-categories">
+                <div class="quarto-category">computer</div>
+                <div class="quarto-category">技術</div>
+                <div class="quarto-category">数値計算</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      <div>
+      <div class="quarto-title-meta-heading">作者</div>
+      <div class="quarto-title-meta-contents">
+               <p>Ryo Nakagami </p>
+            </div>
+    </div>
+      
+      <div>
+      <div class="quarto-title-meta-heading">公開</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">2020-10-06</p>
+      </div>
+    </div>
+    
+      <div>
+      <div class="quarto-title-meta-heading">更新日</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date-modified">2026-11-18</p>
+      </div>
+    </div>
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" aria-labelledby="toc-title" class="toc-active">
+    <h2 id="toc-title">目次</h2>
+   
+  <ul>
+  <li><a href="#数値データと２進数" id="toc-数値データと２進数" class="nav-link active" data-scroll-target="#数値データと２進数">数値データと２進数</a>
+  <ul class="collapse">
+  <li><a href="#進数と16進数" id="toc-進数と16進数" class="nav-link" data-scroll-target="#進数と16進数">2進数と16進数</a></li>
+  </ul></li>
+  <li><a href="#コンピューターが情報を２進数で扱う理由" id="toc-コンピューターが情報を２進数で扱う理由" class="nav-link" data-scroll-target="#コンピューターが情報を２進数で扱う理由">コンピューターが情報を２進数で扱う理由</a></li>
+  <li><a href="#算術演算" id="toc-算術演算" class="nav-link" data-scroll-target="#算術演算">算術演算</a>
+  <ul class="collapse">
+  <li><a href="#補数" id="toc-補数" class="nav-link" data-scroll-target="#補数">補数</a></li>
+  <li><a href="#加算と減算" id="toc-加算と減算" class="nav-link" data-scroll-target="#加算と減算">加算と減算</a></li>
+  <li><a href="#シフト演算" id="toc-シフト演算" class="nav-link" data-scroll-target="#シフト演算">シフト演算</a></li>
+  <li><a href="#乗算" id="toc-乗算" class="nav-link" data-scroll-target="#乗算">乗算</a></li>
+  <li><a href="#除算" id="toc-除算" class="nav-link" data-scroll-target="#除算">除算</a></li>
+  </ul></li>
+  <li><a href="#appendix-1の補数表現の加算と循環桁上げ" id="toc-appendix-1の補数表現の加算と循環桁上げ" class="nav-link" data-scroll-target="#appendix-1の補数表現の加算と循環桁上げ">Appendix: 1の補数表現の加算と循環桁上げ</a></li>
+  <li><a href="#appendix-ポケモン金銀のダメージ計算で起きるオーバーフロー" id="toc-appendix-ポケモン金銀のダメージ計算で起きるオーバーフロー" class="nav-link" data-scroll-target="#appendix-ポケモン金銀のダメージ計算で起きるオーバーフロー">Appendix: ポケモン金・銀のダメージ計算で起きるオーバーフロー</a></li>
+  <li><a href="#用語集" id="toc-用語集" class="nav-link" data-scroll-target="#用語集">📘 用語集</a></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>問題を報告</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content" tabindex="-1">
+
+
+
+
+
+
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>TL;DRs
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>コンピューターは内部的に情報を２進数で取り扱う</li>
+<li>コンピューターが取り扱う情報の最小単位を ビット（bit），8ビットをまとめた単位を バイト（byte） と呼ぶ</li>
+<li>負の整数は2の補数で表す．減算は「符号を反転して足す」ことで加算器だけで計算できる</li>
+<li>乗算はシフトと加算，除算はシフトと減算（と引き戻し）の繰り返しで計算する</li>
+</ul>
+</div>
+</div>
+<section id="数値データと２進数" class="level2">
+<h2 class="anchored" data-anchor-id="数値データと２進数">数値データと２進数</h2>
+<p>コンピューターは，数値だけでなく文字・画像・音声などあらゆる情報を，0 と 1 の並びである２進数で表して扱います．２進数の1桁を <strong>ビット（bit）</strong>，8ビットをまとめた単位を <strong>バイト（byte）</strong> と呼びます．メモリの容量やファイルのサイズは，このバイトを単位として数えます．</p>
+<p>コンピューター内部の値を読み解くには，２進数と，私たちが普段使う10進数とを行き来する必要があります．また，プログラムでは２進数を短く書くために16進数もよく使われます．これらの表記は使う数字の種類こそ違いますが，「各桁の数字に，桁の位置で決まる重みを掛けて足し合わせる」という同じ仕組みで数を表しています．たとえば 39 は，10進数では <span class="math inline">\(3 \times 10 + 9\)</span>，２進数では <code>100111</code>，すなわち <span class="math inline">\(1 \times 2^5 + 1 \times 2^2 + 1 \times 2^1 + 1 \times 2^0\)</span> です．</p>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title">r進数</span></p>
+<p><span class="math inline">\(r\)</span> を2以上の整数とする．0 以上 <span class="math inline">\(r-1\)</span> 以下の整数 <span class="math inline">\(a_0, a_1, \ldots, a_{n-1}\)</span> を用いて，非負整数 <span class="math inline">\(N\)</span> を</p>
+<p><span class="math display">\[
+N = a_{n-1} r^{n-1} + a_{n-2} r^{n-2} + \cdots + a_1 r + a_0 = \sum_{i=0}^{n-1} a_i r^i
+\]</span></p>
+<p>と表し，各桁の数字を並べて</p>
+<p><span class="math display">\[
+N = (a_{n-1} a_{n-2} \cdots a_1 a_0)_{(r)}
+\]</span></p>
+<p>と書く表記法を <strong>r進数</strong>（base-<span class="math inline">\(r\)</span> 表記）という．<span class="math inline">\(r\)</span> を <strong>基数</strong>（radix），<span class="math inline">\(r^i\)</span> を第 <span class="math inline">\(i\)</span> 桁の <strong>重み</strong> と呼ぶ．</p>
+</div>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Exmaple 1</strong></span> <span class="def-title">r進数と 10進数の 39 の対応表</span></p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th style="text-align: center;">名称</th>
+<th style="text-align: center;">基数 <span class="math inline">\(r\)</span></th>
+<th style="text-align: left;">使う数字</th>
+<th style="text-align: center;">39 の表記</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;">２進数</td>
+<td style="text-align: center;">2</td>
+<td style="text-align: left;">0, 1</td>
+<td style="text-align: center;"><span class="math inline">\(100111_{(2)}\)</span></td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">8進数</td>
+<td style="text-align: center;">8</td>
+<td style="text-align: left;">0 〜 7</td>
+<td style="text-align: center;"><span class="math inline">\(47_{(8)}\)</span></td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">10進数</td>
+<td style="text-align: center;">10</td>
+<td style="text-align: left;">0 〜 9</td>
+<td style="text-align: center;"><span class="math inline">\(39_{(10)}\)</span></td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">16進数</td>
+<td style="text-align: center;">16</td>
+<td style="text-align: left;">0 〜 9, A 〜 F</td>
+<td style="text-align: center;"><span class="math inline">\(27_{(16)}\)</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+<hr>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Exmaple 2</strong></span> <span class="def-title">ビット数と表せる数の範囲</span></p>
+<p><span class="math inline">\(n\)</span> ビットの0と1の組み合わせは <span class="math inline">\(2^n\)</span> 通りあります．そのため，扱うビット数によって表せる数の範囲が決まります．負の数を考えない場合（符号なし整数），表せる範囲は 0 から <span class="math inline">\(2^n - 1\)</span> までです．</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th style="text-align: center;">ビット数</th>
+<th style="text-align: center;">組み合わせの数</th>
+<th style="text-align: left;">表せる範囲（符号なし整数）</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;">8ビット（1バイト）</td>
+<td style="text-align: center;"><span class="math inline">\(2^8\)</span></td>
+<td style="text-align: left;">0 〜 255</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">16ビット（2バイト）</td>
+<td style="text-align: center;"><span class="math inline">\(2^{16}\)</span></td>
+<td style="text-align: left;">0 〜 65,535</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">32ビット（4バイト）</td>
+<td style="text-align: center;"><span class="math inline">\(2^{32}\)</span></td>
+<td style="text-align: left;">0 〜 4,294,967,295</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">64ビット（8バイト）</td>
+<td style="text-align: center;"><span class="math inline">\(2^{64}\)</span></td>
+<td style="text-align: left;">0 〜 18,446,744,073,709,551,615</td>
+</tr>
+</tbody>
+</table>
+</div>
+<hr>
+<section id="進数と16進数" class="level3">
+<h3 class="anchored" data-anchor-id="進数と16進数">2進数と16進数</h3>
+<p><span class="math inline">\(16 = 2^4\)</span> なので，16進数の1桁は２進数のちょうど4桁（4ビット）に対応します．そのため，16進数と２進数は10進数を経由せずに，1桁ずつ置き換えるだけで変換できます．</p>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Exmaple 3</strong></span> <span class="def-title">16進数 5ED4 を２進数で表す</span></p>
+<p>16進数の各桁を，それぞれ4ビットの２進数に置き換えます．</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th style="text-align: center;">16進数の桁</th>
+<th style="text-align: center;">5</th>
+<th style="text-align: center;">E</th>
+<th style="text-align: center;">D</th>
+<th style="text-align: center;">4</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;">10進数での値</td>
+<td style="text-align: center;">5</td>
+<td style="text-align: center;">14</td>
+<td style="text-align: center;">13</td>
+<td style="text-align: center;">4</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">２進数（4ビット）</td>
+<td style="text-align: center;">0101</td>
+<td style="text-align: center;">1110</td>
+<td style="text-align: center;">1101</td>
+<td style="text-align: center;">0100</td>
+</tr>
+</tbody>
+</table>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/hex-to-binary.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-1" title="16進数の1桁は２進数の4ビットにそのまま置き換えられる"><img src="figures/hex-to-binary.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="16進数の1桁は２進数の4ビットにそのまま置き換えられる"></a></p>
+</figure>
+</div>
+<figcaption>16進数の1桁は２進数の4ビットにそのまま置き換えられる</figcaption>
+</figure>
+</div>
+<p>置き換えた4ビットをそのまま並べると，２進数での表現が得られます．</p>
+<p><span class="math display">\[
+5\text{ED}4_{(16)} = 0101\ 1110\ 1101\ 0100_{(2)}
+\]</span></p>
+<p>この置き換えが成り立つのは，<span class="math inline">\(16^i = 2^{4i}\)</span> だからです．</p>
+<p><span class="math display">\[
+\begin{aligned}
+5\text{ED}4_{(16)} &amp;= 5 \times 16^3 + 14 \times 16^2 + 13 \times 16^1 + 4 \times 16^0\\
+&amp;= 5 \times 2^{12} + 14 \times 2^{8} + 13 \times 2^{4} + 4 \times 2^{0}\\
+&amp;= 24276
+\end{aligned}
+\]</span></p>
+<p>16進数の各桁の値は 0 〜 15，つまり4ビットに収まる大きさなので，<span class="math inline">\(2^{4i}\)</span> を掛けると２進数の第 <span class="math inline">\(4i\)</span> 〜 <span class="math inline">\(4i+3\)</span> 桁にちょうど収まり，隣の桁と重なりません</p>
+</div>
+<hr>
+<p><span class="mini-section">コンピューター内部の値を16進数で表すと都合が良い場面</span></p>
+<p>コンピューター内部の値は２進数なので，そのまま書くと桁数が多くなり，10進数で書くとどのビットが1なのかが見えなくなります．16進数は，２進数のビットの並びを保ったまま桁数を <span class="math inline">\(1/4\)</span> に縮められるため，次のような場面でよく使われます．</p>
+<ul>
+<li><strong>バイト単位のデータを読む</strong>：1バイト（8ビット）は16進数のちょうど2桁になる．メモリやファイルの中身を <code>5E D4</code> のように2桁ずつ区切って表示すれば，バイトの境目がそのまま見える．</li>
+<li><strong>特定のビットの状態を読む</strong>：16進数の1桁が4ビットに独立に対応するので，桁ごとにビットの並びを読み取れる．たとえば <code>0x5ED4</code> の下位4ビットは，最後の桁 <code>4</code> を見るだけで <code>0100</code> とわかる．10進数の 24276 からは，割り算をしないと同じ情報が得られない</li>
+<li><strong>長いアドレスを短く書く</strong>：64ビットのメモリアドレスは，２進数では64桁になるが，16進数なら16桁で書ける</li>
+</ul>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/byte-hex-boundary.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-2" title="16進数では2桁ごとに1バイトの境目が現れる"><img src="figures/byte-hex-boundary.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="16進数では2桁ごとに1バイトの境目が現れる"></a></p>
+</figure>
+</div>
+<figcaption>16進数では2桁ごとに1バイトの境目が現れる</figcaption>
+</figure>
+</div>
+<p>なお，プログラムでは <code>0x5ED4</code> のように先頭に <code>0x</code> を付けて16進数であることを示すのが一般的です．</p>
+</section>
+</section>
+<section id="コンピューターが情報を２進数で扱う理由" class="level2">
+<h2 class="anchored" data-anchor-id="コンピューターが情報を２進数で扱う理由">コンピューターが情報を２進数で扱う理由</h2>
+<p>コンピューターが情報を２進数で扱うのは，コンピューターを構成する部品の物理的な特性によるものです．</p>
+<ul>
+<li>CPUやメモリは IC（集積回路）という電子部品で構成されている．</li>
+<li>ICには外部と信号をやり取りするためのピン（足）が並んでおり，各ピンの電圧は，0V か +5V のように2つの状態のどちらか一方しかとらない</li>
+</ul>
+<p>そこで +5V を 1，0V を 0 に対応づけると，ピン1本で２進数1桁（1ビット）を表せ，8本のピンがあれば２進数8桁（8ビット）の数値を表せます．このように，ICが2つの状態しか区別しないことから，コンピューターの内部では数値が２進数で保持されます．</p>
+<p>なお，+5V は昔の TTL と呼ばれる回路での代表的な値です．現在のCPUのコアは1V前後，DDR5 メモリは1.1Vで動作しています．電圧の値は違っても，2つの電圧で0と1を区別する原理は同じです．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/ic-pin-binary.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-3" title="ICのピンの電圧は0Vか+5Vのどちらかの状態しかとらない"><img src="figures/ic-pin-binary.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="ICのピンの電圧は0Vか+5Vのどちらかの状態しかとらない"></a></p>
+</figure>
+</div>
+<figcaption>ICのピンの電圧は0Vか+5Vのどちらかの状態しかとらない</figcaption>
+</figure>
+</div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>32ビットCPU・64ビットCPUとピンの本数
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>「32ビットCPU」「64ビットCPU」というときのビット数は，CPUが1回の命令で処理できるデータの大きさを表します．一般には，CPU内部にある汎用レジスタのビット数を指します（レジスタについては <a href="../../posts/2020-10-09-cpu-and-programming/index.html">プログラムが動く環境とは (2)</a> を参照）．</p>
+<ul>
+<li>32ビットCPU：汎用レジスタが32ビット．1回の命令で２進数32桁のデータを扱う</li>
+<li>64ビットCPU：汎用レジスタが64ビット．1回の命令で２進数64桁のデータを扱う</li>
+</ul>
+<p>「1本の線で1ビット」という対応はチップの内部でも同じで，64ビットのレジスタは1ビットを記憶する回路を64個並べたものです．ただし，CPUのビット数（内部のレジスタの幅）と，外部とデータをやり取りするピンの本数（データバスの幅）は別に決まります．たとえば Intel 8088 は16ビットCPUですが，データ用のピンは8本しかなく，16ビットのデータを2回に分けて読み書きします．</p>
+</div>
+</div>
+</section>
+<section id="算術演算" class="level2">
+<h2 class="anchored" data-anchor-id="算術演算">算術演算</h2>
+<p>ここからは，２進数で表された整数に対して，コンピューターがどのように四則演算を行っているかを見ていきます．</p>
+<section id="補数" class="level3">
+<h3 class="anchored" data-anchor-id="補数">補数</h3>
+<p>自然数の集合では，加算と乗算は「閉じている」，つまり，どの2つの数を選んで計算しても，結果がまた自然数になります．しかし，減算は閉じていません．たとえば <span class="math inline">\(3−5\)</span> の結果である <span class="math inline">\(−2\)</span> は，自然数ではないからです．</p>
+<p>そこで，減算についても閉じるように，負の数を含めた整数へと集合を広げて考える必要があります．計算機では，この負の数を表すために補数という仕組みを使います．</p>
+<p>負の数を２進数で表すには，「どのビットパターンを負の数に割り当てるか」を決める必要があります．素朴に考えると次の3つの方法があります．</p>
+<ul>
+<li><strong>符号と絶対値</strong>（sign and magnitude）：最上位ビットを符号（0なら正，1なら負）とし，残りのビットで絶対値を表す</li>
+<li><strong>1の補数</strong>（one’s complement）：正の数の全ビットを反転したものを，その負の数とする</li>
+<li><strong>2の補数</strong>（two’s complement）：正の数の全ビットを反転して1を足したものを，その負の数とする</li>
+</ul>
+<p>4ビットのいくつかのビットパターンを，それぞれの方法で読むと次のようになります．</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th style="text-align: center;">ビットパターン</th>
+<th style="text-align: center;">符号と絶対値</th>
+<th style="text-align: center;">1の補数</th>
+<th style="text-align: center;">2の補数</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;"><code>0000</code></td>
+<td style="text-align: center;"><span class="math inline">\(0\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(0\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(0\)</span></td>
+</tr>
+<tr class="even">
+<td style="text-align: center;"><code>0111</code></td>
+<td style="text-align: center;"><span class="math inline">\(7\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(7\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(7\)</span></td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;"><code>1000</code></td>
+<td style="text-align: center;"><span class="math inline">\(-0\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(-7\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(-8\)</span></td>
+</tr>
+<tr class="even">
+<td style="text-align: center;"><code>1001</code></td>
+<td style="text-align: center;"><span class="math inline">\(-1\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(-6\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(-7\)</span></td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;"><code>1110</code></td>
+<td style="text-align: center;"><span class="math inline">\(-6\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(-1\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(-2\)</span></td>
+</tr>
+<tr class="even">
+<td style="text-align: center;"><code>1111</code></td>
+<td style="text-align: center;"><span class="math inline">\(-7\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(-0\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(-1\)</span></td>
+</tr>
+</tbody>
+</table>
+<p>符号と絶対値，および1の補数には，次の欠点があります．</p>
+<ul>
+<li><span class="math inline">\(+0\)</span>（<code>0000</code>）と <span class="math inline">\(-0\)</span>（<code>1000</code> や <code>1111</code>）の2つのゼロができ，ゼロの判定が面倒になる</li>
+<li>符号と絶対値では，加算器が「どちらの符号の結果になるか」を判定する余分な手順を必要とする</li>
+</ul>
+<p>2の補数にはこれらの欠点がありません．ゼロは <code>0000</code> の1つだけで，後で見るように，加算・減算を符号を気にせず同じ回路で計算できます．そのため，現在のコンピューターはほぼすべて，符号付き整数を2の補数で表します．</p>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 2</strong></span> <span class="def-title">2の補数表現</span></p>
+<p><span class="math inline">\(n\)</span> ビットのビットパターン <span class="math inline">\(x_{n-1} x_{n-2} \cdots x_1 x_0\)</span>（各 <span class="math inline">\(x_i\)</span> は 0 か 1）が表す値を</p>
+<p><span class="math display">\[
+x = -x_{n-1} \cdot 2^{n-1} + \sum_{i=0}^{n-2} x_i 2^i
+\]</span></p>
+<p>とする表現法を <strong>2の補数表現</strong> という．最上位ビット <span class="math inline">\(x_{n-1}\)</span> を <strong>符号ビット</strong> と呼ぶ．符号ビットが 0 なら値は 0 以上，1 なら負となる．<span class="math inline">\(n\)</span> ビットの2の補数表現で表せる範囲は <span class="math inline">\(-2^{n-1}\)</span> 以上 <span class="math inline">\(2^{n-1}-1\)</span> 以下である．</p>
+</div>
+<p>符号なし整数との違いは，最上位ビットの重みが <span class="math inline">\(+2^{n-1}\)</span> ではなく <span class="math inline">\(-2^{n-1}\)</span> になっている点だけです．たとえば4ビットの <code>1110</code> は，符号なしで読むと <span class="math inline">\(8+4+2 = 14\)</span>，2の補数で読むと <span class="math inline">\(-8+4+2 = -2\)</span> です．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/twos-complement-wheel.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-4" title="4ビットの16通りのパターンを，2の補数（外側）と符号なし（内側）で読んだ値"><img src="figures/twos-complement-wheel.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:90.0%" alt="4ビットの16通りのパターンを，2の補数（外側）と符号なし（内側）で読んだ値"></a></p>
+</figure>
+</div>
+<figcaption>4ビットの16通りのパターンを，2の補数（外側）と符号なし（内側）で読んだ値</figcaption>
+</figure>
+</div>
+<p>4ビットの16通りのパターンを円周上に並べると，<span class="math inline">\(+1\)</span> は時計回りに1つ進むことに対応します．2の補数では <code>0000</code> から時計回りに <span class="math inline">\(0, 1, \ldots, 7\)</span>，反時計回りに <span class="math inline">\(-1, -2, \ldots, -8\)</span> が並びます．表せる範囲は <span class="math inline">\(-8\)</span> 〜 <span class="math inline">\(7\)</span> で，負の側が1つ多くなっています．</p>
+<p><span class="mini-section">「2の補数」という名前の由来</span></p>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 3</strong></span> <span class="def-title">1の補数と2の補数</span></p>
+<p><span class="math inline">\(n\)</span> ビットで表された非負整数 <span class="math inline">\(x\)</span> に対して，<span class="math inline">\((2^n - 1) - x\)</span> を <span class="math inline">\(x\)</span> の <strong>1の補数</strong>，<span class="math inline">\(2^n - x\)</span> を <span class="math inline">\(x\)</span> の <strong>2の補数</strong> と呼ぶ．</p>
+</div>
+<p><span class="math inline">\(2^n - 1\)</span> は全ビットが1の数（4ビットなら <code>1111</code>）なので，1の補数は <span class="math inline">\(x\)</span> の全ビットを反転したものになります．2の補数は1の補数に1を足したものです．</p>
+<p>2の補数表現では，負の数 <span class="math inline">\(-x\)</span> を，<span class="math inline">\(x\)</span> の2の補数 <span class="math inline">\(2^n - x\)</span> のビットパターンで表します．たとえば4ビットで <span class="math inline">\(-2\)</span> は <span class="math inline">\(2^4 - 2 = 14\)</span>，つまり <code>1110</code> です．<span class="math inline">\(x\)</span> と <span class="math inline">\(2^n - x\)</span> を足すとちょうど <span class="math inline">\(2^n\)</span> になり，<span class="math inline">\(n\)</span> ビットからあふれた桁を捨てると 0 になります．「足すと 0 になる」ので，<span class="math inline">\(2^n - x\)</span> を <span class="math inline">\(-x\)</span> として扱えるわけです．</p>
+<p><span class="mini-section"><span class="math inline">\(n\)</span> ビットで表せる範囲</span></p>
+<p><span class="math inline">\(n\)</span> ビットの <span class="math inline">\(2^n\)</span> 通りのビットパターンを，符号なし整数ではすべて 0 以上の数に，1の補数表現と2の補数表現では半分ずつ負の数と 0 以上の数に割り当てます．表せる範囲は次のとおりです．</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 26%">
+<col style="width: 26%">
+<col style="width: 26%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: center;">ビット数</th>
+<th style="text-align: left;">符号なし整数</th>
+<th style="text-align: left;">1の補数表現</th>
+<th style="text-align: left;">2の補数表現</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;"><span class="math inline">\(n\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(0\)</span> 〜 <span class="math inline">\(2^n - 1\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(-(2^{n-1} - 1)\)</span> 〜 <span class="math inline">\(2^{n-1} - 1\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(-2^{n-1}\)</span> 〜 <span class="math inline">\(2^{n-1} - 1\)</span></td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">4</td>
+<td style="text-align: left;">0 〜 15</td>
+<td style="text-align: left;">−7 〜 7</td>
+<td style="text-align: left;">−8 〜 7</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">8</td>
+<td style="text-align: left;">0 〜 255</td>
+<td style="text-align: left;">−127 〜 127</td>
+<td style="text-align: left;">−128 〜 127</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">16</td>
+<td style="text-align: left;">0 〜 65,535</td>
+<td style="text-align: left;">−32,767 〜 32,767</td>
+<td style="text-align: left;">−32,768 〜 32,767</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">32</td>
+<td style="text-align: left;">0 〜 4,294,967,295</td>
+<td style="text-align: left;">−2,147,483,647 〜 2,147,483,647</td>
+<td style="text-align: left;">−2,147,483,648 〜 2,147,483,647</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">64</td>
+<td style="text-align: left;">0 〜 18,446,744,073,709,551,615</td>
+<td style="text-align: left;">−9,223,372,036,854,775,807 〜 9,223,372,036,854,775,807</td>
+<td style="text-align: left;">−9,223,372,036,854,775,808 〜 9,223,372,036,854,775,807</td>
+</tr>
+</tbody>
+</table>
+<p>符号なし整数と2の補数表現は，どちらも <span class="math inline">\(2^n\)</span> 通りのパターンすべてに異なる数を割り当てます．2の補数表現の範囲が負の側に1つ多いのは，0 を0以上の側（符号ビットが 0 の側）に含めるためです．0 以上の数は <span class="math inline">\(0\)</span> 〜 <span class="math inline">\(2^{n-1} - 1\)</span> の <span class="math inline">\(2^{n-1}\)</span> 個，負の数は <span class="math inline">\(-1\)</span> 〜 <span class="math inline">\(-2^{n-1}\)</span> の <span class="math inline">\(2^{n-1}\)</span> 個です．</p>
+<p>1の補数表現では，全ビットが0のパターンが <span class="math inline">\(+0\)</span>，全ビットが1のパターンが <span class="math inline">\(-0\)</span> となり，2つのパターンが同じ 0 を表します．そのため異なる数は <span class="math inline">\(2^n - 1\)</span> 個しか表せず，範囲は正負対称の <span class="math inline">\(-(2^{n-1} - 1)\)</span> 〜 <span class="math inline">\(2^{n-1} - 1\)</span> になります．</p>
+<div id="thm-" class="custom_problem blog-custom-border theorem">
+<p><span class="theorem-title"><strong>Theorem 1</strong></span> <span class="def-title">符号の反転</span></p>
+<p>2の補数表現の <span class="math inline">\(n\)</span> ビットの数 <span class="math inline">\(x\)</span> について，全ビットを反転した数を <span class="math inline">\(\bar{x}\)</span> とすると</p>
+<p><span class="math display">\[
+-x = \bar{x} + 1
+\]</span></p>
+<p>が成り立つ．</p>
+</div>
+<p><span class="math inline">\(x\)</span> と <span class="math inline">\(\bar{x}\)</span> を足すと，どの桁でも 0 と 1 の組み合わせになるので，結果は全ビットが1の <code>11…1</code> になります．これは2の補数表現では <span class="math inline">\(-1\)</span> です．よって <span class="math inline">\(x + \bar{x} = -1\)</span>，すなわち <span class="math inline">\(-x = \bar{x} + 1\)</span> です．</p>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Exmaple 4</strong></span> <span class="def-title">4ビットで符号を反転する</span></p>
+<ul>
+<li>$2 = $ <code>0010</code> → 反転すると <code>1101</code> → 1を足すと <code>1110</code> <span class="math inline">\(= -2\)</span></li>
+<li>$-2 = $ <code>1110</code> → 反転すると <code>0001</code> → 1を足すと <code>0010</code> <span class="math inline">\(= 2\)</span></li>
+<li>$-8 = $ <code>1000</code> → 反転すると <code>0111</code> → 1を足すと <code>1000</code> <span class="math inline">\(= -8\)</span></li>
+</ul>
+<p>最後の例のように，最小値 <span class="math inline">\(-2^{n-1}\)</span> だけは対応する正の数 <span class="math inline">\(2^{n-1}\)</span> が範囲外なので，符号を反転すると自分自身に戻ってしまいます．</p>
+</div>
+<hr>
+<p><span class="mini-section">符号拡張</span></p>
+<p>8ビットの値を16ビットのレジスタに読み込むときのように，数をより多いビット数で表し直したい場面があります．</p>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 4</strong></span> <span class="def-title">符号拡張とゼロ拡張</span></p>
+<p><span class="math inline">\(n\)</span> ビットの数を <span class="math inline">\(m\)</span> ビット（<span class="math inline">\(m &gt; n\)</span>）で表し直すとき，追加した上位 <span class="math inline">\(m - n\)</span> ビットをすべて元の符号ビットと同じ値で埋める操作を <strong>符号拡張</strong>（sign extension），すべて 0 で埋める操作を <strong>ゼロ拡張</strong>（zero extension）という．</p>
+<ul>
+<li>2の補数表現の符号付き整数には符号拡張</li>
+<li>符号なし整数にはゼロ拡張</li>
+</ul>
+</div>
+<p>符号拡張の例は次のとおりです．</p>
+<ul>
+<li>$2 = $ <code>0010</code>（4ビット）→ <code>0000 0010</code>（8ビット）</li>
+<li>$-2 = $ <code>1110</code>（4ビット）→ <code>1111 1110</code>（8ビット）</li>
+</ul>
+<p>負の数（符号ビットが1）の上位を1で埋めても値が変わらないことは，2の補数表現の定義式から示せます．</p>
+<div id="thm-" class="custom_problem blog-custom-border theorem">
+<p><span class="theorem-title"><strong>Theorem 2</strong></span> <span class="def-title">符号拡張は値を変えない</span></p>
+<p><span class="math inline">\(n\)</span> ビットのビットパターン <span class="math inline">\(x_{n-1} x_{n-2} \cdots x_0\)</span> が2の補数表現で表す値を <span class="math inline">\(x\)</span> とする．<span class="math inline">\(m &gt; n\)</span> とし，上位に <span class="math inline">\(m - n\)</span> 個の <span class="math inline">\(x_{n-1}\)</span> を追加した <span class="math inline">\(m\)</span> ビットのビットパターン <span class="math inline">\(y_{m-1} y_{m-2} \cdots y_0\)</span>，すなわち</p>
+<p><span class="math display">\[
+y_i = \begin{cases} x_i &amp; (0 \leq i \leq n-1) \\ x_{n-1} &amp; (n \leq i \leq m-1) \end{cases}
+\]</span></p>
+<p>が2の補数表現で表す値を <span class="math inline">\(y\)</span> とする．このとき <span class="math inline">\(y = x\)</span> が成り立つ．</p>
+</div>
+<div class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-3-contents" aria-controls="callout-3" aria-expanded="true" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>Proof
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-3" class="callout-3-contents callout-collapse collapse show">
+<div class="callout-body-container callout-body">
+<p>2の補数表現の定義より</p>
+<p><span class="math display">\[
+x = -x_{n-1} \cdot 2^{n-1} + \sum_{i=0}^{n-2} x_i 2^i, \qquad
+y = -y_{m-1} \cdot 2^{m-1} + \sum_{i=0}^{m-2} y_i 2^i
+\]</span></p>
+<p>である．<span class="math inline">\(y\)</span> の和を <span class="math inline">\(0 \leq i \leq n-2\)</span> の部分と <span class="math inline">\(n-1 \leq i \leq m-2\)</span> の部分に分ける．<span class="math inline">\(m &gt; n\)</span> より <span class="math inline">\(n - 1 \leq m - 2\)</span> なので，後者は空ではない．<span class="math inline">\(i \leq n-2\)</span> では <span class="math inline">\(y_i = x_i\)</span>，<span class="math inline">\(i \geq n-1\)</span> では <span class="math inline">\(y_i = x_{n-1}\)</span> なので</p>
+<p><span class="math display">\[
+y = -x_{n-1} \cdot 2^{m-1} + \sum_{i=0}^{n-2} x_i 2^i + x_{n-1} \sum_{i=n-1}^{m-2} 2^i
+\]</span></p>
+<p>となる．最後の和は初項 <span class="math inline">\(2^{n-1}\)</span>，公比 2，項数 <span class="math inline">\(m - n\)</span> の等比数列の和なので</p>
+<p><span class="math display">\[
+\sum_{i=n-1}^{m-2} 2^i = 2^{n-1} \left( 2^{m-n} - 1 \right) = 2^{m-1} - 2^{n-1}
+\]</span></p>
+<p>である．これを代入すると</p>
+<p><span class="math display">\[
+\begin{aligned}
+y &amp;= -x_{n-1} \cdot 2^{m-1} + x_{n-1} \left( 2^{m-1} - 2^{n-1} \right) + \sum_{i=0}^{n-2} x_i 2^i \\
+  &amp;= -x_{n-1} \cdot 2^{n-1} + \sum_{i=0}^{n-2} x_i 2^i \\
+  &amp;= x
+\end{aligned}
+\]</span></p>
+<p>を得る．<span class="math inline">\(\blacksquare\)</span></p>
+</div>
+</div>
+</div>
+</section>
+<section id="加算と減算" class="level3">
+<h3 class="anchored" data-anchor-id="加算と減算">加算と減算</h3>
+<p><span class="mini-section">加算</span></p>
+<p>２進数の加算は，10進数の筆算と同じく，最下位ビットから順に各桁を足し，2になったら上の桁へ1を繰り上げます．<span class="math inline">\(7 + 6\)</span> を8ビットで計算すると次のとおりです．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/add-7-6.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-5" title="8ビットで 7 + 6 を計算する筆算"><img src="figures/add-7-6.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:60.0%" alt="8ビットで 7 + 6 を計算する筆算"></a></p>
+</figure>
+</div>
+<figcaption>8ビットで 7 + 6 を計算する筆算</figcaption>
+</figure>
+</div>
+<p><span class="mini-section">減算は「符号を反転して足す」</span></p>
+<p>減算 <span class="math inline">\(x - y\)</span> は，<span class="math inline">\(y\)</span> の符号を反転して足す <span class="math inline">\(x + (-y)\)</span> として計算します．<span class="math inline">\(7 - 6\)</span> を8ビットで計算すると，<span class="math inline">\(-6\)</span> は <code>0000 0110</code> を反転して1を足した <code>1111 1010</code> です．これを 7 に足すと次のようになります．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/sub-7-6.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-6" title="7 − 6 を 7 + (−6) として計算し，9ビット目の繰り上がりを捨てる"><img src="figures/sub-7-6.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="7 − 6 を 7 + (−6) として計算し，9ビット目の繰り上がりを捨てる"></a></p>
+</figure>
+</div>
+<figcaption>7 − 6 を 7 + (−6) として計算し，9ビット目の繰り上がりを捨てる</figcaption>
+</figure>
+</div>
+<p>8ビットからあふれた9ビット目の1を捨てると，正しい答え 1 が得られます．</p>
+<p>捨ててよい理由は，2の補数の定義から説明できます．<span class="math inline">\(-y\)</span> のビットパターンは <span class="math inline">\(2^n - y\)</span> なので，加算器が実際に計算しているのは <span class="math inline">\(x + (2^n - y) = (x - y) + 2^n\)</span> です．<span class="math inline">\(2^n\)</span> は <span class="math inline">\(n+1\)</span> ビット目の1にあたるので，それを捨てると <span class="math inline">\(x - y\)</span> が残ります．</p>
+<p>この性質のおかげで，CPUは減算専用の回路を持たずに済みます．<span class="math inline">\(y\)</span> の全ビットを反転する回路と，最下位ビットへの繰り上がり入力を1にする仕組みを加算器に付けるだけで，減算も同じ加算器で計算できます．</p>
+<p><span class="mini-section">オーバーフロー</span></p>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 5</strong></span> <span class="def-title">オーバーフロー</span></p>
+<ul>
+<li>演算の正しい結果が <span class="math inline">\(n\)</span> ビットで表せる範囲に収まらないことを <strong>オーバーフロー</strong>（overflow）という．</li>
+<li>表せる範囲は，符号なし整数なら <span class="math inline">\(0\)</span> 以上 <span class="math inline">\(2^n - 1\)</span> 以下，2の補数表現の符号付き整数なら <span class="math inline">\(-2^{n-1}\)</span> 以上 <span class="math inline">\(2^{n-1} - 1\)</span> 以下とする．</li>
+</ul>
+</div>
+<p>4ビットの2の補数で <span class="math inline">\(7 + 1\)</span> を計算すると，<code>0111 + 0001 = 1000</code> となり，結果は <span class="math inline">\(-8\)</span> と読まれてしまいます．上の円の図でいえば，<span class="math inline">\(7\)</span> から時計回りに1つ進んで赤線をまたぎ，<span class="math inline">\(-8\)</span> に移った状態です．</p>
+<p>2の補数の加減算でオーバーフローが起こるのは，次の4つの場合だけです．</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th style="text-align: center;">演算</th>
+<th style="text-align: center;"><span class="math inline">\(A\)</span></th>
+<th style="text-align: center;"><span class="math inline">\(B\)</span></th>
+<th style="text-align: center;">オーバーフローを示す結果</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;"><span class="math inline">\(A + B\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(\geq 0\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(\geq 0\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(&lt; 0\)</span></td>
+</tr>
+<tr class="even">
+<td style="text-align: center;"><span class="math inline">\(A + B\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(&lt; 0\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(&lt; 0\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(\geq 0\)</span></td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;"><span class="math inline">\(A - B\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(\geq 0\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(&lt; 0\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(&lt; 0\)</span></td>
+</tr>
+<tr class="even">
+<td style="text-align: center;"><span class="math inline">\(A - B\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(&lt; 0\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(\geq 0\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(\geq 0\)</span></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>符号の異なる数どうしの加算は，結果の絶対値がどちらのオペランドの絶対値も超えないため，オーバーフローしない</li>
+<li>減算は <span class="math inline">\(A + (-B)\)</span> なので，同じ符号どうしの減算もオーバーフローしない</li>
+</ul>
+<p>同じ符号の数を足したのに結果の符号が変わったときだけがオーバーフローです．回路の上では，「符号ビットへの繰り上がり入力」と「符号ビットからの繰り上がり出力」が一致しないことで検出できます．</p>
+<p>符号なし整数では，最上位ビットからの繰り上がり出力が1になったとき（加算），または借りが生じたとき（減算）がオーバーフローです．円の図では，破線の <span class="math inline">\(15 \to 0\)</span> の境目をまたぐことに対応します．</p>
+<p>オーバーフローの扱いは命令セットや言語によって異なります．</p>
+<ul>
+<li>MIPS：<code>add</code>・<code>sub</code> はオーバーフローで例外を発生させ，<code>addu</code>・<code>subu</code> は無視する</li>
+<li>x86-64：例外は発生させず，フラグレジスタの OF（符号付き）と CF（符号なし）を立てる．必要ならプログラムがフラグを調べて分岐する</li>
+<li>C言語：符号なし整数の演算結果は mod <span class="math inline">\(2^n\)</span> で折り返す（<span class="math inline">\(x \bmod m\)</span> は <span class="math inline">\(x\)</span> を <span class="math inline">\(m\)</span> で割った余り．例：8ビットなら <span class="math inline">\((255 + 1) \bmod 256 = 0\)</span>）．符号付き整数のオーバーフローは未定義動作</li>
+</ul>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>NumPy の整数型はオーバーフローすると折り返す
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Python の <code>int</code> は必要に応じて桁数を増やすためオーバーフローしませんが，NumPy の整数型は固定長の2の補数表現です．たとえば <code>int8</code> の配列で <code>127 + 1</code> を計算すると，警告なしに <code>-128</code> になります．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>a <span class="op">=</span> np.array([<span class="dv">127</span>], dtype<span class="op">=</span>np.int8)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(a <span class="op">+</span> np.int8(<span class="dv">1</span>))  <span class="co"># [-128]</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>ビットで見ると，<code>0111 1111</code>（127）に1を足すと繰り上がりが符号ビットまで伝わり，<code>1000 0000</code> になります．2の補数ではこれは <span class="math inline">\(-128\)</span> です．実際，<code>0111 1111</code> と <code>1000 0000</code> を足すと <code>1111 1111</code> <span class="math inline">\(= -1\)</span> となり，<span class="math inline">\(127 + (-128) = -1\)</span> が成り立ちます．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/int8-overflow.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-7" title="int8 で 127 に 1 を足すと 1000 0000（-128）になり，127 と足すと -1 になる"><img src="figures/int8-overflow.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="int8 で 127 に 1 を足すと 1000 0000（-128）になり，127 と足すと -1 になる"></a></p>
+</figure>
+</div>
+<figcaption>int8 で 127 に 1 を足すと 1000 0000（-128）になり，127 と足すと -1 になる</figcaption>
+</figure>
+</div>
+<p>件数の集計やIDの演算で小さい整数型を使うと，結果が気づかないうちに折り返すことがあります．値の範囲に余裕のある型（<code>int64</code> など）を選ぶのが安全です．</p>
+</div>
+</div>
+</section>
+<section id="シフト演算" class="level3">
+<h3 class="anchored" data-anchor-id="シフト演算">シフト演算</h3>
+<p>シフト演算は，ビットの並び全体を左または右へずらす演算です．</p>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 6</strong></span> <span class="def-title">シフト演算</span></p>
+<p><span class="math inline">\(n\)</span> ビットのビット列の各ビットを，<span class="math inline">\(k\)</span> ビットだけ上位（左）または下位（右）へ移す演算を <strong>シフト演算</strong> という．範囲外に出た <span class="math inline">\(k\)</span> ビットは捨て，空いた <span class="math inline">\(k\)</span> ビットに入れる値によって次の3種類に分ける．</p>
+<ul>
+<li><strong>論理左シフト</strong>：下位（右端）の空きを 0 で埋める</li>
+<li><strong>論理右シフト</strong>：上位（左端）の空きを 0 で埋める</li>
+<li><strong>算術右シフト</strong>：上位（左端）の空きを元の符号ビットで埋める</li>
+</ul>
+</div>
+<p>左シフトでは空きが下位側にできるため，符号ビットを気にする必要がありません．算術左シフトは論理左シフトと同じ操作になるので（x86-64 の <code>sal</code> と <code>shl</code> は同じ命令です），区別しないのが一般的です．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/shift-operations.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-8" title="論理左シフト・論理右シフト・算術右シフトで2ビットずらしたときのビットの動き"><img src="figures/shift-operations.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:70.0%" alt="論理左シフト・論理右シフト・算術右シフトで2ビットずらしたときのビットの動き"></a></p>
+</figure>
+</div>
+<figcaption>論理左シフト・論理右シフト・算術右シフトで2ビットずらしたときのビットの動き</figcaption>
+</figure>
+</div>
+<p><span class="mini-section">シフトと2のべき乗の乗除算</span></p>
+<p>10進数で数を左に1桁ずらすと10倍になるのと同じく，２進数を左に1ビットずらすと2倍になります．<span class="math inline">\(x = \sum_i a_i 2^i\)</span> を <span class="math inline">\(k\)</span> ビット左にずらすと，各ビットの重みが <span class="math inline">\(2^i\)</span> から <span class="math inline">\(2^{i+k}\)</span> に変わるので</p>
+<p><span class="math display">\[
+\sum_i a_i 2^{i+k} = 2^k \sum_i a_i 2^i = 2^k x
+\]</span></p>
+<p>となります．たとえば $9 = $ <code>0000 1001</code> を4ビット左シフトすると <code>1001 0000</code> <span class="math inline">\(= 144 = 9 \times 2^4\)</span> です．ただし上位からあふれたビットに1が含まれていると，正しい積にはなりません．</p>
+<p>逆に右へ <span class="math inline">\(k\)</span> ビットずらすと，<span class="math inline">\(2^k\)</span> で割って小数点以下を切り捨てた値になります．符号なし整数には論理右シフトを使います．符号付き整数の場合，論理右シフトでは符号ビットに 0 が入って負の数が正の数に変わってしまうため，符号ビットを複製する算術右シフトを使います．図の (c) では <span class="math inline">\(-20\)</span> を2ビット算術右シフトして <span class="math inline">\(-5\)</span> を得ています．</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th style="text-align: left;">演算</th>
+<th style="text-align: center;">MIPS</th>
+<th style="text-align: center;">x86-64</th>
+<th style="text-align: center;">C言語 / Python</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">論理左シフト</td>
+<td style="text-align: center;"><code>sll</code></td>
+<td style="text-align: center;"><code>shl</code></td>
+<td style="text-align: center;"><code>&lt;&lt;</code></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">論理右シフト</td>
+<td style="text-align: center;"><code>srl</code></td>
+<td style="text-align: center;"><code>shr</code></td>
+<td style="text-align: center;">符号なし型の <code>&gt;&gt;</code></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">算術右シフト</td>
+<td style="text-align: center;"><code>sra</code></td>
+<td style="text-align: center;"><code>sar</code></td>
+<td style="text-align: center;">符号付き型の <code>&gt;&gt;</code></td>
+</tr>
+</tbody>
+</table>
+<p>C言語で負の符号付き整数を右シフトした結果は処理系定義ですが，主要なコンパイラは算術右シフトを使います．Python の <code>&gt;&gt;</code> は常に算術右シフトとして振る舞います．</p>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">重要</span>算術右シフトは負の数の整数除算と一致しない
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>算術右シフトで <span class="math inline">\(k\)</span> ビットずらす操作は，<span class="math inline">\(2^k\)</span> で割って <strong>小さい方へ</strong> 丸める（床関数）ことにあたります．一方，C言語などの整数除算は <strong>0 の方へ</strong> 丸めます．両者は負の数で食い違います．</p>
+<ul>
+<li><span class="math inline">\(-5\)</span> を8ビットで表すと <code>1111 1011</code>．2ビット算術右シフトすると <code>1111 1110</code> <span class="math inline">\(= -2\)</span></li>
+<li>C言語の <code>-5 / 4</code> は <span class="math inline">\(-1.25\)</span> を0の方へ丸めて <span class="math inline">\(-1\)</span></li>
+</ul>
+<p>そのため，コンパイラが「2のべき乗による符号付き除算」をシフトに置き換えるときは，負の数に補正を加えた命令列を生成します．なお Python の <code>-5 // 4</code> は床関数で丸めるので <span class="math inline">\(-2\)</span> となり，<code>-5 &gt;&gt; 2</code> と一致します．</p>
+</div>
+</div>
+</section>
+<section id="乗算" class="level3">
+<h3 class="anchored" data-anchor-id="乗算">乗算</h3>
+<p>２進数の乗算も10進数の筆算と同じ手順で計算できます．<span class="math inline">\(8 \times 9\)</span> を4ビットどうしで計算すると次のとおりです．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/mul-8x9.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-9" title="8 × 9 の筆算．乗数のビットが1の桁だけ被乗数をずらして足す"><img src="figures/mul-8x9.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:85.0%" alt="8 × 9 の筆算．乗数のビットが1の桁だけ被乗数をずらして足す"></a></p>
+</figure>
+</div>
+<figcaption>8 × 9 の筆算．乗数のビットが1の桁だけ被乗数をずらして足す</figcaption>
+</figure>
+</div>
+<p>筆算の各段に並ぶ数を，次のように定式化します．</p>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 7</strong></span> <span class="def-title">部分積</span></p>
+<p>被乗数を <span class="math inline">\(a\)</span>，乗数を <span class="math inline">\(n\)</span> ビットの <span class="math inline">\(b = \sum_{i=0}^{n-1} b_i 2^i\)</span>（各 <span class="math inline">\(b_i\)</span> は 0 か 1）とすると，積は</p>
+<p><span class="math display">\[
+a \times b = \sum_{i=0}^{n-1} b_i \,(a \times 2^i)
+\]</span></p>
+<p>と書ける．各項 <span class="math inline">\(b_i \,(a \times 2^i)\)</span> を <strong>部分積</strong> と呼ぶ．部分積は，<span class="math inline">\(b_i = 1\)</span> なら被乗数を <span class="math inline">\(i\)</span> ビット左シフトしたもの，<span class="math inline">\(b_i = 0\)</span> なら 0 である．</p>
+</div>
+<p>乗数の各桁は 0 か 1 なので，筆算の各段（部分積）は「被乗数をずらして書く」か「0 を書く」かのどちらかです．つまり２進数の乗算は，<strong>乗数のビットが1の桁について，被乗数を左にずらしたものを足し合わせる</strong> 操作です．<span class="math inline">\(n\)</span> ビットと <span class="math inline">\(m\)</span> ビットの積は最大で <span class="math inline">\(n + m\)</span> ビットになるので，<span class="math inline">\(n\)</span> ビットどうしの積を正確に保持するには <span class="math inline">\(2n\)</span> ビットが必要です．</p>
+<p><span class="mini-section">乗算のハードウェア</span></p>
+<p>筆算の手順をそのまま回路にしたのが次の構成です．被乗数レジスタは <span class="math inline">\(2n\)</span> ビットで，被乗数を右半分に置いた状態から始めます．積レジスタは 0 で初期化します．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/multiply-hardware.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-10" title="シフトと加算を繰り返す乗算ハードウェアの構成"><img src="figures/multiply-hardware.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:90.0%" alt="シフトと加算を繰り返す乗算ハードウェアの構成"></a></p>
+</figure>
+</div>
+<figcaption>シフトと加算を繰り返す乗算ハードウェアの構成</figcaption>
+</figure>
+</div>
+<p>制御回路は次の手順を <span class="math inline">\(n\)</span> 回繰り返します．</p>
+<ol type="1">
+<li>乗数の最下位ビットを調べる．1なら，積レジスタに被乗数レジスタの値を足す．0なら何もしない</li>
+<li>被乗数レジスタを左に1ビットシフトする（筆算で次の段を1桁左へずらすことにあたる）</li>
+<li>乗数レジスタを右に1ビットシフトする（次の桁が最下位ビットに来る）</li>
+</ol>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/multiply-flow.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-11" title="乗算ハードウェアの制御回路が繰り返す手順"><img src="figures/multiply-flow.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:85.0%" alt="乗算ハードウェアの制御回路が繰り返す手順"></a></p>
+</figure>
+</div>
+<figcaption>乗算ハードウェアの制御回路が繰り返す手順</figcaption>
+</figure>
+</div>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Exmaple 5</strong></span> <span class="def-title"><span class="math inline">\(2 \times 3\)</span> を4ビットで計算する</span></p>
+<p>乗数 <code>0011</code>（3），被乗数 <code>0010</code>（2）として，上の手順を4回繰り返します．</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 27%">
+<col style="width: 18%">
+<col style="width: 18%">
+<col style="width: 24%">
+<col style="width: 12%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: center;">繰り返し</th>
+<th style="text-align: left;">手順</th>
+<th style="text-align: center;">乗数</th>
+<th style="text-align: center;">被乗数</th>
+<th style="text-align: center;">積</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;">0</td>
+<td style="text-align: left;">初期値</td>
+<td style="text-align: center;"><code>0011</code></td>
+<td style="text-align: center;"><code>0000 0010</code></td>
+<td style="text-align: center;"><code>0000 0000</code></td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">1</td>
+<td style="text-align: left;">1. 最下位ビットが1 → 積 ＋ 被乗数</td>
+<td style="text-align: center;"><code>0011</code></td>
+<td style="text-align: center;"><code>0000 0010</code></td>
+<td style="text-align: center;"><code>0000 0010</code></td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;"></td>
+<td style="text-align: left;">2. 被乗数を左シフト</td>
+<td style="text-align: center;"><code>0011</code></td>
+<td style="text-align: center;"><code>0000 0100</code></td>
+<td style="text-align: center;"><code>0000 0010</code></td>
+</tr>
+<tr class="even">
+<td style="text-align: center;"></td>
+<td style="text-align: left;">3. 乗数を右シフト</td>
+<td style="text-align: center;"><code>0001</code></td>
+<td style="text-align: center;"><code>0000 0100</code></td>
+<td style="text-align: center;"><code>0000 0010</code></td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">2</td>
+<td style="text-align: left;">1. 最下位ビットが1 → 積 ＋ 被乗数</td>
+<td style="text-align: center;"><code>0001</code></td>
+<td style="text-align: center;"><code>0000 0100</code></td>
+<td style="text-align: center;"><code>0000 0110</code></td>
+</tr>
+<tr class="even">
+<td style="text-align: center;"></td>
+<td style="text-align: left;">2. 被乗数を左シフト</td>
+<td style="text-align: center;"><code>0001</code></td>
+<td style="text-align: center;"><code>0000 1000</code></td>
+<td style="text-align: center;"><code>0000 0110</code></td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;"></td>
+<td style="text-align: left;">3. 乗数を右シフト</td>
+<td style="text-align: center;"><code>0000</code></td>
+<td style="text-align: center;"><code>0000 1000</code></td>
+<td style="text-align: center;"><code>0000 0110</code></td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">3</td>
+<td style="text-align: left;">1. 最下位ビットが0 → 何もしない</td>
+<td style="text-align: center;"><code>0000</code></td>
+<td style="text-align: center;"><code>0000 1000</code></td>
+<td style="text-align: center;"><code>0000 0110</code></td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;"></td>
+<td style="text-align: left;">2. 被乗数を左シフト</td>
+<td style="text-align: center;"><code>0000</code></td>
+<td style="text-align: center;"><code>0001 0000</code></td>
+<td style="text-align: center;"><code>0000 0110</code></td>
+</tr>
+<tr class="even">
+<td style="text-align: center;"></td>
+<td style="text-align: left;">3. 乗数を右シフト</td>
+<td style="text-align: center;"><code>0000</code></td>
+<td style="text-align: center;"><code>0001 0000</code></td>
+<td style="text-align: center;"><code>0000 0110</code></td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">4</td>
+<td style="text-align: left;">1. 最下位ビットが0 → 何もしない</td>
+<td style="text-align: center;"><code>0000</code></td>
+<td style="text-align: center;"><code>0001 0000</code></td>
+<td style="text-align: center;"><code>0000 0110</code></td>
+</tr>
+<tr class="even">
+<td style="text-align: center;"></td>
+<td style="text-align: left;">2. 被乗数を左シフト</td>
+<td style="text-align: center;"><code>0000</code></td>
+<td style="text-align: center;"><code>0010 0000</code></td>
+<td style="text-align: center;"><code>0000 0110</code></td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;"></td>
+<td style="text-align: left;">3. 乗数を右シフト</td>
+<td style="text-align: center;"><code>0000</code></td>
+<td style="text-align: center;"><code>0010 0000</code></td>
+<td style="text-align: center;"><code>0000 0110</code></td>
+</tr>
+</tbody>
+</table>
+<p>最終的な積は <code>0000 0110</code> <span class="math inline">\(= 6\)</span> です．</p>
+</div>
+<hr>
+<p><span class="mini-section">改良と高速化</span></p>
+<p>上の構成は仕組みを理解するためのもので，実際には次のような改良が加えられています．</p>
+<ul>
+<li><strong>被乗数を動かさず積をずらす</strong>：被乗数を左へずらす代わりに積レジスタを右へずらせば，被乗数レジスタと加算器は <span class="math inline">\(n\)</span> ビットで済む．さらに，積レジスタの右半分は最初は使われていないので，そこに乗数を入れておけば乗数レジスタも不要になる</li>
+<li><strong>加算を並列に行う</strong>：乗数の各ビットに対応する部分積は互いに独立なので，加算器を木の形に並べて同時に足し合わせれば，<span class="math inline">\(n\)</span> 回の逐次加算を約 <span class="math inline">\(\log_2 n\)</span> 段の加算にできる</li>
+</ul>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/multiply-hardware-improved.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-12" title="被乗数を動かさず積レジスタを右へずらす乗算ハードウェアの構成"><img src="figures/multiply-hardware-improved.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:90.0%" alt="被乗数を動かさず積レジスタを右へずらす乗算ハードウェアの構成"></a></p>
+</figure>
+</div>
+<figcaption>被乗数を動かさず積レジスタを右へずらす乗算ハードウェアの構成</figcaption>
+</figure>
+</div>
+<p><span class="mini-section">符号付き整数の乗算と定数倍</span></p>
+<p>符号付き整数の乗算の最も簡単な方法は，被乗数と乗数をそれぞれ正の数に直して掛け，元の符号が異なっていれば最後に積の符号を反転することです．実際のハードウェアでは，2の補数のまま計算できる <strong>ブースのアルゴリズム</strong>（Booth’s algorithm）などが使われます．</p>
+<p><span class="math inline">\(n\)</span> ビットどうしの積は <span class="math inline">\(2n\)</span> ビットになるため，命令セットは積の上位半分の扱いを決めています．MIPS の <code>mult</code> は64ビットの積を <code>Hi</code>・<code>Lo</code> という2つのレジスタに分けて格納し，x86-64 の <code>mul</code>・<code>imul</code>（1オペランド形式）は128ビットの積を <code>rdx</code> と <code>rax</code> に格納します．C言語の <code>int</code> どうしの乗算のように結果を <span class="math inline">\(n\)</span> ビットに収める場合は，上位半分が捨てられ，収まらなければオーバーフローになります．</p>
+<p>また，定数を掛ける乗算はシフトと加算で置き換えられます．たとえば <span class="math inline">\(x \times 10 = x \times 8 + x \times 2\)</span> なので，<code>(x &lt;&lt; 3) + (x &lt;&lt; 1)</code> で計算できます．コンパイラは，乗算命令より速い場合にこの置き換えを行います．</p>
+</section>
+<section id="除算" class="level3">
+<h3 class="anchored" data-anchor-id="除算">除算</h3>
+<p><span class="mini-section">筆算で考える</span></p>
+<p>まず符号なし整数の除算を考えます．</p>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 8</strong></span> <span class="def-title">符号なし整数の除算</span></p>
+<p>非負整数 <span class="math inline">\(a\)</span> と正の整数 <span class="math inline">\(b\)</span> に対して</p>
+<p><span class="math display">\[
+a = q \times b + r, \qquad 0 \leq r &lt; b
+\]</span></p>
+<p>を満たす非負整数の組 <span class="math inline">\((q, r)\)</span> はただ1つ存在する．<span class="math inline">\(q\)</span> を <span class="math inline">\(a \div b\)</span> の <strong>商</strong>，<span class="math inline">\(r\)</span> を <strong>剰余</strong> と呼び，<span class="math inline">\(a\)</span> を <strong>被除数</strong>，<span class="math inline">\(b\)</span> を <strong>除数</strong> という．</p>
+</div>
+<p><span class="math inline">\(74 \div 8\)</span> を２進数の筆算で計算すると次のとおりです．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/div-74-8.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-13" title="74 ÷ 8 の筆算．引けるなら商に1，引けないなら0を立てる"><img src="figures/div-74-8.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:90.0%" alt="74 ÷ 8 の筆算．引けるなら商に1，引けないなら0を立てる"></a></p>
+</figure>
+</div>
+<figcaption>74 ÷ 8 の筆算．引けるなら商に1，引けないなら0を立てる</figcaption>
+</figure>
+</div>
+<p>10進数の筆算では商の各桁を 0〜9 から試行錯誤して選びますが，２進数では商の各桁は 0 か 1 しかありません．<strong>除数が今の部分被除数から引けるなら商の桁は 1 で引き算を行い，引けないなら 0</strong> とするだけです．</p>
+<p><span class="mini-section">除算のハードウェア</span></p>
+<p>コンピューターは「引けるかどうか」を事前に判定せず，まず実際に引いてみて，結果が負になったら除数を足し戻して元に戻します．</p>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 9</strong></span> <span class="def-title">引き戻し法</span></p>
+<p>途中の剰余から除数を引き，結果が 0 以上なら商のビットを 1 とし，負なら除数を足し戻して途中の剰余を元に戻したうえで商のビットを 0 とする．この操作を商の上位ビットから1ビットずつ繰り返す除算の方式を <strong>引き戻し法</strong>（restoring division）という．</p>
+</div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/divide-hardware.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-14" title="引き算と引き戻しを繰り返す除算ハードウェアの構成"><img src="figures/divide-hardware.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:90.0%" alt="引き算と引き戻しを繰り返す除算ハードウェアの構成"></a></p>
+</figure>
+</div>
+<figcaption>引き算と引き戻しを繰り返す除算ハードウェアの構成</figcaption>
+</figure>
+</div>
+<p><span class="math inline">\(2n\)</span> ビットの剰余レジスタの右半分に被除数を，<span class="math inline">\(2n\)</span> ビットの除数レジスタの左半分に除数を入れ，商レジスタを 0 で初期化してから，制御回路が次の手順を <span class="math inline">\(n + 1\)</span> 回繰り返します．</p>
+<ol type="1">
+<li>剰余レジスタから除数レジスタの値を引き，結果を剰余レジスタに書き込む</li>
+<li>剰余の符号ビットを調べる
+<ul>
+<li>剰余 <span class="math inline">\(\geq 0\)</span> なら，商レジスタを左に1ビットシフトし，最下位ビットを 1 にする</li>
+<li>剰余 <span class="math inline">\(&lt; 0\)</span> なら，剰余に除数を足して元の値に戻し，商レジスタを左に1ビットシフトして最下位ビットを 0 にする</li>
+</ul></li>
+<li>除数レジスタを右に1ビットシフトする</li>
+</ol>
+<p>繰り返しが <span class="math inline">\(n\)</span> 回ではなく <span class="math inline">\(n+1\)</span> 回なのは，除数を左半分（<span class="math inline">\(2^n\)</span> 倍の位置）から動かし始めるためです．被除数は <span class="math inline">\(n\)</span> ビットなので <span class="math inline">\(2^n\)</span> 未満で，除数の <span class="math inline">\(2^n\)</span> 倍より必ず小さくなります．したがって1回目の商ビットは常に 0 です．このビットは，その後の <span class="math inline">\(n\)</span> 回の左シフトで <span class="math inline">\(n\)</span> ビットの商レジスタの外へ押し出されます．</p>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Exmaple 6</strong></span> <span class="def-title"><span class="math inline">\(7 \div 2\)</span> を4ビットで計算する</span></p>
+<p>被除数 <code>0111</code>（7），除数 <code>0010</code>（2）として，上の手順を5回繰り返します．各手順のうち「1.」の行は，引き算の直後の剰余を示しています．</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 29%">
+<col style="width: 19%">
+<col style="width: 12%">
+<col style="width: 19%">
+<col style="width: 19%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: center;">繰り返し</th>
+<th style="text-align: left;">手順</th>
+<th style="text-align: center;">商</th>
+<th style="text-align: center;">除数</th>
+<th style="text-align: center;">剰余</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;">0</td>
+<td style="text-align: left;">初期値</td>
+<td style="text-align: center;"><code>0000</code></td>
+<td style="text-align: center;"><code>0010 0000</code></td>
+<td style="text-align: center;"><code>0000 0111</code></td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">1</td>
+<td style="text-align: left;">1. 剰余 − 除数</td>
+<td style="text-align: center;"><code>0000</code></td>
+<td style="text-align: center;"><code>0010 0000</code></td>
+<td style="text-align: center;"><code>1110 0111</code></td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;"></td>
+<td style="text-align: left;">2. 負 → 除数を足し戻す，商に 0</td>
+<td style="text-align: center;"><code>0000</code></td>
+<td style="text-align: center;"><code>0010 0000</code></td>
+<td style="text-align: center;"><code>0000 0111</code></td>
+</tr>
+<tr class="even">
+<td style="text-align: center;"></td>
+<td style="text-align: left;">3. 除数を右シフト</td>
+<td style="text-align: center;"><code>0000</code></td>
+<td style="text-align: center;"><code>0001 0000</code></td>
+<td style="text-align: center;"><code>0000 0111</code></td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">2</td>
+<td style="text-align: left;">1. 剰余 − 除数</td>
+<td style="text-align: center;"><code>0000</code></td>
+<td style="text-align: center;"><code>0001 0000</code></td>
+<td style="text-align: center;"><code>1111 0111</code></td>
+</tr>
+<tr class="even">
+<td style="text-align: center;"></td>
+<td style="text-align: left;">2. 負 → 除数を足し戻す，商に 0</td>
+<td style="text-align: center;"><code>0000</code></td>
+<td style="text-align: center;"><code>0001 0000</code></td>
+<td style="text-align: center;"><code>0000 0111</code></td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;"></td>
+<td style="text-align: left;">3. 除数を右シフト</td>
+<td style="text-align: center;"><code>0000</code></td>
+<td style="text-align: center;"><code>0000 1000</code></td>
+<td style="text-align: center;"><code>0000 0111</code></td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">3</td>
+<td style="text-align: left;">1. 剰余 − 除数</td>
+<td style="text-align: center;"><code>0000</code></td>
+<td style="text-align: center;"><code>0000 1000</code></td>
+<td style="text-align: center;"><code>1111 1111</code></td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;"></td>
+<td style="text-align: left;">2. 負 → 除数を足し戻す，商に 0</td>
+<td style="text-align: center;"><code>0000</code></td>
+<td style="text-align: center;"><code>0000 1000</code></td>
+<td style="text-align: center;"><code>0000 0111</code></td>
+</tr>
+<tr class="even">
+<td style="text-align: center;"></td>
+<td style="text-align: left;">3. 除数を右シフト</td>
+<td style="text-align: center;"><code>0000</code></td>
+<td style="text-align: center;"><code>0000 0100</code></td>
+<td style="text-align: center;"><code>0000 0111</code></td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">4</td>
+<td style="text-align: left;">1. 剰余 − 除数</td>
+<td style="text-align: center;"><code>0000</code></td>
+<td style="text-align: center;"><code>0000 0100</code></td>
+<td style="text-align: center;"><code>0000 0011</code></td>
+</tr>
+<tr class="even">
+<td style="text-align: center;"></td>
+<td style="text-align: left;">2. 0以上 → 商に 1</td>
+<td style="text-align: center;"><code>0001</code></td>
+<td style="text-align: center;"><code>0000 0100</code></td>
+<td style="text-align: center;"><code>0000 0011</code></td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;"></td>
+<td style="text-align: left;">3. 除数を右シフト</td>
+<td style="text-align: center;"><code>0001</code></td>
+<td style="text-align: center;"><code>0000 0010</code></td>
+<td style="text-align: center;"><code>0000 0011</code></td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">5</td>
+<td style="text-align: left;">1. 剰余 − 除数</td>
+<td style="text-align: center;"><code>0001</code></td>
+<td style="text-align: center;"><code>0000 0010</code></td>
+<td style="text-align: center;"><code>0000 0001</code></td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;"></td>
+<td style="text-align: left;">2. 0以上 → 商に 1</td>
+<td style="text-align: center;"><code>0011</code></td>
+<td style="text-align: center;"><code>0000 0010</code></td>
+<td style="text-align: center;"><code>0000 0001</code></td>
+</tr>
+<tr class="even">
+<td style="text-align: center;"></td>
+<td style="text-align: left;">3. 除数を右シフト</td>
+<td style="text-align: center;"><code>0011</code></td>
+<td style="text-align: center;"><code>0000 0001</code></td>
+<td style="text-align: center;"><code>0000 0001</code></td>
+</tr>
+</tbody>
+</table>
+<p>商は <code>0011</code> <span class="math inline">\(= 3\)</span>，剰余は <code>0001</code> <span class="math inline">\(= 1\)</span> となり，<span class="math inline">\(7 = 3 \times 2 + 1\)</span> が得られます．</p>
+</div>
+<hr>
+<p>乗算と同じく，実際のハードウェアでは除数を動かさずに剰余レジスタを左へずらし，商のビットを剰余レジスタの右半分に詰めていくことで，加減算器とレジスタを <span class="math inline">\(n\)</span> ビットに減らしています．また，負になっても足し戻さずに次の段で除数を足す <strong>引き放し法</strong>（nonrestoring division）や，1段で商を複数ビットずつ求める SRT 除算などの高速化手法もあります．ただし乗算と違って，「前の段の剰余の符号を見てから次の段を決める」という依存関係があるため，除算は並列化が難しく，乗算より時間のかかる演算です．</p>
+<p><span class="mini-section">符号付き整数の除算</span></p>
+<p>符号付き整数の除算も，乗算と同じく被除数と除数を正の数に直して割り，あとから商と剰余の符号を決めます．符号の決め方は次のように定めます．</p>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 10</strong></span> <span class="def-title">符号付き整数の除算（0方向への丸め）</span></p>
+<p>整数 <span class="math inline">\(a\)</span> と 0 でない整数 <span class="math inline">\(b\)</span> に対して，<span class="math inline">\(a \div b\)</span> の商 <span class="math inline">\(q\)</span> と剰余 <span class="math inline">\(r\)</span> を</p>
+<p><span class="math display">\[
+q = \operatorname{sgn}(a)\operatorname{sgn}(b) \left\lfloor \frac{|a|}{|b|} \right\rfloor, \qquad r = a - q \times b
+\]</span></p>
+<p>とする．ここで <span class="math inline">\(\operatorname{sgn}\)</span> は符号関数（正なら <span class="math inline">\(1\)</span>，負なら <span class="math inline">\(-1\)</span>，0 なら <span class="math inline">\(0\)</span>）とする．このとき <span class="math inline">\(|r| &lt; |b|\)</span> であり，<span class="math inline">\(r \neq 0\)</span> なら剰余 <span class="math inline">\(r\)</span> の符号は <strong>被除数 <span class="math inline">\(a\)</span> の符号と一致する</strong>．</p>
+</div>
+<p>つまり，商は被除数と除数の符号が異なれば負になり，剰余は被除数と同じ符号になります．</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th style="text-align: center;">被除数</th>
+<th style="text-align: center;">除数</th>
+<th style="text-align: center;">商</th>
+<th style="text-align: center;">剰余</th>
+<th style="text-align: left;">検算</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;"><span class="math inline">\(+7\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(+2\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(+3\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(+1\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(+7 = (+3)(+2) + 1\)</span></td>
+</tr>
+<tr class="even">
+<td style="text-align: center;"><span class="math inline">\(-7\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(+2\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(-3\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(-1\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(-7 = (-3)(+2) - 1\)</span></td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;"><span class="math inline">\(+7\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(-2\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(-3\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(+1\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(+7 = (-3)(-2) + 1\)</span></td>
+</tr>
+<tr class="even">
+<td style="text-align: center;"><span class="math inline">\(-7\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(-2\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(+3\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(-1\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(-7 = (+3)(-2) - 1\)</span></td>
+</tr>
+</tbody>
+</table>
+<p><span class="math inline">\(-7 \div 2\)</span> は「商 <span class="math inline">\(-4\)</span>，剰余 <span class="math inline">\(+1\)</span>」としても <span class="math inline">\(-7 = (-4) \times 2 + 1\)</span> を満たします．しかしそうすると，<span class="math inline">\(7 \div 2\)</span> の商 <span class="math inline">\(3\)</span> と <span class="math inline">\(-7 \div 2\)</span> の商 <span class="math inline">\(-4\)</span> とで絶対値が変わり，<span class="math inline">\(-(x \div y) = (-x) \div y\)</span> が成り立たなくなります．剰余の符号を被除数に合わせると，商の絶対値は符号によらず一定になります（商を0の方へ丸めることと同じです）．</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>言語によって符号付き除算の丸め方が違う
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>C言語（C99 以降）や Java はハードウェアと同じく商を0の方へ丸めるため，<code>-7 / 2</code> は <code>-3</code>，<code>-7 % 2</code> は <code>-1</code> です．一方 Python の <code>//</code> と <code>%</code> は商を小さい方へ丸め，剰余を <strong>除数と同じ符号</strong> にするため，<code>-7 // 2</code> は <code>-4</code>，<code>-7 % 2</code> は <code>1</code> になります．負の値を含むデータで剰余を使ってグループ分けや周期の計算をするときは，この違いに注意が必要です．</p>
+</div>
+</div>
+<p><span class="mini-section">ゼロ除算とオーバーフロー</span></p>
+<p>除算には，加減算や乗算にない例外的なケースがあります．</p>
+<ul>
+<li><strong>ゼロ除算</strong>：MIPS はハードウェアではゼロ除算を検出せず，ソフトウェアで除数を検査する．x86-64 の <code>div</code>・<code>idiv</code> はゼロ除算で例外を発生させる</li>
+<li><strong>符号付き除算のオーバーフロー</strong>：最小値を <span class="math inline">\(-1\)</span> で割った <span class="math inline">\(-2^{n-1} \div (-1) = 2^{n-1}\)</span> は <span class="math inline">\(n\)</span> ビットの2の補数で表せない．x86-64 ではこの場合も例外になる</li>
+</ul>
+</section>
+</section>
+<section id="appendix-1の補数表現の加算と循環桁上げ" class="level2">
+<h2 class="anchored" data-anchor-id="appendix-1の補数表現の加算と循環桁上げ">Appendix: 1の補数表現の加算と循環桁上げ</h2>
+<p>1の補数表現の欠点は「0の表現が2つある」ことです．4ビットでは <code>0000</code> が <span class="math inline">\(+0\)</span>，<code>1111</code> が <span class="math inline">\(-0\)</span> です．この欠点はゼロの判定だけでなく，加算の定義も面倒にします．</p>
+<p><span class="mini-section">2の補数と同じ加算器では結果がずれる</span></p>
+<p>2の補数表現では，ビットパターンを符号なし整数として足し，最上位ビットからあふれた桁上げを捨てれば正しい結果が得られました．同じ手順を1の補数表現で行うと，次のようになります．</p>
+<ul>
+<li><code>1111</code>（<span class="math inline">\(-0\)</span>）＋ <code>0001</code>（<span class="math inline">\(1\)</span>）＝ <code>1 0000</code>．5ビット目を捨てると <code>0000</code>（<span class="math inline">\(+0\)</span>）．<span class="math inline">\(-0 + 1\)</span> は <span class="math inline">\(1\)</span> になるべきなので，<span class="math inline">\(1\)</span> だけ小さい</li>
+<li><code>1110</code>（<span class="math inline">\(-1\)</span>）＋ <code>0011</code>（<span class="math inline">\(3\)</span>）＝ <code>1 0001</code>．5ビット目を捨てると <code>0001</code>（<span class="math inline">\(1\)</span>）．正しい結果は <span class="math inline">\(2\)</span> なので，やはり <span class="math inline">\(1\)</span> だけ小さい</li>
+</ul>
+<p>2つ目の例が示すとおり，ずれは <span class="math inline">\(-0\)</span> に限った話ではありません．<strong>最上位ビットから桁上げが出ると，結果は必ず正しい値より <span class="math inline">\(1\)</span> 小さくなります</strong>．なお2の補数表現では <code>1111</code> は <span class="math inline">\(-1\)</span> なので，<code>1111</code> ＋ <code>0001</code> ＝ <code>0000</code>（<span class="math inline">\(0\)</span>）は正しい結果です．</p>
+<p><span class="mini-section">ずれる理由：mod が違う</span></p>
+<p>ずれの原因は，1の補数表現と加算器とで，値を同一視するときの mod が違うことにあります．</p>
+<div id="thm-" class="custom_problem blog-custom-border theorem">
+<p><span class="theorem-title"><strong>Theorem 3</strong></span> <span class="def-title">1の補数表現は mod <span class="math inline">\(2^n - 1\)</span> の表現である</span></p>
+<p><span class="math inline">\(n\)</span> ビットの1の補数表現で値 <span class="math inline">\(v\)</span> を表すビットパターンを，符号なし整数として読んだ値を <span class="math inline">\(P\)</span> とする．このとき</p>
+<p><span class="math display">\[
+P \equiv v \pmod{2^n - 1}
+\]</span></p>
+<p>が成り立つ．</p>
+</div>
+<p><span class="math inline">\(v \geq 0\)</span> なら <span class="math inline">\(P = v\)</span> です．<span class="math inline">\(v &lt; 0\)</span> なら，パターンは <span class="math inline">\(|v|\)</span> の全ビットを反転したもの，つまり <span class="math inline">\(|v|\)</span> の1の補数なので <span class="math inline">\(P = (2^n - 1) - |v| = (2^n - 1) + v\)</span> となり，<span class="math inline">\(P\)</span> と <span class="math inline">\(v\)</span> の差は <span class="math inline">\(2^n - 1\)</span> です．<span class="math inline">\(-0\)</span> を表す <code>1…1</code> も <span class="math inline">\(P = 2^n - 1 \equiv 0\)</span> なので，同じ式に当てはまります．</p>
+<p>一方，<span class="math inline">\(n\)</span> ビットの加算器は mod <span class="math inline">\(2^n\)</span> で計算します．最上位ビットからの桁上げを捨てる操作は，和から <span class="math inline">\(2^n\)</span> を引くことにあたります．2の補数表現はパターンと値が mod <span class="math inline">\(2^n\)</span> で一致するので，<span class="math inline">\(2^n\)</span> を引いても値は変わりません．ところが1の補数表現で正しい結果を得るには，引いてよいのは <span class="math inline">\(2^n - 1\)</span> までです．<span class="math inline">\(2^n\)</span> を引くと引きすぎになり，</p>
+<p><span class="math display">\[
+(P_a + P_b) - 2^n \equiv a + b - 1 \pmod{2^n - 1}
+\]</span></p>
+<p>と，結果が <span class="math inline">\(1\)</span> だけ小さくなります．</p>
+<p><span class="mini-section">循環桁上げ（end-around carry）</span></p>
+<p>引きすぎた <span class="math inline">\(1\)</span> を戻せば，正しい結果になります．</p>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 11</strong></span> <span class="def-title">循環桁上げ</span></p>
+<p>1の補数表現の加算で，最上位ビットから桁上げが出たとき，それを捨てずに結果の最下位ビットに足し戻す操作を <strong>循環桁上げ</strong>（end-around carry）と呼ぶ．</p>
+</div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/ones-complement-add.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-15" title="1111 + 0001 は桁上げを捨てると +0 になり，循環桁上げで 1 になる"><img src="figures/ones-complement-add.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="1111 + 0001 は桁上げを捨てると +0 になり，循環桁上げで 1 になる"></a></p>
+</figure>
+</div>
+<figcaption>1111 + 0001 は桁上げを捨てると +0 になり，循環桁上げで 1 になる</figcaption>
+</figure>
+</div>
+<p>先ほどの2つ目の例も，<code>0001</code> に桁上げの <span class="math inline">\(1\)</span> を足して <code>0010</code>（<span class="math inline">\(2\)</span>）となり，正しい結果が得られます．足し戻したときに再び桁上げが出ることはありません．<span class="math inline">\(P_a, P_b \leq 2^n - 1\)</span> なので，桁上げを捨てた値は <span class="math inline">\(P_a + P_b - 2^n \leq 2^n - 2\)</span> で，<span class="math inline">\(1\)</span> を足しても <span class="math inline">\(2^n - 1\)</span> 以下に収まるからです．</p>
+<p>回路としては，加算器の最上位ビットの桁上げ出力を最下位ビットの桁上げ入力につなげば実現できます．ただし，桁上げが加算器を2周する場合があります．たとえば <code>1100</code>（<span class="math inline">\(-3\)</span>）＋ <code>1011</code>（<span class="math inline">\(-4\)</span>）＝ <code>1 0111</code> では，桁上げを足し戻した <code>0111</code> ＋ <code>1</code> で再び下位から上位まで桁上げが伝わり，<code>1000</code>（<span class="math inline">\(-7\)</span>）になります．そのぶん，2の補数の加算器より結果が確定するまでの時間が長くなります．</p>
+<p><span class="mini-section">結果の 0 も2通りある</span></p>
+<p>加算の結果としても <span class="math inline">\(-0\)</span> が現れます．<code>0011</code>（<span class="math inline">\(3\)</span>）＋ <code>1100</code>（<span class="math inline">\(-3\)</span>）＝ <code>1111</code> で，桁上げが出ないのでそのまま <span class="math inline">\(-0\)</span> になります．そのため「結果が 0 か」「2つの値が等しいか」を判定する回路は，<code>0000</code> と <code>1111</code> の両方を 0 として扱う必要があります．2の補数表現なら，<code>0011</code> ＋ <code>1101</code> ＝ <code>1 0000</code> の桁上げを捨てた <code>0000</code> だけが 0 です．</p>
+<p>このように1の補数表現は，加算に循環桁上げという余分な手順を必要とし，ゼロの判定も2通り必要になります．2の補数表現が広く使われるようになった理由の1つです．ただし1の補数の和は，バイトの並び順に依存しないなどの性質から，IPv4・TCP・UDP のヘッダのチェックサム（RFC 1071）で今も使われています．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/ones-complement-byteorder.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-16" title="同じバイト列を上位・下位のどちらから読んでも，1の補数の和はバイトが入れ替わるだけ"><img src="figures/ones-complement-byteorder.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:90.0%" alt="同じバイト列を上位・下位のどちらから読んでも，1の補数の和はバイトが入れ替わるだけ"></a></p>
+</figure>
+</div>
+<figcaption>同じバイト列を上位・下位のどちらから読んでも，1の補数の和はバイトが入れ替わるだけ</figcaption>
+</figure>
+</div>
+<hr>
+</section>
+<section id="appendix-ポケモン金銀のダメージ計算で起きるオーバーフロー" class="level2">
+<h2 class="anchored" data-anchor-id="appendix-ポケモン金銀のダメージ計算で起きるオーバーフロー">Appendix: ポケモン金・銀のダメージ計算で起きるオーバーフロー</h2>
+<p>本文で扱ったシフト演算・1バイトの乗除算・オーバーフローがすべて登場する実例として，ゲームボーイ版『ポケットモンスター 金・銀』（1999年）のダメージ計算で起きるオーバーフローがあります．「はらだいこ」を使った「ふといほね」持ちのガラガラが，育てきるとかえってほとんどダメージを与えられなくなるという，対戦で知られた現象です．</p>
+<p><span class="mini-section">前提：ダメージ計算は1バイトの乗除算で行われる</span></p>
+<p>ゲームボーイのCPUは8ビットCPUで，レジスタは1つ8ビット（1バイト）です．2つのレジスタを組にすると，16ビットの値も扱えます．能力値（攻撃力・防御力など）は最大 999 なので，16ビットで保持されています．</p>
+<p>一方，ダメージ計算に使われる乗算・除算のサブルーチンは，<strong>乗数と除数を1バイト（0〜255）で受け取ります</strong>．本文の乗算ハードウェアでいえば，乗数レジスタが8ビットしかない状態です．そのため，攻撃力と防御力は，ダメージ計算に入る前に1バイトに収めておく必要があります．</p>
+<p><span class="mini-section">攻撃力・防御力を1バイトに収める処理</span></p>
+<p>金・銀では，この処理を次のように行います．</p>
+<div id="def-" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 12</strong></span> <span class="def-title">金・銀における能力値の切り詰め</span></p>
+<p>ダメージ計算に使う攻撃力を <span class="math inline">\(A\)</span>，防御力を <span class="math inline">\(D\)</span>（どちらも16ビットの非負整数）とする．</p>
+<ol type="1">
+<li><span class="math inline">\(A \geq 256\)</span> または <span class="math inline">\(D \geq 256\)</span> なら，<span class="math inline">\(A\)</span> と <span class="math inline">\(D\)</span> の <strong>両方</strong> を4で割り，小数点以下を切り捨てる（結果が 0 なら 1 とする）．この割り算は1回だけ行う</li>
+<li>1の結果の <strong>下位8ビットだけ</strong> を攻撃力・防御力として使う．つまり <span class="math inline">\(A \bmod 256\)</span> と <span class="math inline">\(D \bmod 256\)</span> を使う</li>
+</ol>
+</div>
+<p>この2つの手順は，どちらもビット操作として実現されています．</p>
+<ul>
+<li><strong>4で割る</strong>：16ビットの値全体を2ビット論理右シフトする．本文のシフト演算の節で見たとおり，これは <span class="math inline">\(2^2 = 4\)</span> で割って小数点以下を切り捨てることにあたる．このとき上位バイトの下位2ビットは，下位バイトの上位2ビットへ移る</li>
+<li><strong>下位8ビットだけを使う</strong>：上位バイトをそのまま捨てる．上位バイトが 0 でなければ，捨てた分（<span class="math inline">\(256\)</span> の倍数）だけ値が小さくなる．つまり，結果は元の値の mod 256 になる</li>
+</ul>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/truncate-16bit.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-17" title="16ビットの1998を2ビット右シフトして499にし，上位バイトを捨てると243になる"><img src="figures/truncate-16bit.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="16ビットの1998を2ビット右シフトして499にし，上位バイトを捨てると243になる"></a></p>
+</figure>
+</div>
+<figcaption>16ビットの1998を2ビット右シフトして499にし，上位バイトを捨てると243になる</figcaption>
+</figure>
+</div>
+<p>この処理は，「能力値は 999 を超えない」という前提で設計されています．<span class="math inline">\(\lfloor 999 / 4 \rfloor = 249 \leq 255\)</span> なので，前提が守られていれば4で1回割った時点で上位バイトは必ず 0 になり，上位バイトを捨てても情報は失われません．</p>
+<p><span class="mini-section">上限 999 をすり抜ける2倍の補正</span></p>
+<p>ところが，この前提を破る経路があります．</p>
+<ul>
+<li><strong>はらだいこ</strong>：HPを最大HPの半分だけ消費して，攻撃のランクを最大の +6 まで上げる技．金・銀のランク補正は +6 で 4倍（400%）．ランク補正を掛けた能力値には 999 の上限が掛かる</li>
+<li><strong>ふといほね</strong>：カラカラ・ガラガラに持たせると攻撃力が2倍になる道具．</li>
+</ul>
+<p>問題は，ふといほねの2倍が <strong>999 の上限を掛けた後，ダメージ計算の直前に</strong> 掛けられ，そこで上限を掛け直していないことです．そのため，ダメージ計算に渡る攻撃力は最大で <span class="math inline">\(999 \times 2 = 1998\)</span> になり，<span class="math inline">\(\lfloor 1998 / 4 \rfloor = 499\)</span> と，4で1回割っても1バイトに収まりません．</p>
+<p>同じ理由で，防御側の「リフレクター」（防御力を2倍にする技）も 999 の上限を掛けた後に2倍するため，防御力の側でも同じオーバーフローが起こります．</p>
+<p><span class="mini-section">ガラガラの攻撃力はいくつになるか</span></p>
+<p>レベル50のガラガラの攻撃力の実数値は，最大まで育てると 131 です（種族値 80，個体値 15，努力値最大）．実数値を <span class="math inline">\(A_0\)</span> として，はらだいこ（4倍）とふといほね（2倍）を掛けた後の流れを追うと次のようになります．</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 18%">
+<col style="width: 18%">
+<col style="width: 18%">
+<col style="width: 13%">
+<col style="width: 30%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: center;">実数値 <span class="math inline">\(A_0\)</span></th>
+<th style="text-align: center;">はらだいこ後</th>
+<th style="text-align: center;">ふといほね後</th>
+<th style="text-align: center;"><span class="math inline">\(\div 4\)</span></th>
+<th style="text-align: center;">実際に使われる攻撃力</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;">100</td>
+<td style="text-align: center;">400</td>
+<td style="text-align: center;">800</td>
+<td style="text-align: center;">200</td>
+<td style="text-align: center;"><strong>200</strong></td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">127</td>
+<td style="text-align: center;">508</td>
+<td style="text-align: center;">1016</td>
+<td style="text-align: center;">254</td>
+<td style="text-align: center;"><strong>254</strong></td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">128</td>
+<td style="text-align: center;">512</td>
+<td style="text-align: center;">1024</td>
+<td style="text-align: center;">256</td>
+<td style="text-align: center;"><strong>0</strong></td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">129</td>
+<td style="text-align: center;">516</td>
+<td style="text-align: center;">1032</td>
+<td style="text-align: center;">258</td>
+<td style="text-align: center;"><strong>2</strong></td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">131</td>
+<td style="text-align: center;">524</td>
+<td style="text-align: center;">1048</td>
+<td style="text-align: center;">262</td>
+<td style="text-align: center;"><strong>6</strong></td>
+</tr>
+</tbody>
+</table>
+<p>はらだいこ後が 999 以下である限り，実際に使われる攻撃力は <span class="math inline">\(\lfloor 8A_0 / 4 \rfloor \bmod 256 = 2A_0 \bmod 256\)</span> です．実数値が 127 までは正しく 254 以下に収まりますが，128 以上になると <span class="math inline">\(2A_0\)</span> が 256 以上になって mod 256 で折り返し，攻撃力はほぼ 0 になります．つまり，<strong>実数値が 128〜131 のよく育てたガラガラほど弱くなる</strong> という逆転が起きます．本文の円の図でいえば，最大値 255 から時計回りに1つ進んで 0 に戻ったのと同じ状態です．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/marowak-overflow.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-18" title="実数値128のガラガラの攻撃力は，ふといほねで1024になり，4で割った後の下位8ビットが0になる"><img src="figures/marowak-overflow.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="実数値128のガラガラの攻撃力は，ふといほねで1024になり，4で割った後の下位8ビットが0になる"></a></p>
+</figure>
+</div>
+<figcaption>実数値128のガラガラの攻撃力は，ふといほねで1024になり，4で割った後の下位8ビットが0になる</figcaption>
+</figure>
+</div>
+<p><span class="mini-section">ダメージへの影響</span></p>
+<p>金・銀のダメージ計算は，ソースコードの処理順に書くと次のとおりです．各段階の割り算はすべて小数点以下を切り捨てます．</p>
+<p><span class="math display">\[
+\text{基礎ダメージ} = \min\!\left(997,\ \left\lfloor \frac{1}{50} \left\lfloor \frac{\left(\lfloor 2L / 5 \rfloor + 2\right) \times P \times A}{D} \right\rfloor \right\rfloor \right) + 2
+\]</span></p>
+<p>ここで <span class="math inline">\(L\)</span> は攻撃側のレベル，<span class="math inline">\(P\)</span> は技の威力，<span class="math inline">\(A\)</span>・<span class="math inline">\(D\)</span> は切り詰めた後の攻撃力・防御力です（タイプ強化の道具や急所の補正は <span class="math inline">\(\min\)</span> の内側で掛かります）．この基礎ダメージに対して，タイプ一致補正（1.5倍），タイプ相性補正（タイプごとに2倍・0.5倍・0倍），乱数補正（<span class="math inline">\(217/255\)</span>〜<span class="math inline">\(255/255\)</span>，およそ 85〜100%）の順に掛けたものが最終的なダメージです．</p>
+<p>攻撃力が <span class="math inline">\(A = 0\)</span> になると，<span class="math inline">\(\min\)</span> の中身は防御力・威力・レベルによらず 0 になり（急所の2倍を掛けても 0 のまま），基礎ダメージは最低値の <strong>2</strong> になります．後から補正を掛けても</p>
+<ul>
+<li>タイプ一致：<span class="math inline">\(2 \times 1.5 = 3\)</span></li>
+<li>タイプ一致＋効果抜群（2倍）：<span class="math inline">\(6\)</span></li>
+<li>タイプ一致＋効果抜群（4倍）：<span class="math inline">\(12\)</span></li>
+</ul>
+<p>にしかならず，乱数補正を考えると最大でも 10〜12 ダメージです．</p>
+<div id="exm-" class="custom_problem theorem example">
+<p><span class="theorem-title"><strong>Exmaple 7</strong></span> <span class="def-title">レベル50のガラガラの「じしん」</span></p>
+<p>ガラガラ（レベル50，ふといほね，はらだいこ使用後）が，防御力 100 の相手に「じしん」（威力100，じめんタイプでタイプ一致，相性は等倍）を使った場合を計算します．攻撃力が 256 以上なので防御力も4で割られて <span class="math inline">\(D = 25\)</span> になり，<span class="math inline">\(\lfloor 2 \times 50 / 5 \rfloor + 2 = 22\)</span> です．</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th style="text-align: center;">実数値 <span class="math inline">\(A_0\)</span></th>
+<th style="text-align: center;">攻撃力 <span class="math inline">\(A\)</span></th>
+<th style="text-align: center;">基礎ダメージ</th>
+<th style="text-align: center;">タイプ一致後</th>
+<th style="text-align: center;">乱数補正後</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;">127</td>
+<td style="text-align: center;">254</td>
+<td style="text-align: center;">449</td>
+<td style="text-align: center;">673</td>
+<td style="text-align: center;">572〜673</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">128</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">2</td>
+<td style="text-align: center;">3</td>
+<td style="text-align: center;">2〜3</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">131</td>
+<td style="text-align: center;">6</td>
+<td style="text-align: center;">12</td>
+<td style="text-align: center;">18</td>
+<td style="text-align: center;">15〜18</td>
+</tr>
+</tbody>
+</table>
+<p>実数値が 1 違うだけで，ダメージは数百から一桁まで落ちます．</p>
+</div>
+<hr>
+</section>
+<section id="用語集" class="level2">
+<h2 class="anchored" data-anchor-id="用語集">📘 用語集</h2>
+<div class="glossary-container">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">glossary</span><span class="kw">:</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> 被乗数 (multiplicand)</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>      乗算 $a \times b$ で掛けられる側の数 $a$．２進数の筆算やシフト加算型の乗算回路では，乗数のビットが1の桁に合わせて左へずらしながら積に足し込む．</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> 乗数 (multiplier)</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>      乗算 $a \times b$ で掛ける側の数 $b$．</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>      シフト加算型の乗算回路では最下位ビットから1ビットずつ調べ，そのビットが1のときだけ被乗数を積に足す．</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> 積 (product)</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>      乗算の結果．$n$ ビットと $m$ ビットの積は最大で $n + m$ ビットになるため，</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>      $n$ ビットどうしの積を正確に保持するには $2n$ ビットが必要になる．</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> オペコード (opcode)</span></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>      機械語命令のうち，実行する演算の種類（加算・減算・シフト・メモリからの読み込みなど）を指定する部分．</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>      operation code の略で，命令コードとも呼ぶ．</span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>      例えば MIPS の `add $t0, $t1, $t2` では `add` にあたる部分がオペコードで，CPU はこの値を解読して動作を決める．</span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> オペランド (operand)</span></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>      演算や命令の対象となる値．$a + b$ の $a$ と $b$ がオペランドにあたる．</span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>      機械語命令ではオペコード以外の部分で指定し，レジスタ・即値（命令に直接書かれた定数）・メモリアドレスのいずれかをとる．</span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>      例えば `add $t0, $t1, $t2` では，結果の格納先 `$t0` と加算される値 `$t1`・`$t2` の3つがオペランドにあたる．</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<ul>
+<li>D. A. パターソン，J. L. ヘネシー（成田光彰 訳）『コンピュータの構成と設計 第5版 上』日経BP社，2014年．2.4節「符号付き数と符号なし数」，2.6節「論理演算」，3.2節「加算と減算」，3.3節「乗算」，3.4節「除算」，3.9節「誤信と落とし穴」</li>
+<li><a href="https://github.com/pret/pokegold">pret/pokegold</a>：『ポケットモンスター 金・銀』の逆アセンブル．<code>engine/battle/effect_commands.asm</code> の <code>TruncateHL_BC</code>・<code>SpeciesItemBoost</code>・<code>BattleCommand_DamageCalc</code></li>
+<li><a href="https://github.com/pret/pokecrystal">pret/pokecrystal</a>：『ポケットモンスター クリスタルバージョン』の逆アセンブル</li>
+<li><a href="https://github.com/pret/pokecrystal/blob/master/docs/bugs_and_glitches.md">pokecrystal: Bugs and Glitches</a>：“Thick Club and Light Ball can make (Special) Attack wrap around above 1024”，“Reflect and Light Screen can make (Special) Defense wrap around above 1024”</li>
+</ul>
+
+
+</section>
+
+</main> <!-- /main -->
+<script>
+    document.querySelectorAll('.custom_problem .theorem-title').forEach((title) => {
+        let modName = title.innerHTML;
+        modName = modName.replace("Exercise", "Problem");
+        modName = modName.replace("Proposition", "Property");
+        modName = modName.replace("Example", "<strong>&#9654;</strong>&nbsp; Example");
+        title.innerHTML = modName;
+    });
+
+    // Rule: 未使用の Corollary (#cor-, lang: ja では「系」) を Rule として表示する
+    document.querySelectorAll('.custom_rule .theorem-title').forEach((title) => {
+        title.innerHTML = title.innerHTML
+            .replace(/^<strong>(系|Corollary)/, "<strong>Rule")
+            .replace(/\s*\((.*)\)<\/strong>$/, ": $1</strong>");
+        // タイトルの後で改行し，本文を次の行から始める
+        title.style.display = "block";
+        title.style.paddingBottom = "0.5em";
+        title.style.fontSize = "1.1em";
+        // 本文がリスト等で始まると Quarto がタイトル後に &nbsp; を残し空行になるため除去する
+        while (title.nextSibling && title.nextSibling.nodeType === Node.TEXT_NODE
+               && title.nextSibling.textContent.trim() === "") {
+            title.nextSibling.remove();
+        }
+        if (!title.nextSibling) {
+            title.parentElement.style.marginBottom = "0";
+        }
+    });
+ </script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const toggle = window.document.createElement('button');
+      toggle.type = "button";
+      toggle.setAttribute("role", "switch");
+      toggle.setAttribute("aria-checked", "false");
+      toggle.classList.add('top-right');
+      toggle.classList.add('quarto-color-scheme-toggle');
+      toggle.setAttribute("aria-label", "ダークモードの切り替え");
+      toggle.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      toggle.appendChild(i);
+      // Put the toggle in a landmark of its own, so that landmark navigation
+      // can reach it.
+      //
+      // The container is always a fresh direct child of body, and the toggle is
+      // never moved into page furniture that the theme or the author controls.
+      // The toggle is positioned against the page, so any ancestor that
+      // establishes a containing block captures it: a positioned element or a
+      // grid for position: absolute, and transform, filter, will-change or
+      // contain for position: fixed. A direct child of body has none of these
+      // to inherit, and the shift when one appears is silent and visual.
+      //
+      // ARIA says a document should have at most one banner, and axe reports a
+      // duplicate whether or not the banners carry distinct labels. So use a
+      // header when the page has no banner yet, and a named region otherwise.
+      //
+      // A header is a banner wherever it sits, unless it is inside sectioning
+      // content, so this cannot just look at the children of body: a custom
+      // page layout wraps the title block header in a plain div. An explicit
+      // role="banner" always counts.
+      const sectioning = 'article, aside, main, nav, section, [role="article"], [role="complementary"], [role="main"], [role="navigation"], [role="region"]';
+      const hasBanner = Array.from(
+        window.document.querySelectorAll('header:not([role]), [role="banner"]')
+      ).some(function(el) {
+        return el.hasAttribute("role") || el.closest(sectioning) === null;
+      });
+      const container = window.document.createElement(hasBanner ? "div" : "header");
+      if (hasBanner) {
+        container.setAttribute("role", "region");
+        container.setAttribute("aria-label", "ダークモードの切り替え");
+      }
+      container.classList.add('quarto-color-scheme-toggle-container');
+      container.appendChild(toggle);
+      window.document.body.appendChild(container);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "コピーしました");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "コピーしました");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/ryonakagami\.github\.io\/regmonkey-datascience-blog");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+      window.quartoDecorateExternalLinks = function (root) {
+     var links = (root || window.document).querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+          if (!link.classList.contains('no-external-icon')) {
+          }
+        }
+      }
+      };
+      window.quartoDecorateExternalLinks(window.document);
+    // Esc closes the popup (WCAG 1.4.13) and focus leaving both trigger and
+    // popup closes it (WCAG 2.4.11); tippy handles neither for interactive popups.
+    const hideOnEscAndFocusOut = {
+      name: 'hideOnEscAndFocusOut',
+      defaultValue: true,
+      fn(instance) {
+        const dismiss = () => {
+          // A show scheduled by the trigger delay would otherwise reopen it
+          instance.clearDelayTimeouts();
+          instance.hide();
+        };
+        const onKeyDown = (event) => {
+          if (event.key !== 'Escape') {
+            return;
+          }
+          // Keep Esc from also reaching page handlers (e.g. reveal.js overview),
+          // except an open reveal.js slide menu, which Esc should close too.
+          // The menu handles keys only when its keyboard option is on.
+          const menuHandlesEsc = window.Reveal?.getPlugin?.('menu')?.isOpen() &&
+            window.Reveal.getConfig().menu?.keyboard !== false;
+          if (!menuHandlesEsc) {
+            event.stopPropagation();
+          }
+          if (instance.popper.contains(window.document.activeElement)) {
+            // Disabled while refocusing so the focus trigger does not reopen it
+            instance.disable();
+            instance.reference.focus();
+            instance.enable();
+          }
+          dismiss();
+        };
+        const onFocusOut = (event) => {
+          const target = event.relatedTarget;
+          if (target && !instance.reference.contains(target) &&
+              !instance.popper.contains(target)) {
+            dismiss();
+          }
+        };
+        // On the trigger too: a click trigger (code-annotations: select) has no
+        // blur handling. Attached for the instance's lifetime so leaving the
+        // trigger also cancels a show still pending on the trigger delay.
+        instance.reference.addEventListener('focusout', onFocusOut);
+        return {
+          onShow() {
+            window.document.addEventListener('keydown', onKeyDown, true);
+            instance.popper.addEventListener('focusout', onFocusOut);
+          },
+          onHide() {
+            window.document.removeEventListener('keydown', onKeyDown, true);
+            instance.popper.removeEventListener('focusout', onFocusOut);
+          },
+          onDestroy() {
+            instance.reference.removeEventListener('focusout', onFocusOut);
+          },
+        };
+      },
+    };
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+        plugins: [hideOnEscAndFocusOut],
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          // Each band is positioned against its own containing block, which is
+          // not the offsetParent of the lines, so place it from client rects.
+          const placeBand = (band, firstEl, lastEl, codeBlock) => {
+            const container = band.offsetParent;
+            if (container === null) {
+              return;
+            }
+            const containerRect = container.getBoundingClientRect();
+            // Reveal.js scales slides with a transform, so convert client
+            // pixels back to the CSS pixels of the container.
+            const scale = containerRect.height / container.offsetHeight || 1;
+            const firstRect = firstEl.getBoundingClientRect();
+            const lastRect = lastEl.getBoundingClientRect();
+            const top = (firstRect.top - containerRect.top) / scale - container.clientTop + container.scrollTop;
+            const height = (lastRect.bottom - firstRect.top) / scale;
+            band.style.top = top - 2 + "px";
+            band.style.height = height + 4 + "px";
+            if (codeBlock) {
+              // Without the copy button wrapper, the containing block is wider
+              // than the code block, so span the code block explicitly.
+              const blockRect = codeBlock.getBoundingClientRect();
+              band.style.left = (blockRect.left - containerRect.left) / scale - container.clientLeft + container.scrollLeft + "px";
+              band.style.width = blockRect.width / scale + "px";
+            }
+          };
+          if (lineIds.length > 0) {
+            const el = window.document.getElementById(lineIds[0]);
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const parent = el.parentElement.parentElement;
+            // cook up a div (if necessary) and position it
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            placeBand(div, el, lastEl, parent.closest("div.sourceCode") || parent);
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            placeBand(gutterDiv, el, lastEl);
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+  <script type="application/javascript">
+  window.quartoScrollableRegionsLabels = {"code":"スクロール可能なコード","output":"スクロール可能な出力"};
+  </script>
+<script src="https://utteranc.es/client.js" repo="RyoNakagami/regmonkey-datascience-blog" issue-term="title" theme="github-light" crossorigin="anonymous" async="">
+</script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+      &nbsp;
+    </div>   
+    <div class="nav-footer-center">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+ © Copyright RyoNak
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="../../LICENSE">
+<p>License</p>
+</a>
+  </li>  
+</ul>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>問題を報告</a></li></ul></div></div>
+    <div class="nav-footer-right">
+      &nbsp;
+    </div>
+  </div>
+</footer>
+    <script type="text/javascript">
+    (function(d) {
+      d.querySelectorAll(".pseudocode-container").forEach(function(el) {
+        let pseudocodeOptions = {
+          indentSize: el.dataset.indentSize || "1.2em",
+          commentDelimiter: el.dataset.commentDelimiter || "//",
+          lineNumber: el.dataset.lineNumber === "true" ? true : false,
+          lineNumberPunc: el.dataset.lineNumberPunc || ":",
+          noEnd: el.dataset.noEnd === "true" ? true : false,
+          titlePrefix: el.dataset.captionPrefix || "Algorithm"
+        };
+        pseudocode.renderElement(el.querySelector(".pseudocode"), pseudocodeOptions);
+      });
+    })(document);
+    (function(d) {
+      d.querySelectorAll(".pseudocode-container").forEach(function(el) {
+        let captionSpan = el.querySelector(".ps-root > .ps-algorithm > .ps-line > .ps-keyword")
+        if (captionSpan !== null) {
+          let captionPrefix = el.dataset.captionPrefix + " ";
+          let captionNumber = "";
+          if (el.dataset.pseudocodeNumber) {
+            captionNumber = el.dataset.pseudocodeNumber + " ";
+            if (el.dataset.chapterLevel) {
+              captionNumber = el.dataset.chapterLevel + "." + captionNumber;
+            }
+          }
+          captionSpan.innerHTML = captionPrefix + captionNumber;
+        }
+      });
+    })(document);
+    </script>
+  
+<script>var lightboxQuarto = GLightbox({"closeEffect":"zoom","descPosition":"bottom","loop":false,"openEffect":"zoom","selector":".lightbox"});
+(function() {
+  let previousOnload = window.onload;
+  window.onload = () => {
+    if (previousOnload) {
+      previousOnload();
+    }
+    lightboxQuarto.on('slide_before_load', (data) => {
+      const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+      const href = trigger.getAttribute('href');
+      if (href !== null) {
+        const imgEl = window.document.querySelector(`a[href="${href}"] img`);
+        if (imgEl !== null) {
+          const srcAttr = imgEl.getAttribute("src");
+          if (srcAttr && srcAttr.startsWith("data:")) {
+            slideConfig.href = srcAttr;
+          }
+        }
+      } 
+    });
+  
+    lightboxQuarto.on('slide_after_load', (data) => {
+      const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(slideNode);
+      }
+    });
+  
+  };
+  
+})();
+          </script>
+
+
+
+
+</body></html>
