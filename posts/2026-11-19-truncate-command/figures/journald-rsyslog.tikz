@@ -1,0 +1,73 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.0cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    src/.style={block, fill=white, minimum width=3.4cm, minimum height=1.0cm},
+    zone/.style={draw=darkgray, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={font=\bfseries, text=navy},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    step/.style={font=\footnotesize\bfseries, text=azureblue, inner sep=2pt},
+    wire/.style={->, draw=navy},
+  ]
+
+  % ---------- 上段：ログの発生源 → journald → journal ファイル ----------
+  \node[src] (kern) at (0, 1.5) {カーネル};
+  \node[src] (svc)  at (0, 0)   {サービス\\{\footnotesize\color{darkgray}（systemd から起動）}};
+  \node[src] (app)  at (0,-1.5) {アプリケーション\\{\footnotesize\color{darkgray}（例：logger）}};
+
+  \node[accent, minimum width=3.4cm, minimum height=1.3cm] (jd) at (7.6, 0)
+    {\bfseries systemd-journald};
+  \node[sig, anchor=south] at (jd.north) {\texttt{/etc/systemd/journald.conf}};
+
+  \draw[wire] (kern.east) -- (4.6,1.5) -- (jd.west);
+  \draw[wire] (svc.east) -- (jd.west);
+  \draw[wire] (app.east) -- (4.6,-1.5) -- (jd.west);
+  \node[sig, anchor=south] at (3.2,1.5) {\texttt{/dev/kmsg}};
+  \node[sig, anchor=south] at (3.2,0) {\texttt{stdout}，\texttt{stderr}};
+  \node[sig, anchor=south] at (3.2,-1.5) {\texttt{/dev/log}};
+
+  \node[block, minimum width=4.4cm, inner xsep=10pt] (jf) at (15.6, 0)
+    {journal ファイル（バイナリ）\\[2pt]{\footnotesize\color{darkgray}\texttt{/var/log/journal/}（永続）}\\{\footnotesize\color{darkgray}\texttt{/run/log/journal/}（揮発）}};
+  \draw[wire] (jd.east) -- (jf.west) node[midway, above, sig] {\texttt{Storage=} に従って保存};
+  \node[sig, anchor=north] at (jf.south) {\texttt{journalctl} で読む};
+
+  % ---------- 下段：rsyslogd ----------
+  \node[block, fill=white, minimum width=4.4cm] (sock) at (7.6,-2.6)
+    {\texttt{/run/systemd/journal/syslog}\\{\footnotesize\color{darkgray}（ソケット）}};
+  \node[block, minimum width=3.0cm] (ux) at (7.6,-4.8) {\texttt{imuxsock}};
+  \node[block, minimum width=3.0cm] (ij) at (15.6,-4.8) {\texttt{imjournal}};
+
+  \begin{scope}[on background layer]
+    \node[zone, fit=(ux)(ij)] (rs) {};
+  \end{scope}
+  \node[zlabel, anchor=east] at ([xshift=-4pt]rs.west) {rsyslogd};
+  \node[sig, anchor=north] at (rs.south -| ux) {\texttt{/etc/rsyslog.conf}};
+
+  % Ubuntu / Debian：journald がソケットへ転送 → imuxsock が受け取る
+  \draw[wire] (jd.south) -- (sock.north)
+    node[midway, right, sig] {\texttt{ForwardToSyslog=yes}};
+  \draw[wire] (sock.south) -- (ux.north);
+  \node[step, anchor=east] at ([xshift=-6pt]sock.west) {Ubuntu / Debian};
+
+  % RHEL 系：imjournal が journal ファイルを読む
+  \draw[wire] (15.6,-1.45) -- (ij.north)
+    node[pos=0.55, right, sig] {journal を直接読む};
+  \node[step, anchor=west] at ([xshift=0.25cm]jf.south |- sock) {RHEL 系};
+
+  % ---------- 出力：テキストファイル ----------
+  \node[block, minimum width=3.6cm, anchor=north] (out) at ([yshift=-1.0cm]rs.south -| ij)
+    {\texttt{/var/log/syslog}，\texttt{auth.log}\\{\footnotesize\color{darkgray}（Ubuntu / Debian）}\\[2pt]\texttt{/var/log/messages}，\texttt{secure}\\{\footnotesize\color{darkgray}（RHEL 系）}};
+  \draw[wire] (rs.south -| out) -- (out.north) node[midway, right, sig] {書き出す};
+\end{tikzpicture}

@@ -1,0 +1,78 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    row/.style={draw=navy, fill=white, minimum width=3.6cm, minimum height=0.6cm,
+                inner sep=3pt},
+    hit/.style={row, fill=paleskyblue},
+    card/.style={draw=navy, fill=aliceblue, rounded corners=3pt, inner sep=8pt},
+    head/.style={font=\small\bfseries, text=navy},
+    step/.style={font=\footnotesize\bfseries, text=azureblue},
+    note/.style={font=\footnotesize, text=darkgray, align=center, anchor=north},
+    blk/.style={draw=navy, fill=paleskyblue, minimum size=0.55cm, inner sep=0pt},
+    free/.style={draw=lightgray, fill=white, minimum size=0.55cm, inner sep=0pt},
+    wire/.style={->, draw=navy},
+  ]
+
+  % ---------- ① ディレクトリエントリ ----------
+  \node[row] (r1) at (0, 0.6) {};
+  \node[hit] (r2) at (0, 0.0) {};
+  \node[row] (r3) at (0,-0.6) {};
+  \foreach \r/\n/\i in {r1/auth.log/1234570, r2/syslog/1234567, r3/kern.log/1234571} {
+    \node[anchor=west, font=\footnotesize] at ([xshift=2pt]\r.west) {\n};
+    \node[anchor=east, font=\footnotesize, text=darkgray] at ([xshift=-2pt]\r.east) {\i};
+  }
+  \node[head, anchor=south] (h1) at ([yshift=3pt]r1.north) {ディレクトリ /var/log/};
+  \begin{scope}[on background layer]
+    \node[card, fit=(h1)(r1)(r3)] (dir) {};
+  \end{scope}
+
+  % ---------- ② inode ----------
+  \node[head, anchor=north west] (h2) at (5.2, 1.25) {inode 1234567};
+  \foreach \t/\y in {サイズ：6.7 MB/0.6, 所有者・権限：syslog:adm 640/0.15,
+                     リンク数：1/-0.3} {
+    \node[anchor=west, font=\footnotesize] at (5.3,\y) {\t};
+  }
+  \node[anchor=west, font=\footnotesize] (dpos) at (5.3,-0.75) {データの位置};
+  \coordinate (iout) at (9.6,-0.75);
+  \begin{scope}[on background layer]
+    \node[card, fit=(h2)(5.2,-1.0)(iout)] (ino) {};
+  \end{scope}
+
+  % ---------- ③ データブロック ----------
+  \foreach \c in {0,...,4} {
+    \foreach \r in {0,...,2} {
+      \node[free] (d\c\r) at (11.5+0.7*\c, 0.6-0.6*\r) {};
+    }
+  }
+  \foreach \c/\r in {0/0, 2/0, 1/1, 3/1, 4/2} {
+    \node[blk] at (d\c\r) {};
+  }
+  \node[head, anchor=south] (h3) at ([yshift=3pt]d20.north) {ディスク上のブロック};
+  \begin{scope}[on background layer]
+    \node[card, fill=white, fit=(h3)(d00)(d42)] (dat) {};
+  \end{scope}
+
+  % ---------- 矢印 ----------
+  \draw[wire] (r2.east) -- (r2.east -| ino.west)
+    node[midway, above, font=\footnotesize, text=darkgray] {inode 番号};
+  \draw[wire] (dpos.east) -- (dpos.east -| dat.west);
+
+  % ---------- 上：役割，下：rm / truncate が触る場所 ----------
+  \node[step, anchor=south] at ([yshift=2pt]dir.north) {① 名前};
+  \node[step, anchor=south] at ([yshift=2pt]ino.north) {② 管理情報（名前は持たない）};
+  \node[step, anchor=south] at ([yshift=2pt]dat.north) {③ 中身};
+
+  \node[note] at ([yshift=-3pt]dir.south) {rm（unlink）が消すのは\\この1行だけ};
+  \node[note] at ([yshift=-3pt]ino.south) {truncate はサイズを 0 にし\\ブロックの割り当てを外す};
+  \node[note] at ([yshift=-3pt]dat.south) {色付き = syslog が使うブロック\\（連続しているとは限らない）};
+\end{tikzpicture}

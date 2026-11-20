@@ -1,0 +1,63 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, minimum width=3.0cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    ng/.style={block, draw=crimsonred, fill=mistyrose},
+    gone/.style={block, draw=darkgray, dashed, fill=white, text=darkgray},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south, font=\bfseries, text=navy},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    wire/.style={->, draw=navy},
+  ]
+
+  % ---------- 左：rm ----------
+  \node[ng]    (d1) at (0, 1.4)  {/var/log/syslog\\（名前を削除）};
+  \node[block] (p1) at (0,-1.4)  {rsyslogd\\fd 3};
+  \node[block, minimum width=2.4cm] (i1) at (4.2, 0) {inode\\リンク数 0};
+  \node[ng]    (b1) at (8.0, 0)  {データブロック\\50 GB 残ったまま};
+
+  \draw[->, draw=darkgray, dashed] (d1.east) -| (i1.north)
+    node[pos=0.25, above, font=\footnotesize, text=crimsonred] {× unlink};
+  \draw[wire] (p1.east) -| (i1.south)
+    node[pos=0.25, below, sig] {まだ書き込み中};
+  \draw[wire] (i1) -- (b1);
+  \node[note, text=crimsonred, below=4mm of b1] {ls では見えないが\\ディスク容量は解放されない};
+
+  % ---------- 右：truncate ----------
+  \begin{scope}[xshift=12.2cm]
+    \node[block] (d2) at (0, 1.4)  {/var/log/syslog\\（名前はそのまま）};
+    \node[block] (p2) at (0,-1.4)  {rsyslogd\\fd 3};
+    \node[accent, minimum width=2.4cm] (i2) at (4.2, 0) {inode\\size = 0};
+    \node[gone]  (b2) at (8.0, 0)  {データブロック\\解放済み};
+
+    \draw[wire] (d2.east) -| (i2.north)
+      node[pos=0.25, above, sig] {リンク};
+    \draw[wire] (p2.east) -| (i2.south)
+      node[pos=0.25, below, sig] {先頭から書き込み継続};
+    \draw[->, draw=darkgray, dashed] (i2) -- (b2);
+    \node[note, below=4mm of b2] {名前と inode は残り\\容量だけが空く};
+  \end{scope}
+
+  % ---------- ゾーン ----------
+  \coordinate (ztop) at (0, 2.2);
+  \coordinate (zbot) at (0,-2.2);
+  \begin{scope}[on background layer]
+    \node[zone, fit=(d1)(p1)(b1)(d1 |- ztop)(d1 |- zbot)] (zl) {};
+    \node[zone, fit=(d2)(p2)(b2)(d2 |- ztop)(d2 |- zbot)] (zr) {};
+  \end{scope}
+  \node[zlabel, text=crimsonred] at (zl.north) {sudo rm /var/log/syslog};
+  \node[zlabel] at (zr.north) {sudo truncate -s 0 /var/log/syslog};
+\end{tikzpicture}

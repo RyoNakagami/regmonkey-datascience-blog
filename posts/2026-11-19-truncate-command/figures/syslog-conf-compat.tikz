@@ -1,0 +1,60 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum width=5.6cm, minimum height=1.25cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    ng/.style={block, draw=crimsonred, fill=mistyrose, minimum width=4.2cm},
+    zone/.style={draw=darkgray, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south, font=\bfseries, text=navy},
+    sig/.style={font=\footnotesize\bfseries, inner sep=2pt},
+    code/.style={font=\footnotesize, text=darkgray},
+  ]
+
+  % ---------- 右：rsyslogd が読める構文 ----------
+  \node[accent] (r1) at (10.5, 0)
+    {sysklogd 互換のセレクタ行\\[2pt]{\footnotesize\color{darkgray}\texttt{kern.*  -/var/log/kern.log}}};
+  \node[block] (r2) at (10.5,-1.75)
+    {legacy ディレクティブ\\[2pt]{\footnotesize\color{darkgray}\verb|$ModLoad imuxsock|}};
+  \node[block] (r3) at (10.5,-3.5)
+    {RainerScript\\[2pt]{\footnotesize\color{darkgray}\verb|module(load="imuxsock")|}};
+
+  % ---------- 左：syslogd が読める構文 ----------
+  \node[accent, minimum width=4.2cm] (l1) at (0, 0)
+    {セレクタ行\\[2pt]{\footnotesize\color{darkgray}\texttt{kern.*  -/var/log/kern.log}}};
+  \node[ng, minimum height=3.0cm] (l2) at (0,-2.625)
+    {{\color{crimsonred}\bfseries 解釈できない}\\[2pt]{\footnotesize\color{darkgray}構文エラーになる}};
+
+  % ---------- ゾーン ----------
+  \begin{scope}[on background layer]
+    \node[zone, fit=(l1)(l2)] (zl) {};
+    \node[zone, fit=(r1)(r2)(r3)] (zr) {};
+  \end{scope}
+  \node[zlabel] at (zl.north) {syslogd（sysklogd）};
+  \node[zlabel] at (zr.north) {rsyslogd};
+  \node[code, anchor=north] at (zl.south) {\texttt{/etc/syslog.conf} を読む};
+  \node[code, anchor=north] at (zr.south) {\texttt{/etc/rsyslog.conf}，\texttt{/etc/rsyslog.d/*.conf} を読む};
+
+  % ---------- 矢印 ----------
+  \draw[->, draw=navy] (l1.east) -- (r1.west)
+    node[midway, above, sig, text=navy] {そのまま読める ✓}
+    node[midway, below, code, align=center] {古い設定が新しい\\デーモンでも動く};
+  \draw[->, draw=crimsonred, dashed] (r2.west) -- (r2.west -| l2.east)
+    node[midway, above, sig, text=crimsonred] {読めない ×};
+  \draw[->, draw=crimsonred, dashed] (r3.west) -- (r3.west -| l2.east)
+    node[midway, above, sig, text=crimsonred] {読めない ×};
+
+  % ---------- 凡例的な補足 ----------
+  \node[font=\footnotesize\bfseries, text=azureblue, anchor=south] at ($(zl.north)!0.5!(zr.north)+(0,0.55)$)
+    {後方互換：rsyslog は syslog.conf の書式を受け入れる．逆向きは成り立たない};
+\end{tikzpicture}
