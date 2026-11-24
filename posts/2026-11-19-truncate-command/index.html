@@ -1,0 +1,1771 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="ja" xml:lang="ja"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.11.9">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Ryo Nakagami">
+<meta name="dcterms.date" content="2026-11-19">
+
+<title>truncate command: 肥大化した /var/log/syslog を空にする – regmonkey datascience blog</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<link href="../../img/favicon.ico" rel="icon">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/scrollable-regions/scrollable-regions.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-5de16f5e46225c21e2daa90d340bf64f.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark-3218d7d29a29f08bc4fdf3802c3e3ca5.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-5de16f5e46225c21e2daa90d340bf64f.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-e016ebc5b1ceb0f96a1698ff19bcc02a.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark-fa14c3ac9e520996edf2d1f50286ed76.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../site_libs/bootstrap/bootstrap-e016ebc5b1ceb0f96a1698ff19bcc02a.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script src="../../site_libs/quarto-contrib/pseudocode-2.4.1/pseudocode.min.js"></script>
+<link href="../../site_libs/quarto-contrib/pseudocode-2.4.1/pseudocode.min.css" rel="stylesheet">
+<script src="../../site_libs/quarto-contrib/glightbox/glightbox.min.js"></script>
+<link href="../../site_libs/quarto-contrib/glightbox/glightbox.min.css" rel="stylesheet">
+<link href="../../site_libs/quarto-contrib/glightbox/lightbox.css" rel="stylesheet">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "一致なし",
+    "search-matching-documents-text": "一致した文書",
+    "search-copy-link-title": "検索へのリンクをコピー",
+    "search-hide-matches-text": "追加の検索結果を非表示",
+    "search-more-match-text": "追加の検索結果",
+    "search-more-matches-text": "追加の検索結果",
+    "search-clear-button-title": "消去",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "取消",
+    "search-submit-button-title": "検索",
+    "search-label": "サーチ"
+  }
+}</script>
+<script async="" src="https://www.googletagmanager.com/gtag/js?id=G-EX9H7GRLTH"></script>
+
+<script type="text/javascript">
+
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
+</script>
+<style>
+
+      .quarto-title-block .quarto-title-banner h1,
+      .quarto-title-block .quarto-title-banner h2,
+      .quarto-title-block .quarto-title-banner h3,
+      .quarto-title-block .quarto-title-banner h4,
+      .quarto-title-block .quarto-title-banner h5,
+      .quarto-title-block .quarto-title-banner h6
+      {
+        color: #ffffff;
+      }
+
+      .quarto-title-block .quarto-title-banner {
+        color: #ffffff;
+      }
+</style>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-M27Z2BWG');</script>
+    <!-- End Google Tag Manager -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&amp;display=swap" rel="stylesheet">
+<script>
+    MathJax = {
+        tex: {
+            inlineMath: [['$','$'], ['\\(','\\)']],
+            displayMath: [['$$','$$'], ['\\[','\\]']],
+            processEscapes: true,
+            processEnvironments: true,
+            tags: 'all',
+        }
+    }
+</script>
+<!-- MathJax 本体は _quarto.yml の html-math-method.url で読み込む -->
+<link rel="stylesheet" href="../../js/regmonkey_glossary_generator/regmonkey_glossary_generator.css">
+<script type="text/javascript" src="../../js/regmonkey_glossary_generator/regmonkey_glossary_generator.js"></script>
+
+
+<link rel="stylesheet" href="../../styles.css">
+<meta property="og:title" content="truncate command: 肥大化した /var/log/syslog を空にする – regmonkey datascience blog">
+<meta property="og:description" content="日々の徒然勉強日記">
+<meta property="og:image" content="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2026-11-19-truncate-command/figures/file-structure.svg">
+<meta property="og:site_name" content="regmonkey datascience blog">
+<meta property="og:image:alt" content="ファイルは名前・inode・データブロックの3層でできている">
+</head>
+
+<body class="nav-fixed quarto-light"><a id="quarto-skip-link" class="visually-hidden-focusable" href="#quarto-document-content">メインコンテンツにスキップ</a><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          toggle.setAttribute("aria-checked", alternate ? "true" : "false");
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+    }
+    // Hack to workaround the fact that safari doesn't
+    // properly recolor the scrollbar when toggling (#1455).
+    // Not run on load: stylesheets are set before first paint there, and
+    // scrolling would undo the scroll to a URL fragment (#14973).
+    // The one pixel nudge keeps the reader where they were.
+    const refreshSafariScrollbar = () => {
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        const scrollY = window.scrollY;
+        window.scrollTo(0, scrollY > 0 ? scrollY - 1 : 1);
+        setTimeout(() => {
+          window.scrollTo(0, scrollY);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      refreshSafariScrollbar();
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top quarto-banner">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark" aria-label="ウェブサイト">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">Home</span>
+    </a>
+  </div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="ナビゲーションを切り替える" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-bi-book" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+      <i class="bi bi-book" role="img">
+</i> 
+ <span class="menu-text"></span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-bi-book">    
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/statistics-for-regression-monkey/">
+ <span class="dropdown-text">Statistics Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/python-statisticalpackage-techniques/">
+ <span class="dropdown-text">Python package building Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/regmonkey_datavisualization/">
+ <span class="dropdown-text">Data Visualization Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/regmonkey-presentation/">
+ <span class="dropdown-text">Presentation Blog</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../link_list/link_table.html"> 
+<span class="menu-text">便利リンク集</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../dictionary/dict.html"> 
+<span class="menu-text">備忘録</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../FAQ/faq.html"> 
+<span class="menu-text">FAQ</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../about.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/RyoNakagami/regmonkey-datascience-blog"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="../../index.xml"> <i class="bi bi-rss" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <button type="button" role="switch" aria-checked="false" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="ダークモードの切り替え" aria-label="ダークモードの切り替え"><i class="bi"></i></button>
+</div>
+            <div id="quarto-search" class="" title="サーチ"></div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">truncate command: 肥大化した /var/log/syslog を空にする</h1>
+                                <div class="quarto-categories">
+                <div class="quarto-category">Linux</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      <div>
+      <div class="quarto-title-meta-heading">作者</div>
+      <div class="quarto-title-meta-contents">
+               <p>Ryo Nakagami </p>
+            </div>
+    </div>
+      
+      <div>
+      <div class="quarto-title-meta-heading">公開</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">2026-11-19</p>
+      </div>
+    </div>
+    
+      <div>
+      <div class="quarto-title-meta-heading">更新日</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date-modified">2026-11-20</p>
+      </div>
+    </div>
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" aria-labelledby="toc-title" class="toc-active">
+    <h2 id="toc-title">目次</h2>
+   
+  <ul>
+  <li><a href="#truncate-commandとは" id="toc-truncate-commandとは" class="nav-link active" data-scroll-target="#truncate-commandとは">truncate commandとは</a>
+  <ul class="collapse">
+  <li><a href="#size-の単位" id="toc-size-の単位" class="nav-link" data-scroll-target="#size-の単位">SIZE の単位</a></li>
+  <li><a href="#size-の修飾子" id="toc-size-の修飾子" class="nav-link" data-scroll-target="#size-の修飾子">SIZE の修飾子</a></li>
+  </ul></li>
+  <li><a href="#syslog-削除でなぜ-rm-はだめなのか" id="toc-syslog-削除でなぜ-rm-はだめなのか" class="nav-link" data-scroll-target="#syslog-削除でなぜ-rm-はだめなのか">syslog 削除でなぜ rm はだめなのか</a>
+  <ul class="collapse">
+  <li><a href="#rm-はファイルの名前を消すだけ" id="toc-rm-はファイルの名前を消すだけ" class="nav-link" data-scroll-target="#rm-はファイルの名前を消すだけ">rm はファイルの「名前」を消すだけ</a></li>
+  <li><a href="#truncate-で中身だけを捨てる" id="toc-truncate-で中身だけを捨てる" class="nav-link" data-scroll-target="#truncate-で中身だけを捨てる">truncate で中身だけを捨てる</a></li>
+  <li><a href="#書き込み側が-o_append-で開いているかに注意" id="toc-書き込み側が-o_append-で開いているかに注意" class="nav-link" data-scroll-target="#書き込み側が-o_append-で開いているかに注意">書き込み側が O_APPEND で開いているかに注意</a></li>
+  </ul></li>
+  <li><a href="#appendix" id="toc-appendix" class="nav-link" data-scroll-target="#appendix">Appendix</a>
+  <ul class="collapse">
+  <li><a href="#find-deleted-open-files" id="toc-find-deleted-open-files" class="nav-link" data-scroll-target="#find-deleted-open-files">削除済みでも開かれているファイルを探す</a></li>
+  <li><a href="#システムログを収集するソフトウェア" id="toc-システムログを収集するソフトウェア" class="nav-link" data-scroll-target="#システムログを収集するソフトウェア">システムログを収集するソフトウェア</a></li>
+  <li><a href="#systemd-journal-と-rsyslog-の組み合わせ" id="toc-systemd-journal-と-rsyslog-の組み合わせ" class="nav-link" data-scroll-target="#systemd-journal-と-rsyslog-の組み合わせ">systemd journal と rsyslog の組み合わせ</a></li>
+  </ul></li>
+  <li><a href="#用語集" id="toc-用語集" class="nav-link" data-scroll-target="#用語集">📘 用語集</a></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>問題を報告</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content" tabindex="-1">
+
+
+
+
+
+
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>TL;DRs
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li><code>truncate</code> はファイルのサイズを指定値に変更するコマンド</li>
+<li><code>truncate</code> コマンドを実行することで，ファイルそのもの（名前・inode・権限・所有者）は残したまま中身だけを捨てられる</li>
+<li>肥大化した <code>/var/log/syslog</code> を空にするなら <code>sudo truncate -s 0 /var/log/syslog</code> を使う</li>
+<li><code>rm</code> で消すと，ログを書いている <code>rsyslogd</code> がファイルを開いたままなので <strong>ディスク容量が解放されない</strong>．しかも以後のログは見えない削除済みファイルに書かれ続ける</li>
+<li>空にするのは応急処置．ログを大量に出している原因の調査と <code>logrotate</code> の設定見直しをセットで行う</li>
+</ul>
+</div>
+</div>
+<section id="truncate-commandとは" class="level2">
+<h2 class="anchored" data-anchor-id="truncate-commandとは">truncate commandとは</h2>
+<div id="def-truncate" class="custom_problem blog-custom-border theorem definition">
+<p><span class="theorem-title"><strong>Definition 1</strong></span> <span class="def-title"><code>truncate</code> コマンド</span></p>
+<ul>
+<li><strong>ファイルのサイズを指定した値に変更する</strong> GNU coreutils のコマンド</li>
+<li>指定サイズより大きいファイルは，はみ出した末尾のデータを捨てる</li>
+<li>指定サイズより小さいファイルは伸ばし，伸ばした部分はホール（読むと 0 バイトが返る領域）とする</li>
+<li>ファイルの名前・inode・所有者・パーミッションは変えず，中身の長さだけを変える</li>
+</ul>
+</div>
+<p><span class="mini-section">syntax</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">truncate</span> OPTION... FILE...</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<ul>
+<li><code>FILE</code> が存在しなければ新規作成されます（<code>-c</code> で抑止できます）．</li>
+</ul>
+<p><span class="mini-section">オプション</span></p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 35%">
+<col style="width: 65%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>オプション</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>-s, --size=SIZE</code></td>
+<td>サイズを <code>SIZE</code> バイトに設定（または <code>SIZE</code> だけ増減）する</td>
+</tr>
+<tr class="even">
+<td><code>-r, --reference=RFILE</code></td>
+<td><code>RFILE</code> と同じサイズにする</td>
+</tr>
+<tr class="odd">
+<td><code>-c, --no-create</code></td>
+<td>ファイルが無くても新規作成しない</td>
+</tr>
+<tr class="even">
+<td><code>-o, --io-blocks</code></td>
+<td><code>SIZE</code> をバイトではなく I/O ブロック数として解釈する</td>
+</tr>
+</tbody>
+</table>
+<p><code>-s</code> と <code>-r</code> のどちらかでサイズを指定します．基本形は <code>truncate -s 0 FILE</code> で，これでファイルを空にできます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> printf <span class="st">'hello world\n'</span> <span class="op">&gt;</span> a.txt</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> truncate <span class="at">-s</span> 5 a.txt</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> cat a.txt</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="ex">hello</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>-o</code> は <code>stat -c %o</code> で表示される I/O ブロックサイズ（ext4 なら通常 4096 バイト）を単位にします．<code>truncate -o -s 2 f</code> は 8192 バイトになります．</p>
+<section id="size-の単位" class="level3">
+<h3 class="anchored" data-anchor-id="size-の単位">SIZE の単位</h3>
+<p><code>SIZE</code> は整数に単位を付けて書けます．<code>K</code> は 1024 倍，<code>KB</code> は 1000 倍という違いに注意してください．</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 40%">
+<col style="width: 30%">
+<col style="width: 30%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>書き方</th>
+<th>倍率</th>
+<th>例</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>K</code>, <code>M</code>, <code>G</code>, <code>T</code>, <code>P</code>, <code>E</code>, <code>Z</code>, <code>Y</code>, <code>R</code>, <code>Q</code></td>
+<td>1024 のべき乗</td>
+<td><code>10K</code> = 10,240 バイト</td>
+</tr>
+<tr class="even">
+<td><code>KiB</code>, <code>MiB</code>, …</td>
+<td>1024 のべき乗（<code>K</code> と同じ）</td>
+<td><code>10KiB</code> = 10,240 バイト</td>
+</tr>
+<tr class="odd">
+<td><code>KB</code>, <code>MB</code>, <code>GB</code>, …</td>
+<td>1000 のべき乗</td>
+<td><code>10KB</code> = 10,000 バイト</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="size-の修飾子" class="level3">
+<h3 class="anchored" data-anchor-id="size-の修飾子">SIZE の修飾子</h3>
+<p><code>SIZE</code> の前に記号を付けると，絶対値ではなく現在のサイズからの相対指定になります．</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 15%">
+<col style="width: 40%">
+<col style="width: 45%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>修飾子</th>
+<th>意味</th>
+<th>例（実行前のサイズ → 実行後）</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>+</code></td>
+<td>その分だけ伸ばす</td>
+<td><code>-s +24</code>：1000 → 1024</td>
+</tr>
+<tr class="even">
+<td><code>-</code></td>
+<td>その分だけ縮める</td>
+<td><code>-s -100</code>：1024 → 924</td>
+</tr>
+<tr class="odd">
+<td><code>&lt;</code></td>
+<td>最大でもこのサイズ（超えていれば縮める）</td>
+<td><code>-s '&lt;500'</code>：924 → 500</td>
+</tr>
+<tr class="even">
+<td><code>&gt;</code></td>
+<td>最小でもこのサイズ（足りなければ伸ばす）</td>
+<td><code>-s '&gt;2000'</code>：500 → 2000</td>
+</tr>
+<tr class="odd">
+<td><code>/</code></td>
+<td>この倍数に切り下げる</td>
+<td><code>-s /512</code>：2000 → 1536</td>
+</tr>
+<tr class="even">
+<td><code>%</code></td>
+<td>この倍数に切り上げる</td>
+<td><code>-s %1024</code>：1536 → 2048</td>
+</tr>
+</tbody>
+</table>
+<p><code>&lt;</code> と <code>&gt;</code> はシェルのリダイレクト記号と衝突するので，必ずクォートで囲みます．</p>
+</section>
+</section>
+<section id="syslog-削除でなぜ-rm-はだめなのか" class="level2">
+<h2 class="anchored" data-anchor-id="syslog-削除でなぜ-rm-はだめなのか">syslog 削除でなぜ rm はだめなのか</h2>
+<div class="custom_problem blog-custom-border">
+<p><span class="mini-section">状況：/var/log/syslog が肥大化してディスクが埋まる</span></p>
+<ul>
+<li>アプリケーションの暴走やカーネルのエラーの連発などで，<code>/var/log/syslog</code> が数十 GB に膨らんでディスクを使い切ることがある</li>
+<li>ここで <code>sudo rm /var/log/syslog</code> を実行しても，これでは容量は空かない場合が多い</li>
+</ul>
+</div>
+<section id="rm-はファイルの名前を消すだけ" class="level3">
+<h3 class="anchored" data-anchor-id="rm-はファイルの名前を消すだけ">rm はファイルの「名前」を消すだけ</h3>
+<p>Linux のファイルは，<strong>ディレクトリエントリ（名前）→ inode（ファイル本体の管理情報）→ データブロック（中身）</strong> という構造になっています．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/file-structure.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-1" title="ファイルは名前・inode・データブロックの3層でできている"><img src="figures/file-structure.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="ファイルは名前・inode・データブロックの3層でできている"></a></p>
+</figure>
+</div>
+<figcaption>ファイルは名前・inode・データブロックの3層でできている</figcaption>
+</figure>
+</div>
+<p><code>rm</code> が行うのは <code>unlink(2)</code>，つまりディレクトリエントリを消して inode のリンク数を 1 減らすことだけです．</p>
+<p>カーネルがデータブロックを解放するのは，次の2つが両方とも満たされたときです．</p>
+<ol type="1">
+<li>リンク数（その inode を指す名前の数）が 0 になった</li>
+<li>そのファイルを開いているプロセスが1つも無い</li>
+</ol>
+<p><code>/var/log/syslog</code> は <code>rsyslogd</code> が常時開いて書き込んでいるので，2 が満たされません．名前が消えて <code>ls</code> では見えなくなっても，inode とデータブロックは残り続けます．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/rm-vs-truncate.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-2" title="rm は名前だけを消し，truncate は中身だけを解放する"><img src="figures/rm-vs-truncate.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="rm は名前だけを消し，truncate は中身だけを解放する"></a></p>
+</figure>
+</div>
+<figcaption>rm は名前だけを消し，truncate は中身だけを解放する</figcaption>
+</figure>
+</div>
+<p>さらに悪いことに，<code>rsyslogd</code> は削除されたことに気付かずに開いたままの inode に書き込みを続けます．結果として，</p>
+<ul>
+<li><code>df</code> で見ても空き容量が増えない</li>
+<li><code>du -sh /var/log</code> の合計と <code>df</code> の使用量が合わなくなる</li>
+<li>新しく出たログは，誰も <code>ls</code> で辿れない削除済みファイルに溜まっていく</li>
+</ul>
+<p>という状態になります．</p>
+<p>削除済みでも開かれているファイルの探し方と，<code>rm</code> してしまった後の対処は <a href="#find-deleted-open-files">Appendix</a> にまとめました．</p>
+</section>
+<section id="truncate-で中身だけを捨てる" class="level3">
+<h3 class="anchored" data-anchor-id="truncate-で中身だけを捨てる">truncate で中身だけを捨てる</h3>
+<ul>
+<li><code>truncate -s 0</code> は <code>truncate(2)</code> システムコールでファイルのサイズを 0 にする</li>
+<li>名前も inode もそのままなので，<code>rsyslogd</code> が開いている fd は引き続き有効で，データブロックだけが即座に解放される</li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> sudo truncate <span class="at">-s</span> 0 /var/log/syslog</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> ls <span class="at">-l</span> /var/log/syslog</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="ex">-rw-r-----</span> 1 syslog adm 0 Nov 20 15:00 /var/log/syslog</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>所有者 <code>syslog</code>，グループ <code>adm</code>，パーミッション <code>640</code> も変わらないので，<code>rm</code> してから作り直す場合のように権限を設定し直す必要もありません．</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span><code>truncate</code> は応急処置に過ぎない
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><code>truncate</code> は応急処置にすぎず，ログを大量に出している原因が残っていればすぐにまた埋まります．</p>
+<ol type="1">
+<li><strong>中身を確認する</strong>：消す前に <code>sudo tail -n 1000 /var/log/syslog</code> や <code>sudo journalctl -p err -b</code> で，何が大量に出ているかを確認する．必要なら直近分だけ退避しておく（例：<code>sudo tail -n 100000 /var/log/syslog &gt; ~/syslog.tail</code>）</li>
+<li><strong>空にする</strong>：<code>sudo truncate -s 0 /var/log/syslog</code></li>
+<li><strong>容量の回復を確認する</strong>：<code>df -h /var/log</code></li>
+<li><strong>原因を止める</strong>：ログを出しているサービスの設定やバグを直す</li>
+<li><strong>ローテーションを見直す</strong>：Ubuntu では <code>/etc/logrotate.d/rsyslog</code> で <code>weekly</code>・<code>rotate 4</code> が既定になっている．大量に出る環境では <code>size</code> や <code>maxsize</code> を設定して，サイズでもローテーションされるようにする</li>
+</ol>
+</div>
+</div>
+</section>
+<section id="書き込み側が-o_append-で開いているかに注意" class="level3">
+<h3 class="anchored" data-anchor-id="書き込み側が-o_append-で開いているかに注意">書き込み側が O_APPEND で開いているかに注意</h3>
+<p><code>truncate</code> が期待どおりに働くかは，<strong>書き込み側のプロセスがファイルをどう開いているか</strong>で変わります．</p>
+<p>ファイルを開いているプロセスは，次に書き込む位置（ファイルオフセット）を fd ごとに覚えています．</p>
+<ul>
+<li><code>O_APPEND</code> 付きで開いた場合（シェルの <code>&gt;&gt;</code> に相当）：書き込みのたびにオフセットがファイル末尾へ移動する．<code>truncate</code> 後は末尾 = 先頭なので，新しいログは先頭から書かれる</li>
+<li><code>O_APPEND</code> 無しで開いた場合（シェルの <code>&gt;</code> に相当）：オフセットは <code>truncate</code> 前の位置（例えば 50 MB 地点）のまま．そこに書き込むと，先頭から 50 MB 地点までがホールになる</li>
+</ul>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/append-offset.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-3" title="O_APPEND の有無による truncate 後の書き込み位置の違い"><img src="figures/append-offset.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:90.0%" alt="O_APPEND の有無による truncate 後の書き込み位置の違い"></a></p>
+</figure>
+</div>
+<figcaption>O_APPEND の有無による truncate 後の書き込み位置の違い</figcaption>
+</figure>
+</div>
+<p><code>O_APPEND</code> 無しの場合でも，ホールはディスクを消費しないので容量自体は空きます．</p>
+<p><code>rsyslog</code> はログファイルを <code>O_APPEND</code> 付きで開くので，<code>/var/log/syslog</code> では問題になりません．自作のアプリケーションのログなど，書き込み側の開き方が分からないファイルを <code>truncate</code> するときは，<code>/proc/&lt;PID&gt;/fdinfo/&lt;FD&gt;</code> の <code>flags</code> で確認できます．<code>flags</code> は8進数で，<code>02000</code> のビットが立っていれば <code>O_APPEND</code> です．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> grep flags /proc/<span class="op">&lt;</span>PID<span class="op">&gt;</span>/fdinfo/<span class="op">&lt;</span>FD<span class="op">&gt;</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ex">flags:</span>  0102001     <span class="co"># 02000 のビットあり → O_APPEND</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="ex">flags:</span>  0100001     <span class="co"># 02000 のビットなし</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+</section>
+<section id="appendix" class="level2">
+<h2 class="anchored" data-anchor-id="appendix">Appendix</h2>
+<section id="find-deleted-open-files" class="level3">
+<h3 class="anchored" data-anchor-id="find-deleted-open-files">削除済みでも開かれているファイルを探す</h3>
+<p><code>lsof +L1</code> でリンク数が 1 未満（つまり削除済み）でも開かれているファイルを一覧できます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> sudo lsof <span class="at">-nP</span> +L1</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="ex">COMMAND</span>    PID   USER  FD  TYPE DEVICE    SIZE/OFF NLINK    NODE NAME</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="ex">rsyslogd</span>  2219 syslog  7w   REG  259,2 53687091200     0 1234567 /var/log/syslog <span class="er">(</span><span class="ex">deleted</span><span class="kw">)</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>NLINK</code> が 0 で，末尾に <code>(deleted)</code> が付いているのが目印です．<code>/proc/&lt;PID&gt;/fd/</code> 以下のシンボリックリンクからも確認できます．</p>
+<p>もう <code>rm</code> してしまった場合は，次のどちらかで容量を取り戻せます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 方法1：rsyslogd を再起動してファイルを閉じさせる（新しい /var/log/syslog が作られる）</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> sudo systemctl restart rsyslog</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="co"># 方法2：プロセスを止めずに，開いている fd 経由で中身を切り詰める</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> sudo truncate <span class="at">-s</span> 0 /proc/2219/fd/7</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="システムログを収集するソフトウェア" class="level3">
+<h3 class="anchored" data-anchor-id="システムログを収集するソフトウェア">システムログを収集するソフトウェア</h3>
+<p>カーネルや各デーモンが出すログを受け取り，ファイルなどに書き出すソフトウェアは複数あります．「syslog」は元祖のデーモンの名前であると同時に，ログメッセージの形式・転送のプロトコル（RFC 3164 / RFC 5424）の名前でもあり，rsyslog と syslog-ng はそのプロトコルを実装した後継です．</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+</colgroup>
+<thead>
+<tr class="header">
+<th></th>
+<th>syslog（sysklogd）</th>
+<th>rsyslog</th>
+<th>syslog-ng</th>
+<th>systemd journal</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>デーモン</td>
+<td><code>syslogd</code>（カーネルログは <code>klogd</code>）</td>
+<td><code>rsyslogd</code></td>
+<td><code>syslog-ng</code></td>
+<td><code>systemd-journald</code></td>
+</tr>
+<tr class="even">
+<td>登場</td>
+<td>1980年代（BSD）</td>
+<td>2004年</td>
+<td>1998年</td>
+<td>2011年（systemd の一部）</td>
+</tr>
+<tr class="odd">
+<td>保存形式</td>
+<td>テキスト</td>
+<td>テキスト（DB や Elasticsearch などにも出力可）</td>
+<td>テキスト（DB などにも出力可）</td>
+<td>独自のバイナリ形式</td>
+</tr>
+<tr class="even">
+<td>主な保存先</td>
+<td><code>/var/log/messages</code> など</td>
+<td><code>/var/log/syslog</code>（Debian/Ubuntu），<code>/var/log/messages</code>（RHEL 系）</td>
+<td>設定次第</td>
+<td><code>/var/log/journal/</code>（永続）または <code>/run/log/journal/</code>（揮発）</td>
+</tr>
+<tr class="odd">
+<td>設定ファイル</td>
+<td><code>/etc/syslog.conf</code></td>
+<td><code>/etc/rsyslog.conf</code>，<code>/etc/rsyslog.d/*.conf</code></td>
+<td><code>/etc/syslog-ng/syslog-ng.conf</code></td>
+<td><code>/etc/systemd/journald.conf</code></td>
+</tr>
+<tr class="even">
+<td>振り分け方</td>
+<td><code>facility.severity</code> のセレクタで出力先を決める</td>
+<td>syslog.conf 互換のセレクタ + RainerScript による条件分岐</td>
+<td><code>source</code> → <code>filter</code> → <code>destination</code> を <code>log</code> 文でつなぐ</td>
+<td>振り分けずに1か所へ集め，読むときに絞り込む</td>
+</tr>
+<tr class="odd">
+<td>ネットワーク転送</td>
+<td>UDP</td>
+<td>UDP / TCP / TLS / RELP</td>
+<td>UDP / TCP / TLS</td>
+<td><code>systemd-journal-remote</code> / <code>-upload</code>，または他の syslog デーモンへ転送</td>
+</tr>
+<tr class="even">
+<td>ローテーション</td>
+<td>外部ツール（<code>logrotate</code>）</td>
+<td>外部ツール（<code>logrotate</code>）</td>
+<td>外部ツール（<code>logrotate</code>）</td>
+<td>journald 自身が容量上限（<code>SystemMaxUse</code> など）に従って古いものを削除</td>
+</tr>
+<tr class="odd">
+<td>現在の主な採用先</td>
+<td>ほぼ使われない</td>
+<td>Ubuntu，RHEL 系の標準</td>
+<td>Gentoo などで任意に導入</td>
+<td>systemd を使うほぼすべてのディストリ．Fedora や Debian 12 以降は journald のみが既定</td>
+</tr>
+</tbody>
+</table>
+<p>systemd を使うディストリでは journald が常に動いており，Ubuntu や RHEL 系ではさらに rsyslog が journald からログを受け取ってテキストファイルに書き出す，という二段構成になっています．<code>/var/log/syslog</code> が肥大化するのはこの rsyslog 側の出力です．</p>
+<p>journald のみの環境には <code>/var/log/syslog</code> 自体が存在しません．journal の容量を減らしたいときは，ファイルを <code>truncate</code> するのではなく <code>journalctl</code> の機能を使います．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> journalctl <span class="at">--disk-usage</span>               <span class="co"># journal の使用量を確認</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> sudo journalctl <span class="at">--vacuum-size</span><span class="op">=</span>500M    <span class="co"># 500 MB 以下になるまで古い journal を削除</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> sudo journalctl <span class="at">--vacuum-time</span><span class="op">=</span>2weeks  <span class="co"># 2週間より古い journal を削除</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p><span class="mini-section">rsyslog.conf と syslog.conf</span></p>
+<p><code>syslog.conf</code> は sysklogd の <code>syslogd</code> が読む設定ファイル，<code>rsyslog.conf</code> は <code>rsyslogd</code> が読む設定ファイルです．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 17%">
+<col style="width: 36%">
+<col style="width: 47%">
+</colgroup>
+<thead>
+<tr class="header">
+<th></th>
+<th><code>syslog.conf</code></th>
+<th><code>rsyslog.conf</code></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>読むデーモン</td>
+<td><code>syslogd</code>（sysklogd）</td>
+<td><code>rsyslogd</code></td>
+</tr>
+<tr class="even">
+<td>場所</td>
+<td><code>/etc/syslog.conf</code> の1ファイル</td>
+<td><code>/etc/rsyslog.conf</code> と，そこから読み込む <code>/etc/rsyslog.d/*.conf</code></td>
+</tr>
+<tr class="odd">
+<td>書ける構文</td>
+<td>セレクタ行のみ（1行に「セレクタ + 出力先」）</td>
+<td>セレクタ行，legacy ディレクティブ（<code>$</code> で始まる行），RainerScript の3種類</td>
+</tr>
+<tr class="even">
+<td>ログの入力</td>
+<td><code>/dev/log</code> とカーネルログを自動で読む（設定不要）</td>
+<td>入力モジュール（<code>imuxsock</code>，<code>imklog</code>，<code>imjournal</code>，<code>imudp</code> など）を明示的に読み込む</td>
+</tr>
+<tr class="odd">
+<td>絞り込み</td>
+<td><code>facility.severity</code> のみ</td>
+<td>セレクタに加え，メッセージ本文やプログラム名による条件（<code>:msg, contains, "error"</code>，<code>if $programname == "sshd" then ...</code>）</td>
+</tr>
+<tr class="even">
+<td>リモート転送</td>
+<td><code>@host</code>（UDP）</td>
+<td><code>@host</code>（UDP），<code>@@host</code>（TCP），<code>action(type="omfwd" ...)</code> で TLS も可</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>rsyslog は sysklogd の置き換えとして作られたので，<strong><code>syslog.conf</code> のセレクタ行をそのまま解釈できます</strong>（後方互換）．Ubuntu の <code>/etc/rsyslog.d/50-default.conf</code> も中身は sysklogd 時代と同じ書式です．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> grep <span class="at">-v</span> <span class="st">'^#'</span> /etc/rsyslog.d/50-default.conf <span class="kw">|</span> <span class="fu">grep</span> <span class="at">-v</span> <span class="st">'^$'</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="ex">auth,authpriv.*</span>                 /var/log/auth.log</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="ex">*.*</span><span class="kw">;</span><span class="ex">auth,authpriv.none</span>          <span class="at">-</span>/var/log/syslog</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="ex">kern.*</span>                          <span class="at">-</span>/var/log/kern.log</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="ex">mail.*</span>                          <span class="at">-</span>/var/log/mail.log</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="ex">mail.err</span>                        /var/log/mail.err</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="ex">*.emerg</span>                         :omusrmsg:<span class="pp">*</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/syslog-conf-compat.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-4" title="rsyslogd は syslog.conf の書式を読めるが，syslogd は rsyslog 固有の構文を読めない"><img src="figures/syslog-conf-compat.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:90.0%" alt="rsyslogd は syslog.conf の書式を読めるが，syslogd は rsyslog 固有の構文を読めない"></a></p>
+</figure>
+</div>
+<figcaption>rsyslogd は syslog.conf の書式を読めるが，syslogd は rsyslog 固有の構文を読めない</figcaption>
+</figure>
+</div>
+<p>ただし互換なのは「古い書式を新しいデーモンが読める」方向だけです．<code>$ModLoad</code> や <code>module(load=...)</code>，<code>@@host</code> など rsyslog 固有の構文を書いた設定は，<code>syslogd</code> では読めません．また，sysklogd から移行するときは，<code>syslogd</code> が暗黙に行っていたログの受信を <code>imuxsock</code>（ローカルのソケット）と <code>imklog</code>（カーネルログ）の読み込みとして明示する必要があります．ディストリが配布する <code>/etc/rsyslog.conf</code> には最初から書かれているので，自分のルールは <code>/etc/rsyslog.d/</code> に追加するだけで動きます．</p>
+<p><span class="mini-section">syslog-ng は syslog.conf と互換性がない</span></p>
+<p>syslog-ng は rsyslog と違い，<code>syslog.conf</code> の書式を解釈できません．設定は「どこから受け取るか（<code>source</code>）」「どれを選ぶか（<code>filter</code>）」「どこへ出すか（<code>destination</code>）」をそれぞれ名前付きで定義し，<code>log</code> 文でつなぐ独自の構文です．同じ「カーネルログを <code>/var/log/kern.log</code> に書く」ルールでも，書き方がまったく異なります．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># syslog.conf / rsyslog.conf（セレクタ行）</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="ex">kern.*</span>    <span class="at">-</span>/var/log/kern.log</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># syslog-ng.conf</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="ex">@version:</span> 4.0</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="bu">source</span>      s_src  { system<span class="er">(</span><span class="kw">);</span> <span class="fu">internal()</span><span class="kw">;</span> <span class="er">}</span><span class="kw">;</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="ex">filter</span>      f_kern { facility<span class="er">(</span><span class="ex">kern</span><span class="kw">);</span> <span class="er">}</span><span class="kw">;</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="ex">destination</span> d_kern { file<span class="er">(</span><span class="st">"/var/log/kern.log"</span><span class="kw">);</span> <span class="er">}</span><span class="kw">;</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="ex">log</span> { source<span class="er">(</span><span class="ex">s_src</span><span class="kw">);</span> <span class="ex">filter</span><span class="er">(</span><span class="ex">f_kern</span><span class="kw">);</span> <span class="ex">destination</span><span class="er">(</span><span class="ex">d_kern</span><span class="kw">);</span> <span class="er">}</span><span class="kw">;</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="systemd-journal-と-rsyslog-の組み合わせ" class="level3">
+<h3 class="anchored" data-anchor-id="systemd-journal-と-rsyslog-の組み合わせ">systemd journal と rsyslog の組み合わせ</h3>
+<p>Ubuntu や RHEL 系では，journald がまずすべてのログを受け取り，rsyslog がそれをテキストファイルに書き出します．journald だけでもログは保存できますが，テキストのログファイルを使う従来の運用を続けるために rsyslog を併用しています．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/journald-rsyslog.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-5" title="systemd-journald がログを集め，rsyslogd がそれを受け取ってテキストファイルに書き出す"><img src="figures/journald-rsyslog.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="systemd-journald がログを集め，rsyslogd がそれを受け取ってテキストファイルに書き出す"></a></p>
+</figure>
+</div>
+<figcaption>systemd-journald がログを集め，rsyslogd がそれを受け取ってテキストファイルに書き出す</figcaption>
+</figure>
+</div>
+<p><span class="mini-section">① journald がすべてのログを受け取る</span></p>
+<p>journald は，発生源ごとに異なる経路でログを受け取ります．</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>発生源</th>
+<th>journald への経路</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>カーネル</td>
+<td><code>/dev/kmsg</code>（カーネルのリングバッファ）</td>
+</tr>
+<tr class="even">
+<td>systemd から起動したサービス</td>
+<td>サービスの標準出力・標準エラー出力（<code>stdout</code> / <code>stderr</code>）をそのまま受け取る</td>
+</tr>
+<tr class="odd">
+<td><code>syslog(3)</code> や <code>logger</code> を使うアプリケーション</td>
+<td><code>/dev/log</code></td>
+</tr>
+</tbody>
+</table>
+<p>従来 <code>/dev/log</code> は syslog デーモンが待ち受けるソケットでしたが，systemd 環境では journald のソケットへのシンボリックリンクになっています．そのため，syslog 向けに書かれたアプリケーションのログも，まず journald に届きます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="ex">%</span> ls <span class="at">-l</span> /dev/log</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="ex">lrwxrwxrwx</span> 1 root root 28 Nov 20 09:00 /dev/log <span class="at">-</span><span class="op">&gt;</span> /run/systemd/journal/dev-log</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p><span class="mini-section">② journald が journal ファイルに保存する</span></p>
+<p>受け取ったログは，<code>/etc/systemd/journald.conf</code> の <code>Storage=</code> に従って journal ファイル（バイナリ）に保存されます．</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th><code>Storage=</code></th>
+<th>保存先</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>persistent</code></td>
+<td><code>/var/log/journal/&lt;machine-id&gt;/</code>．再起動後も残る</td>
+</tr>
+<tr class="even">
+<td><code>volatile</code></td>
+<td><code>/run/log/journal/&lt;machine-id&gt;/</code>．メモリ上の tmpfs なので再起動で消える</td>
+</tr>
+<tr class="odd">
+<td><code>auto</code>（既定）</td>
+<td><code>/var/log/journal/</code> があれば <code>persistent</code>，無ければ <code>volatile</code> と同じ</td>
+</tr>
+<tr class="even">
+<td><code>none</code></td>
+<td>保存しない（転送だけ行う）</td>
+</tr>
+</tbody>
+</table>
+<p><span class="mini-section">③ rsyslog が journald からログを受け取る</span></p>
+<p>rsyslog が journald からログを受け取る方法は2通りあり，ディストリによって使い分けられています．</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th></th>
+<th><code>imuxsock</code> 方式</th>
+<th><code>imjournal</code> 方式</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>主な採用先</td>
+<td>Ubuntu / Debian</td>
+<td>RHEL 系</td>
+</tr>
+<tr class="even">
+<td>受け渡しの向き</td>
+<td>journald がソケット <code>/run/systemd/journal/syslog</code> へ転送し（push），rsyslog が受け取る</td>
+<td>rsyslog が journal ファイルを読みにいく（pull）</td>
+</tr>
+<tr class="odd">
+<td>journald 側の設定</td>
+<td><code>ForwardToSyslog=yes</code></td>
+<td>不要</td>
+</tr>
+<tr class="even">
+<td>読み込み位置の管理</td>
+<td>不要（届いたものを順に処理する）</td>
+<td>最後に読んだ位置（カーソル）を状態ファイルに記録し，再起動後はその続きから読む</td>
+</tr>
+</tbody>
+</table>
+<p><code>imuxsock</code> と <code>imjournal</code> は，どちらも rsyslogd に組み込まれる入力モジュール（input module．名前の <code>im</code> はその略）です．受け取ったログは，<code>/etc/rsyslog.conf</code> のルールに従って <code>/var/log/syslog</code> や <code>/var/log/messages</code> などのテキストファイルに書き出されます．</p>
+</section>
+</section>
+<section id="用語集" class="level2">
+<h2 class="anchored" data-anchor-id="用語集">📘 用語集</h2>
+<div class="glossary-container">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">glossary</span><span class="kw">:</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> syslog</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>      Unix 系 OS で使われる，ログメッセージの送受信と記録の仕組み（およびそのプロトコル．RFC 5424 で標準化されている）．各メッセージは発生源を表す facility（`kern`，`auth`，`cron` など）と重要度を表す severity（`err`，`warning`，`info` など）を持ち，ログデーモンがその組み合わせに応じて出力先のファイルを振り分ける．Debian / Ubuntu では `rsyslogd` が受け取ったメッセージの大半を `/var/log/syslog` に書き込む（RHEL 系では `/var/log/messages`）．systemd 環境では journald が集めたログを rsyslog に転送する構成が一般的である．</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> inode</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>      ファイルのメタデータ（サイズ，所有者，パーミッション，タイムスタンプ，データブロックの位置など）を保持するファイルシステム上の管理構造．ファイル名は inode には含まれず，ディレクトリエントリが「名前 → inode 番号」の対応を持つ．</span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> ディレクトリエントリ（directory entry）</span></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>      ディレクトリの中に記録された「ファイル名と inode 番号の組」．1つの inode を複数のディレクトリエントリが指すことができ（ハードリンク），その数がリンク数になる．</span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> unlink</span></span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>      ディレクトリエントリを削除し，inode のリンク数を 1 減らすシステムコール．`rm` の実体．リンク数が 0 になり，かつどのプロセスもファイルを開いていないときに，はじめて inode とデータブロックが解放される．</span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> ファイルディスクリプタ（file descriptor, fd）</span></span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>      プロセスが開いているファイルを識別するための整数．fd は名前ではなく inode に結び付いているため，開いた後にファイルが削除・名前変更されても，同じ fd で読み書きを続けられる．</span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> ファイルオフセット（file offset）</span></span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>      開いているファイルの「次に読み書きする位置」．fd（正確にはオープンファイル記述）ごとに保持され，read/write のたびに進む．</span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> O_APPEND</span></span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a>      `open(2)` のフラグの1つ．指定すると，書き込みのたびにファイルオフセットがファイル末尾に移動する．シェルの `&gt;&gt;` リダイレクトはこのフラグを付けてファイルを開く．</span>
+<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> スパースファイル（sparse file）</span></span>
+<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a>      途中にデータブロックが割り当てられていない領域（ホール）を持つファイル．ホールは読むと 0 バイトが返るが，ディスクを消費しない．そのため `ls -l` の見かけのサイズと `du` の実使用量が食い違う．</span>
+<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> logrotate</span></span>
+<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a>      ログファイルを定期的に名前変更・圧縮・削除して，ログが無制限に肥大化するのを防ぐツール．Ubuntu では systemd timer から1日1回実行され，`/etc/logrotate.d/` 以下の設定に従ってローテーションする．</span>
+<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">def</span><span class="kw">:</span><span class="at"> 後方互換性（backward compatibility）</span></span>
+<span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a><span class="fu">    description</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb12-31"><a href="#cb12-31" aria-hidden="true" tabindex="-1"></a>      新しいソフトウェアが，古いソフトウェア向けに作られた入力（設定ファイル・データ形式・API など）をそのまま受け付けられる性質．利用者は既存の資産を書き直さずに新しい版へ移行できる．互換は「新 → 旧を読める」方向だけを指し，逆向き（古いソフトウェアが新しい形式を読めること）は前方互換性と呼んで区別する．例えば rsyslog は sysklogd の `syslog.conf` の書式を読めるので後方互換だが，sysklogd は rsyslog 固有の構文を読めない．</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<ul>
+<li><a href="https://www.gnu.org/software/coreutils/manual/html_node/truncate-invocation.html">GNU Coreutils &gt; truncate invocation</a></li>
+<li><a href="https://man7.org/linux/man-pages/man2/truncate.2.html">man7.org &gt; truncate(2)</a></li>
+<li><a href="https://man7.org/linux/man-pages/man2/unlink.2.html">man7.org &gt; unlink(2)</a></li>
+<li><a href="https://man7.org/linux/man-pages/man2/open.2.html">man7.org &gt; open(2)</a></li>
+<li><a href="https://man7.org/linux/man-pages/man5/proc_pid_fdinfo.5.html">man7.org &gt; proc_pid_fdinfo(5)</a></li>
+<li><a href="https://man7.org/linux/man-pages/man8/lsof.8.html">man7.org &gt; lsof(8)</a></li>
+<li><a href="https://linux.die.net/man/8/logrotate">logrotate(8)</a></li>
+</ul>
+
+
+</section>
+
+</main> <!-- /main -->
+<script>
+    document.querySelectorAll('.custom_problem .theorem-title').forEach((title) => {
+        let modName = title.innerHTML;
+        modName = modName.replace("Exercise", "Problem");
+        modName = modName.replace("Proposition", "Property");
+        modName = modName.replace("Example", "<strong>&#9654;</strong>&nbsp; Example");
+        title.innerHTML = modName;
+    });
+
+    // Rule: 未使用の Corollary (#cor-, lang: ja では「系」) を Rule として表示する
+    document.querySelectorAll('.custom_rule .theorem-title').forEach((title) => {
+        title.innerHTML = title.innerHTML
+            .replace(/^<strong>(系|Corollary)/, "<strong>Rule")
+            .replace(/\s*\((.*)\)<\/strong>$/, ": $1</strong>");
+        // タイトルの後で改行し，本文を次の行から始める
+        title.style.display = "block";
+        title.style.paddingBottom = "0.5em";
+        title.style.fontSize = "1.1em";
+        // 本文がリスト等で始まると Quarto がタイトル後に &nbsp; を残し空行になるため除去する
+        while (title.nextSibling && title.nextSibling.nodeType === Node.TEXT_NODE
+               && title.nextSibling.textContent.trim() === "") {
+            title.nextSibling.remove();
+        }
+        if (!title.nextSibling) {
+            title.parentElement.style.marginBottom = "0";
+        }
+    });
+ </script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const toggle = window.document.createElement('button');
+      toggle.type = "button";
+      toggle.setAttribute("role", "switch");
+      toggle.setAttribute("aria-checked", "false");
+      toggle.classList.add('top-right');
+      toggle.classList.add('quarto-color-scheme-toggle');
+      toggle.setAttribute("aria-label", "ダークモードの切り替え");
+      toggle.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      toggle.appendChild(i);
+      // Put the toggle in a landmark of its own, so that landmark navigation
+      // can reach it.
+      //
+      // The container is always a fresh direct child of body, and the toggle is
+      // never moved into page furniture that the theme or the author controls.
+      // The toggle is positioned against the page, so any ancestor that
+      // establishes a containing block captures it: a positioned element or a
+      // grid for position: absolute, and transform, filter, will-change or
+      // contain for position: fixed. A direct child of body has none of these
+      // to inherit, and the shift when one appears is silent and visual.
+      //
+      // ARIA says a document should have at most one banner, and axe reports a
+      // duplicate whether or not the banners carry distinct labels. So use a
+      // header when the page has no banner yet, and a named region otherwise.
+      //
+      // A header is a banner wherever it sits, unless it is inside sectioning
+      // content, so this cannot just look at the children of body: a custom
+      // page layout wraps the title block header in a plain div. An explicit
+      // role="banner" always counts.
+      const sectioning = 'article, aside, main, nav, section, [role="article"], [role="complementary"], [role="main"], [role="navigation"], [role="region"]';
+      const hasBanner = Array.from(
+        window.document.querySelectorAll('header:not([role]), [role="banner"]')
+      ).some(function(el) {
+        return el.hasAttribute("role") || el.closest(sectioning) === null;
+      });
+      const container = window.document.createElement(hasBanner ? "div" : "header");
+      if (hasBanner) {
+        container.setAttribute("role", "region");
+        container.setAttribute("aria-label", "ダークモードの切り替え");
+      }
+      container.classList.add('quarto-color-scheme-toggle-container');
+      container.appendChild(toggle);
+      window.document.body.appendChild(container);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "コピーしました");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "コピーしました");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/ryonakagami\.github\.io\/regmonkey-datascience-blog");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+      window.quartoDecorateExternalLinks = function (root) {
+     var links = (root || window.document).querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+          if (!link.classList.contains('no-external-icon')) {
+          }
+        }
+      }
+      };
+      window.quartoDecorateExternalLinks(window.document);
+    // Esc closes the popup (WCAG 1.4.13) and focus leaving both trigger and
+    // popup closes it (WCAG 2.4.11); tippy handles neither for interactive popups.
+    const hideOnEscAndFocusOut = {
+      name: 'hideOnEscAndFocusOut',
+      defaultValue: true,
+      fn(instance) {
+        const dismiss = () => {
+          // A show scheduled by the trigger delay would otherwise reopen it
+          instance.clearDelayTimeouts();
+          instance.hide();
+        };
+        const onKeyDown = (event) => {
+          if (event.key !== 'Escape') {
+            return;
+          }
+          // Keep Esc from also reaching page handlers (e.g. reveal.js overview),
+          // except an open reveal.js slide menu, which Esc should close too.
+          // The menu handles keys only when its keyboard option is on.
+          const menuHandlesEsc = window.Reveal?.getPlugin?.('menu')?.isOpen() &&
+            window.Reveal.getConfig().menu?.keyboard !== false;
+          if (!menuHandlesEsc) {
+            event.stopPropagation();
+          }
+          if (instance.popper.contains(window.document.activeElement)) {
+            // Disabled while refocusing so the focus trigger does not reopen it
+            instance.disable();
+            instance.reference.focus();
+            instance.enable();
+          }
+          dismiss();
+        };
+        const onFocusOut = (event) => {
+          const target = event.relatedTarget;
+          if (target && !instance.reference.contains(target) &&
+              !instance.popper.contains(target)) {
+            dismiss();
+          }
+        };
+        // On the trigger too: a click trigger (code-annotations: select) has no
+        // blur handling. Attached for the instance's lifetime so leaving the
+        // trigger also cancels a show still pending on the trigger delay.
+        instance.reference.addEventListener('focusout', onFocusOut);
+        return {
+          onShow() {
+            window.document.addEventListener('keydown', onKeyDown, true);
+            instance.popper.addEventListener('focusout', onFocusOut);
+          },
+          onHide() {
+            window.document.removeEventListener('keydown', onKeyDown, true);
+            instance.popper.removeEventListener('focusout', onFocusOut);
+          },
+          onDestroy() {
+            instance.reference.removeEventListener('focusout', onFocusOut);
+          },
+        };
+      },
+    };
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+        plugins: [hideOnEscAndFocusOut],
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          // Each band is positioned against its own containing block, which is
+          // not the offsetParent of the lines, so place it from client rects.
+          const placeBand = (band, firstEl, lastEl, codeBlock) => {
+            const container = band.offsetParent;
+            if (container === null) {
+              return;
+            }
+            const containerRect = container.getBoundingClientRect();
+            // Reveal.js scales slides with a transform, so convert client
+            // pixels back to the CSS pixels of the container.
+            const scale = containerRect.height / container.offsetHeight || 1;
+            const firstRect = firstEl.getBoundingClientRect();
+            const lastRect = lastEl.getBoundingClientRect();
+            const top = (firstRect.top - containerRect.top) / scale - container.clientTop + container.scrollTop;
+            const height = (lastRect.bottom - firstRect.top) / scale;
+            band.style.top = top - 2 + "px";
+            band.style.height = height + 4 + "px";
+            if (codeBlock) {
+              // Without the copy button wrapper, the containing block is wider
+              // than the code block, so span the code block explicitly.
+              const blockRect = codeBlock.getBoundingClientRect();
+              band.style.left = (blockRect.left - containerRect.left) / scale - container.clientLeft + container.scrollLeft + "px";
+              band.style.width = blockRect.width / scale + "px";
+            }
+          };
+          if (lineIds.length > 0) {
+            const el = window.document.getElementById(lineIds[0]);
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const parent = el.parentElement.parentElement;
+            // cook up a div (if necessary) and position it
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            placeBand(div, el, lastEl, parent.closest("div.sourceCode") || parent);
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            placeBand(gutterDiv, el, lastEl);
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+  <script type="application/javascript">
+  window.quartoScrollableRegionsLabels = {"code":"スクロール可能なコード","output":"スクロール可能な出力"};
+  </script>
+<script src="https://utteranc.es/client.js" repo="RyoNakagami/regmonkey-datascience-blog" issue-term="title" theme="github-light" crossorigin="anonymous" async="">
+</script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+      &nbsp;
+    </div>   
+    <div class="nav-footer-center">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+ © Copyright RyoNak
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="../../LICENSE">
+<p>License</p>
+</a>
+  </li>  
+</ul>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>問題を報告</a></li></ul></div></div>
+    <div class="nav-footer-right">
+      &nbsp;
+    </div>
+  </div>
+</footer>
+    <script type="text/javascript">
+    (function(d) {
+      d.querySelectorAll(".pseudocode-container").forEach(function(el) {
+        let pseudocodeOptions = {
+          indentSize: el.dataset.indentSize || "1.2em",
+          commentDelimiter: el.dataset.commentDelimiter || "//",
+          lineNumber: el.dataset.lineNumber === "true" ? true : false,
+          lineNumberPunc: el.dataset.lineNumberPunc || ":",
+          noEnd: el.dataset.noEnd === "true" ? true : false,
+          titlePrefix: el.dataset.captionPrefix || "Algorithm"
+        };
+        pseudocode.renderElement(el.querySelector(".pseudocode"), pseudocodeOptions);
+      });
+    })(document);
+    (function(d) {
+      d.querySelectorAll(".pseudocode-container").forEach(function(el) {
+        let captionSpan = el.querySelector(".ps-root > .ps-algorithm > .ps-line > .ps-keyword")
+        if (captionSpan !== null) {
+          let captionPrefix = el.dataset.captionPrefix + " ";
+          let captionNumber = "";
+          if (el.dataset.pseudocodeNumber) {
+            captionNumber = el.dataset.pseudocodeNumber + " ";
+            if (el.dataset.chapterLevel) {
+              captionNumber = el.dataset.chapterLevel + "." + captionNumber;
+            }
+          }
+          captionSpan.innerHTML = captionPrefix + captionNumber;
+        }
+      });
+    })(document);
+    </script>
+  
+<script>var lightboxQuarto = GLightbox({"closeEffect":"zoom","descPosition":"bottom","loop":false,"openEffect":"zoom","selector":".lightbox"});
+(function() {
+  let previousOnload = window.onload;
+  window.onload = () => {
+    if (previousOnload) {
+      previousOnload();
+    }
+    lightboxQuarto.on('slide_before_load', (data) => {
+      const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+      const href = trigger.getAttribute('href');
+      if (href !== null) {
+        const imgEl = window.document.querySelector(`a[href="${href}"] img`);
+        if (imgEl !== null) {
+          const srcAttr = imgEl.getAttribute("src");
+          if (srcAttr && srcAttr.startsWith("data:")) {
+            slideConfig.href = srcAttr;
+          }
+        }
+      } 
+    });
+  
+    lightboxQuarto.on('slide_after_load', (data) => {
+      const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(slideNode);
+      }
+    });
+  
+  };
+  
+})();
+          </script>
+
+
+
+
+</body></html>
