@@ -1,0 +1,67 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.0cm, inner sep=4pt},
+    src/.style={block, minimum width=4.0cm},
+    file/.style={block, minimum width=3.2cm, font=\small\ttfamily},
+    accent/.style={file, fill=paleskyblue},
+    head/.style={font=\footnotesize\bfseries, text=azureblue, anchor=south},
+    sel/.style={font=\footnotesize, text=darkgray, anchor=west, align=left},
+    wire/.style={->, draw=navy},
+  ]
+  % ---- 送り手（facility） ----
+  \foreach \n/\y/\t/\f in {s1/2.6/sshd・sudo・login/{auth, authpriv},
+                           s2/1.3/cron/cron,
+                           s3/0/systemd・各種デーモン/daemon,
+                           s4/-1.3/カーネル/kern,
+                           s5/-2.6/メールシステム/mail} {
+    \node[src] (\n) at (0,\y) {\t\\[1pt]{\footnotesize\color{darkgray} facility: \texttt{\f}}};
+  }
+
+  % ---- rsyslog ----
+  \node[block, fill=white, minimum width=3.2cm, minimum height=6.2cm] (rs) at (5.2,0)
+    {\textbf{rsyslog}\\[6pt]{\footnotesize 50-default.conf の}\\{\footnotesize ルールで振り分け}};
+
+  % ---- 書き込み先 ----
+  \foreach \n/\y/\t in {f1/2.6/auth.log, f3/0/kern.log, f4/-1.3/mail.log} {
+    \node[file] (\n) at (10.2,\y) {/var/log/\t};
+  }
+  \node[accent] (f2) at (10.2,1.3) {/var/log/syslog};
+  \node[file] (f5) at (10.2,-2.6) {/var/log/mail.err};
+
+  % ---- ルール（セレクタ） ----
+  \node[sel] at ([xshift=3mm]f1.east) {\texttt{auth,authpriv.*}\\認証関係すべて};
+  \node[sel] at ([xshift=3mm]f2.east) {\texttt{*.*;auth,authpriv.none}\\認証関係を除くすべて};
+  \node[sel] at ([xshift=3mm]f5.east) {\texttt{mail.err}\\メールの \texttt{err} 以上};
+  \node[sel] at ([xshift=3mm]f3.east) {\texttt{kern.*}\\カーネルのすべて};
+  \node[sel] at ([xshift=3mm]f4.east) {\texttt{mail.*}\\メールのすべて};
+
+  % ---- 列見出し ----
+  \node[head] at ([yshift=3mm]s1.north) {送り手（facility）};
+  \node[head] at ([yshift=3mm]rs.north) {振り分け};
+  \node[head] at ([yshift=3mm]f1.north) {書き込み先};
+  \node[head, anchor=south west] at ([xshift=3mm, yshift=3mm]f1.north east) {ルール（セレクタ）};
+
+  % ---- 配線 ----
+  \foreach \n in {s1,s2,s3,s4,s5} {
+    \draw[wire] (\n.east) -- (rs.west |- \n.east);
+  }
+  \foreach \n in {f1,f2,f3,f4,f5} {
+    \draw[wire] (rs.east |- \n.west) -- (\n.west);
+  }
+
+  % ---- 注記 ----
+  \node[font=\footnotesize, text=darkgray, anchor=north west] at ([yshift=-4mm]s5.south west)
+    {※ 1つのメッセージが複数のルールに当てはまれば，複数のファイルに書かれる（例：カーネルのメッセージは \texttt{kern.log} と \texttt{syslog} の両方に入る）．};
+\end{tikzpicture}

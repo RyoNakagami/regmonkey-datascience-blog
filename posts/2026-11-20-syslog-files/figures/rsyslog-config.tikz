@@ -1,0 +1,61 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    cfg/.style={block, minimum width=3.6cm},
+    file/.style={block, minimum width=3.2cm, minimum height=0.8cm, font=\small\ttfamily},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south, font=\bfseries, text=navy},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    head/.style={font=\footnotesize\bfseries, text=azureblue, anchor=east},
+    wire/.style={->, draw=navy},
+  ]
+  % ---- 上段：設定ファイル ----
+  \node[cfg] (conf) at (5,3.4) {\texttt{/etc/rsyslog.conf}\\[1pt]{\footnotesize 本体の設定}};
+  \node[cfg] (other) at (12,4.1) {\texttt{20-ufw.conf} など\\[1pt]{\footnotesize 他のパッケージのルール}};
+  \node[cfg, fill=paleskyblue] (def) at (12,2.7) {\texttt{50-default.conf}\\[1pt]{\footnotesize Ubuntu の既定ルール}};
+  \begin{scope}[on background layer]
+    \node[zone, fit=(other)(def)] (zd) {};
+  \end{scope}
+  \node[zlabel] at (zd.north) {\texttt{/etc/rsyslog.d/}};
+  \draw[wire] (conf.east) -- (zd.west |- conf.east)
+    node[midway, above, sig] {\texttt{*.conf} を}
+    node[midway, below, sig] {読み込む};
+
+  % ---- 下段：メッセージの流れ ----
+  \node[block, minimum width=3.4cm] (msg) at (0,-0.6) {メッセージ\\[1pt]{\footnotesize カーネル・デーモンなど}};
+  \node[block, fill=white, minimum width=3.6cm, minimum height=1.4cm] (rs) at (5,-0.6)
+    {\textbf{rsyslog}\\[2pt]{\footnotesize ルールに従って振り分け}};
+  \node[file] (f1) at (12,0.5)  {/var/log/auth.log};
+  \node[file] (f2) at (12,-0.6) {/var/log/syslog};
+  \node[file] (f3) at (12,-1.7) {/var/log/kern.log};
+  \node[sig, anchor=north] at ([yshift=-1mm]f3.south) {など};
+
+  \draw[wire] (msg) -- (rs);
+  \foreach \f in {f1,f2,f3} {
+    \draw[wire] (rs.east) -- (\f.west);
+  }
+
+  % ---- 設定 → rsyslog ----
+  \draw[wire, dashed] (conf.south) -- (rs.north)
+    node[midway, right, sig] {起動時にルールを読み込む};
+
+  % ---- 段の見出し ----
+  \node[head, anchor=south] at ([yshift=1mm]f1.north) {書き込み先};
+
+  % ---- 注記 ----
+  \node[font=\footnotesize, text=darkgray, anchor=north west] at (-1.7,-2.75)
+    {※ \texttt{/etc/rsyslog.d/} の \texttt{*.conf} はファイル名の順に読み込まれるので，先頭の番号で順序を決める．};
+\end{tikzpicture}
