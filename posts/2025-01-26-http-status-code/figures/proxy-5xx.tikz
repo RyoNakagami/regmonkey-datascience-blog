@@ -1,0 +1,55 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    >={Latex[length=2.4mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    actor/.style={draw=navy, fill=aliceblue, rounded corners=3pt, align=center,
+                  minimum width=3.4cm, minimum height=1.0cm},
+    life/.style={draw=lightgray, line width=1pt},
+    msg/.style={->, draw=navy},
+    ngmsg/.style={->, draw=crimsonred},
+    lbl/.style={font=\footnotesize, above, inner sep=2pt, align=center},
+    code/.style={anchor=east, align=right, font=\footnotesize},
+    sig/.style={font=\footnotesize, text=darkgray, align=center},
+    sep/.style={draw=lightgray, dashed},
+  ]
+  \node[actor] (c) at (0,0) {クライアント};
+  \node[actor] (p) at (6.5,0) {リバースプロキシ\\\footnotesize nginx・Apache mod\_proxy};
+  \node[actor] (a) at (13,0) {アップストリーム\\\footnotesize アプリ・php-fpm など};
+  \foreach \x in {0,6.5,13} { \draw[life] (\x,-0.6) -- (\x,-7.6); }
+
+  % 500
+  \node[code] at (-0.6,-1.6) {\textcolor{crimsonred}{\textbf{500}}\\Internal Server Error};
+  \draw[msg] (13,-1.6) -- node[lbl] {\texttt{500}} (6.5,-1.6);
+  \draw[ngmsg] (6.5,-1.6) -- node[lbl] {\texttt{500} をそのまま中継} (0,-1.6);
+  \node[sig, anchor=north] at (13,-1.75) {アプリ内で例外};
+  \draw[sep] (-3.4,-2.5) -- (15,-2.5);
+
+  % 502
+  \node[code] at (-0.6,-3.3) {\textcolor{crimsonred}{\textbf{502}}\\Bad Gateway};
+  \draw[ngmsg] (6.5,-3.3) -- node[lbl] {接続できない・壊れた応答} (12.2,-3.3);
+  \node[text=crimsonred, font=\bfseries] at (12.6,-3.3) {×};
+  \draw[ngmsg] (6.5,-3.3) -- node[lbl] {\texttt{502}} (0,-3.3);
+  \node[sig, anchor=north] at (13,-3.45) {停止中・ポート違い・途中で落ちた};
+  \draw[sep] (-3.4,-4.2) -- (15,-4.2);
+
+  % 503
+  \node[code] at (-0.6,-5.0) {\textcolor{crimsonred}{\textbf{503}}\\Service Unavailable};
+  \draw[ngmsg] (6.5,-5.0) -- node[lbl] {\texttt{503} ＋ \texttt{Retry-After}} (0,-5.0);
+  \node[sig, anchor=west, align=left] at (6.8,-5.0) {プロキシ自身が受付を止めている\\（メンテナンス・過負荷・レート制限・\\生きたバックエンドが無い）};
+  \draw[sep] (-3.4,-6.0) -- (15,-6.0);
+
+  % 504（参考）
+  \node[code] at (-0.6,-6.8) {\textcolor{darkgray}{\textbf{504}（参考）}\\\textcolor{darkgray}{Gateway Timeout}};
+  \draw[msg] (6.5,-6.8) -- node[lbl] {転送した} (13,-6.8);
+  \draw[ngmsg] (6.5,-6.8) -- node[lbl] {\texttt{504}} (0,-6.8);
+  \node[sig, anchor=north] at (13,-6.95) {時間内に応答が返らない};
+\end{tikzpicture}

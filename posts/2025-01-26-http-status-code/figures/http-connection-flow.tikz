@@ -1,0 +1,64 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    >={Latex[length=2.2mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    actor/.style={draw=navy, fill=aliceblue, rounded corners=3pt, align=center,
+                  minimum width=2.4cm, minimum height=0.9cm},
+    lane/.style={draw=lightgray, line width=1pt},
+    msg/.style={->, draw=navy},
+    lbl/.style={font=\footnotesize, fill=white, inner sep=1.2pt, align=center},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=6pt, inner sep=0pt},
+    zlabel/.style={anchor=south, font=\footnotesize\bfseries, text=navy, align=center},
+    note/.style={font=\footnotesize, text=darkgray, align=center, anchor=north},
+  ]
+  \def\yc{2.6}
+  \node[actor] (c) at (-1.7,\yc) {クライアント};
+  \node[actor] (s) at (-1.7,0) {サーバー};
+  \draw[lane] (c.east) -- (21.2,\yc);
+  \draw[lane] (s.east) -- (21.2,0);
+
+  % down: client→server, up: server→client
+  \newcommand{\down}[3]{\draw[msg] (#1,\yc) -- node[lbl, right=1pt] {#3} (#1,0);}
+  \newcommand{\up}[3]{\draw[msg] (#1,0) -- node[lbl, right=1pt] {#3} (#1,\yc);}
+
+  % ① TCP
+  \down{0.4}{1.1}{SYN}
+  \up{1.9}{2.6}{SYN\\+ACK}
+  \down{3.4}{4.1}{ACK}
+  % ② TLS
+  \down{5.6}{6.3}{Client\\Hello}
+  \up{7.1}{7.8}{証明書\\など}
+  \down{8.6}{9.3}{Finished}
+  % ③ HTTP
+  \down{11.0}{12.0}{リクエスト\\\texttt{GET /}}
+  \up{13.4}{14.4}{レスポンス\\\texttt{200 OK}}
+  % ④ 切断
+  \down{16.4}{17.1}{FIN}
+  \up{17.9}{18.6}{FIN\\+ACK}
+  \down{19.4}{20.1}{ACK}
+
+  % フェーズの枠
+  \foreach \x/\y/\n/\t in {0.0/4.5/z1/① TCP 接続の確立\\（3ウェイハンドシェイク）,
+                           5.2/9.95/z2/② TLS ハンドシェイク\\（HTTPS のみ）,
+                           10.4/15.0/z3/③ HTTP の\\リクエストとレスポンス,
+                           16.0/20.5/z4/④ TCP 接続の切断\\（keep-alive なら後回し）} {
+    \draw[zone] (\x,-0.25) rectangle (\y,\yc+0.25);
+    \node[zlabel] at ({(\x+\y)/2},\yc+0.3) {\t};
+  }
+  \draw[zone, draw=azureblue, line width=1.2pt] (10.4,-0.25) rectangle (15.0,\yc+0.25);
+
+  \node[note] at (2.25,-0.4) {ポート 80 / 443 に接続};
+  \node[note] at (7.45,-0.4) {証明書を検証し，\\暗号化の鍵を決める};
+  \node[note] at (12.7,-0.4) {レスポンスの先頭行に\\ステータスコードが入る};
+  \node[note] at (18.25,-0.4) {同じ接続で次のリクエストを\\送るなら，切断せずに③へ};
+  \draw[->, draw=darkgray] (0,-1.6) -- node[font=\footnotesize, text=darkgray, right, pos=1] {時間} (20.8,-1.6);
+\end{tikzpicture}
