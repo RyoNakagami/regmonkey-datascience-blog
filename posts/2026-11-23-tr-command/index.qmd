@@ -1,0 +1,520 @@
+---
+title: "tr command: 1文字単位の置換・削除・圧縮"
+author: "Ryo Nakagami"
+date: "2026-11-23"
+date-modified: "2026-11-25"
+categories: [Linux, shell]
+lightbox: true
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+::: {.callout-note}
+## TL;DRs
+
+- `tr` は標準入力の文字を **1文字ずつ** 置換（translate）・削除（`-d`）・圧縮（`-s`）して標準出力に書き出すコマンド
+- `tr` はファイル名を引数に取らない．ファイルを処理するときは `tr ... < file` とリダイレクトするか，パイプでつなぐ
+- `tr 'abc' 'xyz'` は文字列 `abc` を `xyz` に置き換えるのではなく，`a→x`，`b→y`，`c→z` という文字の対応表を作って変換する
+- データ前処理では，大文字小文字の統一（`tr '[:upper:]' '[:lower:]'`）と改行コードの変換（`tr -d '\r'`）が主な用途
+- 文字列や正規表現での置換，行単位の処理が必要なら `sed` を使う．文字の対応だけで済む処理は `tr` のほうが単純で速い
+- GNU `tr` はバイト単位で動くので，日本語などのマルチバイト文字は扱えない
+
+:::
+
+## tr commandとは
+
+::: {#def-tr .custom_problem .blog-custom-border}
+### `tr` コマンド
+
+- **標準入力から読んだ文字を置換・削除・圧縮して，標準出力に書き出す** GNU coreutils のコマンド（translate の略）
+- 引数の `STRING1`，`STRING2` は文字の並び `ARRAY1`，`ARRAY2` を表し，この2つで「どの文字をどの文字にするか」を決める
+- 処理の単位は常に1文字．文字列や正規表現は扱わない
+
+:::
+
+[syntax]{.mini-section}
+
+```bash
+tr [OPTION]... STRING1 [STRING2]
+```
+
+- `STRING1` と `STRING2` の両方を与え，`-d` を付けないときに置換（translation）が行われる
+- `-d` を付けたときは `STRING1` に含まれる文字を削除する
+- `-s` による圧縮は，置換・削除の **後** に行われる
+
+[入力は標準入力のみ]{.mini-section}
+
+`sed` や `grep` と違い，`tr` は **ファイル名を引数に取りません**．
+ファイル名を渡すと `STRING2` の後ろの余分な引数とみなされ，エラーになります．
+
+```bash
+% tr ',' '\t' users.csv
+tr: extra operand ‘users.csv’
+Try 'tr --help' for more information.
+```
+
+ファイルを処理するときは，リダイレクトで標準入力につなぐか，パイプで渡します．
+
+```bash
+# (1) 標準入力へのリダイレクト
+% tr ',' '\t' < users.csv
+id	name
+1	Alice
+
+# (2) パイプ
+% cat users.csv | tr ',' '\t'
+
+# (3) 結果をファイルに保存（入力と同じファイルには書き戻せない）
+% tr ',' '\t' < users.csv > users.tsv
+```
+
+`tr` にはファイルを直接書き換える `sed -i` のようなオプションもありません．
+`tr ... < a.txt > a.txt` と書くと，シェルが `tr` を起動する前に出力側の `a.txt` を空にしてしまうため，中身が消えます．
+別のファイルに書き出してから `mv` で置き換えます．
+
+```bash
+% tr -d '\r' < data.csv > data.csv.tmp && mv data.csv.tmp data.csv
+```
+
+## 使い方
+
+[オプション]{.mini-section}
+
+| 短いオプション | 長いオプション | 意味 |
+|---|---|---|
+| `-d` | `--delete` | `ARRAY1` に含まれる文字を削除する（置換はしない） |
+| `-c`, `-C` | `--complement` | `ARRAY1` の補集合（`ARRAY1` に **含まれない** 文字すべて）を使う |
+| `-s` | `--squeeze-repeats` | 最後に指定した `ARRAY` に含まれる文字が連続していたら，1文字にまとめる |
+| `-t` | `--truncate-set1` | 置換の前に，`ARRAY1` を `ARRAY2` の長さまで切り詰める |
+: {tbl-colwidths="[20,25,55]"}
+
+### 置換：文字の対応表
+
+`tr STRING1 STRING2` は，`ARRAY1` の i 番目の文字を `ARRAY2` の i 番目の文字に変換します．
+
+```bash
+% echo 'hello world' | tr 'a-z' 'A-Z'
+HELLO WORLD
+
+% echo 'path/to/file' | tr '/' '_'
+path_to_file
+
+% echo 'a b c' | tr ' ' '\n'
+a
+b
+c
+```
+
+[区切り文字を改行に変えて1行ずつ表示する：`$PATH`]{.mini-section}
+
+区切り文字を `\n` に置換すると，1行に詰め込まれた値を1行1項目に展開できます．
+よく使うのが，`:` 区切りの環境変数 `PATH` を読みやすくする使い方です．
+
+```bash
+% echo $PATH
+/home/user/.pyenv/shims:/home/user/.local/bin:/usr/local/bin:/usr/bin:/bin
+
+% echo $PATH | tr ':' '\n'
+/home/user/.pyenv/shims
+/home/user/.local/bin
+/usr/local/bin
+/usr/bin
+/bin
+```
+
+- 上の行ほど優先される．同名のコマンドがあれば，最初に見つかったディレクトリのものが実行される
+- 1行1項目になるので，`grep`・`nl`・`sort | uniq -d` などの行単位のコマンドにそのままつなげられる
+
+```bash
+# 優先順位を番号つきで表示
+% echo $PATH | tr ':' '\n' | nl
+
+# 重複して登録されているディレクトリを探す
+% echo $PATH | tr ':' '\n' | sort | uniq -d
+
+# pyenv 関連のディレクトリが入っているか確認
+% echo $PATH | tr ':' '\n' | grep pyenv
+```
+
+
+[ARRAY1 と ARRAY2 の長さが違うとき]{.mini-section}
+
+- `ARRAY2` が短い場合は，`ARRAY2` の最後の文字を繰り返して `ARRAY1` の長さまで伸ばす
+- `ARRAY2` が長い場合は，余った文字を無視する
+- `-t` を付けると，伸ばすのではなく `ARRAY1` のほうを `ARRAY2` の長さに切り詰める
+
+```bash
+# ARRAY2 = 'xy' は 'xyyyy' に伸ばされる
+% echo 'abcde' | tr 'abcde' 'xy'
+xyyyy
+
+# -t：ARRAY1 が 'ab' に切り詰められ，c, d, e は変換されない
+% echo 'abcde' | tr -t 'abcde' 'xy'
+xycde
+```
+
+### 削除：`-d` と `-c`
+
+`-d` は `ARRAY1` の文字を取り除きます．`-c` と組み合わせると「`ARRAY1` 以外の文字を取り除く」，つまり指定した文字だけを残す動作になります．
+
+```bash
+# 数字を削除
+% echo 'a1b2c3' | tr -d '0-9'
+abc
+
+# 数字以外を削除（数字だけ残す）
+% echo 'a1b2c3' | tr -cd '0-9'
+123
+```
+
+`tr -cd` は [乱数生成シェルスクリプト](../2025-11-28-generate-random-passwd/index.qmd#tr-コマンド) で，`/dev/urandom` のバイト列から数字だけを取り出すのに使ったパターンです．
+
+```bash
+% tr -dc '0-9' < /dev/urandom | head -c 16
+```
+
+### 圧縮：`-s`
+
+`-s` は，同じ文字が連続している箇所を1文字にまとめます．
+置換と組み合わせたときは，置換 **後** の文字（`ARRAY2`）が圧縮の対象になります．
+
+```bash
+% echo 'aaabbbccc' | tr -s 'a-c'
+abc
+
+# 連続するスペース・タブを1つのスペースに
+% printf 'a\tb  c\n' | tr -s '[:blank:]' ' '
+a b c
+
+# ',' を ';' に置換してから，連続する ';' を1つにまとめる
+% echo 'a,,b,,,c' | tr -s ',' ';'
+a;b;c
+```
+
+### ARRAY の書き方
+
+`ARRAY` の中の文字はほとんどがそのままの文字を表しますが，次の書き方は特別な意味を持ちます．
+
+[エスケープシーケンス]{.mini-section}
+
+| 書き方 | 意味 |
+|---|---|
+| `\NNN` | 8進数 `NNN`（1〜3桁）で表される文字．例：`\015` は CR |
+| `\\` | バックスラッシュ |
+| `\a` | ベル（BEL） |
+| `\b` | バックスペース |
+| `\f` | フォームフィード |
+| `\n` | 改行（LF） |
+| `\r` | 復帰（CR） |
+| `\t` | 水平タブ |
+| `\v` | 垂直タブ |
+: {tbl-colwidths="[25,75]"}
+
+[範囲と繰り返し]{.mini-section}
+
+| 書き方 | 意味 |
+|---|---|
+| `CHAR1-CHAR2` | `CHAR1` から `CHAR2` までの文字を昇順に並べたもの．例：`a-z`，`0-9` |
+| `[CHAR*]` | `ARRAY2` の中でのみ使える．`ARRAY1` の長さになるまで `CHAR` を繰り返す |
+| `[CHAR*REPEAT]` | `CHAR` を `REPEAT` 個並べる．`REPEAT` が `0` で始まる場合は8進数として読む |
+| `[=CHAR=]` | `CHAR` と等価な文字すべて |
+: {tbl-colwidths="[25,75]"}
+
+```bash
+# 小文字をすべて X に
+% echo 'hello' | tr 'a-z' '[X*]'
+XXXXX
+```
+
+[文字クラス]{.mini-section}
+
+| 書き方 | 意味 |
+|---|---|
+| `[:alnum:]` | 英字と数字 |
+| `[:alpha:]` | 英字 |
+| `[:digit:]` | 数字 |
+| `[:xdigit:]` | 16進数の数字（`0-9a-fA-F`） |
+| `[:lower:]` | 小文字 |
+| `[:upper:]` | 大文字 |
+| `[:blank:]` | 水平方向の空白（スペースとタブ） |
+| `[:space:]` | 水平・垂直方向の空白（スペース，タブ，改行，CR など） |
+| `[:punct:]` | 記号 |
+| `[:cntrl:]` | 制御文字 |
+| `[:print:]` | 表示可能な文字（スペースを含む） |
+| `[:graph:]` | 表示可能な文字（スペースを含まない） |
+: {tbl-colwidths="[25,75]"}
+
+文字クラスがどの順で展開されるかは決まっていません．
+そのため，置換で `ARRAY2` に書ける文字クラスは，大文字小文字変換のための `[:lower:]` と `[:upper:]` の組だけです．
+
+```bash
+% echo 'Hello World' | tr '[:upper:]' '[:lower:]'
+hello world
+
+# ARRAY1 と ARRAY2 が対応していない組み合わせはエラー
+% echo 'abc' | tr 'a-z' '[:upper:]'
+tr: misaligned [:upper:] and/or [:lower:] construct
+```
+
+## データサイエンス前処理での使い方
+
+CSV やログを pandas や DuckDB で読み込む前に，シェルでまとめて整形しておきたい場面があります．
+`tr` が役に立つのは，主に大文字小文字の統一と改行コードの変換です．
+
+### 大文字小文字の変換
+
+カラム名やカテゴリ値の表記ゆれ（`Tokyo` / `TOKYO` / `tokyo`）は，集計や結合のキーが一致しない原因になります．
+`[:upper:]` と `[:lower:]` の組で小文字にそろえます．
+
+```bash
+# ファイル全体を小文字に
+% tr '[:upper:]' '[:lower:]' < raw.csv > lower.csv
+
+# ヘッダー行だけ取り出して，カラム名を小文字・空白なしで1行ずつ表示
+% printf 'Name, AGE\nFoo, 30\n' | head -1 | tr '[:upper:]' '[:lower:]' | tr -d ' ' | tr ',' '\n'
+name
+age
+```
+
+ファイル全体に `tr` をかけると，カラム名だけでなく値も変換されます．
+ID やコードのように大文字小文字に意味がある列があるなら，ヘッダーだけ，または特定の列だけを対象にできる `sed` や `awk`，pandas 側の処理を選びます．
+
+::: {.callout-warning}
+## マルチバイト文字は扱えない
+
+GNU `tr`（coreutils 9.4）は入力を **バイト単位** で処理します．
+UTF-8 では `É` や `ん` が複数バイトで表されるため，次のような問題が起こります．
+
+```bash
+# アクセント付きの大文字は小文字にならない
+% echo 'Éclair' | tr '[:upper:]' '[:lower:]'
+Éclair
+
+# 日本語を ARRAY に書くと，バイト単位の対応表になり文字化けする
+% echo 'こんにちは' | tr 'ん' 'n'
+n�nnnnn��n��n��
+```
+
+`ん` は3バイトなので，`ARRAY1` は3つのバイト，`ARRAY2` は `n` を繰り返して3つに伸ばされ，`こ` や `に` に含まれる同じバイトまで `n` に変換されてしまいます．
+日本語を含むデータの置換や，アクセント付き文字の大文字小文字変換には `sed` などを使います．
+
+```bash
+% echo 'Éclair ÅNGSTRÖM' | sed 's/.*/\L&/'
+éclair ångström
+```
+
+:::
+
+### 改行コードの変換
+
+改行コードは OS や出力元のツールによって異なります．
+
+| 改行コード | バイト列 | `tr` での書き方 | 主な出どころ |
+|---|---|---|---|
+| LF | `0x0A` | `\n` | Linux / macOS |
+| CRLF | `0x0D 0x0A` | `\r\n` | Windows（Excel で保存した CSV など） |
+| CR | `0x0D` | `\r` | 古い Mac OS（OS 9 以前），一部のレガシーシステム |
+: {tbl-colwidths="[15,20,20,45]"}
+
+CRLF のファイルを Linux で扱うと，行末に `\r` が残ります．
+最後の列の値が `30\r` のようになり，数値として読めない，文字列比較が一致しない，といった問題の原因になります．
+`\r` は画面に表示されないので，`od -c` でバイト列を表示するか，`grep -c $'\r'` で `\r` を含む行を数えて確認します．
+`file` コマンドも `with CRLF line terminators` と表示しますが，CSV と判定されたファイルではこの表示が出ないことがあります．
+
+```bash
+% grep -c $'\r' win.csv
+2
+
+% od -c win.csv
+0000000   i   d   ,   n   a   m   e  \r  \n   1   ,   A   l   i   c   e
+0000020  \r  \n
+```
+
+[CRLF → LF]{.mini-section}
+
+`\r` を削除すれば，`\r\n` が `\n` になります．
+
+```bash
+% tr -d '\r' < win.csv > unix.csv
+% od -c unix.csv
+0000000   i   d   ,   n   a   m   e  \n   1   ,   A   l   i   c   e  \n
+0000020
+```
+
+`tr -d '\r'` は行末以外の `\r` も削除します．
+値の中に `\r` を含むデータで行末の `\r` だけを消したいなら `sed 's/\r$//'` を使います．
+
+[CR → LF]{.mini-section}
+
+改行が CR だけのファイルは，`wc -l` で数えると 0 行になります（`wc -l` は LF の個数を数えるため）．
+`\r` を `\n` に置換すると行として扱えるようになります．
+
+```bash
+% wc -l mac.txt
+0 mac.txt
+
+% tr '\r' '\n' < mac.txt | wc -l
+3
+```
+
+[その他の前処理]{.mini-section}
+
+```bash
+# 区切り文字の変換：CSV → TSV
+% tr ',' '\t' < data.csv > data.tsv
+
+# NUL 区切り（find -print0 などの出力）を改行区切りに
+% find . -name '*.csv' -print0 | tr '\0' '\n'
+
+# 連続する空白を1つにまとめる
+% tr -s ' ' < report.txt
+```
+
+CSV → TSV の変換は，値の中にカンマを含まない（`"Tokyo, Japan"` のようなクォートされたフィールドがない）場合に限ります．
+`tr` はクォートを解釈しないので，値の中のカンマもタブに変えてしまいます．
+
+## why not sed
+
+### はじめに
+
+ここまでの処理は，どれも `sed` でも書けます．
+
+```bash
+tr 'a-z' 'A-Z'        # sed 's/.*/\U&/'
+tr -d '\r'            # sed 's/\r//g'
+tr ',' '\t'           # sed 's/,/\t/g'
+```
+
+それでも `tr` を選ぶ理由は，処理が「文字と文字の対応」に限られるぶん，書き方が単純で，誤解の余地が少なく，速いことです．
+逆に，`tr` で書けない処理を `tr` で無理に書こうとすると，意図しない変換を起こします．
+2つのコマンドの動作の違いを押さえておくと，どちらを使うべきかを判断できます．
+
+### 動作の違い
+
+[tr：1文字ずつ対応表を引く]{.mini-section}
+
+- 入力を改行で区切らず，ただのバイト列として先頭から読む
+- 1文字読むたびに，`ARRAY1` → `ARRAY2` の対応表を引いて変換・削除する
+- 前後の文字や，その文字が行のどこにあるかは考えない
+
+[sed：1行ずつパターンを照合する]{.mini-section}
+
+- 入力を1行ずつ読み，パターンスペースに入れる
+- パターンスペースに対して，`s/正規表現/置換文字列/` などのコマンドを順に適用する
+- 文字列や正規表現で照合でき，行番号やアドレスで処理する行を選べる
+
+違いがはっきり出るのは，複数文字の置換と削除です．
+
+```bash
+# 単語の置換：tr は文字ごとに変換してしまう
+% echo 'concat' | tr 'cat' 'dog'
+dondog
+% echo 'concat' | sed 's/cat/dog/g'
+condog
+
+# 削除：tr は l と o をすべて消し，sed は "lo" という並びだけを消す
+% echo 'hello world' | tr -d 'lo'
+he wrd
+% echo 'hello world' | sed 's/lo//g'
+hel world
+```
+
+なお，`sed` にも `tr` と同じ1文字対応の置換を行う `y` コマンドがあります（`sed 'y/abc/xyz/'`）．
+ただし範囲（`a-z`）や文字クラスは書けず，対応する文字をすべて列挙する必要があります．
+
+[速度]{.mini-section}
+
+手元の環境（GNU coreutils 9.4 / GNU sed 4.9）で，84 MB・300 万行の CSV を変換した結果です．
+
+| 処理 | `tr` | `sed` |
+|---|---|---|
+| 大文字 → 小文字 | `tr 'A-Z' 'a-z'`：約 0.04 秒 | `sed 's/.*/\L&/'`：約 2.6 秒 |
+| CR の削除 | `tr -d '\r'`：約 0.07 秒 | `sed 's/\r$//'`：約 0.14 秒 |
+: {tbl-colwidths="[20,40,40]"}
+
+`tr` は対応表を引くだけなので，正規表現の照合を行う `sed` より速くなります．
+大きなファイルに単純な文字変換をかけるときは，この差が効きます．
+
+### tr と sed の比較
+
+| 観点 | `tr` | `sed` |
+|---|---|---|
+| 処理の単位 | 1文字（1バイト） | 1行 |
+| 照合の方法 | 文字の対応表（`ARRAY1` → `ARRAY2`） | 正規表現 |
+| 複数文字の置換（`cat` → `dog`） | できない（文字ごとに変換される） | できる |
+| 位置の指定（行頭・行末など） | できない | できる（`^`，`$`） |
+| 処理する行の選択 | できない（入力全体が対象） | できる（行番号，アドレス，パターン） |
+| 改行文字そのものの置換・削除 | そのまま書ける（`tr '\n' ' '`） | 行単位で読むため工夫が必要 |
+| 連続文字の圧縮 | `-s` で書ける | 正規表現で書く（`s/  */ /g`） |
+| 指定文字以外の削除 | `-cd` で書ける | 否定の文字クラスで書く（`s/[^0-9]//g`） |
+| ファイルの指定 | できない（標準入力のみ） | できる（`sed 's/a/b/' file`） |
+| ファイルの上書き | できない | `-i` でできる |
+| マルチバイト文字（UTF-8） | 扱えない（GNU 版） | 扱える（ロケールに従う） |
+| 速度 | 速い | `tr` より遅い |
+: {tbl-colwidths="[30,35,35]"}
+
+まとめると，
+
+- **文字の対応だけで済む処理**（大文字小文字の変換，改行コードの変換，特定の文字の削除・圧縮，区切り文字の置き換え）は `tr`
+- **文字列・正規表現・行の位置が関わる処理**，ファイルを直接書き換えたいとき，日本語を含むデータは `sed`
+
+と使い分けます．
+
+## 📘 用語集
+
+:::{.glossary-container}
+
+```yaml
+glossary:
+  - def: GNU coreutils
+    description: |
+      GNU プロジェクトが開発している，ファイル・テキスト・シェル操作の基本コマンドを集めたパッケージ．`ls`，`cp`，`mv`，`rm`，`cat`，`head`，`wc`，`tr`，`truncate` などを含み，ほとんどの Linux ディストリビューションに標準で入っている．macOS や FreeBSD に入っている同名のコマンドは BSD 由来の別の実装なので，オプションや挙動が異なることがある．`tr --version` の1行目に `tr (GNU coreutils) 9.4` と表示されれば GNU 版である．なお `sed` は GNU coreutils には含まれず，GNU sed という別のパッケージとして配布されている．
+
+  - def: リダイレクト（redirection）
+    description: |
+      コマンドの標準入力・標準出力・標準エラー出力の接続先を，シェルが起動前に切り替える仕組み．`< file` で標準入力を，`> file` で標準出力をファイルにつなぐ．`>` は起動前に出力先を空にするため，`tr ... < a.txt > a.txt` のように入力と出力に同じファイルを指定すると中身が消える．
+
+  - def: 文字クラス（character class）
+    description: |
+      `[:upper:]` や `[:digit:]` のように，文字の種類を名前で指定する書き方．POSIX で定義されている．どの文字が含まれるかはロケールで決まる．`tr` では，置換の `ARRAY2` に書けるのは `[:lower:]` と `[:upper:]` の組み合わせだけである．
+
+  - def: 補集合（complement）
+    description: |
+      ある集合に含まれない要素全体の集合．`tr -c` は `ARRAY1` に含まれない文字すべてを対象にする．`tr -cd '0-9'` は「数字以外をすべて削除」，つまり数字だけを残す．
+
+  - def: 改行コード（newline）
+    description: |
+      テキストの行の区切りを表す制御文字．Linux / macOS は LF（`\n`，`0x0A`），Windows は CRLF（`\r\n`，`0x0D 0x0A`），古い Mac OS は CR（`\r`，`0x0D`）を使う．CRLF のファイルを Linux で扱うと行末に `\r` が残る．
+
+  - def: CR（carriage return）
+    description: |
+      復帰を表す制御文字（`\r`，`0x0D`，8進数で `\015`）．タイプライターで印字位置を行頭に戻す動作に由来する．画面には表示されないため，ファイルに含まれているかは `od -c` や `grep -c $'\r'` で確かめる．
+
+  - def: LF（line feed）
+    description: |
+      改行を表す制御文字（`\n`，`0x0A`，8進数で `\012`）．Unix 系 OS ではこの1文字で行の終わりを表す．`wc -l` は LF の個数を行数として数える．
+
+  - def: マルチバイト文字（multibyte character）
+    description: |
+      1文字を複数バイトで表す文字．UTF-8 では ASCII 文字が1バイト，アクセント付きのラテン文字が2バイト，日本語の多くが3バイトになる．GNU `tr` はバイト単位で処理するため，マルチバイト文字の置換・削除・大文字小文字変換を正しく扱えない．
+
+  - def: ロケール（locale）
+    description: |
+      言語や地域に応じた文字の分類，並び順，表記などの設定．`LANG` や `LC_ALL` などの環境変数で指定する．`LC_ALL=C` にすると，1バイトを1文字として扱う C ロケールになる．`tr` の man ページは，`tr` を安全に使えるのは C ロケールのような1バイト1文字のロケールに限ると記している．
+
+  - def: パターンスペース（pattern space）
+    description: |
+      `sed` が処理中の1行を保持しておくバッファ．`sed` は1行読むたびにパターンスペースに入れ，スクリプトのコマンドを適用してから出力する．行末の改行はパターンスペースに含まれないため，`sed` で改行そのものを置換するには工夫が必要になる．
+```
+
+:::
+
+References
+----------
+
+- [GNU Coreutils > tr invocation](https://www.gnu.org/software/coreutils/manual/html_node/tr-invocation.html)
+- [GNU sed manual](https://www.gnu.org/software/sed/manual/sed.html)
+- [乱数生成シェルスクリプト](../2025-11-28-generate-random-passwd/index.qmd)
