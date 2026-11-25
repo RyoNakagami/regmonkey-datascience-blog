@@ -1,0 +1,75 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.5cm, minimum width=3.7cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    ext/.style={draw=darkgray, dashed, fill=white, rounded corners=3pt,
+                align=center, inner sep=6pt, font=\footnotesize},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south west, font=\bfseries, text=navy},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt, align=center},
+    step/.style={font=\footnotesize\bfseries, text=azureblue},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    wire/.style={->, draw=navy},
+  ]
+  % ---- 書き込み側 ----
+  \node[block] (b1) at (0,0) {\textbf{拡張機能の JS}\\例外が発生};
+  \node[block] (b2) at (5.4,0) {\textbf{gnome-shell}（GJS）\\例外を捕まえて\\GLib のログ関数へ};
+  \node[accent] (b3) at (10.8,0) {\textbf{systemd-journald}\\受け取って\\メタデータを付与};
+  \node[block] (b4) at (16.2,0) {\textbf{ジャーナルファイル}\\バイナリ・索引付き};
+
+  \draw[wire] (b1) -- node[above, sig] {throw} (b2);
+  \draw[wire] (b2) -- node[above, sig] {送信} node[below, sig] {journal\\ソケット} (b3);
+  \draw[wire] (b3) -- node[above, sig] {追記} (b4);
+
+  \node[note, below=2mm of b1] (n1) {エラー内容と\\スタックトレース};
+  \node[note, below=2mm of b2] (n2) {systemd のユーザーサービス\\として動作};
+  \node[note, below=2mm of b3] (n3) {\_PID・\_EXE・\_BOOT\_ID\\\_HOSTNAME・時刻を記録};
+  \node[note, below=2mm of b4] (n4) {\texttt{/var/log/journal/<machine-id>/}\\\texttt{user-1000.journal} など};
+
+  \node[ext] (other) at ($(b3.north)+(0,2.0)$)
+    {ほかの入り口：サービスの stdout/stderr・\texttt{syslog()}（\texttt{/dev/log}）・カーネル（\texttt{/dev/kmsg}）};
+  \draw[->, draw=darkgray, dashed] (other) -- (b3);
+
+  % ---- 読み出し側 ----
+  \node[block] (b5) at (16.2,-5.6) {\textbf{journalctl}\\ファイルを開いて\\条件で絞り込み};
+  \node[block] (b6) at (10.8,-5.6) {\textbf{表示用に整形}\\\texttt{-o short}（既定）};
+  \node[block] (b7) at (5.4,-5.6) {\textbf{grep -i tiling}\\文字列で\\さらに絞り込み};
+  \node[block] (b8) at (0,-5.6) {\textbf{端末に表示}};
+
+  \draw[wire] (b5) -- (b6);
+  \draw[wire] (b6) -- node[above, sig] {パイプ} (b7);
+  \draw[wire] (b7) -- (b8);
+
+  \node[note, below=2mm of b5] (n5) {\texttt{-b} → \_BOOT\_ID が今回の起動\\\texttt{/usr/bin/gnome-shell} → \_EXE が一致};
+  \node[note, below=2mm of b6] (n6) {\texttt{-o cat} なら本文だけ\\\texttt{-o verbose} なら全フィールド};
+  \node[note, below=2mm of b8] (n8) {時刻 ホスト名 プロセス名[PID]: 本文};
+
+  \draw[wire] (n4.south) -- node[right, sig] {読み出し} (b5.north);
+
+  % ---- 番号 ----
+  \foreach \n/\s in {b1/①, b2/②, b3/③, b4/④, b5/⑤, b6/⑥, b7/⑦} {
+    \node[step, anchor=south west] at (\n.north west) {\s};
+  }
+
+  % ---- ゾーン ----
+  \coordinate (zt1) at ($(b1.north)+(0,0.45)$);
+  \coordinate (zt2) at ($(b8.north)+(0,0.45)$);
+  \begin{scope}[on background layer]
+    \node[zone, fit=(zt1)(b1)(b4)(n1)(n2)(n3)(n4)(n5.east |- b4)(n8.west |- b1)] (zw) {};
+    \node[zone, fit=(zt2)(b5)(b8)(n5)(n6)(n8)] (zr) {};
+  \end{scope}
+  \node[zlabel] at (zw.north west) {書き込み側（ログが記録されるまで）};
+  \node[zlabel] at (zr.north west) {読み出し側（\texttt{journalctl -b /usr/bin/gnome-shell | grep -i tiling}）};
+\end{tikzpicture}

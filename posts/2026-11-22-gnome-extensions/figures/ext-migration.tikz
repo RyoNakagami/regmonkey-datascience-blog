@@ -1,0 +1,65 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.4cm, minimum width=5.8cm, inner sep=5pt},
+    card/.style={draw=navy, fill=white, rounded corners=3pt,
+                 align=center, minimum height=1.4cm, minimum width=3.6cm, inner sep=5pt},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south, font=\bfseries, text=navy},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt, align=center},
+    step/.style={font=\footnotesize\bfseries, text=azureblue},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    wire/.style={->, draw=navy},
+  ]
+  % ---- 移行元 ----
+  \node[block] (l1) at (0,0)    {\texttt{gnome-extensions}\\\texttt{list --user}};
+  \node[block] (l2) at (0,-2.5) {\texttt{gnome-extensions}\\\texttt{list --enabled}};
+  \node[block] (l3) at (0,-5.0) {\texttt{dconf dump}\\\texttt{/org/gnome/shell/extensions/}};
+  \node[note, below=3mm of l3] (ln) {\texttt{gnome-shell --version} で\\GNOME のバージョンも控える};
+
+  % ---- 持ち運ぶファイル ----
+  \node[card] (m1) at (7.0,0)    {\texttt{ext-user.txt}\\自分で入れた拡張};
+  \node[card] (m2) at (7.0,-2.5) {\texttt{ext-enabled.txt}\\有効にしている拡張};
+  \node[card] (m3) at (7.0,-5.0) {\texttt{ext-settings.ini}\\各拡張の設定値};
+  \node[step, above=2mm of m1] {持ち運ぶファイル};
+
+  % ---- 移行先 ----
+  \node[block] (r1) at (14.0,0)    {システム領域：\texttt{apt install}\\ユーザー領域：\texttt{install --force ZIP}};
+  \node[block] (r2) at (14.0,-2.5) {\texttt{xargs -n1}\\\texttt{gnome-extensions enable}};
+  \node[block] (r3) at (14.0,-5.0) {\texttt{dconf load}\\\texttt{/org/gnome/shell/extensions/}};
+  \node[note, below=3mm of r3] (rn) {zip は移行先の GNOME に合うものを入手．\\apt のパッケージ名は移行元で \texttt{dpkg -S} で確認};
+
+  \node[step, anchor=south west] at (l1.north west) {(1) 書き出す};
+  \node[step, anchor=south west] at (r1.north west) {(2) 拡張を入れる};
+  \node[step, anchor=south west] at (r2.north west) {(3) 有効化と設定の復元};
+
+  % ---- 配線 ----
+  \foreach \i in {1,2,3} {
+    \draw[wire] (l\i) -- (m\i);
+    \draw[wire] (m\i) -- (r\i);
+  }
+  \draw[wire] ([xshift=1.4cm]r1.south) -- node[right, sig] {再ログイン} ([xshift=1.4cm]r2.north);
+  \draw[wire] ([xshift=1.4cm]r2.south) -- ([xshift=1.4cm]r3.north);
+
+  % ---- ゾーン ----
+  \coordinate (zt) at ($(l1.north)+(0,0.5)$);
+  \begin{scope}[on background layer]
+    \node[zone, fit=(zt)(l1)(l3)(ln)(rn.south -| l1)] (zl) {};
+  \end{scope}
+  \begin{scope}[on background layer]
+    \node[zone, fit=(zt -| r1)(r1)(r3)(rn)] (zr) {};
+  \end{scope}
+  \node[zlabel] at (zl.north) {移行元};
+  \node[zlabel] at (zr.north) {移行先};
+\end{tikzpicture}

@@ -1,0 +1,48 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.3cm, minimum width=3.3cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt, align=center},
+    cmd/.style={font=\footnotesize, text=azureblue, inner sep=2pt, align=center},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    dot/.style={circle, fill=navy, inner sep=1.4pt},
+    wire/.style={->, draw=navy},
+  ]
+  \node[block] (none) {未導入};
+  \node[block, right=2.6cm of none] (placed) {ファイル配置済み\\（Shell は未認識）};
+  \node[block, right=2.6cm of placed] (off) {無効};
+  \node[accent, right=2.9cm of off] (on) {有効（動作中）};
+
+  % install → 再ログイン
+  \draw[wire] (none) -- node[above, cmd] {\texttt{install ZIP}} (placed);
+  \draw[wire] (placed) -- node[above, cmd] {再ログイン} node[below, sig] {Wayland の場合} (off);
+
+  % enable / disable
+  \draw[wire] ([yshift=3mm]off.east) -- node[above, cmd] {\texttt{enable UUID}} ([yshift=3mm]on.west);
+  \draw[wire] ([yshift=-3mm]on.west) -- node[below, cmd] {\texttt{disable UUID}} ([yshift=-3mm]off.east);
+
+  % 各状態の中身
+  \node[note, below=2mm of none] (n0) {UUID/ フォルダなし};
+  \node[note, below=2mm of placed] (n1) {ユーザー領域に展開済み\\まだ読み込まれない};
+  \node[note, below=2mm of off] (n2) {Shell が UUID を認識\\State: INITIALIZED など};
+  \node[note, below=2mm of on] (n3) {enabled-extensions に UUID\\State: ACTIVE};
+
+  % uninstall（無効・有効のどちらからでも）
+  \coordinate (ub) at ($(n2.south)+(0,-0.45)$);
+  \draw[draw=navy] (n3.south) |- (ub);
+  \draw[wire] (n2.south) -- (ub) node[dot] {} -| (n0.south);
+  \node[cmd, anchor=south] at ($(ub -| placed)$) {\texttt{uninstall UUID}};
+  \node[sig, anchor=north] at ($(ub -| placed)+(0,-0.05)$) {ユーザー領域のみ．システム領域は \texttt{apt remove}};
+\end{tikzpicture}

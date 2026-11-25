@@ -1,0 +1,78 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    ext/.style={draw=darkgray, dashed, fill=white, rounded corners=3pt,
+                align=center, inner sep=5pt, minimum height=1.1cm},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south, font=\bfseries, text=navy},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt, align=center},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    dot/.style={circle, fill=navy, inner sep=1.4pt},
+    wire/.style={->, draw=navy},
+  ]
+  % ---- ログの入り口 ----
+  \node[block, minimum width=4.2cm] (e1) at (0, 2.1)  {アプリの \texttt{syslog()}};
+  \node[block, minimum width=4.2cm] (e2) at (0, 0.7)  {サービスの stdout / stderr};
+  \node[block, minimum width=4.2cm] (e3) at (0,-0.7)  {\texttt{sd\_journal\_send()}};
+  \node[block, minimum width=4.2cm] (e4) at (0,-2.1)  {カーネル（\texttt{/dev/kmsg}）};
+  \node[ext,   minimum width=4.2cm] (e5) at (0,-4.6)  {他ホストからの syslog\\UDP/TCP 514};
+
+  % ---- 収集デーモン ----
+  \node[accent, minimum width=3.4cm] (jd) at (6.2, 0)   {\textbf{systemd-journald}};
+  \node[block,  minimum width=3.4cm] (rs) at (6.2,-4.6) {\textbf{rsyslogd}};
+  \node[note, above=3mm of jd] {\texttt{/dev/log} の実体も\\journald のソケット};
+
+  % ---- 保存先 ----
+  \node[block, minimum width=3.6cm] (jf) at (11.4, 0)   {ジャーナルファイル};
+  \node[block, minimum width=3.6cm] (sl) at (11.4,-4.6) {\texttt{/var/log/syslog} など};
+  \node[note, below=2mm of jf] (njf) {バイナリ・メタデータ付き};
+  \node[note, below=2mm of sl] (nsl) {テキスト};
+
+  % ---- 閲覧 ----
+  \node[block, minimum width=3.2cm] (jc) at (16.4, 0)   {\textbf{journalctl}};
+  \node[block, minimum width=3.2cm] (lg) at (16.4,-4.6) {less / grep / tail};
+
+  % ---- 配線：入り口 → journald ----
+  \coordinate (bus) at (2.75,0);
+  \foreach \e in {e1,e2,e3,e4} { \draw[draw=navy] (\e.east) -- (\e.east -| bus); }
+  \draw[draw=navy] (e1.east -| bus) -- (e4.east -| bus);
+  \node[dot] at (e2.east -| bus) {};
+  \node[dot] at (e3.east -| bus) {};
+  \draw[wire] (bus) -- (jd.west);
+
+  % ---- 配線：保存・転送・閲覧 ----
+  \draw[wire] (jd) -- node[above, sig] {書き込み} (jf);
+  \draw[wire] (jd) -- node[right, sig] {転送\\（\texttt{ForwardToSyslog}）} (rs);
+  \draw[wire] (rs) -- node[above, sig] {書き込み} (sl);
+  \draw[wire] (jc) -- node[above, sig] {読む} (jf);
+  \draw[wire] (lg) -- node[above, sig] {読む} (sl);
+  \draw[->, draw=darkgray, dashed] (e5) -- node[below, sig] {journald を\\通らない} (rs);
+  \node[note, below=2mm of e5] (ne5) {Ubuntu の既定では無効};
+
+  % ---- ゾーン ----
+  \coordinate (zt) at (0,3.6);
+  \coordinate (zb) at (0,-5.9);
+  \begin{scope}[on background layer]
+    \node[zone, fit=(e1)(e5)(ne5)(e1 |- zt)(e1 |- zb)] (z1) {};
+    \node[zone, fit=(jd)(rs)(jd |- zt)(jd |- zb)] (z2) {};
+    \node[zone, fit=(jf)(sl)(njf)(jf |- zt)(jf |- zb)] (z3) {};
+    \node[zone, fit=(jc)(lg)(jc |- zt)(jc |- zb)] (z4) {};
+  \end{scope}
+  \node[zlabel] at (z1.north) {ログの入り口};
+  \node[zlabel] at (z2.north) {収集デーモン};
+  \node[zlabel] at (z3.north) {保存先};
+  \node[zlabel] at (z4.north) {閲覧};
+\end{tikzpicture}

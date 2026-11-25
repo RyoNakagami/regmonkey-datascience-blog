@@ -1,0 +1,57 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, inner sep=5pt, minimum width=3.0cm},
+    accent/.style={block, fill=paleskyblue},
+    store/.style={draw=navy, fill=white, cylinder, shape border rotate=90,
+                  aspect=0.2, align=center, minimum width=2.2cm, minimum height=0.8cm},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south west, font=\bfseries, text=navy},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt, align=center},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    wire/.style={<->, draw=navy},
+  ]
+
+  % ---- 上段: HTTPプロキシ（2回目のリクエスト） ----
+  \node[block] (hc) at (0,0) {クライアント};
+  \node[accent] (hp) at (6.2,0) {HTTPプロキシ};
+  \node[block] (hs) at (12.4,0) {Webサーバー};
+  \node[store, below=0.8cm of hp] (cache) {キャッシュ};
+  \node[note, right=3mm of cache, anchor=west] {1回目に取得した\\画像・HTMLを保存};
+
+  \draw[wire] (hc) -- node[midway, above, sig] {2回目のリクエスト} (hp);
+  \draw[wire] (hp) -- node[midway, left=4pt, sig] {保存済みの\\応答を返す} (cache);
+  \draw[->, draw=darkgray, dashed] (hp) -- node[midway, above, sig] {問い合わせない} (hs);
+
+  % ---- 下段: SOCKS5プロキシ ----
+  \node[block] (sc) at (0,-5.2) {クライアント};
+  \node[accent] (sp) at (6.2,-5.2) {SOCKS5プロキシ};
+  \node[block] (ss) at (12.4,-5.2) {接続先サーバー};
+  \node[note, below=2mm of sp] {中身を読まない・保存しない};
+
+  \draw[wire] (sc) -- node[midway, above, sig] {毎回のリクエスト} (sp);
+  \draw[wire] (sp) -- node[midway, above, sig] {毎回そのまま中継} (ss);
+
+  % ---- ゾーン ----
+  \coordinate (htop) at ($(hp.north)+(0,0.35)$);
+  \coordinate (hbot) at ($(cache.south)+(0,-0.1)$);
+  \coordinate (stop) at ($(sp.north)+(0,0.35)$);
+  \coordinate (sbot) at ($(sp.south)+(0,-0.6)$);
+  \begin{scope}[on background layer]
+    \node[zone, fit=(hc)(hs)(hc |- htop)(hc |- hbot)] (zh) {};
+    \node[zone, fit=(sc)(ss)(sc |- stop)(sc |- sbot)] (zs) {};
+  \end{scope}
+  \node[zlabel] at (zh.north west) {HTTPプロキシ：応答をキャッシュして再利用する};
+  \node[zlabel] at (zs.north west) {SOCKS5プロキシ：キャッシュせず毎回中継する};
+\end{tikzpicture}

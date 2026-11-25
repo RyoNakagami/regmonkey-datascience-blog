@@ -1,0 +1,68 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.3cm, inner sep=6pt},
+    accent/.style={block, fill=paleskyblue},
+    ext/.style={draw=darkgray, dashed, fill=white, rounded corners=3pt,
+                align=center, inner sep=6pt},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south, font=\bfseries, text=navy},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt, align=center},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    wire/.style={->, draw=navy},
+  ]
+  % ノード
+  \node[block, minimum width=3.6cm] (cli) at (0,0)
+    {\textbf{gnome-extensions}\\コマンド（CLI）};
+  \node[block, minimum width=4.6cm] (gs) at (7.4,0)
+    {\textbf{GSettings}\\\texttt{org.gnome.shell}\\\texttt{enabled-extensions}};
+  \node[block, minimum width=4.6cm] (user) at (7.4,-3.6)
+    {\textbf{ユーザー領域}\\\texttt{\textasciitilde/.local/share/}\\\texttt{gnome-shell/extensions/}};
+  \node[block, minimum width=4.6cm] (sys) at (7.4,-7.2)
+    {\textbf{システム領域}\\\texttt{/usr/share/}\\\texttt{gnome-shell/extensions/}};
+  \node[accent, minimum width=3.8cm] (shell) at (14.6,-3.6)
+    {\textbf{gnome-shell}（GJS）\\有効な UUID の拡張を\\読み込んで実行};
+  \node[ext, minimum width=3.6cm] (apt) at (0,-7.2) {\textbf{apt}\\（OS のパッケージ）};
+
+  \node[note, below=2mm of user] {extensions.gnome.org や\\\texttt{install} で導入};
+  \node[note, below=2mm of sys] {全ユーザー共通・root が管理};
+
+  % ゾーン
+  \coordinate (zb) at ($(sys.south)+(0,-0.75)$);
+  \begin{scope}[on background layer]
+    \node[zone, fit=(user)(sys)(zb)] (zone) {};
+  \end{scope}
+  \node[zlabel] at (zone.north) {インストール先（UUID ごとのフォルダ）};
+
+  % CLI → GSettings → gnome-shell
+  \draw[wire] (cli) -- node[above, sig] {\texttt{enable} / \texttt{disable}} (gs);
+  \draw[wire] (gs.east) -- node[above, sig, pos=0.45] {どの UUID を有効にするか}
+    ($(gs.east -| shell.north)+(-0.5,0)$) -- ($(shell.north)+(-0.5,0)$);
+
+  % CLI → ユーザー領域
+  \draw[wire] (cli.south) |- node[above, sig, pos=0.75] {\texttt{install}（zip を展開）} (user.west);
+
+  % apt → システム領域
+  \draw[wire] (apt) -- node[above, sig] {install / remove} (sys);
+
+  % フォルダ → gnome-shell
+  \draw[wire] (user.east) -- node[above, sig] {\texttt{extension.js} など} (shell.west);
+  \draw[wire] (sys.east) -| node[above, sig, pos=0.25] {\texttt{extension.js} など} (shell.south);
+
+  % CLI ⇄ gnome-shell（D-Bus）
+  \coordinate (top) at ($(cli.north)+(0,1.0)$);
+  \draw[wire, densely dashed] (cli.north) -- (top)
+    -- node[above, sig] {\texttt{list} / \texttt{info} / \texttt{uninstall}：D-Bus で gnome-shell に問い合わせ・依頼}
+    ($(top -| shell.north)+(0.6,0)$) -- ($(shell.north)+(0.6,0)$);
+\end{tikzpicture}
