@@ -1,0 +1,68 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.4mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=0.9cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    ng/.style={block, draw=crimsonred, fill=mistyrose,
+               minimum width=6.4cm, minimum height=0.8cm},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south, font=\bfseries, text=navy},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt, align=center},
+    note/.style={font=\footnotesize, text=darkgray, align=left, anchor=west},
+    wire/.style={->, draw=navy},
+    ngwire/.style={->, draw=crimsonred, densely dashed},
+  ]
+  % ---- 左：集計する側（起点と同じファイルシステム）----
+  \node[accent, minimum width=1.6cm] (root) at (2.4,0.5) {\texttt{/}};
+  \foreach \x/\d in {0/usr, 1.6/var, 3.2/etc, 4.8/opt} {
+    \node[block, minimum width=1.3cm] (\d) at (\x,-1.5) {\texttt{/\d}};
+    \draw[wire] (\x,-0.5) -- (\d.north);
+  }
+  \draw[draw=navy] (root.south) -- (2.4,-0.5);
+  \draw[draw=navy] (0,-0.5) -- (4.8,-0.5);
+  \node[sig, below=3mm of $(var.south)!0.5!(etc.south)$] (same)
+    {\texttt{st\_dev} が起点 \texttt{/} と同じ\\＝同じディスク・同じ FS};
+  \begin{scope}[on background layer]
+    \node[zone, fit=(root)(usr)(opt)(same)] (z) {};
+  \end{scope}
+  \node[zlabel] at (z.north) {集計する：\texttt{/dev/sda1}（ext4）};
+
+  % ---- 中央：-x の判定 ----
+  \node[block] (dec) at (10.6,0.5) {\texttt{-x} の判定\\[2pt]降りる前に \texttt{st\_dev} を比較};
+  \draw[wire] (root.east) -- (dec.west);
+  \node[sig, anchor=south] at ($(z.east |- root)!0.5!(dec.west)+(0,0.05)$) {子ディレクトリ\\へ再帰};
+  \node[font=\footnotesize, text=crimsonred, align=center, below=3mm of dec]
+    {\texttt{st\_dev} が違う＝マウントポイント\\→ 中へ降りない};
+
+  % ---- 右：降りない先（-x が無いと跨いでしまうもの）----
+  \def\bx{17.0}
+  \foreach \i/\y/\t/\na/\nb in {
+      1/3.0/{\texttt{/proc}，\texttt{/sys}（procfs / sysfs）}/実体のない疑似ファイル．走査が重く，/消えたプロセスのエラーが大量に出る,
+      2/1.75/{\texttt{/dev/shm}，\texttt{/run}（tmpfs）}/中身は RAM 上．/ディスクの空きとは無関係,
+      3/0.5/{\texttt{/home}（\texttt{/dev/sdb1}：別ディスク）}/別ディスクの使用量が混ざり，/\texttt{df /} の数字と合わなくなる,
+      4/-0.75/{\texttt{/mnt/nfs}（NFS・sshfs・gcsfuse）}/ネットワーク越しに全走査．/極端に遅く，応答待ちで固まる,
+      5/-2.0/{\texttt{/var/lib/docker/…/merged}（overlay）}/下層ディレクトリと \texttt{merged} の両方から/同じデータを数え，二重計上しやすい} {
+    \node[ng] (n\i) at (\bx,\y) {\t};
+    \node[note] at (\bx+3.5,\y) {\na\\\nb};
+    \draw[ngwire] (13.25,\y) -- (n\i.west);
+  }
+  \draw[draw=crimsonred, densely dashed] (dec.east) -- (13.25,0.5);
+  \draw[draw=crimsonred, densely dashed] (13.25,3.0) -- (13.25,-2.0);
+  \node[font=\footnotesize\bfseries, text=azureblue, anchor=south] at ($(n1.north)+(0,0.15)$)
+    {\texttt{-x} が無いと…（跨いだ場合に起きること）};
+
+  % ---- 脚注 ----
+  \node[font=\scriptsize, text=darkgray, anchor=north west] at ($(z.south west)+(0,-0.25)$)
+    {※ \texttt{/boot}，\texttt{/boot/efi} が別パーティションなら同様に除外される．マウント構成は \texttt{findmnt} や \texttt{df -hT} で確認できる．};
+\end{tikzpicture}
