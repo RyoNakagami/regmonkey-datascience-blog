@@ -1,0 +1,205 @@
+---
+title: "任意の２つのファイルのdiffを確認 by VS Code"
+author: "Ryo Nakagami"
+date: "2026-11-21"
+date-modified: "2026-11-26"
+categories: [vscode, coding]
+lightbox: true
+comments:
+  utterances:
+       repo: RyoNakagami/regmonkey-datascience-blog
+       label: discussion
+       issue-term: title
+---
+
+
+::: {.callout-note}
+## TL;DRs
+
+- `code -d file1 file2` で任意の２ファイルを VS Code の diff エディタで並べて比較できる
+- 左が1つ目の引数（変更前），右が2つ目の引数（変更後）
+- 中央の矢印（Revert Block）を押すと，その差分ブロックを左の内容で右に上書きできる
+- `-n` を付けると新しいウィンドウで開くので，作業中のワークスペースを汚さずに比較できる
+- ファイルパスを渡すだけなので，ワークスペース外のファイル同士でも比較できる
+
+:::
+
+## `code --diff` コマンド
+
+::: {#cmd- .custom_command .blog-custom-border}
+### `code --diff`
+
+```bash
+code --diff file1.txt file2.txt
+code -d file1.txt file2.txt   # 短縮形
+```
+
+- 2つのファイルを VS Code の diff エディタ（side-by-side 表示）で開く
+- Git 管理下にある必要はない．ディスク上のファイルなら何でもよい
+
+| 位置 | 対応するファイル | 一般的な呼び方 |
+|---|---|---|
+| 左 | 1つ目の引数（`file1`） | 変更前（original） |
+| 右 | 2つ目の引数（`file2`） | 変更後（modified） |
+
+:::
+
+引数の順番がそのまま左右の配置になります．
+
+```bash
+code -d old.txt new.txt
+#        ↑左    ↑右
+```
+
+![`code -d` で `styles.css` を比較した例．右側にだけある37〜40行目が追加行として緑で表示される](./figures/diff-example.png){width=100%}
+
+- 上の例では，右のファイルにだけ `.blog-custom-border h3 { ... }` の4行が存在
+- 右端のスクロールバー（overview ruler）にも差分の位置が色で示される
+
+[差分間の移動]{.mini-section}
+
+差分が多いときは，エディタ右上の ↑ / ↓ ボタンか，次のショートカットで差分ブロック間を移動します．
+
+:::: {.no-border-top-table}
+
+| 操作 | ショートカット（Linux / Windows） |
+|---|---|
+| 次の差分へ移動 | `Alt+F5` |
+| 前の差分へ移動 | `Shift+Alt+F5` |
+
+: {tbl-colwidths="[30,60]"}
+
+::::
+
+[Revert 機能]{.mini-section}
+
+左右のペインの間にある矢印アイコン（上図の37行目付近の `→`）が **Revert Block** ボタンです．押すと，その差分ブロックについて **右（変更後）の内容を左（変更前）の内容で置き換えます**．
+
+- 適用の向きは常に「左 → 右」．右側のファイルだけが書き換わる
+- 書き換えた直後は未保存状態．`Ctrl+S` で保存するまでディスク上のファイルは変わらない
+- 間違えて押した場合は `Ctrl+Z` で元に戻せる
+
+逆向き（右の内容を左に反映）にしたいときは，引数の順番を入れ替えて開き直します．
+
+```bash
+code -d new.txt old.txt   # new.txt の内容で old.txt 側を戻したい場合
+```
+
+
+## `code -n`: 新しいウィンドウで開く
+
+`code -d` だけを実行すると，すでに開いている VS Code ウィンドウ（直前にアクティブだったウィンドウ）に diff タブが追加されます．作業中のプロジェクトとは無関係なファイルを比較したいときは，`-n` を付けて新しいウィンドウで開くと便利です．
+
+::: {#cmd- .custom_command .blog-custom-border}
+### `code -n`
+
+```bash
+code -n                 # 空の新しいウィンドウを開く
+code -n file.txt        # file.txt を新しいウィンドウで開く
+code -n -d a.txt b.txt  # a.txt と b.txt の diff を新しいウィンドウで開く
+```
+
+- `-n`, `--new-window`: 必ず新しいウィンドウを開く
+- `-r`, `--reuse-window`: 逆に，必ず既存のウィンドウを使う
+
+:::
+
+`-n` で開いたウィンドウはフォルダを開いていない状態なので，比較が終わったらウィンドウごと閉じれば，作業中のウィンドウのタブやエクスプローラーには何も残りません．
+
+:::: {.no-border-top-table}
+
+| コマンド | 開く場所 | 向いている場面 |
+|---|---|---|
+| `code -d a b` | 直前にアクティブだったウィンドウ | 作業中のプロジェクト内のファイルを比較する |
+| `code -n -d a b` | 新しいウィンドウ | プロジェクト外のファイルを一時的に比較する |
+| `code -r -d a b` | 既存のウィンドウ（強制） | 設定で新しいウィンドウが開く挙動になっているとき |
+
+: {tbl-colwidths="[25,35,40]"}
+
+::::
+
+
+::: {#exm- .custom_problem }
+### workspace外のファイルを比較
+
+Ubuntu では，新規ユーザー作成時に `/etc/skel/.bashrc` が `~/.bashrc` としてコピーされます．自分が `~/.bashrc` にどんな設定を追加したかを確認するには，この2つを比較します．
+
+```bash
+code -n -d /etc/skel/.bashrc ~/.bashrc
+#          ↑左: 配布時のデフォルト  ↑右: 自分が編集したもの
+```
+
+- どちらのファイルも VS Code のワークスペース外にあるが，パスを渡すだけで比較できる
+- `-n` により，作業中のウィンドウとは別のウィンドウで開く
+- 右側が `~/.bashrc` なので，Revert Block を押すと自分の設定がデフォルトに戻る．比較だけなら押さない
+
+:::
+
+## Appendix: キーバインドのカスタマイズと Neovim との対応
+
+### 差分移動のキーバインドを変更する
+
+既定の `Alt+F5` / `Shift+Alt+F5` は押しにくいので，筆者は Vim の `]c` / `[c` に寄せて `Super+]` / `Super+[` に変更しています．`keybindings.json` では Super キーを `meta` と書きます．
+
+```json
+[
+  {
+    "key": "meta+]",
+    "command": "workbench.action.compareEditor.nextChange",
+    "when": "textCompareEditorVisible"
+  },
+  {
+    "key": "alt+f5",
+    "command": "-workbench.action.compareEditor.nextChange",
+    "when": "textCompareEditorVisible"
+  },
+  {
+    "key": "meta+[",
+    "command": "workbench.action.compareEditor.previousChange",
+    "when": "textCompareEditorVisible"
+  },
+  {
+    "key": "shift+alt+f5",
+    "command": "-workbench.action.compareEditor.previousChange",
+    "when": "textCompareEditorVisible"
+  }
+]
+```
+
+- `when` を `textCompareEditorVisible` に絞り，diff エディタ表示中だけ有効にする
+- `command` 先頭の `-` は既定の割り当ての解除を表す．ここでは diff エディタでの `Alt+F5` / `Shift+Alt+F5` を外している
+- `Alt+F5` には Chat の編集間移動や Git の変更箇所（quick diff）間移動も割り当てられているが，`when` が異なるのでそちらには影響しない
+
+### VS Code と Neovim の操作対応表
+
+Vim / Neovim には diff mode が標準で備わっており，`nvim -d` で同じように２ファイルを比較できます．
+
+:::: {.no-border-top-table}
+
+| 操作 | VS Code（既定） | VS Code（カスタマイズ後） | Neovim |
+|---|---|---|---|
+| 2ファイルを比較して開く | `code -d a b` | 同左 | `nvim -d a b` |
+| 新しいウィンドウで比較する | `code -n -d a b` | 同左 | 別のターミナルで `nvim -d a b`，または `:tabnew` してから比較 |
+| 次の差分へ移動 | `Alt+F5` | `Super+]` | `]c` |
+| 前の差分へ移動 | `Shift+Alt+F5` | `Super+[` | `[c` |
+| 左の内容で右を戻す | Revert Block（中央の矢印） | 同左 | 右のウィンドウで `do`，または左のウィンドウで `dp` |
+| 右の内容を左に反映する | 引数を入れ替えて開き直す | 同左 | 左のウィンドウで `do`，または右のウィンドウで `dp` |
+| 元に戻す | `Ctrl+Z` | 同左 | `u` |
+| 保存する | `Ctrl+S` | 同左 | `:w`（両方なら `:wa`） |
+| 開いた後に比較を始める | エクスプローラーで **Compare Selected** | 同左 | `:vert diffsplit b`，または両ウィンドウで `:windo diffthis` |
+| 差分表示を更新する | 自動 | 同左 | `:diffupdate` |
+| 比較を終了する | タブを閉じる | 同左 | `:diffoff!` |
+
+: {tbl-colwidths="[22,24,20,34]"}
+
+::::
+
+- `do` は diff obtain（反対側の内容を取り込む），`dp` は diff put（反対側へ送る）の略
+- VS Code の Revert Block は左 → 右の一方向だけだが，Neovim は `do` / `dp` でどちら向きにも反映できる
+- VS Code は既定で行頭・行末の空白差分を無視するが，Neovim は無視しない．揃えたい場合は `:set diffopt+=iwhite` を使う
+
+
+References
+----------
+- [Visual Studio Code > Command Line Interface > Core CLI options](https://code.visualstudio.com/docs/configure/command-line#_core-cli-options)
+- [Visual Studio Code > Source Control > Viewing diffs](https://code.visualstudio.com/docs/sourcecontrol/overview#_viewing-diffs)
