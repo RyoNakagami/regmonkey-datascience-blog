@@ -1,0 +1,65 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south, font=\bfseries, text=navy},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    wire/.style={->, draw=navy},
+    step/.style={font=\footnotesize\bfseries, text=azureblue},
+  ]
+  % ---- 親シェル（上段）----
+  \node[block, minimum width=2.6cm] (p1) at (0,3.2) {\texttt{x=1}};
+  \node[accent, minimum width=4.4cm] (p2) at (4.6,3.2) {\texttt{y=\$(x=2; echo \$x)}};
+  \node[block, minimum width=3.0cm] (p3) at (11.6,3.2) {\texttt{x} は \texttt{1} のまま \\ \texttt{y} に \texttt{2} が入る};
+
+  % ---- サブシェル（下段）----
+  \node[block, minimum width=2.8cm] (s1) at (4.6,-0.4) {\texttt{x=1} \\ 親の変数のコピー};
+  \node[block, minimum width=2.6cm] (s2) at (8.1,-0.4) {\texttt{x=2} \\ コピーを書き換え};
+  \node[block, minimum width=3.0cm] (s3) at (11.6,-0.4) {\texttt{echo \$x} \\ 標準出力に \texttt{2}};
+
+  % Step ラベル
+  \node[step, above=2mm of p1] (l1) {① 実行前};
+  \node[step, above=2mm of p2] (l2) {② コマンド置換};
+  \node[step, above=2mm of p3] (l3) {⑤ 置換後};
+  \node[step, below=2mm of s1] (l4) {③ fork};
+  \node[step, below=2mm of s2] (l5) {④ 実行};
+
+  % ---- 配線 ----
+  \draw[wire] (p1) -- (p2);
+  \draw[wire, draw=darkgray, dashed] (p2) -- (p3)
+    node[midway, above, sig] {終了を待つ};
+  \draw[wire] (p2.south) -- (s1.north)
+    node[midway, sig, anchor=east, xshift=-1mm] {変数をコピーして起動};
+  \draw[wire] (s1) -- (s2);
+  \draw[wire] (s2) -- (s3);
+  \draw[wire] (s3.north) -- (p3.south)
+    node[midway, sig, anchor=west, xshift=1mm, align=left] {標準出力の \texttt{2} \\ だけが戻る};
+
+  % 変数の変更は戻らない（NG）
+  \coordinate (ngtop) at ($(s2.north)+(0,2.0)$);
+  \draw[->, draw=crimsonred, dashed] (s2.north) -- (ngtop);
+  \node[text=crimsonred, font=\large\bfseries] at ($(s2.north)!0.55!(ngtop)$) {×};
+  \node[text=crimsonred, font=\footnotesize, anchor=west, xshift=2mm, align=left]
+    at ($(s2.north)!0.55!(ngtop)$) {\texttt{x=2} は \\ 親に反映されない};
+
+  % ---- ゾーン ----
+  \begin{scope}[on background layer]
+    \node[zone, fit=(p1)(p2)(p3)(l1)(l2)(l3)] (zp) {};
+    \node[zone, fit=(s1)(s2)(s3)(l4)(l5)] (zs) {};
+  \end{scope}
+  \node[zlabel] at (zp.north) {親シェル（呼び出し元）};
+  \node[zlabel, anchor=north] at (zs.south) {サブシェル（子プロセス）};
+\end{tikzpicture}

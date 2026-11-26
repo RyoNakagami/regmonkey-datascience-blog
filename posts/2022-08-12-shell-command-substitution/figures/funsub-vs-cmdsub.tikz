@@ -1,0 +1,51 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south, font=\bfseries, text=navy},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    wire/.style={->, draw=navy},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    keynote/.style={font=\footnotesize\bfseries, text=azureblue, align=center},
+  ]
+  % ---- 上段: $(cmd) ----
+  \node[accent, minimum width=4.6cm] (c1) at (0,3.8) {\texttt{x=1} \\ \texttt{y=\$(x=2; echo \$x)}};
+  \node[block, minimum width=3.6cm] (e1) at (6.0,3.8) {サブシェル \\ \texttt{x=2; echo \$x}};
+  \node[block, minimum width=3.2cm] (r1) at (11.2,3.8) {\texttt{x=1} \\ \texttt{y=2}};
+  \node[note, below=2mm of c1] (n1a) {親シェル};
+  \node[note, below=2mm of e1] (n1b) {fork した子プロセスで実行};
+  \node[keynote, below=2mm of r1] (n1c) {\texttt{x} の変更は捨てられる};
+  \draw[wire] (c1) -- (e1) node[midway, above, sig] {fork};
+  \draw[wire] (e1) -- (r1) node[midway, above, sig] {標準出力};
+
+  % ---- 下段: ${ cmd; } ----
+  \node[accent, minimum width=4.6cm] (c2) at (0,0) {\texttt{x=1} \\ \texttt{y=\$\{ x=2; echo \$x; \}}};
+  \node[block, minimum width=3.6cm] (e2) at (6.0,0) {現在のシェル \\ \texttt{x=2; echo \$x}};
+  \node[block, minimum width=3.2cm] (r2) at (11.2,0) {\texttt{x=2} \\ \texttt{y=2}};
+  \node[note, below=2mm of c2] (n2a) {親シェル};
+  \node[note, below=2mm of e2] (n2b) {親シェルと同じプロセスで実行};
+  \node[keynote, below=2mm of r2] (n2c) {\texttt{x} の変更が残る};
+  \draw[wire] (c2) -- (e2) node[midway, above, sig] {fork なし};
+  \draw[wire] (e2) -- (r2) node[midway, above, sig] {標準出力};
+
+  % ---- ゾーン ----
+  \begin{scope}[on background layer]
+    \node[zone, fit=(c1)(e1)(r1)(n1a)(n1b)(n1c)] (z1) {};
+    \node[zone, fit=(c2)(e2)(r2)(n2a)(n2b)(n2c)] (z2) {};
+  \end{scope}
+  \node[zlabel] at (z1.north) {\texttt{\$(cmd)}：サブシェルで実行（全バージョン）};
+  \node[zlabel] at (z2.north) {\texttt{\$\{ cmd; \}}：現在のシェルで実行（bash 5.3 以降）};
+\end{tikzpicture}
