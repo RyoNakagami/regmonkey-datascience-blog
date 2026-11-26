@@ -1,0 +1,1956 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="ja" xml:lang="ja"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.11.9">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Ryo Nakagami">
+<meta name="dcterms.date" content="2022-08-12">
+
+<title>コマンド置換 $(cmd) と算術展開 $((expr)) – regmonkey datascience blog</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<link href="../../img/favicon.ico" rel="icon">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/scrollable-regions/scrollable-regions.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-5de16f5e46225c21e2daa90d340bf64f.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark-3218d7d29a29f08bc4fdf3802c3e3ca5.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-5de16f5e46225c21e2daa90d340bf64f.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-e016ebc5b1ceb0f96a1698ff19bcc02a.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark-fa14c3ac9e520996edf2d1f50286ed76.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../site_libs/bootstrap/bootstrap-e016ebc5b1ceb0f96a1698ff19bcc02a.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script src="../../site_libs/quarto-contrib/pseudocode-2.4.1/pseudocode.min.js"></script>
+<link href="../../site_libs/quarto-contrib/pseudocode-2.4.1/pseudocode.min.css" rel="stylesheet">
+<script src="../../site_libs/quarto-contrib/glightbox/glightbox.min.js"></script>
+<link href="../../site_libs/quarto-contrib/glightbox/glightbox.min.css" rel="stylesheet">
+<link href="../../site_libs/quarto-contrib/glightbox/lightbox.css" rel="stylesheet">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "一致なし",
+    "search-matching-documents-text": "一致した文書",
+    "search-copy-link-title": "検索へのリンクをコピー",
+    "search-hide-matches-text": "追加の検索結果を非表示",
+    "search-more-match-text": "追加の検索結果",
+    "search-more-matches-text": "追加の検索結果",
+    "search-clear-button-title": "消去",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "取消",
+    "search-submit-button-title": "検索",
+    "search-label": "サーチ"
+  }
+}</script>
+<script async="" src="https://www.googletagmanager.com/gtag/js?id=G-EX9H7GRLTH"></script>
+
+<script type="text/javascript">
+
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-EX9H7GRLTH', { 'anonymize_ip': true});
+</script>
+<style>
+
+      .quarto-title-block .quarto-title-banner h1,
+      .quarto-title-block .quarto-title-banner h2,
+      .quarto-title-block .quarto-title-banner h3,
+      .quarto-title-block .quarto-title-banner h4,
+      .quarto-title-block .quarto-title-banner h5,
+      .quarto-title-block .quarto-title-banner h6
+      {
+        color: #ffffff;
+      }
+
+      .quarto-title-block .quarto-title-banner {
+        color: #ffffff;
+      }
+</style>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-M27Z2BWG');</script>
+    <!-- End Google Tag Manager -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&amp;display=swap" rel="stylesheet">
+<script>
+    MathJax = {
+        tex: {
+            inlineMath: [['$','$'], ['\\(','\\)']],
+            displayMath: [['$$','$$'], ['\\[','\\]']],
+            processEscapes: true,
+            processEnvironments: true,
+            tags: 'all',
+        }
+    }
+</script>
+<!-- MathJax 本体は _quarto.yml の html-math-method.url で読み込む -->
+<link rel="stylesheet" href="../../js/regmonkey_glossary_generator/regmonkey_glossary_generator.css">
+<script type="text/javascript" src="../../js/regmonkey_glossary_generator/regmonkey_glossary_generator.js"></script>
+
+
+<link rel="stylesheet" href="../../styles.css">
+<meta property="og:title" content="コマンド置換 $(cmd) と算術展開 $((expr)) – regmonkey datascience blog">
+<meta property="og:description" content="日々の徒然勉強日記">
+<meta property="og:image" content="https://ryonakagami.github.io/regmonkey-datascience-blog/posts/2022-08-12-shell-command-substitution/figures/subshell-variable.svg">
+<meta property="og:site_name" content="regmonkey datascience blog">
+<meta property="og:image:alt" content="コマンド置換では，サブシェルの標準出力だけが呼び出し元に戻る">
+</head>
+
+<body class="nav-fixed quarto-light"><a id="quarto-skip-link" class="visually-hidden-focusable" href="#quarto-document-content">メインコンテンツにスキップ</a><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          toggle.setAttribute("aria-checked", alternate ? "true" : "false");
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+    }
+    // Hack to workaround the fact that safari doesn't
+    // properly recolor the scrollbar when toggling (#1455).
+    // Not run on load: stylesheets are set before first paint there, and
+    // scrolling would undo the scroll to a URL fragment (#14973).
+    // The one pixel nudge keeps the reader where they were.
+    const refreshSafariScrollbar = () => {
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        const scrollY = window.scrollY;
+        window.scrollTo(0, scrollY > 0 ? scrollY - 1 : 1);
+        setTimeout(() => {
+          window.scrollTo(0, scrollY);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      refreshSafariScrollbar();
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top quarto-banner">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark" aria-label="ウェブサイト">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">Home</span>
+    </a>
+  </div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="ナビゲーションを切り替える" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-bi-book" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+      <i class="bi bi-book" role="img">
+</i> 
+ <span class="menu-text"></span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-bi-book">    
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/statistics-for-regression-monkey/">
+ <span class="dropdown-text">Statistics Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/python-statisticalpackage-techniques/">
+ <span class="dropdown-text">Python package building Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/regmonkey_datavisualization/">
+ <span class="dropdown-text">Data Visualization Blog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ryonakagami.github.io/regmonkey-presentation/">
+ <span class="dropdown-text">Presentation Blog</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../link_list/link_table.html"> 
+<span class="menu-text">便利リンク集</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../dictionary/dict.html"> 
+<span class="menu-text">備忘録</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../FAQ/faq.html"> 
+<span class="menu-text">FAQ</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../about.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/RyoNakagami/regmonkey-datascience-blog"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="../../index.xml"> <i class="bi bi-rss" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <button type="button" role="switch" aria-checked="false" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="ダークモードの切り替え" aria-label="ダークモードの切り替え"><i class="bi"></i></button>
+</div>
+            <div id="quarto-search" class="" title="サーチ"></div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">コマンド置換 $(cmd) と算術展開 $((expr))</h1>
+                                <div class="quarto-categories">
+                <div class="quarto-category">shell</div>
+                <div class="quarto-category">bash</div>
+                <div class="quarto-category">coding</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      <div>
+      <div class="quarto-title-meta-heading">作者</div>
+      <div class="quarto-title-meta-contents">
+               <p>Ryo Nakagami </p>
+            </div>
+    </div>
+      
+      <div>
+      <div class="quarto-title-meta-heading">公開</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">2022-08-12</p>
+      </div>
+    </div>
+    
+      <div>
+      <div class="quarto-title-meta-heading">更新日</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date-modified">2026-11-26</p>
+      </div>
+    </div>
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" aria-labelledby="toc-title" class="toc-active">
+    <h2 id="toc-title">目次</h2>
+   
+  <ul>
+  <li><a href="#コマンド置換" id="toc-コマンド置換" class="nav-link active" data-scroll-target="#コマンド置換">コマンド置換</a>
+  <ul class="collapse">
+  <li><a href="#基本形-cmd-と-cmd" id="toc-基本形-cmd-と-cmd" class="nav-link" data-scroll-target="#基本形-cmd-と-cmd">基本形: <code>$(cmd)</code> と <code>`cmd`</code></a></li>
+  <li><a href="#を使うべき理由" id="toc-を使うべき理由" class="nav-link" data-scroll-target="#を使うべき理由"><code>$(...)</code> を使うべき理由</a></li>
+  <li><a href="#コマンド置換の挙動" id="toc-コマンド置換の挙動" class="nav-link" data-scroll-target="#コマンド置換の挙動">コマンド置換の挙動</a></li>
+  </ul></li>
+  <li><a href="#算術展開" id="toc-算術展開" class="nav-link" data-scroll-target="#算術展開">算術展開</a>
+  <ul class="collapse">
+  <li><a href="#基本形-expr" id="toc-基本形-expr" class="nav-link" data-scroll-target="#基本形-expr">基本形: <code>$((expr))</code></a></li>
+  <li><a href="#主な演算子" id="toc-主な演算子" class="nav-link" data-scroll-target="#主な演算子">主な演算子</a></li>
+  <li><a href="#整数演算のみ" id="toc-整数演算のみ" class="nav-link" data-scroll-target="#整数演算のみ">整数演算のみ</a></li>
+  <li><a href="#基数指定と先頭ゼロの罠" id="toc-基数指定と先頭ゼロの罠" class="nav-link" data-scroll-target="#基数指定と先頭ゼロの罠">基数指定と先頭ゼロの罠</a></li>
+  <li><a href="#算術コマンド-expr" id="toc-算術コマンド-expr" class="nav-link" data-scroll-target="#算術コマンド-expr">算術コマンド <code>((expr))</code></a></li>
+  <li><a href="#と-...-の区別" id="toc-と-...-の区別" class="nav-link" data-scroll-target="#と-...-の区別"><code>$((...))</code> と <code>$( (...) )</code> の区別</a></li>
+  </ul></li>
+  <li><a href="#google-shell-style-guide-の関連ルール" id="toc-google-shell-style-guide-の関連ルール" class="nav-link" data-scroll-target="#google-shell-style-guide-の関連ルール">Google Shell Style Guide の関連ルール</a>
+  <ul class="collapse">
+  <li><a href="#command-substitution-command-を使う" id="toc-command-substitution-command-を使う" class="nav-link" data-scroll-target="#command-substitution-command-を使う">Command Substitution: <code>$(command)</code> を使う</a></li>
+  <li><a href="#quoting-コマンド置換はクオートする" id="toc-quoting-コマンド置換はクオートする" class="nav-link" data-scroll-target="#quoting-コマンド置換はクオートする">Quoting: コマンド置換はクオートする</a></li>
+  <li><a href="#use-local-variables-宣言と代入を分ける" id="toc-use-local-variables-宣言と代入を分ける" class="nav-link" data-scroll-target="#use-local-variables-宣言と代入を分ける">Use Local Variables: 宣言と代入を分ける</a></li>
+  <li><a href="#arrays-pipes-to-while-クオートなしの-...-でリストを作らない" id="toc-arrays-pipes-to-while-クオートなしの-...-でリストを作らない" class="nav-link" data-scroll-target="#arrays-pipes-to-while-クオートなしの-...-でリストを作らない">Arrays / Pipes to While: クオートなしの <code>$(...)</code> でリストを作らない</a></li>
+  <li><a href="#eval-eval-...-を避ける" id="toc-eval-eval-...-を避ける" class="nav-link" data-scroll-target="#eval-eval-...-を避ける">Eval: <code>eval $(...)</code> を避ける</a></li>
+  <li><a href="#arithmetic-と-を使う" id="toc-arithmetic-と-を使う" class="nav-link" data-scroll-target="#arithmetic-と-を使う">Arithmetic: <code>(( … ))</code> と <code>$(( … ))</code> を使う</a></li>
+  <li><a href="#builtin-commands-vs.-external-commands-組み込みを優先する" id="toc-builtin-commands-vs.-external-commands-組み込みを優先する" class="nav-link" data-scroll-target="#builtin-commands-vs.-external-commands-組み込みを優先する">Builtin Commands vs.&nbsp;External Commands: 組み込みを優先する</a></li>
+  </ul></li>
+  <li><a href="#appendix-bash-5.3-の-cmd" id="toc-appendix-bash-5.3-の-cmd" class="nav-link" data-scroll-target="#appendix-bash-5.3-の-cmd">Appendix: bash 5.3 の <code>${ cmd; }</code></a></li>
+  <li><a href="#appendix-zsh-との違い" id="toc-appendix-zsh-との違い" class="nav-link" data-scroll-target="#appendix-zsh-との違い">Appendix: zsh との違い</a>
+  <ul class="collapse">
+  <li><a href="#単語分割とパス名展開" id="toc-単語分割とパス名展開" class="nav-link" data-scroll-target="#単語分割とパス名展開">単語分割とパス名展開</a></li>
+  <li><a href="#浮動小数点演算" id="toc-浮動小数点演算" class="nav-link" data-scroll-target="#浮動小数点演算">浮動小数点演算</a></li>
+  <li><a href="#先頭ゼロの数値" id="toc-先頭ゼロの数値" class="nav-link" data-scroll-target="#先頭ゼロの数値">先頭ゼロの数値</a></li>
+  </ul></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>問題を報告</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content" tabindex="-1">
+
+
+
+
+
+
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">ノート</span>TL;DRs
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li><code>var=$(cmd)</code> でコマンドの標準出力を変数に代入する</li>
+<li>旧記法の <code>var=`cmd`</code> はネストやバックスラッシュの扱いが分かりにくいので <code>$(cmd)</code> を使う</li>
+<li>コマンド置換は末尾の改行をすべて削除し，サブシェルで実行される．展開結果は <code>"$(cmd)"</code> とクオートして単語分割・パス名展開を防ぐ</li>
+<li><code>local v=$(cmd)</code> は <code>cmd</code> の終了ステータスを失う．宣言と代入は2行に分ける</li>
+</ul>
+</div>
+</div>
+<p>シェルスクリプトでは「コマンドの出力を変数に入れたい」「変数同士を足し算したい」という場面が頻繁にあります． bash ではそれぞれ</p>
+<ul>
+<li><strong>コマンド置換 (command substitution)</strong>: <code>$(cmd)</code> または <code>`cmd`</code></li>
+<li><strong>算術展開 (arithmetic expansion)</strong>: <code>$((expr))</code></li>
+</ul>
+<p>という展開を使います．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>記法</th>
+<th>名前</th>
+<th>中身の解釈</th>
+<th>結果</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>$(cmd)</code></td>
+<td>コマンド置換</td>
+<td>コマンドとしてサブシェルで実行</td>
+<td>標準出力の文字列</td>
+</tr>
+<tr class="even">
+<td><code>`cmd`</code></td>
+<td>コマンド置換</td>
+<td>同上</td>
+<td>同上</td>
+</tr>
+<tr class="odd">
+<td><code>$((expr))</code></td>
+<td>算術展開</td>
+<td>整数の算術式として評価</td>
+<td>計算結果の数値</td>
+</tr>
+<tr class="even">
+<td><code>((expr))</code></td>
+<td>算術コマンド</td>
+<td>整数の算術式として評価</td>
+<td>終了ステータス (真なら 0)</td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="コマンド置換" class="level2">
+<h2 class="anchored" data-anchor-id="コマンド置換">コマンド置換</h2>
+<section id="基本形-cmd-と-cmd" class="level3">
+<h3 class="anchored" data-anchor-id="基本形-cmd-と-cmd">基本形: <code>$(cmd)</code> と <code>`cmd`</code></h3>
+<p>コマンド置換は，カッコ内のコマンドを実行し，その<strong>標準出力</strong>で自分自身を置き換えます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="va">today</span><span class="op">=</span><span class="va">$(</span><span class="fu">date</span> +%F<span class="va">)</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"</span><span class="va">$today</span><span class="st">"</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co"># 2026-11-26</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="va">branch</span><span class="op">=</span><span class="kw">`</span><span class="fu">git</span> branch <span class="at">--show-current</span><span class="kw">`</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"</span><span class="va">$branch</span><span class="st">"</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co"># main</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<ul>
+<li><code>$(cmd)</code> と <code>`cmd`</code> はどちらも同じコマンド置換</li>
+<li>バッククオートは Bourne shell 時代からの旧記法</li>
+<li>POSIX でも <code>$(cmd)</code> が推奨されている</li>
+</ul>
+</section>
+<section id="を使うべき理由" class="level3">
+<h3 class="anchored" data-anchor-id="を使うべき理由"><code>$(...)</code> を使うべき理由</h3>
+<p><span class="mini-section">1. ネストが素直に書ける</span></p>
+<p><code>$(...)</code> はそのまま入れ子にできますが，バックスラッシュではネストする内側のバッククオートをエスケープする必要があります．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="va">$(</span><span class="bu">echo</span> outer <span class="va">$(</span><span class="bu">echo</span> inner<span class="va">))</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="co"># outer inner</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="kw">`</span><span class="bu">echo</span> outer <span class="dt">\`</span>echo inner<span class="dt">\`</span><span class="kw">`</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="co"># outer inner</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>2段程度ならまだ読めますが，3段以上になるとバッククオート版はほぼ解読不能です．</p>
+<p><span class="mini-section">2. バックスラッシュの扱いが直感どおり</span></p>
+<p>バッククオートの中では <code>\\</code> が <code>\</code> に変換されるなど，バックスラッシュが一段余計に解釈されます． <code>$(...)</code> の中は通常のコマンドラインと同じルールで解釈されます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="va">$(</span><span class="bu">echo</span> <span class="st">'a\\b'</span><span class="va">)</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="co"># a\\b</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="kw">`</span><span class="bu">echo</span> <span class="st">'a\\b'</span><span class="kw">`</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="co"># a\b</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>シングルクオートの中ですらバックスラッシュが変換されてしまうのは，バッククオートの分かりにくいところです．</p>
+<p><span class="mini-section">3. 内側でダブルクオートを自由に使える</span></p>
+<p><code>$(...)</code> の中は独立したクオートの文脈になるので，外側をダブルクオートで囲んでいても内側で再びダブルクオートを使えます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="va">v</span><span class="op">=</span><span class="st">"</span><span class="va">$(</span><span class="bu">echo</span> <span class="st">"a b"</span><span class="va">)</span><span class="st">"</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"</span><span class="va">$v</span><span class="st">"</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="co"># a b</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="コマンド置換の挙動" class="level3">
+<h3 class="anchored" data-anchor-id="コマンド置換の挙動">コマンド置換の挙動</h3>
+<p><span class="mini-section">末尾の改行はすべて削除される</span></p>
+<p>コマンド置換は出力の<strong>末尾の改行をすべて</strong>取り除きます (途中の改行は残ります)．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="va">v</span><span class="op">=</span><span class="va">$(</span><span class="bu">printf</span> <span class="st">'a\n\n\n'</span><span class="va">)</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="bu">printf</span> <span class="st">'[%s]\n'</span> <span class="st">"</span><span class="va">$v</span><span class="st">"</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="co"># [a]</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>echo</code> の出力を代入しても値の最後に改行が付かないのはこのためです． 逆に，末尾の改行も含めて正確に保持したい場合は，ダミー文字を付けてから削るのが定番の回避策です．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="va">v</span><span class="op">=</span><span class="va">$(</span><span class="bu">printf</span> <span class="st">'a\n\n\n'</span><span class="kw">;</span> <span class="bu">echo</span> x<span class="va">)</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="va">v</span><span class="op">=</span><span class="va">${v</span><span class="op">%</span>x<span class="va">}</span>    <span class="co"># 末尾の x を削除．改行3つが残る</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p><span class="mini-section">サブシェルで実行される</span></p>
+<p><code>$(...)</code> の中身は<strong>サブシェル</strong>(子プロセス) で実行されます． そのため，中で変数を書き換えても呼び出し元には反映されません．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="va">x</span><span class="op">=</span>1</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="va">y</span><span class="op">=</span><span class="va">$(x</span><span class="op">=</span>2<span class="kw">;</span> <span class="bu">echo</span> <span class="va">$x)</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"x=</span><span class="va">$x</span><span class="st"> y=</span><span class="va">$y</span><span class="st">"</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="co"># x=1 y=2</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/subshell-variable.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-1" title="コマンド置換では，サブシェルの標準出力だけが呼び出し元に戻る"><img src="figures/subshell-variable.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="コマンド置換では，サブシェルの標準出力だけが呼び出し元に戻る"></a></p>
+</figure>
+</div>
+<figcaption>コマンド置換では，サブシェルの標準出力だけが呼び出し元に戻る</figcaption>
+</figure>
+</div>
+<p>サブシェルは起動時に親シェルの変数をコピーして持つので，中で <code>$x</code> を参照すると <code>1</code> が見えます． <code>x=2</code> で書き換えられるのはこのコピーだけで，サブシェルが終了するとコピーごと消えます． 呼び出し元に戻ってくるのは標準出力に書かれた文字列 (<code>2</code>) だけなので，<code>y</code> には <code>2</code> が入り，<code>x</code> は <code>1</code> のままです．</p>
+<p>また，コマンド置換のたびにプロセスが fork されるので，大きなループの中で多用すると遅くなります． 文字列の切り出しや置換程度なら <code>${var#prefix}</code> や <code>${var//a/b}</code> などのパラメータ展開で済ませる方が高速です．</p>
+<p><span class="mini-section">代入の終了ステータスはコマンドの終了ステータスになる</span></p>
+<p><code>var=$(cmd)</code> という単純な代入文の終了ステータス <code>$?</code> は，<code>cmd</code> の終了ステータスになります． これを利用すると，出力の取得と成否判定を同時に行えます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="va">v</span><span class="op">=</span><span class="va">$(</span><span class="fu">false</span><span class="va">)</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="va">$?</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="co"># 1</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="va">out</span><span class="op">=</span><span class="va">$(</span><span class="fu">git</span> rev-parse <span class="at">--show-toplevel</span> <span class="dv">2</span><span class="op">&gt;</span>/dev/null<span class="va">)</span><span class="kw">;</span> <span class="cf">then</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    <span class="bu">echo</span> <span class="st">"repo root: </span><span class="va">$out</span><span class="st">"</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="cf">else</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>    <span class="bu">echo</span> <span class="st">"not a git repository"</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a><span class="cf">fi</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="callout callout-style-default callout-warning callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">警告</span><code>local</code> と同時に代入すると終了ステータスが失われる
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>関数内で <code>local v=$(cmd)</code> と書くと，<code>$?</code> は <code>cmd</code> ではなく <code>local</code> コマンド自身の終了ステータス (通常は 0) になります． <code>export</code>，<code>declare</code>，<code>readonly</code> でも同じです．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">f()</span> <span class="kw">{</span> <span class="bu">local</span> <span class="va">v</span><span class="op">=</span><span class="va">$(</span><span class="fu">false</span><span class="va">)</span><span class="kw">;</span> <span class="bu">echo</span> <span class="st">"local: </span><span class="va">$?</span><span class="st">"</span><span class="kw">;</span> <span class="kw">}</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="ex">f</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="co"># local: 0</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="fu">g()</span> <span class="kw">{</span> <span class="bu">local</span> <span class="va">v</span><span class="kw">;</span> <span class="va">v</span><span class="op">=</span><span class="va">$(</span><span class="fu">false</span><span class="va">)</span><span class="kw">;</span> <span class="bu">echo</span> <span class="st">"split: </span><span class="va">$?</span><span class="st">"</span><span class="kw">;</span> <span class="kw">}</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="ex">g</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a><span class="co"># split: 1</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>終了ステータスを使いたい場合は，宣言と代入を2行に分けます (ShellCheck の SC2155 で指摘される問題です)．</p>
+</div>
+</div>
+<p><span class="mini-section"><code>local</code> とコマンド置換の推奨パターン</span></p>
+<p>宣言と代入を分けたうえで，代入の直後に終了ステータスを判定するのが基本形です．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># パターン1: 失敗したらそのまま呼び出し元に失敗を返す</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="fu">read_version()</span> <span class="kw">{</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>  <span class="bu">local</span> <span class="va">version</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>  <span class="va">version</span><span class="op">=</span><span class="st">"</span><span class="va">$(</span><span class="fu">cat</span> <span class="st">"</span><span class="va">$1</span><span class="st">"</span><span class="va">)</span><span class="st">"</span> <span class="kw">||</span> <span class="cf">return</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>  <span class="bu">echo</span> <span class="st">"version=</span><span class="va">${version}</span><span class="st">"</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="kw">}</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>|| return</code> は直前のコマンドの終了ステータスをそのまま返すので，<code>cmd</code> が失敗すると関数も同じステータスで失敗します． エラーメッセージを出したい場合は <code>if !</code> で判定します．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># パターン2: エラーメッセージを出してから失敗を返す</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="fu">get_root()</span> <span class="kw">{</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>  <span class="bu">local</span> <span class="va">root</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> <span class="ot">! </span><span class="va">root</span><span class="op">=</span><span class="st">"</span><span class="va">$(</span><span class="fu">git</span> <span class="at">-C</span> <span class="st">"</span><span class="va">$1</span><span class="st">"</span> rev-parse <span class="at">--show-toplevel</span> <span class="dv">2</span><span class="op">&gt;</span>/dev/null<span class="va">)</span><span class="st">"</span><span class="kw">;</span> <span class="cf">then</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>    <span class="bu">echo</span> <span class="st">"error: not a git repository: </span><span class="va">$1</span><span class="st">"</span> <span class="op">&gt;&amp;</span><span class="dv">2</span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="dv">1</span></span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>  <span class="cf">fi</span></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>  <span class="bu">echo</span> <span class="st">"root=</span><span class="va">${root}</span><span class="st">"</span></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a><span class="kw">}</span></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a><span class="ex">get_root</span> /tmp</span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a><span class="co"># error: not a git repository: /tmp</span></span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="va">$?</span></span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a><span class="co"># 1</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>1行で済ませたいなら <code>version="$(cat "$1")" || { echo "error: cannot read $1" &gt;&amp;2; return 1; }</code> のように <code>{ ...; }</code> でまとめても構いません．</p>
+<p><code>set -e</code> を使っているスクリプトでも，宣言と代入を分けることには意味があります． <code>local v=$(false)</code> は <code>local</code> が成功扱いになるため <code>set -e</code> でも止まりませんが，分けて書けば代入の失敗でスクリプトが終了します．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="bu">set</span> <span class="at">-e</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="fu">f()</span> <span class="kw">{</span> <span class="bu">local</span> <span class="va">v</span><span class="op">=</span><span class="va">$(</span><span class="fu">false</span><span class="va">)</span><span class="kw">;</span> <span class="bu">echo</span> <span class="st">"reached"</span><span class="kw">;</span> <span class="kw">}</span>      <span class="co"># 止まらずに reached が出力される</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="fu">g()</span> <span class="kw">{</span> <span class="bu">local</span> <span class="va">v</span><span class="kw">;</span> <span class="va">v</span><span class="op">=</span><span class="va">$(</span><span class="fu">false</span><span class="va">)</span><span class="kw">;</span> <span class="bu">echo</span> <span class="st">"reached"</span><span class="kw">;</span> <span class="kw">}</span>   <span class="co"># v=$(false) の時点でスクリプトが終了する</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>readonly</code> や <code>export</code> を付けたい変数も同じ考え方で，<strong>代入 → 判定 → 属性の付与</strong>の順に書きます． <code>export</code> 自体は常に成功するので，判定は <code>export</code> より前に置く必要があります．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># パターン3: 判定してから readonly / export を付ける</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="va">CONFIG</span><span class="op">=</span><span class="st">"</span><span class="va">$(</span><span class="fu">cat</span> config.txt<span class="va">)</span><span class="st">"</span> <span class="kw">||</span> <span class="bu">exit</span> 1</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="bu">readonly</span> <span class="va">CONFIG</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="va">BUILD_ID</span><span class="op">=</span><span class="st">"</span><span class="va">$(</span><span class="fu">git</span> rev-parse <span class="at">--short</span> HEAD<span class="va">)</span><span class="st">"</span> <span class="kw">||</span> <span class="bu">exit</span> 1</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">BUILD_ID</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p><span class="mini-section">クオートしないと単語分割とパス名展開がかかる</span></p>
+<p>クオートせずに <code>$(cmd)</code> を展開すると，その結果に対して<strong>単語分割</strong> (<code>IFS</code> による分割) と<strong>パス名展開</strong> (<code>*</code> などのglob展開) が行われます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># カレントディレクトリに t.sh があるとする</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="bu">printf</span> <span class="st">'&lt;%s&gt;\n'</span> <span class="va">$(</span><span class="bu">printf</span> <span class="st">'a  b\n*'</span><span class="va">)</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="co"># &lt;a&gt;</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="co"># &lt;b&gt;</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a><span class="co"># &lt;t.sh&gt;      ← * がファイル名に展開されてしまった</span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a><span class="bu">printf</span> <span class="st">'&lt;%s&gt;\n'</span> <span class="st">"</span><span class="va">$(</span><span class="bu">printf</span> <span class="st">'a  b\n*'</span><span class="va">)</span><span class="st">"</span></span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a><span class="co"># &lt;a  b</span></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a><span class="co"># *&gt;</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>出力をそのまま1つの文字列として扱いたい場合は，必ず <code>"$(cmd)"</code> とダブルクオートで囲みます． なお，<code>v=$(cmd)</code> のような代入の右辺では単語分割もパス名展開も行われないため，クオートしなくても値は変わりません (ただし囲んでおいても害はありません)．</p>
+<p><span class="mini-section">ファイルの読み込みは <code>$(&lt;file)</code> で書ける</span></p>
+<p><code>$(cat file)</code> は bash では <code>$(&lt;file)</code> と書けます．<code>cat</code> を起動しない分だけ高速です．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="bu">printf</span> <span class="st">'hello\n'</span> <span class="op">&gt;</span> f.txt</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="va">v</span><span class="op">=</span><span class="va">$(</span><span class="op">&lt;</span>f.txt<span class="va">)</span></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"[</span><span class="va">$v</span><span class="st">]"</span></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="co"># [hello]</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>$(cat f.txt)</code> と <code>$(&lt;f.txt)</code> では，ファイルを読むまでに起動するプロセスの数が違います．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/cat-vs-redirect.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-2" title="$(cat f.txt) は子プロセスを作って cat を実行し，$(<f.txt) は bash 自身がファイルを読む"><img src="figures/cat-vs-redirect.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="$(cat f.txt) は子プロセスを作って cat を実行し，$(<f.txt) は bash 自身がファイルを読む"></a></p>
+</figure>
+</div>
+<figcaption><code>$(cat f.txt)</code> は子プロセスを作って <code>cat</code> を実行し，<code>$(&lt;f.txt)</code> は bash 自身がファイルを読む</figcaption>
+</figure>
+</div>
+<ul>
+<li><code>$(cat f.txt)</code>: コマンド置換のために子プロセスを fork し，その子プロセスが <code>cat</code> を exec してファイルを読む</li>
+<li><code>$(&lt;f.txt)</code>: bash 自身がファイルを開いて内容を読む．bash 5.2 以降では子プロセスも作らない</li>
+</ul>
+<p><code>strace</code> でプロセスの生成 (<code>clone</code>) と外部コマンドの起動 (<code>execve</code>) を数えると，違いがはっきり分かります (bash 5.2.21)．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="ex">strace</span> <span class="at">-f</span> <span class="at">-e</span> trace=clone,execve bash <span class="at">-c</span> <span class="st">'v=$(cat f.txt)'</span> <span class="dv">2</span><span class="op">&gt;&amp;</span><span class="dv">1</span> <span class="kw">|</span> <span class="fu">grep</span> <span class="at">-cE</span> <span class="st">'clone|execve\("/usr/bin/cat'</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="co"># 2      ← clone 1回 + cat の execve 1回</span></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a><span class="ex">strace</span> <span class="at">-f</span> <span class="at">-e</span> trace=clone,execve bash <span class="at">-c</span> <span class="st">'v=$(&lt;f.txt)'</span> <span class="dv">2</span><span class="op">&gt;&amp;</span><span class="dv">1</span> <span class="kw">|</span> <span class="fu">grep</span> <span class="at">-cE</span> <span class="st">'clone|execve\("/usr/bin/cat'</span></span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a><span class="co"># 0      ← プロセスを1つも作らない</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+</section>
+<section id="算術展開" class="level2">
+<h2 class="anchored" data-anchor-id="算術展開">算術展開</h2>
+<section id="基本形-expr" class="level3">
+<h3 class="anchored" data-anchor-id="基本形-expr">基本形: <code>$((expr))</code></h3>
+<p><code>$((expr))</code> は，中身を<strong>整数の算術式</strong>として評価し，その結果で置き換えます． 演算子の前後のスペースは自由です．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="va">$((</span><span class="dv">1</span> <span class="op">+</span> <span class="dv">2</span><span class="va">))</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="co"># 3</span></span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="va">$((</span><span class="dv">1</span><span class="op">+</span> <span class="dv">2</span><span class="va">))</span></span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a><span class="co"># 3</span></span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a><span class="va">n</span><span class="op">=</span>5</span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="va">$((n</span> <span class="op">*</span> <span class="dv">2</span><span class="va">))</span></span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a><span class="co"># 10</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>$((...))</code> の中では，変数名に <code>$</code> を付けなくても値が参照されます． <code>$((n * 2))</code> と <code>$(($n * 2))</code> は同じ結果になりますが，<code>$</code> なしの方が読みやすく，未定義変数が空文字に展開されて構文エラーになる事故も防げます． ただし，位置パラメータ <code>$1</code> や特殊変数 <code>$#</code> には <code>$</code> が必要です．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="va">$((unset_var</span> <span class="op">+</span> <span class="dv">1</span><span class="va">))</span>   <span class="co"># 未定義変数は 0 として扱われる</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="co"># 1</span></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="va">$(($#</span> <span class="op">+</span> <span class="dv">1</span><span class="va">))</span>          <span class="co"># 引数の個数 + 1</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="主な演算子" class="level3">
+<h3 class="anchored" data-anchor-id="主な演算子">主な演算子</h3>
+<p>C 言語とほぼ同じ演算子が使えます．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>分類</th>
+<th>演算子</th>
+<th>例</th>
+<th>結果</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>四則演算</td>
+<td><code>+</code> <code>-</code> <code>*</code> <code>/</code></td>
+<td><code>$((10 / 3))</code></td>
+<td><code>3</code></td>
+</tr>
+<tr class="even">
+<td>剰余</td>
+<td><code>%</code></td>
+<td><code>$((10 % 3))</code></td>
+<td><code>1</code></td>
+</tr>
+<tr class="odd">
+<td>べき乗</td>
+<td><code>**</code></td>
+<td><code>$((2 ** 10))</code></td>
+<td><code>1024</code></td>
+</tr>
+<tr class="even">
+<td>比較</td>
+<td><code>&lt;</code> <code>&lt;=</code> <code>&gt;</code> <code>&gt;=</code> <code>==</code> <code>!=</code></td>
+<td><code>$((7 &gt; 3))</code></td>
+<td><code>1</code> (真)</td>
+</tr>
+<tr class="odd">
+<td>論理</td>
+<td><code>&amp;&amp;</code> <code>\|\|</code> <code>!</code></td>
+<td><code>$((3 == 3 &amp;&amp; 2 &gt; 5))</code></td>
+<td><code>0</code> (偽)</td>
+</tr>
+<tr class="even">
+<td>ビット演算</td>
+<td><code>&amp;</code> <code>\|</code> <code>^</code> <code>~</code> <code>&lt;&lt;</code> <code>&gt;&gt;</code></td>
+<td><code>$((1 &lt;&lt; 4))</code></td>
+<td><code>16</code></td>
+</tr>
+<tr class="odd">
+<td>三項演算子</td>
+<td><code>cond ? a : b</code></td>
+<td><code>$((x &gt; 0 ? 10 : 20))</code></td>
+<td><code>10</code> (x=1 のとき)</td>
+</tr>
+<tr class="even">
+<td>代入</td>
+<td><code>=</code> <code>+=</code> <code>-=</code> <code>*=</code> <code>/=</code> …</td>
+<td><code>$((n += 10))</code></td>
+<td>n に 10 を加算</td>
+</tr>
+<tr class="odd">
+<td>インクリメント</td>
+<td><code>++</code> <code>--</code> (前置/後置)</td>
+<td><code>$((n++))</code></td>
+<td>加算前の n</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>比較演算子・論理演算子の結果は，C 言語と同様に<strong>真なら 1，偽なら 0</strong> です． シェルの終了ステータス (成功が 0) とは逆なので注意してください．</p>
+<p>インクリメントや代入は変数を書き換える副作用を持ちます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="va">n</span><span class="op">=</span>5</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="va">$((n</span><span class="op">++</span><span class="va">))</span> <span class="va">$n</span> <span class="va">$((</span><span class="op">++</span><span class="va">n))</span></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a><span class="co"># 5 6 7</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="整数演算のみ" class="level3">
+<h3 class="anchored" data-anchor-id="整数演算のみ">整数演算のみ</h3>
+<p>bash の算術展開は <strong>64bit 符号付き整数</strong> しか扱えません．小数を含む式はエラーになります．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="va">$((</span><span class="dv">1</span>.<span class="dv">5</span> <span class="op">+</span> <span class="dv">1</span><span class="va">))</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="co"># bash: 1.5+1: syntax error: invalid arithmetic operator (error token is ".5+1")</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>除算は<strong>0方向への切り捨て</strong>，剰余の符号は被除数と同じです．また，オーバーフローはエラーにならず黙って折り返します．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="va">$((</span><span class="dv">10</span> <span class="op">/</span> <span class="dv">3</span><span class="va">))</span> <span class="va">$((</span><span class="op">-</span><span class="dv">7</span> <span class="op">/</span> <span class="dv">2</span><span class="va">))</span> <span class="va">$((</span><span class="op">-</span><span class="dv">7</span> <span class="op">%</span> <span class="dv">2</span><span class="va">))</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="co"># 3 -3 -1</span></span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="va">$((</span><span class="dv">9223372036854775807</span> <span class="op">+</span> <span class="dv">1</span><span class="va">))</span></span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a><span class="co"># -9223372036854775808</span></span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="va">$((</span><span class="dv">10</span> <span class="op">/</span> <span class="dv">0</span><span class="va">))</span></span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a><span class="co"># bash: 10/0: division by 0 (error token is "0")</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="基数指定と先頭ゼロの罠" class="level3">
+<h3 class="anchored" data-anchor-id="基数指定と先頭ゼロの罠">基数指定と先頭ゼロの罠</h3>
+<p>数値リテラルは <code>0x</code> で16進数，<code>base#number</code> で任意の基数 (2〜64) を指定できます． そして<strong>先頭が <code>0</code> の数値は8進数</strong>として解釈されます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb22"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="va">$((</span><span class="bn">0x1f</span><span class="va">))</span> <span class="va">$((</span><span class="dt">2#</span><span class="bn">1010</span><span class="va">))</span> <span class="va">$((</span><span class="dt">16#</span><span class="bn">ff</span><span class="va">))</span> <span class="va">$((</span><span class="dv">010))</span></span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="er">#</span> <span class="dv">31</span> <span class="dv">10</span> <span class="dv">255</span> <span class="dv">8</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>この8進数ルールは，日付や時刻のようにゼロ埋めされた文字列を計算に使うときによく問題になります．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb23"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="va">$((</span><span class="dv">08))</span></span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a><span class="er">#</span> <span class="va">bash</span><span class="op">:</span> <span class="dv">08: value too great for base (error token is "08")</span></span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a><span class="va">echo</span> <span class="va">$((</span><span class="dt">10#</span><span class="bn">08</span><span class="va">))</span>   <span class="er">#</span> <span class="dv">10</span>進数として明示する</span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a><span class="er">#</span> <span class="dv">8</span></span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a><span class="va">month</span><span class="op">=</span><span class="va">$(</span><span class="fu">date</span> +%m<span class="va">)</span>          <span class="er">#</span> 例<span class="op">:</span> <span class="st">"08"</span></span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a><span class="va">next</span><span class="op">=</span><span class="va">$((</span><span class="dt">10#</span><span class="va">$month</span> <span class="op">+</span> <span class="dv">1</span><span class="va">))</span>    <span class="er">#</span> <span class="dt">10#</span> を付けないと <span class="dv">8</span>月・<span class="dv">9</span>月だけエラーになる</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="算術コマンド-expr" class="level3">
+<h3 class="anchored" data-anchor-id="算術コマンド-expr">算術コマンド <code>((expr))</code></h3>
+<p>先頭の <code>$</code> を外した <code>((expr))</code> は<strong>算術コマンド</strong>です． 式を評価するだけで出力はせず，結果が<strong>非ゼロなら終了ステータス 0 (成功)，ゼロなら 1 (失敗)</strong> を返します． 条件分岐や変数の更新に便利です．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb24"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="va">x</span><span class="op">=</span>3</span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a><span class="kw">((</span> <span class="va">y</span> <span class="op">=</span> <span class="va">x</span> <span class="op">*</span> <span class="dv">2</span> <span class="kw">))</span></span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="va">$y</span></span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a><span class="co"># 6</span></span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="kw">((</span> <span class="va">x</span> <span class="op">&gt;</span> <span class="dv">2</span> <span class="kw">));</span> <span class="cf">then</span></span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a>    <span class="bu">echo</span> big</span>
+<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a><span class="cf">fi</span></span>
+<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a><span class="co"># big</span></span>
+<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-11"><a href="#cb24-11" aria-hidden="true" tabindex="-1"></a><span class="kw">((</span> <span class="va">count</span> <span class="op">+=</span> <span class="dv">1</span> <span class="kw">))</span>   <span class="co"># count=$((count + 1)) と同じ</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>数値比較は <code>[ "$x" -gt 2 ]</code> や <code>[[ $x -gt 2 ]]</code> でも書けますが，<code>(( x &gt; 2 ))</code> の方が見慣れた演算子で書けて読みやすいです．</p>
+</section>
+<section id="と-...-の区別" class="level3">
+<h3 class="anchored" data-anchor-id="と-...-の区別"><code>$((...))</code> と <code>$( (...) )</code> の区別</h3>
+<p><code>$((</code> は算術展開の開始として解釈されます． コマンド置換の中でサブシェル <code>( ... )</code> を使いたい場合は，<code>$(</code> と <code>(</code> の間にスペースを入れて曖昧さをなくします．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb25"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="va">$(</span> <span class="kw">(</span><span class="bu">echo</span> sub<span class="kw">)</span> <span class="va">)</span></span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a><span class="co"># sub</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+</section>
+<section id="google-shell-style-guide-の関連ルール" class="level2">
+<h2 class="anchored" data-anchor-id="google-shell-style-guide-の関連ルール">Google Shell Style Guide の関連ルール</h2>
+<p><a href="https://google.github.io/styleguide/shellguide.html">Google Shell Style Guide</a> は，Google 社内で bash スクリプトを書くときのコーディング規約です． <code>$(cmd)</code> を使うべきという規約は「Features and Bugs」章の <a href="https://google.github.io/styleguide/shellguide.html#s6.2-command-substitution">Command Substitution</a> 節に書かれています． それ以外にも，コマンド置換や算術展開に関するルールがいくつかの節に分かれて載っています．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>節</th>
+<th>ルールの要点</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><a href="https://google.github.io/styleguide/shellguide.html#s6.2-command-substitution">Command Substitution</a></td>
+<td>バッククオートではなく <code>$(command)</code> を使う</td>
+</tr>
+<tr class="even">
+<td><a href="https://google.github.io/styleguide/shellguide.html#s5.7-quoting">Quoting</a></td>
+<td>コマンド置換は整数が返る場合でもクオートする</td>
+</tr>
+<tr class="odd">
+<td><a href="https://google.github.io/styleguide/shellguide.html#s7.6-use-local-variables">Use Local Variables</a></td>
+<td><code>local</code> の宣言とコマンド置換による代入は分ける</td>
+</tr>
+<tr class="even">
+<td><a href="https://google.github.io/styleguide/shellguide.html#s6.7-arrays">Arrays</a> / <a href="https://google.github.io/styleguide/shellguide.html#s6.8-pipes-to-while">Pipes to While</a></td>
+<td>クオートなしの <code>$(...)</code> で配列や引数リストを作らない</td>
+</tr>
+<tr class="odd">
+<td><a href="https://google.github.io/styleguide/shellguide.html#s6.6-eval">Eval</a></td>
+<td><code>eval $(...)</code> で変数を設定しない</td>
+</tr>
+<tr class="even">
+<td><a href="https://google.github.io/styleguide/shellguide.html#s6.9-arithmetic">Arithmetic</a></td>
+<td><code>(( … ))</code> / <code>$(( … ))</code> を使い，<code>let</code>・<code>$[ … ]</code>・<code>expr</code> は使わない</td>
+</tr>
+<tr class="odd">
+<td><a href="https://google.github.io/styleguide/shellguide.html#s8.2-builtin-commands-vs-external-commands">Builtin Commands vs.&nbsp;External Commands</a></td>
+<td><code>expr</code> や <code>sed</code> を呼ぶコマンド置換より組み込み機能を使う</td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="command-substitution-command-を使う" class="level3">
+<h3 class="anchored" data-anchor-id="command-substitution-command-を使う">Command Substitution: <code>$(command)</code> を使う</h3>
+<blockquote class="blockquote">
+<p>Use <code>$(command)</code> instead of backticks.</p>
+<p>Nested backticks require escaping the inner ones with <code>\</code>. The <code>$(command)</code> format doesn’t change when nested and is easier to read.</p>
+</blockquote>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb26"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="co"># This is preferred:</span></span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a><span class="va">var</span><span class="op">=</span><span class="st">"</span><span class="va">$(</span><span class="bu">command</span> <span class="st">"</span><span class="va">$(</span><span class="ex">command1</span><span class="va">)</span><span class="st">"</span><span class="va">)</span><span class="st">"</span></span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a><span class="co"># This is not:</span></span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a><span class="va">var</span><span class="op">=</span><span class="st">"</span><span class="kw">`</span><span class="bu">command</span> <span class="dt">\`</span>command1<span class="dt">\`</span><span class="kw">`</span><span class="st">"</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>バッククオートは入れ子にすると内側を <code>\</code> でエスケープする必要があるのに対し，<code>$(command)</code> は入れ子にしても書き方が変わらず読みやすい，というのが理由です． 本記事の「<code>$(...)</code> を使うべき理由」で確認したネストの問題そのものです． 良い例で <code>"$(command1)"</code> が <code>"$(command ...)"</code> の内側にさらにダブルクオート付きで書かれている点にも注目してください．<code>$(...)</code> の中は独立したクオートの文脈になるため，このように素直に書けます．</p>
+</section>
+<section id="quoting-コマンド置換はクオートする" class="level3">
+<h3 class="anchored" data-anchor-id="quoting-コマンド置換はクオートする">Quoting: コマンド置換はクオートする</h3>
+<blockquote class="blockquote">
+<p>Always quote strings containing variables, command substitutions, spaces or shell meta characters, unless careful unquoted expansion is required or it’s a shell-internal integer (see next point).</p>
+</blockquote>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb27"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="co"># "quote command substitutions"</span></span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Note that quotes nested inside "$()" don't need escaping.</span></span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a><span class="va">flag</span><span class="op">=</span><span class="st">"</span><span class="va">$(</span><span class="ex">some_command</span> and its args <span class="st">"</span><span class="va">$@</span><span class="st">"</span> <span class="st">'quoted separately'</span><span class="va">)</span><span class="st">"</span></span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a><span class="co"># "quote command substitutions", even when you expect integers</span></span>
+<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a><span class="va">number</span><span class="op">=</span><span class="st">"</span><span class="va">$(</span><span class="ex">generate_number</span><span class="va">)</span><span class="st">"</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>コマンド置換は，意図的にクオートを外す場合を除いて常にクオートする，というルールです． 「整数が返ると分かっていてもクオートする」と明記されている点がポイントです．</p>
+<p>本文で説明したとおり，<code>var=$(cmd)</code> のような代入の右辺では単語分割もパス名展開も起きないため，クオートの有無で結果は変わりません． それでもクオートするのは，「コマンド置換は常に <code>"$(...)"</code> と書く」と統一しておけば，引数として渡す場面でクオートを付け忘れる事故を防げるからです． ガイド全体でも，代入の右辺を含めてコマンド置換はすべて <code>"$(...)"</code> の形で書かれています．</p>
+</section>
+<section id="use-local-variables-宣言と代入を分ける" class="level3">
+<h3 class="anchored" data-anchor-id="use-local-variables-宣言と代入を分ける">Use Local Variables: 宣言と代入を分ける</h3>
+<blockquote class="blockquote">
+<p>Declaration and assignment must be separate statements when the assignment value is provided by a command substitution; as the <code>local</code> builtin does not propagate the exit code from the command substitution.</p>
+</blockquote>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb28"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="fu">my_func2()</span> <span class="kw">{</span></span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>  <span class="bu">local</span> <span class="va">name</span><span class="op">=</span><span class="st">"</span><span class="va">$1</span><span class="st">"</span></span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Separate lines for declaration and assignment:</span></span>
+<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>  <span class="bu">local</span> <span class="va">my_var</span></span>
+<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a>  <span class="va">my_var</span><span class="op">=</span><span class="st">"</span><span class="va">$(</span><span class="ex">my_func</span><span class="va">)</span><span class="st">"</span></span>
+<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a>  <span class="kw">((</span> <span class="va">$?</span> <span class="op">==</span> <span class="dv">0</span> <span class="kw">))</span> <span class="kw">||</span> <span class="cf">return</span></span>
+<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a>  <span class="ex">…</span></span>
+<span id="cb28-10"><a href="#cb28-10" aria-hidden="true" tabindex="-1"></a><span class="kw">}</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb29"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="fu">my_func2()</span> <span class="kw">{</span></span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>  <span class="co"># DO NOT do this:</span></span>
+<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a>  <span class="co"># $? will always be zero, as it contains the exit code of 'local', not my_func</span></span>
+<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a>  <span class="bu">local</span> <span class="va">my_var</span><span class="op">=</span><span class="st">"</span><span class="va">$(</span><span class="ex">my_func</span><span class="va">)</span><span class="st">"</span></span>
+<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a>  <span class="kw">((</span> <span class="va">$?</span> <span class="op">==</span> <span class="dv">0</span> <span class="kw">))</span> <span class="kw">||</span> <span class="cf">return</span></span>
+<span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a>  <span class="ex">…</span></span>
+<span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a><span class="kw">}</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>本文の callout「<code>local</code> と同時に代入すると終了ステータスが失われる」と同じ内容で，ガイドでは “must” (必須) として書かれています． <code>local name="$1"</code> のように右辺がコマンド置換でなければ1行で書いてよく，分ける必要があるのはコマンド置換の場合だけです．</p>
+</section>
+<section id="arrays-pipes-to-while-クオートなしの-...-でリストを作らない" class="level3">
+<h3 class="anchored" data-anchor-id="arrays-pipes-to-while-クオートなしの-...-でリストを作らない">Arrays / Pipes to While: クオートなしの <code>$(...)</code> でリストを作らない</h3>
+<p><a href="https://google.github.io/styleguide/shellguide.html#s6.7-arrays">Arrays</a> 節では，悪い例として次のコードが挙げられています．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb30"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Command expansions return single strings, not arrays. Avoid</span></span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a><span class="co"># unquoted expansion in array assignments because it won't</span></span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a><span class="co"># work correctly if the command output contains special</span></span>
+<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a><span class="co"># characters or whitespace.</span></span>
+<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a><span class="bu">declare</span> <span class="at">-a</span> <span class="va">files</span><span class="op">=</span><span class="va">($(</span><span class="fu">ls</span> /directory<span class="va">))</span></span>
+<span id="cb30-7"><a href="#cb30-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-8"><a href="#cb30-8" aria-hidden="true" tabindex="-1"></a><span class="ex">mybinary</span> <span class="va">$(</span><span class="ex">get_arguments</span><span class="va">)</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>コマンド置換が返すのは配列ではなく<strong>1つの文字列</strong>です． クオートせずに展開すると，本文で見た単語分割とパス名展開を経てからリストになるため，出力に空白や <code>*</code> が含まれると要素が壊れます．</p>
+<p><a href="https://google.github.io/styleguide/shellguide.html#s6.8-pipes-to-while">Pipes to While</a> 節にも，<code>for</code> ループについて同じ趣旨の注意があります．</p>
+<blockquote class="blockquote">
+<p>Be cautious using a for-loop to iterate over output, as in <code>for var in $(...)</code>, as the output is split by whitespace, not by line. […] a <code>while read</code> loop or <code>readarray</code> is often safer and clearer.</p>
+</blockquote>
+<p>出力を行単位で扱いたいなら，<code>for var in $(...)</code> ではなく <code>while read</code> ループか <code>readarray</code> (<code>mapfile</code> の別名) を使います．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb31"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="ex">readarray</span> <span class="at">-t</span> lines <span class="op">&lt;</span> <span class="op">&lt;(</span><span class="ex">cmd</span><span class="op">)</span></span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a><span class="cf">while</span> <span class="va">IFS</span><span class="op">=</span> <span class="bu">read</span> <span class="at">-r</span> <span class="va">line</span><span class="kw">;</span> <span class="cf">do</span></span>
+<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a>  <span class="bu">echo</span> <span class="st">"</span><span class="va">${line}</span><span class="st">"</span></span>
+<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a><span class="cf">done</span> <span class="op">&lt;</span> <span class="op">&lt;(</span><span class="ex">cmd</span><span class="op">)</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="eval-eval-...-を避ける" class="level3">
+<h3 class="anchored" data-anchor-id="eval-eval-...-を避ける">Eval: <code>eval $(...)</code> を避ける</h3>
+<blockquote class="blockquote">
+<p><code>eval</code> should be avoided.</p>
+</blockquote>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb32"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="co"># What does this set?</span></span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Did it succeed? In part or whole?</span></span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a><span class="bu">eval</span> <span class="va">$(</span><span class="ex">set_my_variables</span><span class="va">)</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>コマンドの出力を <code>eval</code> に渡して変数を設定するパターンは，何が設定されたのか，成功したのか (全部か一部か) を確認できないため避けるべきとされています． クオートなしの <code>$(...)</code> を使っているので，値に空白が含まれると単語分割で壊れるという問題もあります．</p>
+</section>
+<section id="arithmetic-と-を使う" class="level3">
+<h3 class="anchored" data-anchor-id="arithmetic-と-を使う">Arithmetic: <code>(( … ))</code> と <code>$(( … ))</code> を使う</h3>
+<p>算術展開に関するルールは <a href="https://google.github.io/styleguide/shellguide.html#s6.9-arithmetic">Arithmetic</a> 節にまとまっています．</p>
+<p><span class="mini-section">使う記法</span></p>
+<blockquote class="blockquote">
+<p>Always use <code>(( … ))</code> or <code>$(( … ))</code> rather than <code>let</code> or <code>$[ … ]</code> or <code>expr</code>.</p>
+<p>Never use the <code>$[ … ]</code> syntax, the <code>expr</code> command, or the <code>let</code> built-in.</p>
+</blockquote>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb33"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="co"># This form is non-portable and deprecated</span></span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a><span class="va">i</span><span class="op">=</span>$[2 <span class="ex">*</span> 10]</span>
+<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Despite appearances, 'let' isn't one of the declarative keywords,</span></span>
+<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a><span class="co"># so unquoted assignments are subject to globbing wordsplitting.</span></span>
+<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a><span class="co"># For the sake of simplicity, avoid 'let' and use (( … ))</span></span>
+<span id="cb33-7"><a href="#cb33-7" aria-hidden="true" tabindex="-1"></a><span class="bu">let</span> <span class="va">i</span><span class="op">=</span><span class="st">"2 + 2"</span></span>
+<span id="cb33-8"><a href="#cb33-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-9"><a href="#cb33-9" aria-hidden="true" tabindex="-1"></a><span class="co"># The expr utility is an external program and not a shell builtin.</span></span>
+<span id="cb33-10"><a href="#cb33-10" aria-hidden="true" tabindex="-1"></a><span class="va">i</span><span class="op">=</span><span class="va">$(</span> <span class="fu">expr</span> 4 + 4 <span class="va">)</span></span>
+<span id="cb33-11"><a href="#cb33-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-12"><a href="#cb33-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Quoting can be error prone when using expr too.</span></span>
+<span id="cb33-13"><a href="#cb33-13" aria-hidden="true" tabindex="-1"></a><span class="va">i</span><span class="op">=</span><span class="va">$(</span> <span class="fu">expr</span> 4 <span class="st">'*'</span> 4 <span class="va">)</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>本文の「その他の算術記法」の表で紹介した <code>let</code>・<code>$[ … ]</code>・<code>expr</code> は，ガイドでは “Never use” と明確に禁止されています． 理由はそれぞれ次のとおりです．</p>
+<ul>
+<li><code>$[ … ]</code>: 非可搬かつ非推奨の記法</li>
+<li><code>let</code>: 宣言系のキーワードではないので，クオートしない代入式にはパス名展開と単語分割がかかる</li>
+<li><code>expr</code>: 組み込みではなく外部コマンドで，<code>*</code> のクオートなどを間違えやすい</li>
+</ul>
+<blockquote class="blockquote">
+<p>Stylistic considerations aside, the shell’s built-in arithmetic is many times faster than <code>expr</code>.</p>
+</blockquote>
+<p>とあるように，速度の面でも組み込みの算術の方が有利です．</p>
+<p><span class="mini-section">数値比較は <code>(( … ))</code> で行う</span></p>
+<blockquote class="blockquote">
+<p><code>&lt;</code> and <code>&gt;</code> don’t perform numerical comparison inside <code>[[ … ]]</code> expressions (they perform lexicographical comparisons instead; see <a href="https://google.github.io/styleguide/shellguide.html#s6.4-testing-strings">Testing Strings</a>). For preference, don’t use <code>[[ … ]]</code> <em>at all</em> for numeric comparisons, use <code>(( … ))</code> instead.</p>
+</blockquote>
+<p><code>[[ 10 &lt; 9 ]]</code> は文字列として比較するので真になります． 数値の大小比較には <code>[[ … ]]</code> を使わず，<code>(( a &lt; b ))</code> と書くことが推奨されています．</p>
+<p><span class="mini-section">単独の <code>(( … ))</code> 文と <code>set -e</code></span></p>
+<blockquote class="blockquote">
+<p>It is recommended to avoid using <code>(( … ))</code> as a standalone statement, and otherwise be wary of its expression evaluating to zero</p>
+<ul>
+<li>particularly with <code>set -e</code> enabled. For example, <code>set -e; i=0; (( i++ ))</code> will cause the shell to exit.</li>
+</ul>
+</blockquote>
+<p>本文の callout「<code>set -e</code> と <code>((count++))</code> の組み合わせ」で確認した落とし穴です． ガイドは <code>(( … ))</code> を単独の文として使うこと自体を避けるよう勧めています． なお，ガイドの良い例にも <code>(( i += 3 ))</code> のような単独の文は登場するので，禁止ではなく「評価結果が 0 になりうるなら注意する」という推奨と読むのが妥当です． カウンタを増やすだけなら，評価結果に関係なく成功する <code>i=$(( i + 1 ))</code> と書くのが一番安全です．</p>
+<p><span class="mini-section"><code>$</code> を省略し，カッコの内側にスペースを入れる</span></p>
+<blockquote class="blockquote">
+<p>When using variables, the <code>${var}</code> (and <code>$var</code>) forms are not required within <code>$(( … ))</code>. The shell knows to look up <code>var</code> for you, and omitting the <code>${…}</code> leads to cleaner code.</p>
+</blockquote>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb34"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Increment the variable "i" by three.</span></span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Note that:</span></span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a><span class="co">#  - We do not write ${i} or $i.</span></span>
+<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a><span class="co">#  - We put a space after the (( and before the )).</span></span>
+<span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a><span class="kw">((</span> <span class="va">i</span> <span class="op">+=</span> <span class="dv">3</span> <span class="kw">))</span></span>
+<span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-7"><a href="#cb34-7" aria-hidden="true" tabindex="-1"></a><span class="va">hr</span><span class="op">=</span>2</span>
+<span id="cb34-8"><a href="#cb34-8" aria-hidden="true" tabindex="-1"></a><span class="va">min</span><span class="op">=</span>5</span>
+<span id="cb34-9"><a href="#cb34-9" aria-hidden="true" tabindex="-1"></a><span class="va">sec</span><span class="op">=</span>30</span>
+<span id="cb34-10"><a href="#cb34-10" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"</span><span class="va">$((</span> <span class="va">hr</span> <span class="op">*</span> <span class="dv">3600</span> <span class="op">+</span> <span class="va">min</span> <span class="op">*</span> <span class="dv">60</span> <span class="op">+</span> <span class="va">sec</span> <span class="va">))</span><span class="st">"</span> <span class="co"># prints 7530 as expected</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>ガイドは変数を常に <code>"${var}"</code> と波カッコ付きで書くスタイルを採っていますが，算術式の中だけは <code>$</code> を省略してよい (推奨) としています． またコメントにあるとおり，<code>((</code> の後ろと <code>))</code> の前にスペースを入れて <code>$(( 2 + 2 ))</code> のように書くのがガイドのスタイルです． 本記事の <code>$((1 + 2))</code> のような詰めた書き方も文法上は同じですが，ガイドに合わせるなら <code>$(( 1 + 2 ))</code> と書きます．</p>
+</section>
+<section id="builtin-commands-vs.-external-commands-組み込みを優先する" class="level3">
+<h3 class="anchored" data-anchor-id="builtin-commands-vs.-external-commands-組み込みを優先する">Builtin Commands vs.&nbsp;External Commands: 組み込みを優先する</h3>
+<blockquote class="blockquote">
+<p>Given the choice between invoking a shell builtin and invoking a separate process, choose the builtin.</p>
+</blockquote>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb35"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Prefer this:</span></span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a><span class="va">addition</span><span class="op">=</span><span class="st">"</span><span class="va">$((</span> <span class="va">X</span> <span class="op">+</span> <span class="va">Y</span> <span class="va">))</span><span class="st">"</span></span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a><span class="va">substitution</span><span class="op">=</span><span class="st">"</span><span class="va">${string</span><span class="op">/#</span><span class="ss">foo</span><span class="op">/</span>bar<span class="va">}</span><span class="st">"</span></span>
+<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Instead of this:</span></span>
+<span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a><span class="va">addition</span><span class="op">=</span><span class="st">"</span><span class="va">$(</span><span class="fu">expr</span> <span class="st">"</span><span class="va">${X}</span><span class="st">"</span> + <span class="st">"</span><span class="va">${Y}</span><span class="st">"</span><span class="va">)</span><span class="st">"</span></span>
+<span id="cb35-7"><a href="#cb35-7" aria-hidden="true" tabindex="-1"></a><span class="va">substitution</span><span class="op">=</span><span class="st">"</span><span class="va">$(</span><span class="bu">echo</span> <span class="st">"</span><span class="va">${string}</span><span class="st">"</span> <span class="kw">|</span> <span class="fu">sed</span> <span class="at">-e</span> <span class="st">'s/^foo/bar/'</span><span class="va">)</span><span class="st">"</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>組み込み機能で書けるなら，外部コマンドを呼ぶコマンド置換は使わないというルールです． <code>$(expr ...)</code> や <code>$(echo ... | sed ...)</code> はそのたびにサブシェルと外部プロセスを起動しますが，<code>$(( … ))</code> やパラメータ展開はシェルの中だけで完結するので高速です． 本文の「サブシェルで実行される」で述べた fork のコストを避けるための指針です．</p>
+</section>
+</section>
+<section id="appendix-bash-5.3-の-cmd" class="level2">
+<h2 class="anchored" data-anchor-id="appendix-bash-5.3-の-cmd">Appendix: bash 5.3 の <code>${ cmd; }</code></h2>
+<p>bash 5.3 では，<strong>サブシェルを作らずに現在のシェルでコマンドを実行する</strong>コマンド置換 <code>${ cmd; }</code> が追加されました． <code>$(cmd)</code> と同じく標準出力で置き換えられますが，fork しないので中での変数の変更やカレントディレクトリの移動が呼び出し元にそのまま残ります．</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="figures/funsub-vs-cmdsub.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-3" title="$(cmd) はサブシェルで，${ cmd; } は現在のシェルでコマンドを実行する"><img src="figures/funsub-vs-cmdsub.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%" alt="$(cmd) はサブシェルで，${ cmd; } は現在のシェルでコマンドを実行する"></a></p>
+</figure>
+</div>
+<figcaption><code>$(cmd)</code> はサブシェルで，<code>${ cmd; }</code> は現在のシェルでコマンドを実行する</figcaption>
+</figure>
+</div>
+<p>以下は bash 5.3.20 で確認した結果です (手元の bash が 5.2 以前なら <code>docker run --rm -it bash:5.3</code> で試せます)．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb36"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="va">x</span><span class="op">=</span>1</span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a><span class="va">y</span><span class="op">=</span><span class="va">${</span> <span class="va">x</span><span class="op">=</span>2<span class="kw">;</span> <span class="bu">echo</span> <span class="va">$x</span><span class="kw">;</span> <span class="va">}</span></span>
+<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"x=</span><span class="va">$x</span><span class="st"> y=</span><span class="va">$y</span><span class="st">"</span></span>
+<span id="cb36-4"><a href="#cb36-4" aria-hidden="true" tabindex="-1"></a><span class="co"># x=2 y=2      ← $(...) なら x=1 y=2</span></span>
+<span id="cb36-5"><a href="#cb36-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-6"><a href="#cb36-6" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"</span><span class="va">$BASHPID</span><span class="st"> </span><span class="va">${</span> <span class="bu">echo</span> <span class="va">$BASHPID</span><span class="kw">;</span> <span class="va">}</span> <span class="va">$(</span><span class="bu">echo</span> <span class="va">$BASHPID)</span><span class="st">"</span></span>
+<span id="cb36-7"><a href="#cb36-7" aria-hidden="true" tabindex="-1"></a><span class="st"># 1 1 8        ← </span><span class="va">${</span> <span class="ex">...</span><span class="kw">;</span> <span class="va">}</span> <span class="ex">は親と同じプロセス，</span><span class="va">$(</span><span class="ex">...</span><span class="va">)</span> は別プロセス</span>
+<span id="cb36-8"><a href="#cb36-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-9"><a href="#cb36-9" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> /tmp</span>
+<span id="cb36-10"><a href="#cb36-10" aria-hidden="true" tabindex="-1"></a><span class="va">d</span><span class="op">=</span><span class="va">${</span> <span class="bu">cd</span> /<span class="kw">;</span> <span class="bu">pwd</span><span class="kw">;</span> <span class="va">}</span></span>
+<span id="cb36-11"><a href="#cb36-11" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"d=</span><span class="va">$d</span><span class="st"> now=</span><span class="va">$PWD</span><span class="st">"</span></span>
+<span id="cb36-12"><a href="#cb36-12" aria-hidden="true" tabindex="-1"></a><span class="co"># d=/ now=/    ← cd の効果も残る</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>末尾の改行が削除される点や，<code>v=${ false; }</code> の <code>$?</code> が中のコマンドの終了ステータス (この例では <code>1</code>) になる点は <code>$(cmd)</code> と同じです．</p>
+<p><span class="mini-section">書き方のルール</span></p>
+<ul>
+<li><code>{</code> の直後に空白・タブ・改行のいずれか (または後述の <code>|</code>) を置く</li>
+<li><code>}</code> の直前は <code>;</code> か改行で終える．<code>${ cmd }</code> のように <code>;</code> を省くと <code>}</code> がコマンドの引数として読まれ，置換が閉じない</li>
+<li><code>${echo hi;}</code> のように <code>{</code> の直後に空白がないと，通常のパラメータ展開とみなされて <code>bad substitution</code> になる</li>
+</ul>
+<p><span class="mini-section"><code>${| cmd; }</code>: 標準出力ではなく <code>REPLY</code> の値を使う</span></p>
+<p><code>|</code> を付けた <code>${| cmd; }</code> は，標準出力を捕まえる代わりに，コマンド実行後の変数 <code>REPLY</code> の値で置き換えます． <code>REPLY</code> はこの置換の中だけのローカル変数として扱われ，呼び出し元の <code>REPLY</code> は書き換わりません．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb37"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="va">REPLY</span><span class="op">=</span>orig</span>
+<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a><span class="va">r</span><span class="op">=</span><span class="va">${</span><span class="kw">|</span> <span class="va">REPLY</span><span class="op">=</span>hello<span class="kw">;</span> <span class="va">}</span></span>
+<span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"r=</span><span class="va">$r</span><span class="st"> REPLY=</span><span class="va">$REPLY</span><span class="st">"</span></span>
+<span id="cb37-4"><a href="#cb37-4" aria-hidden="true" tabindex="-1"></a><span class="co"># r=hello REPLY=orig</span></span>
+<span id="cb37-5"><a href="#cb37-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb37-6"><a href="#cb37-6" aria-hidden="true" tabindex="-1"></a><span class="va">r</span><span class="op">=</span><span class="va">${</span><span class="kw">|</span> <span class="va">x</span><span class="op">=</span>9<span class="kw">;</span> <span class="va">REPLY</span><span class="op">=</span><span class="va">$((x</span> <span class="op">*</span> <span class="dv">2</span><span class="va">))</span><span class="kw">;</span> <span class="va">}</span></span>
+<span id="cb37-7"><a href="#cb37-7" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"r=</span><span class="va">$r</span><span class="st"> x=</span><span class="va">$x</span><span class="st">"</span></span>
+<span id="cb37-8"><a href="#cb37-8" aria-hidden="true" tabindex="-1"></a><span class="co"># r=18 x=9     ← REPLY 以外の変数の変更は残る</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>echo</code> で文字列を出力して <code>$(...)</code> で受け取る代わりに，関数が <code>REPLY</code> に結果を入れて返す書き方ができるので，fork のコストを避けながら関数の戻り値を受け取れます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb38"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="fu">to_upper()</span> <span class="kw">{</span> <span class="va">REPLY</span><span class="op">=</span><span class="va">${1</span><span class="op">^^</span><span class="va">}</span><span class="kw">;</span> <span class="kw">}</span></span>
+<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a><span class="va">name</span><span class="op">=</span><span class="va">${</span><span class="kw">|</span> <span class="ex">to_upper</span> <span class="st">"bash"</span><span class="kw">;</span> <span class="va">}</span></span>
+<span id="cb38-4"><a href="#cb38-4" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"</span><span class="va">$name</span><span class="st">"</span></span>
+<span id="cb38-5"><a href="#cb38-5" aria-hidden="true" tabindex="-1"></a><span class="co"># BASH</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p><span class="mini-section">使いどころと注意点</span></p>
+<ul>
+<li>ループの中など，コマンド置換を何度も繰り返す場面では fork しない分だけ速い</li>
+<li>逆に，変数の書き換え・<code>cd</code>・<code>set</code> などの副作用がすべて呼び出し元に残る．<code>$(cmd)</code> の「中で何をしても外に影響しない」という性質に頼っていたコードをそのまま置き換えると挙動が変わる</li>
+<li>bash 5.2 以前と zsh 5.9 では <code>bad substitution</code> エラーになる．実行環境の bash のバージョンを固定できない場合や，ほかのシェルでも動かす必要がある場合は <code>$(cmd)</code> を使う</li>
+</ul>
+</section>
+<section id="appendix-zsh-との違い" class="level2">
+<h2 class="anchored" data-anchor-id="appendix-zsh-との違い">Appendix: zsh との違い</h2>
+<p>zsh でも <code>$(cmd)</code>，<code>`cmd`</code>，<code>$((expr))</code>，<code>((expr))</code> は同じように使え，末尾改行の削除・サブシェルでの実行・<code>local v=$(cmd)</code> で終了ステータスが失われる点・<code>set -e</code> と <code>((count++))</code> の罠も bash と共通です． 一方で，次の点は挙動が異なります (zsh 5.9 のデフォルト設定で確認)．</p>
+<div class="no-border-top-table">
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>項目</th>
+<th>bash</th>
+<th>zsh</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>クオートなし <code>$(cmd)</code> の単語分割</td>
+<td>される</td>
+<td>される</td>
+</tr>
+<tr class="even">
+<td>クオートなし <code>$(cmd)</code> のパス名展開</td>
+<td>される</td>
+<td>されない</td>
+</tr>
+<tr class="odd">
+<td>クオートなし <code>$var</code> の単語分割</td>
+<td>される</td>
+<td>されない</td>
+</tr>
+<tr class="even">
+<td>小数の算術演算</td>
+<td>エラー</td>
+<td>使える</td>
+</tr>
+<tr class="odd">
+<td>先頭ゼロ <code>010</code></td>
+<td>8進数 (<code>8</code>)</td>
+<td>10進数 (<code>10</code>)</td>
+</tr>
+<tr class="even">
+<td><code>${ cmd; }</code></td>
+<td>bash 5.3 以降</td>
+<td>5.9 では未対応</td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="単語分割とパス名展開" class="level3">
+<h3 class="anchored" data-anchor-id="単語分割とパス名展開">単語分割とパス名展開</h3>
+<p>zsh はデフォルトでパラメータ展開 <code>$var</code> の結果を単語分割しませんが，<strong>コマンド置換 <code>$(cmd)</code> の結果は <code>IFS</code> で単語分割します</strong>． ただし，その結果に対してパス名展開は行いません．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb39"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="bu">printf</span> <span class="st">'&lt;%s&gt;\n'</span> <span class="va">$(</span><span class="bu">printf</span> <span class="st">'a  b\n*'</span><span class="va">)</span></span>
+<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a><span class="co"># &lt;a&gt;</span></span>
+<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a><span class="co"># &lt;b&gt;</span></span>
+<span id="cb39-4"><a href="#cb39-4" aria-hidden="true" tabindex="-1"></a><span class="co"># &lt;*&gt;        ← bash と違ってファイル名に展開されない</span></span>
+<span id="cb39-5"><a href="#cb39-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb39-6"><a href="#cb39-6" aria-hidden="true" tabindex="-1"></a><span class="va">v</span><span class="op">=</span><span class="va">$(</span><span class="bu">printf</span> <span class="st">'a  b\n*'</span><span class="va">)</span></span>
+<span id="cb39-7"><a href="#cb39-7" aria-hidden="true" tabindex="-1"></a><span class="bu">printf</span> <span class="st">'&lt;%s&gt;\n'</span> <span class="va">$v</span></span>
+<span id="cb39-8"><a href="#cb39-8" aria-hidden="true" tabindex="-1"></a><span class="co"># &lt;a  b</span></span>
+<span id="cb39-9"><a href="#cb39-9" aria-hidden="true" tabindex="-1"></a><span class="co"># *&gt;         ← 変数経由なら分割されない</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>この違いから，bash 用のスクリプトを zsh で動かす (またはその逆の) ときに引数の数が変わることがあります． どちらのシェルでも <code>"$(cmd)"</code> とクオートしておけば同じ挙動になります．</p>
+<p>出力を<strong>行単位</strong>で配列にしたい場合，zsh では <code>(f)</code> パラメータ展開フラグが使えます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb40"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="va">arr</span><span class="op">=</span><span class="va">($(</span><span class="bu">printf</span> <span class="st">'a b\nc d\n'</span><span class="va">))</span></span>
+<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="va">${</span><span class="op">#</span><span class="va">arr}</span></span>
+<span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a><span class="co"># 4          ← 空白でも分割される</span></span>
+<span id="cb40-4"><a href="#cb40-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-5"><a href="#cb40-5" aria-hidden="true" tabindex="-1"></a><span class="va">lines</span><span class="op">=</span><span class="va">(${(</span><span class="op">f</span><span class="va">)</span><span class="st">"</span><span class="va">$(</span><span class="bu">printf</span> <span class="st">'a b\nc d\n'</span><span class="va">)</span><span class="st">"</span><span class="va">})</span></span>
+<span id="cb40-6"><a href="#cb40-6" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="va">${</span><span class="op">#</span><span class="va">lines}</span></span>
+<span id="cb40-7"><a href="#cb40-7" aria-hidden="true" tabindex="-1"></a><span class="co"># 2          ← 改行でのみ分割される</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>bash で同じことをするには <code>mapfile -t lines &lt; &lt;(cmd)</code> を使います．</p>
+</section>
+<section id="浮動小数点演算" class="level3">
+<h3 class="anchored" data-anchor-id="浮動小数点演算">浮動小数点演算</h3>
+<p>zsh の算術展開は浮動小数点数をサポートしています． オペランドに小数が1つでも含まれれば浮動小数点演算になり，整数同士なら bash と同じく整数演算です．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb41"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="va">$((</span><span class="dv">1.5</span> <span class="op">+</span> <span class="dv">1</span><span class="va">))</span> <span class="va">$((</span><span class="dv">10</span> <span class="op">/</span> <span class="dv">3</span><span class="va">))</span> <span class="va">$((</span><span class="dv">10</span> <span class="op">/</span> <span class="dv">3.0</span><span class="va">))</span> <span class="va">$((</span><span class="dv">2</span> <span class="op">**</span> <span class="dv">0.5</span><span class="va">))</span></span>
+<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a><span class="co"># 2.5 3 3.3333333333333335 1.4142135623730951</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>typeset -F</code> で小数点以下の桁数を指定した浮動小数点変数を宣言したり，<code>zsh/mathfunc</code> モジュールで数学関数を使ったりもできます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb42"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a><span class="bu">typeset</span> <span class="at">-F</span> 3 <span class="va">x</span><span class="op">=</span>10</span>
+<span id="cb42-2"><a href="#cb42-2" aria-hidden="true" tabindex="-1"></a><span class="kw">((</span> <span class="va">x</span> <span class="op">/=</span> <span class="dv">3</span> <span class="kw">))</span></span>
+<span id="cb42-3"><a href="#cb42-3" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="va">$x</span></span>
+<span id="cb42-4"><a href="#cb42-4" aria-hidden="true" tabindex="-1"></a><span class="co"># 3.333</span></span>
+<span id="cb42-5"><a href="#cb42-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-6"><a href="#cb42-6" aria-hidden="true" tabindex="-1"></a><span class="bu">zmodload</span> zsh/mathfunc</span>
+<span id="cb42-7"><a href="#cb42-7" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="va">$((</span> <span class="va">sqrt</span>(<span class="dv">2</span>) <span class="va">))</span></span>
+<span id="cb42-8"><a href="#cb42-8" aria-hidden="true" tabindex="-1"></a><span class="co"># 1.4142135623730951</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="先頭ゼロの数値" class="level3">
+<h3 class="anchored" data-anchor-id="先頭ゼロの数値">先頭ゼロの数値</h3>
+<p>zsh はデフォルトで先頭が <code>0</code> の数値を<strong>10進数</strong>として扱うため，bash のような <code>08</code> のエラーは起きません． <code>setopt OCTAL_ZEROES</code> を有効にすると bash と同じく8進数として解釈されます．</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb43"><pre class="sourceCode zsh code-with-copy"><code class="sourceCode zsh"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="va">$((</span><span class="dv">010</span><span class="va">))</span> <span class="va">$((</span><span class="dv">08</span><span class="va">))</span></span>
+<span id="cb43-2"><a href="#cb43-2" aria-hidden="true" tabindex="-1"></a><span class="co"># 10 8</span></span>
+<span id="cb43-3"><a href="#cb43-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb43-4"><a href="#cb43-4" aria-hidden="true" tabindex="-1"></a><span class="bu">setopt</span> OCTAL_ZEROES</span>
+<span id="cb43-5"><a href="#cb43-5" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="va">$((</span><span class="dv">010</span><span class="va">))</span></span>
+<span id="cb43-6"><a href="#cb43-6" aria-hidden="true" tabindex="-1"></a><span class="co"># 8</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>bash と zsh の両方で動かす前提なら，<code>10#</code> を付けて基数を明示しておくのが確実です．</p>
+</section>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<p><span class="mini-section">bash</span></p>
+<ul>
+<li><a href="https://www.gnu.org/software/bash/manual/html_node/Command-Substitution.html">GNU Bash Reference Manual: Command Substitution</a>：<code>$(cmd)</code> / <code>`cmd`</code> / <code>$(&lt;file)</code>，bash 5.3 の <code>${ cmd; }</code> / <code>${| cmd; }</code></li>
+<li><a href="https://www.gnu.org/software/bash/manual/html_node/Arithmetic-Expansion.html">GNU Bash Reference Manual: Arithmetic Expansion</a>：<code>$((expr))</code> と <code>$[expr]</code> の非推奨</li>
+<li><a href="https://www.gnu.org/software/bash/manual/html_node/Shell-Arithmetic.html">GNU Bash Reference Manual: Shell Arithmetic</a>：演算子の一覧と優先順位，<code>base#n</code> と先頭ゼロの8進数</li>
+<li><a href="https://www.gnu.org/software/bash/manual/html_node/Conditional-Constructs.html">GNU Bash Reference Manual: Conditional Constructs</a>：算術コマンド <code>((expr))</code> の終了ステータス</li>
+<li><a href="https://tiswww.case.edu/php/chet/bash/NEWS">Bash NEWS</a>：bash 5.3 で追加された <code>${ command; }</code> / <code>${| command; }</code> の告知</li>
+<li><a href="https://pubs.opengroup.org/onlinepubs/9799919799/utilities/V3_chap02.html">POSIX.1-2024: Shell Command Language</a>：2.6.3 Command Substitution，2.6.4 Arithmetic Expansion</li>
+</ul>
+<p><span class="mini-section">zsh</span></p>
+<ul>
+<li><a href="https://zsh.sourceforge.io/Doc/Release/Expansion.html">zsh Manual: Expansion</a>：コマンド置換の単語分割，パラメータ展開フラグ <code>(f)</code></li>
+<li><a href="https://zsh.sourceforge.io/Doc/Release/Arithmetic-Evaluation.html">zsh Manual: Arithmetic Evaluation</a>：浮動小数点演算，<code>typeset -F</code>，<code>zsh/mathfunc</code></li>
+<li><a href="https://zsh.sourceforge.io/Doc/Release/Options.html">zsh Manual: Options</a>：<code>OCTAL_ZEROES</code>，<code>SH_WORD_SPLIT</code></li>
+</ul>
+<p><span class="mini-section">スタイルガイド・解説</span></p>
+<ul>
+<li><a href="https://google.github.io/styleguide/shellguide.html">Google Shell Style Guide</a>：Command Substitution，Quoting，Arithmetic，Use Local Variables など</li>
+<li><a href="https://www.shellcheck.net/wiki/SC2155">ShellCheck SC2155</a>：Declare and assign separately to avoid masking return values</li>
+<li><a href="https://mywiki.wooledge.org/BashFAQ/082">BashFAQ/082</a>：バッククオートより <code>$(...)</code> が推奨される理由</li>
+<li><a href="https://mywiki.wooledge.org/BashFAQ/105">BashFAQ/105</a>：<code>set -e</code> が期待どおりに動かないケース (<code>((count++))</code> を含む)</li>
+</ul>
+
+
+</section>
+
+</main> <!-- /main -->
+<script>
+    document.querySelectorAll('.custom_problem .theorem-title').forEach((title) => {
+        let modName = title.innerHTML;
+        modName = modName.replace("Exercise", "Problem");
+        modName = modName.replace("Proposition", "Property");
+        modName = modName.replace("Example", "<strong>&#9654;</strong>&nbsp; Example");
+        title.innerHTML = modName;
+    });
+
+    // Rule: 未使用の Corollary (#cor-, lang: ja では「系」) を Rule として表示する
+    document.querySelectorAll('.custom_rule .theorem-title').forEach((title) => {
+        title.innerHTML = title.innerHTML
+            .replace(/^<strong>(系|Corollary)/, "<strong>Rule")
+            .replace(/\s*\((.*)\)<\/strong>$/, ": $1</strong>");
+        // タイトルの後で改行し，本文を次の行から始める
+        title.style.display = "block";
+        title.style.paddingBottom = "0.5em";
+        title.style.fontSize = "1.1em";
+        // 本文がリスト等で始まると Quarto がタイトル後に &nbsp; を残し空行になるため除去する
+        while (title.nextSibling && title.nextSibling.nodeType === Node.TEXT_NODE
+               && title.nextSibling.textContent.trim() === "") {
+            title.nextSibling.remove();
+        }
+        if (!title.nextSibling) {
+            title.parentElement.style.marginBottom = "0";
+        }
+    });
+ </script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const toggle = window.document.createElement('button');
+      toggle.type = "button";
+      toggle.setAttribute("role", "switch");
+      toggle.setAttribute("aria-checked", "false");
+      toggle.classList.add('top-right');
+      toggle.classList.add('quarto-color-scheme-toggle');
+      toggle.setAttribute("aria-label", "ダークモードの切り替え");
+      toggle.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      toggle.appendChild(i);
+      // Put the toggle in a landmark of its own, so that landmark navigation
+      // can reach it.
+      //
+      // The container is always a fresh direct child of body, and the toggle is
+      // never moved into page furniture that the theme or the author controls.
+      // The toggle is positioned against the page, so any ancestor that
+      // establishes a containing block captures it: a positioned element or a
+      // grid for position: absolute, and transform, filter, will-change or
+      // contain for position: fixed. A direct child of body has none of these
+      // to inherit, and the shift when one appears is silent and visual.
+      //
+      // ARIA says a document should have at most one banner, and axe reports a
+      // duplicate whether or not the banners carry distinct labels. So use a
+      // header when the page has no banner yet, and a named region otherwise.
+      //
+      // A header is a banner wherever it sits, unless it is inside sectioning
+      // content, so this cannot just look at the children of body: a custom
+      // page layout wraps the title block header in a plain div. An explicit
+      // role="banner" always counts.
+      const sectioning = 'article, aside, main, nav, section, [role="article"], [role="complementary"], [role="main"], [role="navigation"], [role="region"]';
+      const hasBanner = Array.from(
+        window.document.querySelectorAll('header:not([role]), [role="banner"]')
+      ).some(function(el) {
+        return el.hasAttribute("role") || el.closest(sectioning) === null;
+      });
+      const container = window.document.createElement(hasBanner ? "div" : "header");
+      if (hasBanner) {
+        container.setAttribute("role", "region");
+        container.setAttribute("aria-label", "ダークモードの切り替え");
+      }
+      container.classList.add('quarto-color-scheme-toggle-container');
+      container.appendChild(toggle);
+      window.document.body.appendChild(container);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "コピーしました");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "コピーしました");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/ryonakagami\.github\.io\/regmonkey-datascience-blog");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+      window.quartoDecorateExternalLinks = function (root) {
+     var links = (root || window.document).querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+          if (!link.classList.contains('no-external-icon')) {
+          }
+        }
+      }
+      };
+      window.quartoDecorateExternalLinks(window.document);
+    // Esc closes the popup (WCAG 1.4.13) and focus leaving both trigger and
+    // popup closes it (WCAG 2.4.11); tippy handles neither for interactive popups.
+    const hideOnEscAndFocusOut = {
+      name: 'hideOnEscAndFocusOut',
+      defaultValue: true,
+      fn(instance) {
+        const dismiss = () => {
+          // A show scheduled by the trigger delay would otherwise reopen it
+          instance.clearDelayTimeouts();
+          instance.hide();
+        };
+        const onKeyDown = (event) => {
+          if (event.key !== 'Escape') {
+            return;
+          }
+          // Keep Esc from also reaching page handlers (e.g. reveal.js overview),
+          // except an open reveal.js slide menu, which Esc should close too.
+          // The menu handles keys only when its keyboard option is on.
+          const menuHandlesEsc = window.Reveal?.getPlugin?.('menu')?.isOpen() &&
+            window.Reveal.getConfig().menu?.keyboard !== false;
+          if (!menuHandlesEsc) {
+            event.stopPropagation();
+          }
+          if (instance.popper.contains(window.document.activeElement)) {
+            // Disabled while refocusing so the focus trigger does not reopen it
+            instance.disable();
+            instance.reference.focus();
+            instance.enable();
+          }
+          dismiss();
+        };
+        const onFocusOut = (event) => {
+          const target = event.relatedTarget;
+          if (target && !instance.reference.contains(target) &&
+              !instance.popper.contains(target)) {
+            dismiss();
+          }
+        };
+        // On the trigger too: a click trigger (code-annotations: select) has no
+        // blur handling. Attached for the instance's lifetime so leaving the
+        // trigger also cancels a show still pending on the trigger delay.
+        instance.reference.addEventListener('focusout', onFocusOut);
+        return {
+          onShow() {
+            window.document.addEventListener('keydown', onKeyDown, true);
+            instance.popper.addEventListener('focusout', onFocusOut);
+          },
+          onHide() {
+            window.document.removeEventListener('keydown', onKeyDown, true);
+            instance.popper.removeEventListener('focusout', onFocusOut);
+          },
+          onDestroy() {
+            instance.reference.removeEventListener('focusout', onFocusOut);
+          },
+        };
+      },
+    };
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+        plugins: [hideOnEscAndFocusOut],
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          // Each band is positioned against its own containing block, which is
+          // not the offsetParent of the lines, so place it from client rects.
+          const placeBand = (band, firstEl, lastEl, codeBlock) => {
+            const container = band.offsetParent;
+            if (container === null) {
+              return;
+            }
+            const containerRect = container.getBoundingClientRect();
+            // Reveal.js scales slides with a transform, so convert client
+            // pixels back to the CSS pixels of the container.
+            const scale = containerRect.height / container.offsetHeight || 1;
+            const firstRect = firstEl.getBoundingClientRect();
+            const lastRect = lastEl.getBoundingClientRect();
+            const top = (firstRect.top - containerRect.top) / scale - container.clientTop + container.scrollTop;
+            const height = (lastRect.bottom - firstRect.top) / scale;
+            band.style.top = top - 2 + "px";
+            band.style.height = height + 4 + "px";
+            if (codeBlock) {
+              // Without the copy button wrapper, the containing block is wider
+              // than the code block, so span the code block explicitly.
+              const blockRect = codeBlock.getBoundingClientRect();
+              band.style.left = (blockRect.left - containerRect.left) / scale - container.clientLeft + container.scrollLeft + "px";
+              band.style.width = blockRect.width / scale + "px";
+            }
+          };
+          if (lineIds.length > 0) {
+            const el = window.document.getElementById(lineIds[0]);
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const parent = el.parentElement.parentElement;
+            // cook up a div (if necessary) and position it
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            placeBand(div, el, lastEl, parent.closest("div.sourceCode") || parent);
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            placeBand(gutterDiv, el, lastEl);
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+  <script type="application/javascript">
+  window.quartoScrollableRegionsLabels = {"code":"スクロール可能なコード","output":"スクロール可能な出力"};
+  </script>
+<script src="https://utteranc.es/client.js" repo="RyoNakagami/regmonkey-datascience-blog" issue-term="title" theme="github-light" crossorigin="anonymous" async="">
+</script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+      &nbsp;
+    </div>   
+    <div class="nav-footer-center">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+ © Copyright RyoNak
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="../../LICENSE">
+<p>License</p>
+</a>
+  </li>  
+</ul>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/RyoNakagami/regmonkey-datascience-blog/issues" class="toc-action"><i class="bi bi-github"></i>問題を報告</a></li></ul></div></div>
+    <div class="nav-footer-right">
+      &nbsp;
+    </div>
+  </div>
+</footer>
+    <script type="text/javascript">
+    (function(d) {
+      d.querySelectorAll(".pseudocode-container").forEach(function(el) {
+        let pseudocodeOptions = {
+          indentSize: el.dataset.indentSize || "1.2em",
+          commentDelimiter: el.dataset.commentDelimiter || "//",
+          lineNumber: el.dataset.lineNumber === "true" ? true : false,
+          lineNumberPunc: el.dataset.lineNumberPunc || ":",
+          noEnd: el.dataset.noEnd === "true" ? true : false,
+          titlePrefix: el.dataset.captionPrefix || "Algorithm"
+        };
+        pseudocode.renderElement(el.querySelector(".pseudocode"), pseudocodeOptions);
+      });
+    })(document);
+    (function(d) {
+      d.querySelectorAll(".pseudocode-container").forEach(function(el) {
+        let captionSpan = el.querySelector(".ps-root > .ps-algorithm > .ps-line > .ps-keyword")
+        if (captionSpan !== null) {
+          let captionPrefix = el.dataset.captionPrefix + " ";
+          let captionNumber = "";
+          if (el.dataset.pseudocodeNumber) {
+            captionNumber = el.dataset.pseudocodeNumber + " ";
+            if (el.dataset.chapterLevel) {
+              captionNumber = el.dataset.chapterLevel + "." + captionNumber;
+            }
+          }
+          captionSpan.innerHTML = captionPrefix + captionNumber;
+        }
+      });
+    })(document);
+    </script>
+  
+<script>var lightboxQuarto = GLightbox({"closeEffect":"zoom","descPosition":"bottom","loop":false,"openEffect":"zoom","selector":".lightbox"});
+(function() {
+  let previousOnload = window.onload;
+  window.onload = () => {
+    if (previousOnload) {
+      previousOnload();
+    }
+    lightboxQuarto.on('slide_before_load', (data) => {
+      const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+      const href = trigger.getAttribute('href');
+      if (href !== null) {
+        const imgEl = window.document.querySelector(`a[href="${href}"] img`);
+        if (imgEl !== null) {
+          const srcAttr = imgEl.getAttribute("src");
+          if (srcAttr && srcAttr.startsWith("data:")) {
+            slideConfig.href = srcAttr;
+          }
+        }
+      } 
+    });
+  
+    lightboxQuarto.on('slide_after_load', (data) => {
+      const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(slideNode);
+      }
+    });
+  
+  };
+  
+})();
+          </script>
+
+
+
+
+</body></html>
