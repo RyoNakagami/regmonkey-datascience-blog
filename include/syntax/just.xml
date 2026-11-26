@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE language>
+<!--
+  justfile (https://just.systems/) 用の KDE syntax definition．
+  _quarto.yml の `syntax-definitions` から読み込み，```just コードブロックを色付けする．
+
+  区別するもの
+  - トップレベル: コメント / 属性 [doc(...)] / set・export 等のキーワード /
+                  変数代入 name := ... / レシピ定義行（レシピ名・引数・依存レシピ）
+  - レシピ本文（インデントされた行）: {{ 補間 }} / shebang / シェル変数 / 文字列 /
+                  シェルのキーワード・組み込みコマンド
+-->
+<language name="Just" section="Other" version="1" kateversion="5.0"
+          extensions="justfile;Justfile;.justfile;*.just" license="MIT">
+  <highlighting>
+    <list name="just-keywords">
+      <item>set</item>
+      <item>export</item>
+      <item>alias</item>
+      <item>import</item>
+      <item>mod</item>
+      <item>unexport</item>
+    </list>
+    <list name="just-expr-keywords">
+      <item>if</item>
+      <item>else</item>
+      <item>true</item>
+      <item>false</item>
+    </list>
+    <list name="shell-keywords">
+      <item>if</item>
+      <item>then</item>
+      <item>else</item>
+      <item>elif</item>
+      <item>fi</item>
+      <item>case</item>
+      <item>esac</item>
+      <item>for</item>
+      <item>while</item>
+      <item>until</item>
+      <item>do</item>
+      <item>done</item>
+      <item>in</item>
+      <item>function</item>
+      <item>return</item>
+      <item>exit</item>
+    </list>
+    <list name="shell-builtins">
+      <item>echo</item>
+      <item>printf</item>
+      <item>exec</item>
+      <item>set</item>
+      <item>cd</item>
+      <item>export</item>
+      <item>local</item>
+      <item>read</item>
+      <item>source</item>
+      <item>test</item>
+      <item>mkdir</item>
+      <item>rm</item>
+      <item>cp</item>
+      <item>mv</item>
+      <item>cat</item>
+      <item>awk</item>
+      <item>sed</item>
+      <item>grep</item>
+    </list>
+
+    <contexts>
+      <!-- ===== トップレベル ===== -->
+      <context name="Normal" attribute="Normal Text" lineEndContext="#stay">
+        <RegExpr String="^[ \t]+(?=\S)" attribute="Normal Text" context="Body" column="0"/>
+        <RegExpr String="#.*$" attribute="Comment" firstNonSpace="true"/>
+        <DetectChar char="[" attribute="Attribute" context="Attr" column="0"/>
+        <keyword String="just-keywords" attribute="Keyword" firstNonSpace="true"/>
+        <RegExpr String="^[A-Za-z_][A-Za-z0-9_-]*(?=\s*:=)" attribute="Variable" column="0"/>
+        <RegExpr String="^@?[A-Za-z_][A-Za-z0-9_-]*" attribute="Recipe" context="Header" column="0"/>
+        <IncludeRules context="Expr"/>
+      </context>
+
+      <!-- 式（代入の右辺・既定値・属性の引数など） -->
+      <context name="Expr" attribute="Normal Text" lineEndContext="#stay">
+        <RegExpr String="\s#.*$" attribute="Comment"/>
+        <Detect2Chars char=":" char1="=" attribute="Operator"/>
+        <Detect2Chars char="=" char1="=" attribute="Operator"/>
+        <Detect2Chars char="!" char1="=" attribute="Operator"/>
+        <Detect2Chars char="=" char1="~" attribute="Operator"/>
+        <Detect2Chars char="&amp;" char1="&amp;" attribute="Operator"/>
+        <Detect2Chars char="|" char1="|" attribute="Operator"/>
+        <AnyChar String="+/" attribute="Operator"/>
+        <StringDetect String="```" attribute="Backtick" context="BacktickBlock"/>
+        <DetectChar char="`" attribute="Backtick" context="Backtick"/>
+        <StringDetect String="&quot;&quot;&quot;" attribute="String" context="DQBlock"/>
+        <DetectChar char="&quot;" attribute="String" context="DQ"/>
+        <DetectChar char="'" attribute="String" context="SQ"/>
+        <keyword String="just-expr-keywords" attribute="Keyword"/>
+        <RegExpr String="[A-Za-z_][A-Za-z0-9_]*(?=\()" attribute="Function Call"/>
+      </context>
+
+      <!-- レシピ定義行: name param="default" *rest: dep1 (dep2 "arg") -->
+      <context name="Header" attribute="Normal Text" lineEndContext="#pop">
+        <DetectChar char=":" attribute="Operator" context="Deps"/>
+        <DetectChar char="=" attribute="Operator"/>
+        <AnyChar String="+*$" attribute="Operator"/>
+        <DetectChar char="&quot;" attribute="String" context="DQ"/>
+        <DetectChar char="'" attribute="String" context="SQ"/>
+        <DetectChar char="`" attribute="Backtick" context="Backtick"/>
+        <RegExpr String="[A-Za-z_][A-Za-z0-9_-]*" attribute="Parameter"/>
+      </context>
+
+      <context name="Deps" attribute="Normal Text" lineEndContext="#pop#pop">
+        <RegExpr String="\s#.*$" attribute="Comment"/>
+        <Detect2Chars char="&amp;" char1="&amp;" attribute="Operator"/>
+        <DetectChar char="&quot;" attribute="String" context="DQ"/>
+        <DetectChar char="'" attribute="String" context="SQ"/>
+        <RegExpr String="[A-Za-z_][A-Za-z0-9_-]*" attribute="Recipe"/>
+      </context>
+
+      <!-- 属性: [doc("...")] [group('x')] [private] -->
+      <context name="Attr" attribute="Attribute" lineEndContext="#pop">
+        <DetectChar char="]" attribute="Attribute" context="#pop"/>
+        <DetectChar char="&quot;" attribute="String" context="DQ"/>
+        <DetectChar char="'" attribute="String" context="SQ"/>
+        <AnyChar String="(),:" attribute="Normal Text"/>
+      </context>
+
+      <!-- just の文字列（補間なし） -->
+      <context name="DQ" attribute="String" lineEndContext="#pop">
+        <RegExpr String="\\." attribute="Escape"/>
+        <DetectChar char="&quot;" attribute="String" context="#pop"/>
+      </context>
+      <context name="DQBlock" attribute="String" lineEndContext="#stay">
+        <RegExpr String="\\." attribute="Escape"/>
+        <StringDetect String="&quot;&quot;&quot;" attribute="String" context="#pop"/>
+      </context>
+      <context name="SQ" attribute="String" lineEndContext="#pop">
+        <DetectChar char="'" attribute="String" context="#pop"/>
+      </context>
+      <context name="Backtick" attribute="Backtick" lineEndContext="#pop">
+        <DetectChar char="`" attribute="Backtick" context="#pop"/>
+      </context>
+      <context name="BacktickBlock" attribute="Backtick" lineEndContext="#stay">
+        <StringDetect String="```" attribute="Backtick" context="#pop"/>
+      </context>
+
+      <!-- ===== レシピ本文（インデントされた行） ===== -->
+      <context name="Body" attribute="Normal Text" lineEndContext="#pop">
+        <IncludeRules context="Interp"/>
+        <RegExpr String="#!.*$" attribute="Shebang" firstNonSpace="true"/>
+        <DetectChar char="@" attribute="Operator" firstNonSpace="true"/>
+        <IncludeRules context="ShellVar"/>
+        <RegExpr String="#.*$" attribute="Comment" firstNonSpace="true"/>
+        <RegExpr String="\s#.*$" attribute="Comment"/>
+        <RegExpr String="&quot;(?=([^&quot;\\]|\\.)*&quot;)" attribute="String" context="BodyDQ"/>
+        <RegExpr String="'(?=[^']*')" attribute="String" context="BodySQ"/>
+        <keyword String="shell-keywords" attribute="Shell Keyword"/>
+        <keyword String="shell-builtins" attribute="Shell Builtin"/>
+        <RegExpr String="[0-9]?(&gt;&gt;|&gt;&amp;|&gt;|&lt;&lt;|&lt;)|&amp;&amp;|\|\||\|" attribute="Operator"/>
+      </context>
+
+      <context name="Interp" attribute="Normal Text" lineEndContext="#stay">
+        <Detect2Chars char="{" char1="{" attribute="Interpolation" context="InterpExpr"/>
+      </context>
+      <context name="InterpExpr" attribute="Interp Variable" lineEndContext="#pop">
+        <Detect2Chars char="}" char1="}" attribute="Interpolation" context="#pop"/>
+        <DetectChar char="&quot;" attribute="String" context="DQ"/>
+        <DetectChar char="'" attribute="String" context="SQ"/>
+        <keyword String="just-expr-keywords" attribute="Keyword"/>
+        <RegExpr String="[A-Za-z_][A-Za-z0-9_]*(?=\()" attribute="Function Call"/>
+        <AnyChar String="()+/," attribute="Operator"/>
+      </context>
+
+      <context name="ShellVar" attribute="Normal Text" lineEndContext="#stay">
+        <RegExpr String="\$\{[^}]*\}" attribute="Shell Variable"/>
+        <RegExpr String="\$[A-Za-z_][A-Za-z0-9_]*" attribute="Shell Variable"/>
+        <RegExpr String="\$[0-9#?@*$!-]" attribute="Shell Variable"/>
+        <Detect2Chars char="$" char1="(" attribute="Operator"/>
+      </context>
+
+      <context name="BodyDQ" attribute="String" lineEndContext="#pop">
+        <IncludeRules context="Interp"/>
+        <RegExpr String="\\." attribute="Escape"/>
+        <IncludeRules context="ShellVar"/>
+        <DetectChar char="&quot;" attribute="String" context="#pop"/>
+      </context>
+      <context name="BodySQ" attribute="String" lineEndContext="#pop">
+        <IncludeRules context="Interp"/>
+        <DetectChar char="'" attribute="String" context="#pop"/>
+      </context>
+    </contexts>
+
+    <itemDatas>
+      <itemData name="Normal Text"    defStyleNum="dsNormal"/>
+      <itemData name="Comment"        defStyleNum="dsComment"/>
+      <itemData name="Keyword"        defStyleNum="dsKeyword"/>
+      <itemData name="Variable"       defStyleNum="dsVariable"/>
+      <itemData name="Recipe"         defStyleNum="dsFunction"/>
+      <itemData name="Parameter"      defStyleNum="dsAttribute"/>
+      <itemData name="Operator"       defStyleNum="dsOperator"/>
+      <itemData name="String"         defStyleNum="dsString"/>
+      <itemData name="Escape"         defStyleNum="dsSpecialChar"/>
+      <itemData name="Backtick"       defStyleNum="dsSpecialString"/>
+      <itemData name="Attribute"      defStyleNum="dsPreprocessor"/>
+      <itemData name="Function Call"  defStyleNum="dsBuiltIn"/>
+      <itemData name="Interpolation"  defStyleNum="dsSpecialChar"/>
+      <itemData name="Interp Variable" defStyleNum="dsVariable"/>
+      <itemData name="Shebang"        defStyleNum="dsPreprocessor"/>
+      <itemData name="Shell Variable" defStyleNum="dsVariable"/>
+      <itemData name="Shell Keyword"  defStyleNum="dsControlFlow"/>
+      <itemData name="Shell Builtin"  defStyleNum="dsBuiltIn"/>
+    </itemDatas>
+  </highlighting>
+  <general>
+    <comments>
+      <comment name="singleLine" start="#"/>
+    </comments>
+    <keywords casesensitive="1" weakDeliminator="-"/>
+  </general>
+</language>
