@@ -1,0 +1,75 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.3cm, minimum width=3.4cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    ng/.style={block, draw=crimsonred, fill=mistyrose},
+    ext/.style={draw=darkgray, dashed, fill=white, rounded corners=3pt,
+                align=center, inner sep=5pt, font=\footnotesize, text=darkgray},
+    step/.style={font=\footnotesize\bfseries, text=azureblue},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    rowlabel/.style={font=\bfseries, align=center},
+    wire/.style={->, draw=navy},
+  ]
+
+  % 共通の入口：コードでのフォント指定
+  \node[block, minimum width=3.8cm] (rc) at (0,0)
+    {\texttt{plt.rcParams["font.family"]}\\\texttt{= "Noto Sans CJK JP"}};
+  \node[step, above=2mm of rc] {① コードで指定};
+
+  % 上段：修正前（ubuntu-latest そのまま）
+  \node[block] (s1) at (5.6,1.9) {\texttt{font\_manager} が\\フォント一覧を検索};
+  \node[ng]    (f1) at (10.0,1.9) {見つからない\\→ DejaVu Sans で代用};
+  \node[ng]    (r1) at (14.4,1.9) {日本語グリフが無い\\→ 「□□□□□の□□」};
+
+  % 下段：修正後（fonts-noto-cjk を導入）
+  \node[block]  (s2) at (5.6,-1.9) {\texttt{font\_manager} が\\フォント一覧を検索};
+  \node[accent] (f2) at (10.0,-1.9) {Noto Sans CJK JP\\が見つかる};
+  \node[accent] (r2) at (14.4,-1.9) {日本語で描画\\→ 「じゃんけんの回数」};
+
+  % 段ラベル
+  \node[rowlabel, text=crimsonred, anchor=south west] at (rc.west |- {[yshift=12mm]s1.north})
+    {修正前：ubuntu-latest のまま};
+  \node[rowlabel, text=navy, anchor=north west] at (rc.west |- {[yshift=-12mm]s2.south})
+    {修正後：\texttt{fonts-noto-cjk} を導入};
+
+  % 列の見出し
+  \node[step, above=2mm of s1] {② フォント探索};
+  \node[step, above=2mm of f1] {③ 使うフォント};
+  \node[step, above=2mm of r1] {④ 図の文字};
+  \node[step, above=2mm of s2] {② フォント探索};
+  \node[step, above=2mm of f2] {③ 使うフォント};
+  \node[step, above=2mm of r2] {④ 図の文字};
+
+  % 前提条件（外部入力）
+  \node[ext, anchor=south] (e1) at ([yshift=13mm]f1.north)
+    {ランナーに CJK フォントが入っていない};
+  \node[ext, anchor=north] (e2) at ([yshift=-9mm]f2.south)
+    {\texttt{apt-get install fonts-noto-cjk}};
+  \draw[->, darkgray, dashed] (e1) -- ([yshift=7.5mm]f1.north);
+  \draw[->, darkgray, dashed] (e2) -- ([yshift=-1mm]f2.south);
+
+  % 配線
+  \draw[wire] (rc.east) -- ++(0.7,0) |- (s1.west);
+  \draw[wire] (rc.east) -- ++(0.7,0) |- (s2.west);
+  \node[circle, fill=navy, inner sep=1.4pt] at ($(rc.east)+(0.7,0)$) {};
+  \draw[wire] (s1) -- (f1);
+  \draw[wire] (f1) -- (r1);
+  \draw[wire] (s2) -- (f2);
+  \draw[wire] (f2) -- (r2);
+
+  % 補足（ログに出る警告）
+  \node[note, below=2mm of f1] {\texttt{findfont: ... not found}};
+  \node[note, below=2mm of r1] {\texttt{Glyph ... missing}};
+\end{tikzpicture}
