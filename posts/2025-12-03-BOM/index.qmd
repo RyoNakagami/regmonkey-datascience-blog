@@ -2,7 +2,7 @@
 title: "UTF-8 の BOM 付き vs BOM なし"
 author: "Ryo Nakagami"
 date: "2025-12-03"
-date-modified: "2025-12-04"
+date-modified: "2026-11-25"
 categories: [文字コード]
 listing_category: general-series
 comments:
@@ -28,13 +28,83 @@ BOM付きのUTF-8であれば先頭の3バイトがBOMであり，`0xEF 0xBB 0xB
 
 [BOM一覧]{.mini-section}
 
-| 符号化形式（符号化スキーム） | エンディアン | バイト順マーク (BOM)                                   |
+:::: {.no-border-top-table}
+| 符号化形式 | エンディアン | バイト順マーク (BOM)                                   |
 | -------------- | ------ | ----------------------------------------------- |
 | UTF-8          | なし      | `EF BB BF`                                      |
 | UTF-16         | BE       | `FE FF`                                         |
 | UTF-16         | LE       | `FF FE`                                         |
 | UTF-32         | BE       | `00 00 FE FF`                                   |
 | UTF-32         | LE       | `FF FE 00 00`                                   |
+: {tbl-colwidths="[30,25,45]"}
+
+
+::::
+
+### BOM が生まれた経緯
+
+::: {.callout-note}
+### BOM の起源：バイト順序の判定
+
+初期の Unicode（UCS-2）は1文字を2バイトで表していましたが，2バイトの並べ方（エンディアン）は CPU によって異なります．
+
+- BE（ビッグエンディアン）：「あ」（`U+3042`）を `30 42` と並べる
+- LE（リトルエンディアン）：「あ」（`U+3042`）を `42 30` と並べる
+
+受け取った側は `42 30` を見ても，LE の `U+3042` なのか BE の `U+4230` なのか判断できません．
+そこで先頭に `U+FEFF` を置き，`FE FF` なら BE，`FF FE` なら LE と判定する方法が考案されました．これが BOM です．
+
+- `U+FEFF` は幅ゼロの見えない文字なので，表示が崩れない
+- 逆順の `U+FFFE` は文字として使われないので，誤判定が起きない
+
+この仕組みは UTF-16・UTF-32 にも引き継がれています．
+
+:::
+
+### BOM が活用されている場面
+
+[Excel で CSV を開く]{.mini-section}
+
+日本語環境の Excel は，BOM なしの CSV ファイルをダブルクリックで開くと Shift_JIS として解釈するため，UTF-8 の日本語が文字化けします．
+BOM 付き UTF-8 にしておくと Excel が UTF-8 と判定してくれるので，業務システムの CSV エクスポートで「UTF-8（BOM 付き）」が選択肢として用意されていることが多いです．
+Excel 自身も「CSV UTF-8（コンマ区切り）」形式で保存すると BOM 付きで出力します．
+
+[Python の `utf-8-sig`]{.mini-section}
+
+Python には BOM を扱うための `utf-8-sig` という codec が用意されています．
+
+- 読み込み時：先頭に BOM があれば取り除き，なければそのまま読む
+- 書き込み時：先頭に BOM を付与する
+
+Excel で開かれることを想定した CSV を pandas で出力するときは，次のように指定します．
+
+```python
+df.to_csv("output.csv", index=False, encoding="utf-8-sig")
+```
+
+逆に BOM 付きの CSV を標準ライブラリの `csv` モジュールと `encoding="utf-8"` で読み込むと，先頭列の列名に `\ufeff`（例：`\ufeffid`）が混入するので，その場合は `encoding="utf-8-sig"` で読み込みます（pandas の `read_csv` は `encoding="utf-8"` でも BOM を自動で取り除きます）．
+
+[UTF-16 のテキスト]{.mini-section}
+
+Windows の内部表現や，Windows PowerShell 5.1 のリダイレクト出力などでは UTF-16LE が使われています．
+UTF-16 ではバイト順序の判定という本来の役割で，現在も BOM が使われています．
+
+### BOM なしが主流になった流れ
+
+一方で，UTF-8 の BOM は Unix 系の環境を中心に問題を起こしてきました．
+
+- Unix のツールは先頭バイトを特別扱いしないため，shebang（`#!`）が認識されない（後述の例）
+- BOM 付きファイルを `cat` などで連結すると，テキストの途中に BOM が紛れ込む
+- 「ASCII と上位互換」という UTF-8 の利点が，先頭3バイトのせいで損なわれる
+
+こうした事情から，標準や主要なソフトウェアは BOM なしを基本とする方向に進んでいます．
+
+- Unicode 標準：UTF-8 での BOM の使用は「必要でもなく推奨もされない」
+- RFC 8259（JSON）：ネットワーク上でやり取りする JSON テキストの先頭に BOM を付けてはならない
+- Windows 10 May 2019 Update 以降：メモ帳の既定の保存形式が BOM なし UTF-8 になった
+- PowerShell 6 以降：既定のエンコーディングが BOM なし UTF-8 になった
+
+現在では「UTF-8 は BOM なしで作成し，Excel 連携など相手側が BOM を必要とする場合に限って BOM 付きにする」という使い分けが一般的です．
 
 ### `xxd` コマンドでBOMを確認する
 
@@ -90,7 +160,99 @@ UTF-8 (BOM) (LF)
 
 :::
 
-### `nkf` コマンドを用いてBOMなしへ変換する
+## CSV・JSON・Parquet で BOM の有無を判定する
+
+[共通：先頭3バイトを確認する]{.mini-section}
+
+CSV と JSON はテキストファイルなので，先頭3バイトが `EF BB BF` かどうかで判定できます．
+`file` コマンドでも BOM の有無が表示されます．
+
+```bash
+$ head -c 3 data.csv | xxd -p
+efbbbf
+$ file data.csv
+data.csv: CSV Unicode text, UTF-8 (with BOM) text
+```
+
+ディレクトリ内の BOM 付きファイルをまとめて洗い出すときは，次のようにします．
+
+```bash
+for f in *.csv *.json; do
+  [ "$(head -c 3 "$f" | xxd -p)" = "efbbbf" ] && echo "$f"
+done
+```
+
+Python で判定する場合は，バイナリモードで先頭3バイトを読んで `codecs.BOM_UTF8` と比較します．
+
+```python
+import codecs
+
+def has_utf8_bom(path: str) -> bool:
+    with open(path, "rb") as f:
+        return f.read(3) == codecs.BOM_UTF8
+```
+
+[CSV]{.mini-section}
+
+CSV は読み込みに使うライブラリによって BOM の扱いが異なります．
+BOM が自動で取り除かれる場合は，読み込み結果を見ても BOM 付きかどうかに気づけません．
+
+| 読み込み方法 | BOM の扱い |
+| ----------- | --------- |
+| pandas `read_csv(encoding="utf-8")` | 自動で除去 |
+| polars `read_csv` | 自動で除去 |
+| DuckDB `read_csv` | 自動で除去 |
+| `csv` モジュール + `encoding="utf-8"` | 先頭列名に `\ufeff` が残る |
+| `csv` モジュール + `encoding="utf-8-sig"` | 除去 |
+
+`csv` モジュールで読み込んだときに，先頭列の列名が `\ufeff` で始まっていれば BOM 付きです．
+
+```python
+>>> import csv
+>>> next(csv.reader(open("data.csv", encoding="utf-8")))
+['\ufeffid', 'name']
+```
+
+[JSON]{.mini-section}
+
+Python の `json` モジュールは BOM 付きの JSON を `encoding="utf-8"` で読み込むとエラーになるので，エラーメッセージから BOM 付きと判定できます．
+
+```python
+>>> import json
+>>> json.load(open("data.json", encoding="utf-8"))
+json.decoder.JSONDecodeError: Unexpected UTF-8 BOM (decode using utf-8-sig): line 1 column 1 (char 0)
+```
+
+一方で `jq`（1.7）は BOM を無視して読み込むので，`jq` で読めたからといって BOM なしとは限りません．
+
+[Parquet]{.mini-section}
+
+Parquet はバイナリ形式で，ファイルの先頭はマジックナンバー `PAR1`（`50 41 52 31`）と決まっています．
+そのためファイル単位の BOM は存在しません．
+
+```bash
+$ head -c 4 data.parquet | xxd
+00000000: 5041 5231                                PAR1
+```
+
+ただし，BOM 付き CSV を `csv` モジュールなどで読み込んでそのまま Parquet に変換すると，`\ufeff` が列名に残ったまま保存されます．
+Parquet で確認すべきなのは，ファイル先頭ではなくスキーマ（列名）です．
+
+```python
+>>> import pyarrow.parquet as pq
+>>> [n for n in pq.read_schema("data.parquet").names if n.startswith("\ufeff")]
+['\ufeffid']
+```
+
+DuckDB を使う場合は，`parquet_schema` で列名を確認します（`chr(65279)` が `U+FEFF`）．
+
+```sql
+SELECT name
+FROM parquet_schema('data.parquet')
+WHERE starts_with(name, chr(65279));
+```
+
+## `nkf` コマンドを用いてBOMなしへ変換する
 
 ::: {#def- .custom_problem .blog-custom-border}
 [`nkf` コマンド]{.def-title}
@@ -172,8 +334,68 @@ AのUTF-8の2進数表現は 8 bit = 1 Byteであるので，「ASCIIと同じ�
 α は16 bitとなっていますが，ギリシャ文字は ASCII の範囲外なので 2 Bytes となります．
 
 :::
+
+### UTF-8 に BOM が付くようになった経緯
+
+UTF-8 は1992年に Ken Thompson と Rob Pike によって設計された符号化形式で，1バイト単位でデータを扱うためバイト順序の問題がそもそも存在しません．
+それでも UTF-8 に `EF BB BF` が付くことがあるのは，次の2つの理由によります．
+
+[UTF-16 からの変換の副産物]{.mini-section}
+
+BOM 付きの UTF-16 テキストを UTF-8 へ変換するとき，先頭の `U+FEFF` を通常の文字としてそのまま UTF-8 で符号化すると `EF BB BF` になります．
+意図して付けたというより，変換処理の結果として BOM が残ったケースです．
+
+[文字コード判定のためのシグネチャ]{.mini-section}
+
+Windows では長らく，日本語版なら Shift_JIS（CP932）のような「ANSI コードページ」がテキストファイルの標準でした．
+ASCII の範囲の文字は UTF-8 と Shift_JIS で同じバイト列になるため，ファイルの中身だけから UTF-8 か Shift_JIS かを確実に見分けることはできず，推測に頼ることになります．
+
+そこで Microsoft は，先頭の `EF BB BF` を「このファイルは UTF-8 である」ことを示す **シグネチャ** として使いました．
+
+- Windows 2000/XP 以降のメモ帳は，UTF-8 で保存するとき BOM を付与する
+- Excel や Visual Studio などは，BOM の有無で UTF-8 かどうかを判定する
+
+このように UTF-8 の BOM は，バイト順序ではなく「符号化形式の識別」という本来とは別の目的で広まりました．
+
+### BOM の活用例：XML の符号化宣言
+
+XML では，文書の先頭に次の形式で XML 宣言を記述します．`encoding="iso-8859-1"` の部分が **符号化宣言** で，その文書の文字コードを示します．
+
+```xml
+<?xml version="1.0" encoding="iso-8859-1"?>
+```
+
+ただし，どの文字コードでも符号化宣言が必要なわけではありません．
+XML の仕様ではデフォルトの文字コードは UTF-8 で，UTF-8 と UTF-16 の文書は符号化宣言を省略できます．
+符号化宣言がない場合，XML プロセッサは文書先頭の BOM を見て文字コードを判定します．
+
+:::: {.no-border-top-table}
+| 文書先頭のバイト列 | 判定結果 |
+| ---------------- | ------- |
+| `FE FF`          | UTF-16（BE） |
+| `FF FE`          | UTF-16（LE） |
+| `EF BB BF`       | UTF-8（BOM 付き） |
+| BOM なし          | UTF-8 |
+
+::::
+
+一方，ISO-8859-1，Shift_JIS，EUC-JP などは BOM では識別できないため，`encoding` 属性で明示的に宣言する必要があります．
+
+[BOM が果たしている役割]{.mini-section}
+
+この判定では，BOM が本文で説明した2つの役割を同時に果たしています．
+
+- **バイト順序の判定**：UTF-16 では，BOM で BE / LE を判定する．XML の仕様では UTF-16 の文書は BOM で始めなければならない
+- **符号化形式の識別**：BOM の種類で UTF-16 か UTF-8 かを見分ける．BOM がない文書は UTF-8 とみなされる
+
+UTF-8 では BOM は任意なので，`EF BB BF` で始まっていてもいなくても UTF-8 として扱われ，どちらの場合も符号化宣言を省略できます．
+
 ---
 
 References
 ----------
 - [【nkf】コマンド――文字コードと改行コードを変換する](https://atmarkit.itmedia.co.jp/ait/articles/1609/29/news016.html)
+- [Unicode FAQ: UTF-8, UTF-16, UTF-32 & BOM](https://www.unicode.org/faq/utf_bom.html)
+- [RFC 2781: UTF-16, an encoding of ISO 10646](https://www.rfc-editor.org/rfc/rfc2781)
+- [RFC 8259: The JavaScript Object Notation (JSON) Data Interchange Format](https://www.rfc-editor.org/rfc/rfc8259)
+- [Extensible Markup Language (XML) 1.0 (Fifth Edition), 4.3.3 Character Encoding in Entities / Appendix F](https://www.w3.org/TR/xml/#charencoding)
