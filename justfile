@@ -91,3 +91,97 @@ new slug="" date=today:
     ---
     EOF
     echo "$dir"
+
+[doc("categories を正規表現で検索して該当記事を一覧表示")]
+[positional-arguments]
+tag-search *args:
+    #!/usr/bin/env bash
+    # Usage: just tag-search <pattern> [--asc|--desc] [-a]
+    #
+    # posts/*/index.qmd の frontmatter の categories を正規表現（ERE）で検索し，
+    # いずれかの category がマッチした記事ディレクトリを一覧表示します。
+    # マッチは category 単位・部分一致・大文字小文字を区別しません（ASCII のみ）。
+    # 完全一致させたい場合は ^...$ で囲んでください。
+    #
+    # Arguments:
+    #   pattern  category にマッチさせる正規表現（例: Linux, '^(C|Rust)$'）
+    #   --asc    date の古い順に表示
+    #   --desc   date の新しい順に表示（デフォルト）
+    #   -a       ディレクトリではなく index.qmd のパスまで表示
+    #
+    # Output:
+    #   <date>  posts/<dir>  [<categories>]          （-a 指定時は posts/<dir>/index.qmd）
+    #
+    # Examples:
+    #   just tag-search Linux
+    #   just tag-search '^環境構築$' --asc
+    #   just tag-search 'python|julia' --desc
+    #   just tag-search security -a
+    set -euo pipefail
+    pattern=""
+    order="desc"
+    show_file=0
+    for a in "$@"; do
+      case "$a" in
+        --asc)  order="asc" ;;
+        -a)     show_file=1 ;;
+        --desc) order="desc" ;;
+        -h|--help|help)
+          exec "{{just_executable()}}" --justfile "{{justfile()}}" help tag-search ;;
+        -*)
+          echo "error: unknown option: $a" >&2; exit 1 ;;
+        *)
+          if [[ -n "$pattern" ]]; then
+            echo "error: pattern は1つだけ指定してください" >&2; exit 1
+          fi
+          pattern="$a" ;;
+      esac
+    done
+    if [[ -z "$pattern" ]]; then
+      exec "{{just_executable()}}" --justfile "{{justfile()}}" help tag-search
+    fi
+    # 不正な正規表現を事前に検出する（検索と同じ awk で評価）
+    if ! awk -v pat="$pattern" 'BEGIN { if ("" ~ pat) {} }' 2>/dev/null; then
+      echo "error: 不正な正規表現です: $pattern" >&2; exit 1
+    fi
+    sort_opt=(-k1,1); [[ "$order" == "desc" ]] && sort_opt=(-k1,1r)
+    cd "{{justfile_directory()}}"
+    # 全ファイルを1回の awk で処理する．frontmatter（先頭の --- から次の --- まで）だけを読む
+    result=$(
+      awk -v show_file="$show_file" -v pat="$(printf '%s' "$pattern" | tr '[:upper:]' '[:lower:]')" '
+        function flush() {
+          if (hit) {
+            if (date == "") date = substr(dir, 7, 10)
+            printf "%s\t%s\t[%s]\n", date, (show_file ? path : dir), cats
+          }
+          hit = 0; date = ""; cats = ""; infm = 0
+        }
+        FNR == 1 {
+          flush()
+          path = FILENAME; dir = path; sub(/\/index\.qmd$/, "", dir)
+          if ($0 ~ /^---[ \t]*$/) infm = 1
+          next
+        }
+        !infm { next }
+        /^---[ \t]*$/ { infm = 0; next }
+        /^date:/ {
+          date = $0; sub(/^date:[ \t]*/, "", date); gsub(/["\047 \t]/, "", date)
+        }
+        /^categories:/ {
+          c = $0; sub(/^categories:[ \t]*\[/, "", c); sub(/\][ \t]*$/, "", c)
+          cats = c
+          n = split(c, arr, ",")
+          for (i = 1; i <= n; i++) {
+            t = arr[i]; gsub(/^[ \t"\047]+|[ \t"\047]+$/, "", t)
+            if (tolower(t) ~ pat) hit = 1
+          }
+        }
+        END { flush() }
+      ' posts/*/index.qmd | sort -t$'\t' "${sort_opt[@]}" -k2,2
+    )
+    if [[ -z "$result" ]]; then
+      echo "no posts matched: $pattern" >&2
+      exit 1
+    fi
+    printf '%s\n' "$result" | column -t -s$'\t'
+    echo "$(printf '%s\n' "$result" | wc -l) posts matched" >&2
