@@ -1,0 +1,65 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    dir/.style={draw=navy, fill=white, rounded corners=2pt, anchor=west,
+                inner sep=4pt, minimum height=0.7cm},
+    file/.style={dir, fill=paleskyblue},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=left, minimum height=1.1cm, inner sep=6pt, anchor=west},
+    ng/.style={block, draw=crimsonred, fill=mistyrose},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south, font=\bfseries, text=navy},
+    note/.style={font=\footnotesize, text=darkgray, anchor=west},
+    hit/.style={font=\footnotesize\bfseries, text=azureblue, anchor=west},
+    tree/.style={draw=darkgray, line width=0.5pt},
+    search/.style={->, draw=azureblue, line width=0.8pt},
+  ]
+  % ===== ディレクトリツリー =====
+  \node[dir]  (root) at (0,0)     {\texttt{/}};
+  \node[dir]  (gh)   at (0.8,-1.3) {\texttt{\textasciitilde/}};
+  \node[dir]  (repo) at (1.6,-2.8) {\texttt{regmonkey-datascience-blog/}};
+  \node[file] (jf)   at (2.4,-3.9) {\texttt{justfile}};
+  \node[dir]  (posts) at (2.4,-5.0) {\texttt{posts/}};
+  \node[dir]  (art)  at (3.2,-6.1) {\texttt{2026-11-18-.../}};
+  \node[dir]  (tmp)  at (0.8,-8.4) {\texttt{/tmp/}};
+
+  \foreach \p/\c in {root/gh, root/tmp, gh/repo, repo/jf, repo/posts, posts/art} {
+    \draw[tree] ($(\p.south west)+(0.3,0)$) |- (\c.west);
+  }
+
+  % ===== 探索経路（子 → 親） =====
+  \draw[search] (art.west) -| ($(posts.south west)+(0.3,0)$);
+  \draw[search] (posts.west) -| ($(repo.south west)+(0.3,0)$);
+  \draw[search] (tmp.west) -| ($(root.south west)+(0.3,0)$);
+
+  % ===== 各ディレクトリでの結果 =====
+  \node[note] at ($(art.east)+(0.2,0)$)   {カレント：justfile なし → 親へ};
+  \node[note] at ($(posts.east)+(0.2,0)$) {justfile なし → 親へ};
+  \node[hit]  at ($(repo.east)+(0.2,0)$)  {justfile あり ✓ 探索終了};
+  \node[note] at ($(tmp.east)+(0.2,0)$)   {カレント：justfile なし → 親へ};
+  \node[note] at ($(root.east)+(0.2,0)$)  {justfile なし．これより上の親はない};
+
+  % ===== 実行結果 =====
+  \node[block] (okres) at (10.6,-5.55)
+    {\texttt{\$ just new foo}\\{\footnotesize 見つかった justfile のレシピを実行}};
+  \node[ng] (ngres) at (10.6,-8.4)
+    {\texttt{\$ just new foo}\\\textcolor{crimsonred}{\texttt{error: no justfile found}}};
+
+  % ===== ゾーン =====
+  \begin{scope}[on background layer]
+    \node[zone, fit=(repo)(jf)(posts)(art)(okres)] (zin) {};
+    \node[zone, fit=(tmp)(ngres)] (zout) {};
+  \end{scope}
+  \node[zlabel] at ($(zin.north)+(2.2,0)$) {リポジトリの中：どの階層からでも \texttt{just new} が使える};
+  \node[zlabel] at (zout.north) {リポジトリの外：コマンドは存在しない};
+\end{tikzpicture}

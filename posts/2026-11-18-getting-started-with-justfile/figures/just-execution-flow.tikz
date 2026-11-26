@@ -1,0 +1,77 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    ext/.style={draw=darkgray, dashed, fill=white, rounded corners=3pt,
+                align=center, inner sep=5pt, minimum height=1.1cm},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south, font=\bfseries, text=navy},
+    step/.style={font=\footnotesize\bfseries, text=azureblue},
+    note/.style={font=\footnotesize, text=darkgray, align=center},
+    dot/.style={circle, fill=navy, inner sep=1.4pt},
+    wire/.style={->, draw=navy},
+  ]
+  % ===== 上段：justfile からコマンドテキストが確定するまで =====
+  \node[ext] (cmd) at (0,0) {\texttt{\$ just new foo}};
+  \node[block, minimum width=3.3cm] (s1) at (4.2,0)  {justfile を探す};
+  \node[block, minimum width=3.3cm] (s2) at (8.2,0)  {解析・検査};
+  \node[block, minimum width=3.3cm] (s3) at (12.2,0) {値を評価};
+  \node[accent, minimum width=3.3cm] (s4) at (16.2,0) {レシピ本文を展開};
+
+  \foreach \n/\s/\t in {
+      s1/Step 1/カレントから親へ遡る\\\texttt{Justfile}・\texttt{.justfile} も可,
+      s2/Step 2/ファイル全体を構文解析\\未知レシピ・循環依存は\\実行前にエラー,
+      s3/Step 3/変数・バッククォートを評価\\引数を束縛（\texttt{slug=foo}）,
+      s4/Step 4/\texttt{\{\{slug\}\}} を値で置換\\→ 実行する文字列が確定} {
+    \node[step, above=2mm of \n] {\s};
+    \node[note, below=2mm of \n, anchor=north] {\t};
+  }
+  \node[note, above=2mm of cmd] {ターミナル};
+
+  \draw[wire] (cmd) -- (s1);
+  \draw[wire] (s1) -- (s2);
+  \draw[wire] (s2) -- (s3);
+  \draw[wire] (s3) -- (s4);
+
+  % ===== 下段：実行 =====
+  \node[block, minimum width=3.3cm] (a1) at (4.2,-4.2) {通常レシピ};
+  \node[block, minimum width=3.6cm] (a2) at (9.0,-4.2) {1行ずつ取り出し\\\texttt{set shell} に渡す};
+  \node[accent, minimum width=4.6cm] (a3) at (14.4,-4.2) {\texttt{bash -euo pipefail -c '<1行>'}};
+  \node[note, below=2mm of a3] {1行ごとに新しいシェル（\texttt{cd} や変数は次行に残らない）};
+
+  \node[block, minimum width=3.3cm] (b1) at (4.2,-6.6) {shebang レシピ\\{\footnotesize 本文が \texttt{\#!} で始まる}};
+  \node[block, minimum width=3.6cm] (b2) at (9.0,-6.6) {本文を一時ファイルに\\保存して実行権限を付与};
+  \node[accent, minimum width=4.6cm] (b3) at (14.4,-6.6) {\texttt{/usr/bin/env bash /tmp/…}};
+  \node[note, below=2mm of b3] {本文全体を1つのシェルで実行（\texttt{if} や変数が使える）};
+
+  \draw[wire] (a1) -- (a2);
+  \draw[wire] (a2) -- (a3);
+  \draw[wire] (b1) -- (b2);
+  \draw[wire] (b2) -- (b3);
+
+  % s4 から下段への戻り線
+  \coordinate (ret) at (1.0,-2.15);
+  \node[dot] (br) at (1.0,-5.4) {};
+  \draw[navy] (s4.east) -- ++(1.0,0) |- (ret) -- (br);
+  \draw[wire] (br) |- (a1.west);
+  \draw[wire] (br) |- (b1.west);
+
+  \coordinate (ztop) at ($(a1.north)+(0,0.1)$);
+  \coordinate (zbot) at ($(b3.south)+(0,-0.75)$);
+  \begin{scope}[on background layer]
+    \node[zone, fit=(a1)(b1)(a3)(b3)(a1 |- ztop)(b3 |- zbot)] (zrun) {};
+  \end{scope}
+  \node[zlabel] at (zrun.north) {Step 5：実行（作業ディレクトリ = justfile のあるディレクトリ）};
+\end{tikzpicture}
