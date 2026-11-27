@@ -97,35 +97,44 @@ new slug="" date=today:
 tag-search *args:
     #!/usr/bin/env bash
     # Usage: just tag-search <pattern> [--asc|--desc] [-a]
+    #        just tag-search --list [pattern] [--asc|--desc]
     #
     # posts/*/index.qmd の frontmatter の categories を正規表現（ERE）で検索し，
     # いずれかの category がマッチした記事ディレクトリを一覧表示します。
     # マッチは category 単位・部分一致・大文字小文字を区別しません（ASCII のみ）。
     # 完全一致させたい場合は ^...$ で囲んでください。
+    # --list を指定すると，記事ではなく category の一覧と記事件数を表示します。
     #
     # Arguments:
     #   pattern  category にマッチさせる正規表現（例: Linux, '^(C|Rust)$'）
-    #   --asc    date の古い順に表示
-    #   --desc   date の新しい順に表示（デフォルト）
+    #            --list 指定時は省略可（省略時は全 category を表示）
+    #   --list   category 一覧と記事件数を表示
+    #   --asc    date の古い順に表示（--list 時は件数の少ない順）
+    #   --desc   date の新しい順に表示（--list 時は件数の多い順，デフォルト）
     #   -a       ディレクトリではなく index.qmd のパスまで表示
     #
     # Output:
     #   <date>  posts/<dir>  [<categories>]          （-a 指定時は posts/<dir>/index.qmd）
+    #   <count>  <category>                           （--list 指定時）
     #
     # Examples:
     #   just tag-search Linux
     #   just tag-search '^環境構築$' --asc
     #   just tag-search 'python|julia' --desc
     #   just tag-search security -a
+    #   just tag-search --list
+    #   just tag-search --list python --asc
     set -euo pipefail
     pattern=""
     order="desc"
     show_file=0
+    list_tags=0
     for a in "$@"; do
       case "$a" in
         --asc)  order="asc" ;;
         -a)     show_file=1 ;;
         --desc) order="desc" ;;
+        --list) list_tags=1 ;;
         -h|--help|help)
           exec "{{just_executable()}}" --justfile "{{justfile()}}" help tag-search ;;
         -*)
@@ -137,7 +146,7 @@ tag-search *args:
           pattern="$a" ;;
       esac
     done
-    if [[ -z "$pattern" ]]; then
+    if [[ -z "$pattern" && "$list_tags" -eq 0 ]]; then
       exec "{{just_executable()}}" --justfile "{{justfile()}}" help tag-search
     fi
     # 不正な正規表現を事前に検出する（検索と同じ awk で評価）
@@ -146,6 +155,37 @@ tag-search *args:
     fi
     sort_opt=(-k1,1); [[ "$order" == "desc" ]] && sort_opt=(-k1,1r)
     cd "{{justfile_directory()}}"
+    if [[ "$list_tags" -eq 1 ]]; then
+      if [[ "$show_file" -eq 1 ]]; then
+        echo "error: -a は --list と併用できません" >&2; exit 1
+      fi
+      # category ごとの記事件数を集計する．pattern 指定時は category 名でフィルタする
+      # 件数順（同数なら category 名順）で表示
+      result=$(
+        awk -v pat="$(printf '%s' "$pattern" | tr '[:upper:]' '[:lower:]')" '
+          FNR == 1 { infm = ($0 ~ /^---[ \t]*$/); next }
+          !infm { next }
+          /^---[ \t]*$/ { infm = 0; next }
+          /^categories:/ {
+            c = $0; sub(/^categories:[ \t]*\[/, "", c); sub(/\][ \t]*$/, "", c)
+            n = split(c, arr, ",")
+            for (i = 1; i <= n; i++) {
+              t = arr[i]; gsub(/^[ \t"\047]+|[ \t"\047]+$/, "", t)
+              if (t == "") continue
+              if (pat == "" || tolower(t) ~ pat) count[t]++
+            }
+          }
+          END { for (t in count) printf "%d\t%s\n", count[t], t }
+        ' posts/*/index.qmd | sort -t$'\t' -k1,1n"$([[ "$order" == "desc" ]] && echo r)" -k2,2
+      )
+      if [[ -z "$result" ]]; then
+        echo "no categories matched: $pattern" >&2
+        exit 1
+      fi
+      printf '%s\n' "$result" | column -t -s$'\t'
+      echo "$(printf '%s\n' "$result" | wc -l) categories" >&2
+      exit 0
+    fi
     # 全ファイルを1回の awk で処理する．frontmatter（先頭の --- から次の --- まで）だけを読む
     result=$(
       awk -v show_file="$show_file" -v pat="$(printf '%s' "$pattern" | tr '[:upper:]' '[:lower:]')" '
