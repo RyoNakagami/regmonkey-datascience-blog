@@ -1,0 +1,75 @@
+#| mainfont: Noto Sans CJK JP
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{aliceblue}{HTML}{E8F1FE}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
+\definecolor{fontblack}{HTML}{1A1A1A}
+\definecolor{darkgray}{HTML}{575757}
+\definecolor{lightgray}{HTML}{DEDEDE}
+\definecolor{crimsonred}{HTML}{D31804}
+\definecolor{mistyrose}{HTML}{FBE7E6}
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, minimum width=4.0cm, inner sep=5pt},
+    accent/.style={block, fill=paleskyblue},
+    ext/.style={draw=darkgray, dashed, fill=white, rounded corners=3pt,
+                align=center, inner sep=5pt, minimum height=1.1cm, minimum width=4.0cm},
+    rlabel/.style={anchor=east, font=\bfseries, text=navy, align=right},
+    note/.style={font=\footnotesize, text=darkgray, align=center, anchor=north},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    wire/.style={->, draw=navy},
+    sep/.style={draw=lightgray},
+  ]
+  % 列の x 座標
+  \def\ca{0} \def\cb{4.8} \def\cc{9.6} \def\cd{14.4}
+
+  % ===== 1段目：補完スクリプトを保存（1回だけ） =====
+  \node[block] (a1) at (\ca,0) {\verb|mkdir -p|\\\verb|~/.zsh/completions|};
+  \node[block] (a2) at (\cb,0) {\verb|just --completions zsh|};
+  \node[block] (a3) at (\cc,0) {\verb|~/.zsh/completions/_just|};
+  \node[note, below=2mm of a1] (na1) {置き場所のディレクトリを作る};
+  \node[note, below=2mm of a2] (na2) {補完スクリプトを\\標準出力に書き出す};
+  \node[note, below=2mm of a3] (na3) {1行目の \verb|#compdef just| が\\「\verb|just| 用」の目印};
+  \draw[wire] (a1) -- (a2);
+  \draw[wire] (a2) -- (a3);
+
+  % ===== 2段目：シェル起動時（~/.zshrc） =====
+  \node[block] (b1) at (\ca,-3.6) {\verb|fpath=(~/.zsh/completions|\\\verb|$fpath)|};
+  \node[block] (b2) at (\cb,-3.6) {\verb|autoload -U compinit|};
+  \node[block] (b3) at (\cc,-3.6) {\verb|compinit|};
+  \node[block] (b4) at (\cd,-3.6) {補完の対応表\\\verb|just| → \verb|_just|};
+  \node[note, below=2mm of b1] (nb1) {探す場所の先頭に\\ディレクトリを足す};
+  \node[note, below=2mm of b2] (nb2) {\verb|compinit| を\\呼べる状態にする};
+  \node[note, below=2mm of b3] (nb3) {\verb|fpath| 上の \verb|_*| を走査し\\\verb|#compdef| 行を読む};
+  \node[note, below=2mm of b4] (nb4) {\verb|~/.zcompdump| に\\キャッシュされる};
+  \draw[wire] (b1) -- (b2);
+  \draw[wire] (b2) -- (b3);
+  \draw[wire] (b3) -- (b4);
+  % 1段目のファイルが compinit に見つけられる
+  \draw[wire, dashed] (na3.south) -- node[midway, right, sig] {見つかる} (b3.north);
+
+  % ===== 3段目：TAB を押したとき =====
+  \node[ext] (c1) at (\ca,-7.8) {\verb|$ just <TAB>|};
+  \node[block] (c2) at (\cb,-7.8) {\verb|_just| を実行};
+  \node[block] (c3) at (\cc,-7.8) {\verb|just| 自身に\\候補を問い合わせ};
+  \node[accent] (c4) at (\cd,-7.8) {候補を表示};
+  \node[note, below=2mm of c1] (nc1) {ユーザーの入力};
+  \node[note, below=2mm of c2] (nc2) {初回だけ \verb|fpath| から\\関数を読み込む};
+  \node[note, below=2mm of c3] (nc3) {カレントの justfile を読み\\レシピ名を返す};
+  \node[note, below=2mm of c4] (nc4) {レシピ名・オプション};
+  \draw[wire] (c1) -- (c2);
+  \draw[wire] (c2) -- (c3);
+  \draw[wire] (c3) -- (c4);
+  % 対応表を引いて呼ぶ関数を決める
+  \coordinate (lk) at (nb4.south |- 0,-6.1);
+  \draw[wire, dashed] (nb4.south) -- (lk) -| node[pos=0.3, below, sig] {対応表を引いて呼ぶ関数を決める} (c2.north);
+
+  % ===== 段ラベルと区切り線 =====
+  \node[rlabel] at (-2.6,0)    {① 保存\\（1回だけ）};
+  \node[rlabel] at (-2.6,-3.6) {② シェル起動時\\（\verb|.zshrc|）};
+  \node[rlabel] at (-2.6,-7.8) {③ TAB を\\押したとき};
+  \draw[sep] (-4.6,-2.15) -- (16.5,-2.15);
+  \draw[sep] (-4.6,-5.65) -- (16.5,-5.65);
+\end{tikzpicture}

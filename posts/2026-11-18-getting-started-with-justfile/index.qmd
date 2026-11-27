@@ -323,7 +323,7 @@ error: recipe `shebang` failed with exit code 127
 
 :::
 
-## install
+## Install
 
 公式の [Installation](https://just.systems/man/en/packages.html) にパッケージマネージャごとの方法がまとまっています．代表的なものは次の3つです．
 
@@ -362,6 +362,51 @@ just:
 
 - `~/.cargo/bin` にユーザー権限で入るので，システムのパッケージと衝突しない = sudo が不要 
 - 最新版にすぐ追従できる: `cargo install just` の再実行でOK
+
+
+### Zsh Completionの設定
+
+
+`just` には補完スクリプトの生成機能があり，`just --completions zsh` で Zsh 用のスクリプトを出力できます（[Shell Completion Scripts](https://just.systems/man/en/shell-completion-scripts.html)）．
+
+```zsh
+# 1. 補完スクリプトを保存する
+mkdir -p ~/.zsh/completions
+just --completions zsh > ~/.zsh/completions/_just
+```
+
+```zsh
+# 2. ~/.zshrc に追記する
+fpath=(~/.zsh/completions $fpath)
+autoload -U compinit
+compinit
+```
+
+`exec zsh` でシェルを再起動すると，`just <TAB>` でレシピ名やオプションが補完されます．
+
+| 要素 | 何か | この設定での役割 |
+|---|---|---|
+| `~/.zsh/completions/_just` | just 用の補完定義ファイル | `just` の後にどんな候補（レシピ名・オプション）を出すかが書かれている．Zsh は `_コマンド名` という名前のファイルを補完定義として扱うので，先頭の `_` は必須 |
+| `fpath` | Zsh が関数や補完定義を探すディレクトリの一覧．コマンドを探す `PATH` の関数版 | `~/.zsh/completions` を先頭に足して，Zsh が `_just` を見つけられるようにする |
+| `autoload -U compinit` | 関数を「初めて呼ばれたときに読み込む」よう登録するコマンド | 補完システムの初期化関数 `compinit` を呼べる状態にする．`-U` は読み込み時にユーザー定義の alias の影響を受けないようにするオプション |
+| `compinit` | Zsh の補完システムを初期化する関数 | `fpath` 上の `_*` ファイルを読み込んで補完を有効にする．`fpath` を書き換えた後に呼ばないと `_just` は読まれない |
+: {tbl-colwidths="[24,30,46]"}
+
+[補完が動く仕組み]{.mini-section}
+
+これらの設定は，① 保存，② シェル起動時，③ TAB を押したときの3段階で効きます．
+
+![補完スクリプトの保存から候補の表示まで](figures/zsh-completion-flow.svg){width="100%" fig-align="center"}
+
+::: {.circle-numbered}
+
+1. **保存（1回だけ）**: `just --completions zsh` が出力した補完スクリプトを `_just` として保存する．1行目の `#compdef just` が「`just` コマンド用の補完定義」という目印になる
+2. **シェル起動時**: `.zshrc` の3行が上から順に実行される．`compinit` は `fpath` に並んだディレクトリから `_*` ファイルを探し，`#compdef` 行を読んで「`just` には `_just`」という対応表を作る．対応表は `~/.zcompdump` にキャッシュされる
+3. **TAB を押したとき**: Zsh は対応表から `_just` を引いて実行する．`_just` は `just` 自身に「今の入力に続く候補」を問い合わせ，`just` がカレントディレクトリの justfile を読んでレシピ名を返す
+
+:::
+
+③ で毎回 justfile を読むため，レシピを追加・削除しても補完スクリプトを作り直す必要はありません．作り直しが必要なのは，just を更新して新しいオプションを補完したいときだけです．
 
 
 ## このレポジトリでの活用方法
@@ -568,3 +613,4 @@ glossary:
 References
 ----------
 - [Just Programmer's Manual](https://just.systems/man/en/)（最新リリースに対応した公式マニュアル）
+- [Shell Completion Scripts](https://just.systems/man/en/shell-completion-scripts.html)
